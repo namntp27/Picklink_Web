@@ -1,0 +1,6 @@
+{
+  "name": "Picklink",
+  "description": "A comprehensive Pickleball platform to book courts, find matches, join clubs, and discover tournaments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
