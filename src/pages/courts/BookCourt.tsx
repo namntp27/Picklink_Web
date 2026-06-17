@@ -103,7 +103,7 @@ export const BookCourt = () => {
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                   <button onClick={() => navigate('/court/1')} className="px-6 py-2 border border-outline-variant rounded-lg text-label-md font-bold text-on-surface hover:bg-surface-container transition-colors">Xem chi tiết</button>
-                  <button onClick={() => navigate('/checkout')} className="px-6 py-2 bg-primary-container text-on-primary rounded-lg text-label-md font-bold hover:brightness-110 active:scale-95 transition-all">Đặt sân</button>
+                  <button onClick={() => navigate('/court/1/schedule')} className="px-6 py-2 bg-primary-container text-on-primary rounded-lg text-label-md font-bold hover:brightness-110 active:scale-95 transition-all">Đặt sân</button>
                 </div>
               </div>
             </div>
@@ -136,7 +136,7 @@ export const BookCourt = () => {
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                   <button onClick={() => navigate('/court/2')} className="px-6 py-2 border border-outline-variant rounded-lg text-label-md font-bold text-on-surface hover:bg-surface-container transition-colors">Xem chi tiết</button>
-                  <button onClick={() => navigate('/checkout')} className="px-6 py-2 bg-primary-container text-on-primary rounded-lg text-label-md font-bold hover:brightness-110 active:scale-95 transition-all">Đặt sân</button>
+                  <button onClick={() => navigate('/court/2/schedule')} className="px-6 py-2 bg-primary-container text-on-primary rounded-lg text-label-md font-bold hover:brightness-110 active:scale-95 transition-all">Đặt sân</button>
                 </div>
               </div>
             </div>
@@ -169,7 +169,7 @@ export const BookCourt = () => {
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                   <button onClick={() => navigate('/court/3')} className="px-6 py-2 border border-outline-variant rounded-lg text-label-md font-bold text-on-surface hover:bg-surface-container transition-colors">Xem chi tiết</button>
-                  <button onClick={() => navigate('/checkout')} className="px-6 py-2 bg-primary-container text-on-primary rounded-lg text-label-md font-bold hover:brightness-110 active:scale-95 transition-all">Đặt sân</button>
+                  <button onClick={() => navigate('/court/3/schedule')} className="px-6 py-2 bg-primary-container text-on-primary rounded-lg text-label-md font-bold hover:brightness-110 active:scale-95 transition-all">Đặt sân</button>
                 </div>
               </div>
             </div>

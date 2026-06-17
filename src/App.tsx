@@ -14,6 +14,7 @@ import { Posts } from './pages/community/Posts';
 import { Checkout } from './pages/courts/Checkout';
 import { BookCourt } from './pages/courts/BookCourt';
 import { CourtDetail } from './pages/courts/CourtDetail';
+import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
 import { Home } from './pages/home/Home';
@@ -41,6 +42,7 @@ function App() {
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/owner" element={<OwnerDashboard />} />
       <Route path="/checkout" element={<Checkout />} />
+      <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
       <Route path="/court/:id" element={<CourtDetail />} />
     </Routes>
   );
