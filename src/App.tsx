@@ -18,6 +18,7 @@ import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
 import { Home } from './pages/home/Home';
+import { Notifications } from './pages/notifications/Notifications';
 import { Tournaments } from './pages/tournaments/Tournaments';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
         <Route path="opponents" element={<Opponents />} />
         <Route path="matches/:id" element={<MatchDetail />} />
         <Route path="my-matches" element={<MyMatches />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Bell, Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Header = () => {
@@ -63,6 +63,20 @@ export const Header = () => {
         </nav>
       </div>
       <div className="hidden items-center gap-4 md:flex">
+        <Link
+          aria-label="Thông báo"
+          className={`relative flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 transition-colors ${
+            location.pathname.startsWith('/notifications')
+              ? 'bg-white text-primary'
+              : 'text-on-primary hover:bg-white/10'
+          }`}
+          to="/notifications"
+        >
+          <Bell className="h-5 w-5" />
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#eab526] px-1 text-[11px] font-bold text-white">
+            3
+          </span>
+        </Link>
         <Link to="/login">
             <button className="text-on-primary/90 font-label-md text-label-md px-4 py-2 hover:opacity-80 transition-opacity">Đăng nhập</button>
         </Link>
@@ -88,6 +102,10 @@ export const Header = () => {
                 {item.label}
               </Link>
             ))}
+            <Link to="/notifications" className={`${getMobileNavLinkClass('/notifications')} flex items-center justify-between`}>
+              <span>Thông báo</span>
+              <span className="rounded-full bg-[#eab526] px-2 py-0.5 text-[12px] font-bold text-white">3</span>
+            </Link>
           </nav>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
             <Link
