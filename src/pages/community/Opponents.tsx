@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   CalendarClock,
   CalendarDays,
@@ -7,6 +8,7 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
+  Eye,
   LandPlot,
   ListChecks,
   MapPin,
@@ -788,6 +790,13 @@ export const Opponents = () => {
               <p className="mt-4 max-w-2xl text-[17px] leading-7 text-white/88">
                 Người chơi chọn tỉnh/thành, xã/phường, sân và khung giờ trống. Lời mời sẽ xuất hiện trong danh sách đang chờ để người khác tham gia, sau đó cả hai bên cùng xác nhận thanh toán tiền sân.
               </p>
+              <Link
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary transition-colors hover:bg-white/90"
+                to="/my-matches"
+              >
+                <Trophy className="h-5 w-5" />
+                Xem trận của tôi
+              </Link>
             </div>
             <div className="rounded-xl border border-white/18 bg-white/10 p-5 backdrop-blur">
               <p className="text-[13px] font-bold uppercase tracking-wide text-white/75">Tổng quan hôm nay</p>
@@ -1323,25 +1332,36 @@ export const Opponents = () => {
                             </span>
                           )}
                         </div>
-                        <h3 className="mt-3 text-[20px] font-bold text-on-surface">
-                          {invite.host === 'Bạn' ? 'Lời mời của bạn' : `${invite.host} đang tìm người chơi`}
-                        </h3>
+                        <Link to={`/matches/${invite.id}`}>
+                          <h3 className="mt-3 text-[20px] font-bold text-on-surface transition-colors hover:text-primary">
+                            {invite.host === 'Bạn' ? 'Lời mời của bạn' : `${invite.host} đang tìm người chơi`}
+                          </h3>
+                        </Link>
                         <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{invite.note}</p>
                       </div>
 
-                      <button
-                        className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-[14px] font-bold transition-colors lg:w-auto ${
-                          availableSlots === 0
-                            ? 'cursor-not-allowed bg-surface-container-low text-on-surface-variant'
-                            : 'bg-primary text-white hover:bg-primary/90'
-                        }`}
-                        disabled={availableSlots === 0}
-                        onClick={() => handleJoinInvite(invite)}
-                        type="button"
-                      >
-                        {availableSlots === 0 ? <CheckCircle2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                        {availableSlots === 0 ? 'Đã đủ người' : 'Tham gia'}
-                      </button>
+                      <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                        <Link
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-5 py-3 text-[14px] font-bold text-primary transition-colors hover:bg-primary/10 lg:w-auto"
+                          to={`/matches/${invite.id}`}
+                        >
+                          <Eye className="h-5 w-5" />
+                          Xem chi tiết
+                        </Link>
+                        <button
+                          className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-[14px] font-bold transition-colors lg:w-auto ${
+                            availableSlots === 0
+                              ? 'cursor-not-allowed bg-surface-container-low text-on-surface-variant'
+                              : 'bg-primary text-white hover:bg-primary/90'
+                          }`}
+                          disabled={availableSlots === 0}
+                          onClick={() => handleJoinInvite(invite)}
+                          type="button"
+                        >
+                          {availableSlots === 0 ? <CheckCircle2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                          {availableSlots === 0 ? 'Đã đủ người' : 'Tham gia'}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">

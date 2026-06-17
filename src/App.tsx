@@ -7,6 +7,8 @@ import { ClubDashboard } from './pages/clubs/ClubDashboard';
 import { ClubDetail } from './pages/clubs/ClubDetail';
 import { Clubs } from './pages/clubs/Clubs';
 import { CreateClub } from './pages/clubs/CreateClub';
+import { MatchDetail } from './pages/community/MatchDetail';
+import { MyMatches } from './pages/community/MyMatches';
 import { Opponents } from './pages/community/Opponents';
 import { Posts } from './pages/community/Posts';
 import { Checkout } from './pages/courts/Checkout';
@@ -24,6 +26,8 @@ function App() {
         <Route index element={<Home />} />
         <Route path="book-court" element={<BookCourt />} />
         <Route path="opponents" element={<Opponents />} />
+        <Route path="matches/:id" element={<MatchDetail />} />
+        <Route path="my-matches" element={<MyMatches />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />
