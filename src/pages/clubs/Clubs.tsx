@@ -1,5 +1,6 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ClubsChat } from './ClubsChat';
 import { 
   Search, 
   MapPin, 
@@ -17,7 +18,12 @@ import {
 } from 'lucide-react';
 
 export const Clubs = () => {
-  const navigate = useNavigate();
+  const [showGroups, setShowGroups] = useState(false);
+
+  if (showGroups) {
+    return <ClubsChat />;
+  }
+
   return (
     <div className="flex-1 flex flex-col font-body-md overflow-x-hidden w-full bg-background">
       {/* Hero Section */}
@@ -65,7 +71,7 @@ export const Clubs = () => {
                 Dành cho bạn
               </button>
               <button 
-                onClick={() => navigate('/posts')}
+                onClick={() => setShowGroups(true)}
                 className="bg-white/10 hover:bg-white/20 border border-white/30 text-white font-label-md text-label-md px-6 py-3 rounded-lg flex items-center gap-2 transition-all backdrop-blur-sm"
               >
                 Nhóm của bạn
@@ -132,7 +138,7 @@ export const Clubs = () => {
               </p>
             </div>
             <div className="p-stack-md border-t border-outline-variant flex gap-stack-sm">
-              <button className="flex-1 border border-primary text-primary font-label-md text-label-md py-2 rounded-lg hover:bg-primary/5 transition-colors">Xem chi tiết</button>
+              <Link to="/clubs/hanoi-elite" className="flex-1 border border-primary text-primary font-label-md text-label-md py-2 rounded-lg hover:bg-primary/5 transition-colors text-center">Xem chi tiết</Link>
               <button className="flex-1 bg-primary text-white font-label-md text-label-md py-2 rounded-lg hover:opacity-90 transition-opacity">Tham gia</button>
             </div>
           </div>
@@ -163,7 +169,7 @@ export const Clubs = () => {
               </p>
             </div>
             <div className="p-stack-md border-t border-outline-variant flex gap-stack-sm">
-              <button className="flex-1 border border-primary text-primary font-label-md text-label-md py-2 rounded-lg hover:bg-primary/5 transition-colors">Xem chi tiết</button>
+              <Link to="/clubs/pickle-tre" className="flex-1 border border-primary text-primary font-label-md text-label-md py-2 rounded-lg hover:bg-primary/5 transition-colors text-center">Xem chi tiết</Link>
               <button className="flex-1 bg-primary text-white font-label-md text-label-md py-2 rounded-lg hover:opacity-90 transition-opacity">Tham gia</button>
             </div>
           </div>
@@ -194,7 +200,7 @@ export const Clubs = () => {
               </p>
             </div>
             <div className="p-stack-md border-t border-outline-variant flex gap-stack-sm">
-              <button className="flex-1 border border-primary text-primary font-label-md text-label-md py-2 rounded-lg hover:bg-primary/5 transition-colors">Xem chi tiết</button>
+              <Link to="/clubs/da-nang-pro-picklers" className="flex-1 border border-primary text-primary font-label-md text-label-md py-2 rounded-lg hover:bg-primary/5 transition-colors text-center">Xem chi tiết</Link>
               <button className="flex-1 bg-primary text-white font-label-md text-label-md py-2 rounded-lg hover:opacity-90 transition-opacity">Tham gia</button>
             </div>
           </div>
@@ -235,9 +241,9 @@ export const Clubs = () => {
                 </div>
               </div>
               <div className="flex gap-stack-sm">
-                <button className="bg-primary-container text-on-primary-container font-label-md text-label-md px-8 py-3 rounded-lg font-bold hover:scale-105 active:scale-95 transition-all shadow-lg whitespace-nowrap">
-                  Tham gia CLB
-                </button>
+                <Link to="/clubs/hanoi-elite" className="bg-primary-container text-on-primary-container font-label-md text-label-md px-8 py-3 rounded-lg font-bold hover:scale-105 active:scale-95 transition-all shadow-lg whitespace-nowrap">
+                  Xem chi tiết CLB
+                </Link>
               </div>
             </div>
           </div>

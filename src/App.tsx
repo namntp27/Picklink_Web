@@ -1,20 +1,21 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
-import { Home } from './pages/Home';
-import { BookCourt } from './pages/BookCourt';
-import { Clubs } from './pages/Clubs';
-import { Posts } from './pages/Posts';
-import { Tournaments } from './pages/Tournaments';
-import { Opponents } from './pages/Opponents';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { OwnerDashboard } from './pages/OwnerDashboard';
-import { Checkout } from './pages/Checkout';
-import { CourtDetail } from './pages/CourtDetail';
-import { CreateClub } from './pages/CreateClub';
-import { ClubDashboard } from './pages/ClubDashboard';
+import { Login } from './pages/auth/Login';
+import { Register } from './pages/auth/Register';
+import { ClubDashboard } from './pages/clubs/ClubDashboard';
+import { ClubDetail } from './pages/clubs/ClubDetail';
+import { Clubs } from './pages/clubs/Clubs';
+import { CreateClub } from './pages/clubs/CreateClub';
+import { Opponents } from './pages/community/Opponents';
+import { Posts } from './pages/community/Posts';
+import { Checkout } from './pages/courts/Checkout';
+import { BookCourt } from './pages/courts/BookCourt';
+import { CourtDetail } from './pages/courts/CourtDetail';
+import { AdminDashboard } from './pages/dashboard/AdminDashboard';
+import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
+import { Home } from './pages/home/Home';
+import { Tournaments } from './pages/tournaments/Tournaments';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />
         <Route path="clubs/create" element={<CreateClub />} />
+        <Route path="clubs/:id" element={<ClubDetail />} />
         <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
         <Route path="tournaments" element={<Tournaments />} />
       </Route>
