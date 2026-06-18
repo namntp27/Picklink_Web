@@ -22,19 +22,19 @@ import {
 
 type MatchFormat = '1vs1' | '2vs2';
 
-type AvailabilitySlot = {
+export type AvailabilitySlot = {
   id: string;
   date: string;
   startTime: string;
   endTime: string;
 };
 
-type SubCourt = {
+export type SubCourt = {
   id: string;
   name: string;
 };
 
-type Court = {
+export type Court = {
   id: string;
   province: string;
   ward: string;
@@ -82,7 +82,7 @@ type ScheduleBlock = AvailabilitySlot & {
   status: ScheduleBlockStatus;
 };
 
-const provinceOptions = [
+export const provinceOptions = [
   'Hà Nội',
   'Huế',
   'Lai Châu',
@@ -308,14 +308,14 @@ const generatedCourts: Court[] = provinceOptions
     })),
   }));
 
-const courtCatalog = [...featuredCourts, ...generatedCourts];
+export const courtCatalog = [...featuredCourts, ...generatedCourts];
 
-const getCourtsByProvince = (province: string) => courtCatalog.filter((court) => court.province === province);
+export const getCourtsByProvince = (province: string) => courtCatalog.filter((court) => court.province === province);
 
-const getWardsByProvince = (province: string) =>
+export const getWardsByProvince = (province: string) =>
   Array.from(new Set(getCourtsByProvince(province).map((court) => court.ward)));
 
-const getCourtsByWard = (province: string, ward: string) =>
+export const getCourtsByWard = (province: string, ward: string) =>
   getCourtsByProvince(province).filter((court) => court.ward === ward);
 
 const getSubCourtsForCourt = (court?: Court): SubCourt[] => {
@@ -796,6 +796,13 @@ export const Opponents = () => {
               >
                 <Trophy className="h-5 w-5" />
                 Xem trận của tôi
+              </Link>
+              <Link
+                className="ml-0 mt-3 inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-3 text-[14px] font-bold text-white transition-colors hover:bg-white/10 sm:ml-3 sm:mt-5"
+                to="/opponents/pending"
+              >
+                <ListChecks className="h-5 w-5" />
+                Lời mời đang chờ
               </Link>
             </div>
             <div className="rounded-xl border border-white/18 bg-white/10 p-5 backdrop-blur">
@@ -1297,7 +1304,25 @@ export const Opponents = () => {
             </section>
           )}
 
-          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+          <section className="rounded-xl border border-primary bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-[22px] font-bold text-on-surface">Lời mời đang chờ đã chuyển sang trang riêng</h2>
+                <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">
+                  Mở trang lời mời đang chờ để xem danh sách, tham gia trận và theo dõi trạng thái ghép trận.
+                </p>
+              </div>
+              <Link
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
+                to="/opponents/pending"
+              >
+                <ListChecks className="h-5 w-5" />
+                Xem lời mời đang chờ
+              </Link>
+            </div>
+          </section>
+
+          <section className="hidden rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-[24px] font-bold text-on-surface">Lời mời đang chờ</h2>
