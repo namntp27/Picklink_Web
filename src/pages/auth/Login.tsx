@@ -1,24 +1,45 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
+import type { UserRole } from '../../types';
+
+const canReturnToPath = (path: string, role: UserRole) => {
+  if (path.startsWith('/admin')) {
+    return role === 'admin';
+  }
+
+  if (path.startsWith('/owner')) {
+    return role === 'owner';
+  }
+
+  return role === 'player';
+};
 
 export const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const { login } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'admin@picklink.vn' && password === 'admin123') {
-      navigate('/admin');
-    } else if (email === 'owner@picklink.vn' && password === 'owner123') {
-      navigate('/owner');
-    } else if (email === 'player@picklink.vn' && password === 'player123') {
-      navigate('/');
-    } else {
-      navigate('/');
+
+    const authUser = login({ email, password });
+
+    if (!authUser) {
+      setErrorMessage('Email hoặc mật khẩu không đúng với tài khoản test.');
+      return;
     }
+
+    const defaultPath = getDefaultPathForRole(authUser.role);
+    const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
+
+    navigate(nextPath, { replace: true });
   };
 
   return (
@@ -78,6 +99,12 @@ export const Login = () => {
               </div>
 
               <form className="space-y-6" onSubmit={handleLogin}>
+                {errorMessage && (
+                  <div className="rounded-lg border border-[#ba1a1a]/30 bg-[#ffdad6] px-4 py-3 text-[13px] font-bold text-[#ba1a1a]">
+                    {errorMessage}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-[14px] font-bold text-on-surface mb-1.5" htmlFor="email">Email</label>
                   <div className="relative">

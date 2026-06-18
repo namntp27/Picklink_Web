@@ -1,9 +1,11 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { ProtectedRoute, PublicOnlyRoute } from './auth/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import { Unauthorized } from './pages/auth/Unauthorized';
 import { BookingDetail } from './pages/bookings/BookingDetail';
 import { BookingFail } from './pages/bookings/BookingFail';
 import { BookingSuccess } from './pages/bookings/BookingSuccess';
@@ -59,57 +61,68 @@ function App() {
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="book-court" element={<BookCourt />} />
-        <Route path="opponents" element={<Opponents />} />
-        <Route path="opponents/pending" element={<PendingInvites />} />
-        <Route path="matches/:id" element={<MatchDetail />} />
-        <Route path="my-matches" element={<MyMatches />} />
-        <Route path="my-bookings" element={<MyBookings />} />
-        <Route path="my-tournaments" element={<MyTournaments />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="messages" element={<Messages />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="reviews/create" element={<CreateReview />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />
-        <Route path="posts/create" element={<CreatePost />} />
         <Route path="posts/trending" element={<TrendingPosts />} />
         <Route path="posts/saved" element={<SavedPosts />} />
         <Route path="posts/:id" element={<PostDetail />} />
-        <Route path="clubs/create" element={<CreateClub />} />
         <Route path="clubs/:id/members" element={<ClubMembers />} />
-        <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
         <Route path="clubs/:id" element={<ClubDetail />} />
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="tournaments/:id" element={<TournamentDetail />} />
+        <Route element={<ProtectedRoute allowedRoles={['player']} />}>
+          <Route path="opponents" element={<Opponents />} />
+          <Route path="opponents/pending" element={<PendingInvites />} />
+          <Route path="matches/:id" element={<MatchDetail />} />
+          <Route path="my-matches" element={<MyMatches />} />
+          <Route path="my-bookings" element={<MyBookings />} />
+          <Route path="my-tournaments" element={<MyTournaments />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="reviews/create" element={<CreateReview />} />
+          <Route path="posts/create" element={<CreatePost />} />
+          <Route path="clubs/create" element={<CreateClub />} />
+          <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
+        </Route>
       </Route>
-      <Route path="/login" element={<Login />} />
+      <Route element={<PublicOnlyRoute />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+      </Route>
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/users" element={<AdminUsers />} />
-      <Route path="/admin/courts" element={<AdminCourts />} />
-      <Route path="/admin/clubs" element={<AdminClubs />} />
-      <Route path="/admin/bookings" element={<AdminBookings />} />
-      <Route path="/admin/reports" element={<AdminReports />} />
-      <Route path="/admin/posts" element={<AdminPosts />} />
-      <Route path="/admin/reviews" element={<AdminReviews />} />
-      <Route path="/admin/tournaments" element={<AdminTournaments />} />
-      <Route path="/admin/transactions" element={<AdminTransactions />} />
-      <Route path="/admin/settings" element={<AdminSettings />} />
-      <Route path="/owner" element={<OwnerDashboard />} />
-      <Route path="/owner/schedule" element={<OwnerDashboard />} />
-      <Route path="/owner/bookings" element={<OwnerBookings />} />
-      <Route path="/owner/bookings/:id" element={<OwnerBookingDetail />} />
-      <Route path="/owner/courts" element={<OwnerCourts />} />
-      <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
-      <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
-      <Route path="/owner/revenue" element={<OwnerRevenue />} />
-      <Route path="/owner/settings" element={<OwnerSettings />} />
-      <Route path="/checkout" element={<Checkout />} />
-      <Route path="/checkout/success" element={<BookingSuccess />} />
-      <Route path="/checkout/fail" element={<BookingFail />} />
-      <Route path="/bookings/:id" element={<BookingDetail />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/courts" element={<AdminCourts />} />
+        <Route path="/admin/clubs" element={<AdminClubs />} />
+        <Route path="/admin/bookings" element={<AdminBookings />} />
+        <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="/admin/posts" element={<AdminPosts />} />
+        <Route path="/admin/reviews" element={<AdminReviews />} />
+        <Route path="/admin/tournaments" element={<AdminTournaments />} />
+        <Route path="/admin/transactions" element={<AdminTransactions />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
+        <Route path="/owner" element={<OwnerDashboard />} />
+        <Route path="/owner/schedule" element={<OwnerDashboard />} />
+        <Route path="/owner/bookings" element={<OwnerBookings />} />
+        <Route path="/owner/bookings/:id" element={<OwnerBookingDetail />} />
+        <Route path="/owner/courts" element={<OwnerCourts />} />
+        <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
+        <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
+        <Route path="/owner/revenue" element={<OwnerRevenue />} />
+        <Route path="/owner/settings" element={<OwnerSettings />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['player']} />}>
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/checkout/success" element={<BookingSuccess />} />
+        <Route path="/checkout/fail" element={<BookingFail />} />
+        <Route path="/bookings/:id" element={<BookingDetail />} />
+      </Route>
       <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
       <Route path="/court/:id" element={<CourtDetail />} />
     </Routes>

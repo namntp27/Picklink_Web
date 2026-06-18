@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Menu, MessageCircle, UserRound, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
 
 export const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { logout, user } = useAuth();
   const location = useLocation();
+  const dashboardPath = user ? getDefaultPathForRole(user.role) : '/';
+  const dashboardLabel = user?.role === 'admin' ? 'Admin' : user?.role === 'owner' ? 'Chủ sân' : 'Hồ sơ';
 
   const navItems = [
     { path: '/', label: 'Trang chủ' },
@@ -109,12 +113,29 @@ export const Header = () => {
             3
           </span>
         </Link>
+        {user ? (
+          <>
+            <Link to={dashboardPath} className="bg-surface-container-lowest text-primary font-bold px-6 py-2 rounded-lg text-label-md shadow-sm hover:scale-95 transition-transform">
+              {dashboardLabel}
+            </Link>
+            <button
+              className="text-on-primary/90 font-label-md text-label-md px-4 py-2 hover:opacity-80 transition-opacity"
+              onClick={logout}
+              type="button"
+            >
+              Đăng xuất
+            </button>
+          </>
+        ) : (
+          <>
         <Link to="/login">
             <button className="text-on-primary/90 font-label-md text-label-md px-4 py-2 hover:opacity-80 transition-opacity">Đăng nhập</button>
         </Link>
         <Link to="/register" className="bg-surface-container-lowest text-primary font-bold px-6 py-2 rounded-lg text-label-md shadow-sm hover:scale-95 transition-transform">
           Đăng ký
         </Link>
+          </>
+        )}
       </div>
       <button
         aria-expanded={isMobileMenuOpen}
@@ -148,6 +169,23 @@ export const Header = () => {
               <span className="rounded-full bg-[#eab526] px-2 py-0.5 text-[12px] font-bold text-white">3</span>
             </Link>
           </nav>
+          {user ? (
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
+              <Link
+                to={dashboardPath}
+                className="rounded-lg bg-surface-container-lowest px-4 py-3 text-center text-[15px] font-bold text-primary"
+              >
+                {dashboardLabel}
+              </Link>
+              <button
+                className="rounded-lg border border-white/25 px-4 py-3 text-center text-[15px] font-bold text-on-primary hover:bg-white/10"
+                onClick={logout}
+                type="button"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          ) : (
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
             <Link
               to="/login"
@@ -162,6 +200,7 @@ export const Header = () => {
               Đăng ký
             </Link>
           </div>
+          )}
         </div>
       )}
     </header>

@@ -9,13 +9,15 @@ export interface Court {
   features: string[];
 }
 
+export type UserRole = 'player' | 'admin' | 'owner';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
   level: string;
-  role: 'player' | 'admin' | 'owner';
+  role: UserRole;
 }
 
 export interface Tournament {
