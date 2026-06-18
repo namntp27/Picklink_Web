@@ -11,11 +11,21 @@ import {
   ThumbsUp,
   TrendingUp,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
 import type { CommunityPost } from '../../data/communityPosts';
 import { activeCommunityPlayers, communityPosts, currentCommunityUser, trendingTopics } from '../../data/communityPosts';
 
 type CollectionType = 'trending' | 'saved';
+type CollectionMeta = {
+  title: string;
+  eyebrow: string;
+  description: string;
+  icon: LucideIcon;
+  activePath: string;
+  emptyTitle: string;
+  emptyText: string;
+};
 
 const getTrendScore = (post: CommunityPost) => post.likes + post.comments * 2 + post.shares * 3;
 
@@ -46,7 +56,7 @@ const collectionMeta = {
     emptyTitle: 'Chưa lưu bài viết nào',
     emptyText: 'Bấm lưu ở bài viết bạn quan tâm để xem lại nhanh tại trang này.',
   },
-} satisfies Record<CollectionType, Record<string, unknown>>;
+} satisfies Record<CollectionType, CollectionMeta>;
 
 const Sidebar = ({ activePath }: { activePath: string }) => (
   <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[280px] shrink-0 overflow-y-auto p-4 md:block">
@@ -188,11 +198,11 @@ const RightPanel = () => (
 const PostCollection = ({ type }: { type: CollectionType }) => {
   const meta = collectionMeta[type];
   const posts = getCollectionPosts(type);
-  const MetaIcon = meta.icon as typeof TrendingUp;
+  const MetaIcon = meta.icon;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[1200px] bg-[#f9f9ff] pt-[72px] text-[#151c27]">
-      <Sidebar activePath={meta.activePath as string} />
+      <Sidebar activePath={meta.activePath} />
 
       <main className="min-w-0 flex-1 px-4 py-5 pb-24 lg:max-w-[640px]">
         <section className="mb-6 rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
@@ -200,10 +210,10 @@ const PostCollection = ({ type }: { type: CollectionType }) => {
             <div>
               <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">
                 <MetaIcon className="h-4 w-4" />
-                {meta.eyebrow as string}
+                {meta.eyebrow}
               </p>
-              <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[38px]">{meta.title as string}</h1>
-              <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[#555f6f]">{meta.description as string}</p>
+              <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[38px]">{meta.title}</h1>
+              <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[#555f6f]">{meta.description}</p>
             </div>
             <Link className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts/create">
               <Plus className="h-5 w-5" />
@@ -220,8 +230,8 @@ const PostCollection = ({ type }: { type: CollectionType }) => {
           {posts.length === 0 && (
             <div className="rounded-lg border border-outline-variant bg-white p-8 text-center shadow-sm">
               <MetaIcon className="mx-auto h-10 w-10 text-primary" />
-              <h2 className="mt-4 text-[20px] font-bold">{meta.emptyTitle as string}</h2>
-              <p className="mt-2 text-[14px] leading-6 text-[#555f6f]">{meta.emptyText as string}</p>
+              <h2 className="mt-4 text-[20px] font-bold">{meta.emptyTitle}</h2>
+              <p className="mt-2 text-[14px] leading-6 text-[#555f6f]">{meta.emptyText}</p>
               <Link className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts">
                 Về bảng tin
               </Link>
