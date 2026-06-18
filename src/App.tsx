@@ -3,6 +3,9 @@ import { Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import { BookingDetail } from './pages/bookings/BookingDetail';
+import { BookingFail } from './pages/bookings/BookingFail';
+import { BookingSuccess } from './pages/bookings/BookingSuccess';
 import { ClubDashboard } from './pages/clubs/ClubDashboard';
 import { ClubDetail } from './pages/clubs/ClubDetail';
 import { Clubs } from './pages/clubs/Clubs';
@@ -45,6 +48,9 @@ function App() {
       <Route path="/owner" element={<OwnerDashboard />} />
       <Route path="/owner/schedule" element={<OwnerDashboard />} />
       <Route path="/checkout" element={<Checkout />} />
+      <Route path="/checkout/success" element={<BookingSuccess />} />
+      <Route path="/checkout/fail" element={<BookingFail />} />
+      <Route path="/bookings/:id" element={<BookingDetail />} />
       <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
       <Route path="/court/:id" element={<CourtDetail />} />
     </Routes>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   ChevronRight, 
   UserCircle, 
@@ -12,10 +12,14 @@ import {
   Lightbulb, 
   ArrowRight 
 } from 'lucide-react';
+import { formatBookingCurrency, formatBookingDate, sampleBooking } from '../../data/bookings';
 
 export const Checkout = () => {
+  const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [agreed, setAgreed] = useState(false);
+  const booking = sampleBooking;
+  const courtAmount = booking.pricePerHour * booking.durationHours;
 
   return (
     <div className="bg-background font-body-md text-on-background min-h-screen flex flex-col w-full overflow-x-hidden">
@@ -29,7 +33,7 @@ export const Checkout = () => {
               </svg>
             </Link>
             <nav className="flex items-center gap-2 text-white font-label-md text-[16px]">
-              <Link to="#" className="hover:underline opacity-80 font-medium">Đặt sân</Link>
+              <Link to="/book-court" className="hover:underline opacity-80 font-medium">Đặt sân</Link>
               <ChevronRight className="w-5 h-5 opacity-80" />
               <span className="font-bold">Thanh toán</span>
             </nav>
@@ -171,6 +175,8 @@ export const Checkout = () => {
                 
                 <button 
                   disabled={!agreed}
+                  onClick={() => navigate('/checkout/success')}
+                  type="button"
                   className="w-full py-4 bg-[#84C33E] text-white font-bold text-[18px] rounded-xl shadow-md hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
                   <span>Xác nhận thanh toán</span>
@@ -184,26 +190,26 @@ export const Checkout = () => {
               <div className="bg-white border border-outline-variant/60 rounded-xl p-6 shadow-sm">
                 <div className="flex flex-wrap justify-between items-center mb-8 gap-4">
                   <h2 className="text-[24px] font-bold text-[#3d6a00]">Thông tin đặt sân</h2>
-                  <span className="bg-surface-container-high text-on-surface-variant text-[12px] px-3 py-1.5 rounded-md font-bold">PKL-20250612-001</span>
+                  <span className="bg-surface-container-high text-on-surface-variant text-[12px] px-3 py-1.5 rounded-md font-bold">{booking.code}</span>
                 </div>
                 
                 <div className="space-y-5 mb-8">
                   <div className="flex items-start gap-4">
                     <MapPin className="w-6 h-6 text-[#84C33E] shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-[16px] font-bold text-on-surface mb-1">Sân Pickleball Chu Văn An</p>
-                      <p className="text-[14px] font-medium text-secondary">Số 10, đường Chu Văn An, Bình Thạnh</p>
+                      <p className="text-[16px] font-bold text-on-surface mb-1">{booking.courtName}</p>
+                      <p className="text-[14px] font-medium text-secondary">{booking.address}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4">
                     <CalendarDays className="w-6 h-6 text-[#84C33E] shrink-0" />
-                    <p className="text-[15px] font-semibold text-on-surface">Thứ Bảy, 12 Tháng 6, 2025</p>
+                    <p className="text-[15px] font-semibold text-on-surface">{formatBookingDate(booking.date)}</p>
                   </div>
                   
                   <div className="flex items-center gap-4">
                     <Clock className="w-6 h-6 text-[#84C33E] shrink-0" />
-                    <p className="text-[15px] font-semibold text-on-surface">17:00 - 19:00 (2 giờ)</p>
+                    <p className="text-[15px] font-semibold text-on-surface">{booking.startTime} - {booking.endTime} ({booking.durationHours} giờ)</p>
                   </div>
                 </div>
                 
@@ -211,18 +217,18 @@ export const Checkout = () => {
                 
                 <div className="space-y-4 mb-6 text-[15px]">
                   <div className="flex justify-between">
-                    <span className="font-medium text-secondary">Giá thuê sân (100k/h x 2)</span>
-                    <span className="font-bold text-on-surface">200.000 VNĐ</span>
+                    <span className="font-medium text-secondary">Giá thuê sân ({formatBookingCurrency(booking.pricePerHour)}/h x {booking.durationHours})</span>
+                    <span className="font-bold text-on-surface">{formatBookingCurrency(courtAmount)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-secondary">Phí dịch vụ hệ thống</span>
-                    <span className="font-bold text-on-surface">30.000 VNĐ</span>
+                    <span className="font-bold text-on-surface">{formatBookingCurrency(booking.serviceFee)}</span>
                   </div>
                 </div>
                 
                 <div className="bg-[#f4faef] p-5 rounded-xl flex justify-between items-center mb-6">
                   <span className="text-[18px] font-bold text-on-background">Tổng cộng</span>
-                  <span className="text-[28px] font-bold text-[#3d6a00]">230.000 VNĐ</span>
+                  <span className="text-[28px] font-bold text-[#3d6a00]">{formatBookingCurrency(booking.totalAmount)}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-[13px] font-medium text-secondary italic">
