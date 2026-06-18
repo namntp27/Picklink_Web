@@ -38,6 +38,8 @@ import { Messages } from './pages/messages/Messages';
 import { Notifications } from './pages/notifications/Notifications';
 import { Profile } from './pages/profile/Profile';
 import { CreateReview } from './pages/reviews/CreateReview';
+import { MyTournaments } from './pages/tournaments/MyTournaments';
+import { TournamentDetail } from './pages/tournaments/TournamentDetail';
 import { Tournaments } from './pages/tournaments/Tournaments';
 
 function App() {
@@ -51,6 +53,7 @@ function App() {
         <Route path="matches/:id" element={<MatchDetail />} />
         <Route path="my-matches" element={<MyMatches />} />
         <Route path="my-bookings" element={<MyBookings />} />
+        <Route path="my-tournaments" element={<MyTournaments />} />
         <Route path="profile" element={<Profile />} />
         <Route path="messages" element={<Messages />} />
         <Route path="notifications" element={<Notifications />} />
@@ -67,6 +70,7 @@ function App() {
         <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
         <Route path="clubs/:id" element={<ClubDetail />} />
         <Route path="tournaments" element={<Tournaments />} />
+        <Route path="tournaments/:id" element={<TournamentDetail />} />
       </Route>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
