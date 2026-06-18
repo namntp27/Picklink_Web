@@ -26,6 +26,7 @@ import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
 import { Home } from './pages/home/Home';
 import { Notifications } from './pages/notifications/Notifications';
 import { Profile } from './pages/profile/Profile';
+import { CreateReview } from './pages/reviews/CreateReview';
 import { Tournaments } from './pages/tournaments/Tournaments';
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
         <Route path="my-bookings" element={<MyBookings />} />
         <Route path="profile" element={<Profile />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="reviews/create" element={<CreateReview />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />

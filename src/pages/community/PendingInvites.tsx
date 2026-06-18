@@ -22,6 +22,7 @@ type MatchFormat = '1vs1' | '2vs2';
 
 type MatchInvite = {
   id: number;
+  ownerType: 'mine' | 'other';
   host: string;
   level: string;
   province: string;
@@ -39,6 +40,7 @@ type MatchInvite = {
 };
 
 type InviteFilters = {
+  ownerType: 'all' | 'mine' | 'other';
   format: 'all' | MatchFormat;
   level: string;
   province: string;
@@ -48,6 +50,7 @@ type InviteFilters = {
 };
 
 const defaultFilters: InviteFilters = {
+  ownerType: 'all',
   format: 'all',
   level: 'all',
   province: 'all',
@@ -59,6 +62,7 @@ const defaultFilters: InviteFilters = {
 const initialInvites: MatchInvite[] = [
   {
     id: 1,
+    ownerType: 'other',
     host: 'Trần Quốc Bảo',
     level: '3.5 - 4.0',
     province: 'Hà Nội',
@@ -76,6 +80,7 @@ const initialInvites: MatchInvite[] = [
   },
   {
     id: 2,
+    ownerType: 'other',
     host: 'Lê Tuyết Mai',
     level: '2.5 - 3.0',
     province: 'Hồ Chí Minh',
@@ -93,7 +98,8 @@ const initialInvites: MatchInvite[] = [
   },
   {
     id: 3,
-    host: 'Minh Tuấn',
+    ownerType: 'mine',
+    host: 'Bạn',
     level: '3.0 - 3.5',
     province: 'Hà Nội',
     ward: 'Phường Từ Liêm',
@@ -167,6 +173,7 @@ export const PendingInvites = () => {
   const filteredInvites = useMemo(
     () =>
       invites.filter((invite) => {
+        const matchesOwnerType = filters.ownerType === 'all' || invite.ownerType === filters.ownerType;
         const matchesFormat = filters.format === 'all' || invite.format === filters.format;
         const matchesLevel = filters.level === 'all' || invite.level === filters.level;
         const matchesProvince = filters.province === 'all' || invite.province === filters.province;
@@ -174,7 +181,7 @@ export const PendingInvites = () => {
         const matchesCourt = filters.court === 'all' || invite.court === filters.court;
         const matchesDate = !filters.date || invite.date === filters.date;
 
-        return matchesFormat && matchesLevel && matchesProvince && matchesWard && matchesCourt && matchesDate;
+        return matchesOwnerType && matchesFormat && matchesLevel && matchesProvince && matchesWard && matchesCourt && matchesDate;
       }),
     [filters, invites],
   );
@@ -271,7 +278,7 @@ export const PendingInvites = () => {
                 Bộ lọc lời mời
               </h2>
               <p className="mt-1 text-[14px] text-on-surface-variant">
-                Lọc nhanh theo hình thức, trình độ, khu vực, sân và ngày chơi.
+                Lọc nhanh theo loại lời mời, hình thức, trình độ, khu vực, sân và ngày chơi.
               </p>
             </div>
             <button
@@ -284,7 +291,20 @@ export const PendingInvites = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
+            <label className="block">
+              <span className="mb-1 block text-[13px] font-bold text-on-surface-variant">Loại lời mời</span>
+              <select
+                className="h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => updateFilter('ownerType', event.target.value)}
+                value={filters.ownerType}
+              >
+                <option value="all">Tất cả</option>
+                <option value="other">Lời mời đang chờ</option>
+                <option value="mine">Lời mời của tôi</option>
+              </select>
+            </label>
+
             <label className="block">
               <span className="mb-1 block text-[13px] font-bold text-on-surface-variant">Hình thức</span>
               <select
@@ -429,6 +449,7 @@ export const PendingInvites = () => {
             {filteredInvites.map((invite) => {
               const availableSlots = Math.max(invite.needed - invite.joined, 0);
               const perPlayerPrice = Math.ceil(invite.price / invite.needed);
+              const isMyInvite = invite.ownerType === 'mine';
 
               return (
                 <article className="rounded-xl border border-outline-variant p-4 transition-colors hover:border-primary" key={invite.id}>
@@ -441,6 +462,11 @@ export const PendingInvites = () => {
                         <span className="rounded-full bg-surface-container-low px-3 py-1 text-[12px] font-bold text-on-surface-variant">
                           Level {invite.level}
                         </span>
+                        {isMyInvite && (
+                          <span className="rounded-full bg-[#fff4d8] px-3 py-1 text-[12px] font-bold text-[#755400]">
+                            Của tôi
+                          </span>
+                        )}
                         {availableSlots === 0 && (
                           <span className="rounded-full bg-[#eaf7df] px-3 py-1 text-[12px] font-bold text-primary">
                             Đủ người
@@ -449,7 +475,7 @@ export const PendingInvites = () => {
                       </div>
                       <Link to={`/matches/${invite.id}`}>
                         <h3 className="mt-3 text-[20px] font-bold text-on-surface transition-colors hover:text-primary">
-                          {invite.host === 'Bạn' ? 'Lời mời của bạn' : `${invite.host} đang tìm người chơi`}
+                          {isMyInvite ? 'Lời mời của bạn' : `${invite.host} đang tìm người chơi`}
                         </h3>
                       </Link>
                       <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{invite.note}</p>
@@ -463,19 +489,29 @@ export const PendingInvites = () => {
                         <Eye className="h-5 w-5" />
                         Xem chi tiết
                       </Link>
-                      <button
-                        className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-[14px] font-bold transition-colors lg:w-auto ${
-                          availableSlots === 0
-                            ? 'cursor-not-allowed bg-surface-container-low text-on-surface-variant'
-                            : 'bg-primary text-white hover:bg-primary/90'
-                        }`}
-                        disabled={availableSlots === 0}
-                        onClick={() => handleJoinInvite(invite)}
-                        type="button"
-                      >
-                        {availableSlots === 0 ? <CheckCircle2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                        {availableSlots === 0 ? 'Đã đủ người' : 'Tham gia'}
-                      </button>
+                      {isMyInvite ? (
+                        <Link
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-surface-container-low px-5 py-3 text-[14px] font-bold text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary lg:w-auto"
+                          to={`/matches/${invite.id}`}
+                        >
+                          <ShieldCheck className="h-5 w-5" />
+                          Quản lý
+                        </Link>
+                      ) : (
+                        <button
+                          className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-[14px] font-bold transition-colors lg:w-auto ${
+                            availableSlots === 0
+                              ? 'cursor-not-allowed bg-surface-container-low text-on-surface-variant'
+                              : 'bg-primary text-white hover:bg-primary/90'
+                          }`}
+                          disabled={availableSlots === 0}
+                          onClick={() => handleJoinInvite(invite)}
+                          type="button"
+                        >
+                          {availableSlots === 0 ? <CheckCircle2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                          {availableSlots === 0 ? 'Đã đủ người' : 'Tham gia'}
+                        </button>
+                      )}
                     </div>
                   </div>
 

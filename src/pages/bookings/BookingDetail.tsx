@@ -13,6 +13,7 @@ import {
   ReceiptText,
   RefreshCcw,
   ShieldCheck,
+  Star,
   UserRound,
   XCircle,
 } from 'lucide-react';
@@ -213,6 +214,13 @@ export const BookingDetail = () => {
                 >
                   <RefreshCcw className="h-5 w-5" />
                   Đổi lịch
+                </Link>
+                <Link
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                  to={`/reviews/create?type=court&bookingId=${booking.id}`}
+                >
+                  <Star className="h-5 w-5 fill-current" />
+                  Đánh giá sân
                 </Link>
                 <button
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#ba1a1a] px-4 py-3 text-[14px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40"

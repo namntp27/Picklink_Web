@@ -10,6 +10,7 @@ import {
   MapPin,
   MessageCircle,
   ShieldCheck,
+  Star,
   Trophy,
   UserCheck,
   UserPlus,
@@ -389,6 +390,23 @@ export const MatchDetail = () => {
             <div className="mt-4 rounded-lg bg-surface-container-low p-4 text-[14px] leading-6 text-on-surface-variant">
               Chat nhóm sẽ hiển thị ở đây sau khi bạn tham gia trận.
             </div>
+          </section>
+
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+            <h3 className="flex items-center gap-2 text-[18px] font-bold">
+              <Star className="h-5 w-5 fill-current text-[#eab526]" />
+              Đánh giá sau trận
+            </h3>
+            <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">
+              Sau khi hoàn tất trận, bạn có thể đánh giá người chơi để cập nhật điểm uy tín cộng đồng.
+            </p>
+            <Link
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+              to={`/reviews/create?type=player&matchId=${detailId}`}
+            >
+              <Star className="h-5 w-5 fill-current" />
+              Đánh giá người chơi
+            </Link>
           </section>
         </aside>
       </main>
