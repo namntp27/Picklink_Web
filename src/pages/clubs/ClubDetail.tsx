@@ -407,6 +407,13 @@ export const ClubDetail = () => {
                   Chat
                 </button>
               </div>
+              <Link
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                to={`/clubs/${id ?? 'hanoi-elite'}/dashboard`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Mở quản lý CLB
+              </Link>
             </section>
 
             <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-6 shadow-sm">

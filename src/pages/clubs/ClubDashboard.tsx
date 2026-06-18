@@ -1,326 +1,1262 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  Settings, 
-  HelpCircle, 
-  LogOut,
-  Search,
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
   Bell,
-  UserCircle,
-  TrendingUp,
-  UserPlus,
+  CalendarDays,
   CheckCircle2,
-  XCircle,
-  MoreVertical,
-  PlusCircle,
+  ChevronRight,
+  Crown,
+  Edit3,
+  Eye,
+  FileText,
+  LayoutDashboard,
+  LockKeyhole,
+  LogOut,
   Megaphone,
-  MapPin
+  MessageCircle,
+  MoreVertical,
+  Pin,
+  Plus,
+  Search,
+  Send,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UserCheck,
+  UserCog,
+  UserPlus,
+  Users,
+  XCircle,
+  type LucideIcon,
 } from 'lucide-react';
+
+type DashboardTab = 'overview' | 'members' | 'events' | 'posts' | 'chat';
+type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Huấn luyện viên' | 'Thành viên';
+type EventStatus = 'Đang mở' | 'Sắp diễn ra' | 'Đã khóa';
+type PostStatus = 'Đã đăng' | 'Chờ duyệt' | 'Nháp';
+
+type JoinRequest = {
+  id: number;
+  name: string;
+  avatar: string;
+  level: string;
+  area: string;
+  requestedAt: string;
+  note: string;
+};
+
+type ClubMember = {
+  id: number;
+  name: string;
+  avatar: string;
+  level: string;
+  role: MemberRole;
+  joinedAt: string;
+  status: 'Đang hoạt động' | 'Tạm khóa';
+  permissions: string[];
+};
+
+type ClubEvent = {
+  id: number;
+  title: string;
+  type: string;
+  date: string;
+  time: string;
+  court: string;
+  capacity: number;
+  registered: number;
+  status: EventStatus;
+};
+
+type ClubPost = {
+  id: number;
+  title: string;
+  author: string;
+  status: PostStatus;
+  createdAt: string;
+  views: number;
+  comments: number;
+  pinned: boolean;
+};
+
+type ClubChatMessage = {
+  id: number;
+  author: string;
+  avatar: string;
+  text: string;
+  time: string;
+  mine?: boolean;
+};
+
+type EventForm = {
+  title: string;
+  type: string;
+  date: string;
+  time: string;
+  court: string;
+  capacity: string;
+};
+
+const initialRequests: JoinRequest[] = [
+  {
+    id: 1,
+    name: 'Nguyễn Linh',
+    avatar: 'NL',
+    level: '3.5',
+    area: 'Cầu Giấy',
+    requestedAt: '18/06/2026',
+    note: 'Muốn tham gia nhóm đánh đôi buổi tối.',
+  },
+  {
+    id: 2,
+    name: 'Trần Anh',
+    avatar: 'TA',
+    level: '4.0',
+    area: 'Nam Từ Liêm',
+    requestedAt: '17/06/2026',
+    note: 'Có kinh nghiệm tổ chức ladder nội bộ.',
+  },
+  {
+    id: 3,
+    name: 'Lê Minh',
+    avatar: 'LM',
+    level: '2.5',
+    area: 'Thanh Xuân',
+    requestedAt: '16/06/2026',
+    note: 'Người mới, muốn tham gia lớp cơ bản.',
+  },
+];
+
+const initialMembers: ClubMember[] = [
+  {
+    id: 11,
+    name: 'Nguyễn Văn An',
+    avatar: 'NA',
+    level: '4.5',
+    role: 'Chủ nhiệm',
+    joinedAt: '12/03/2022',
+    status: 'Đang hoạt động',
+    permissions: ['Toàn quyền', 'Duyệt thành viên', 'Quản lý bài viết'],
+  },
+  {
+    id: 12,
+    name: 'Linh Nguyễn',
+    avatar: 'LN',
+    level: '4.0',
+    role: 'Quản trị viên',
+    joinedAt: '02/08/2023',
+    status: 'Đang hoạt động',
+    permissions: ['Duyệt thành viên', 'Tạo sự kiện'],
+  },
+  {
+    id: 13,
+    name: 'Tuấn Trần',
+    avatar: 'TT',
+    level: '3.5',
+    role: 'Huấn luyện viên',
+    joinedAt: '18/11/2023',
+    status: 'Đang hoạt động',
+    permissions: ['Tạo sự kiện', 'Chat CLB'],
+  },
+  {
+    id: 14,
+    name: 'Mai Phạm',
+    avatar: 'MP',
+    level: '3.0',
+    role: 'Thành viên',
+    joinedAt: '09/01/2024',
+    status: 'Đang hoạt động',
+    permissions: ['Chat CLB'],
+  },
+];
+
+const initialEvents: ClubEvent[] = [
+  {
+    id: 21,
+    title: 'Open play trình 3.0 - 3.5',
+    type: 'Open play',
+    date: '20/06/2026',
+    time: '18:00 - 20:00',
+    court: 'Sân 1 & 2',
+    capacity: 24,
+    registered: 18,
+    status: 'Đang mở',
+  },
+  {
+    id: 22,
+    title: 'Ladder nội bộ tháng 6',
+    type: 'Giải nội bộ',
+    date: '22/06/2026',
+    time: '07:30 - 11:30',
+    court: 'Cụm sân A',
+    capacity: 48,
+    registered: 42,
+    status: 'Sắp diễn ra',
+  },
+  {
+    id: 23,
+    title: 'Lớp kỹ thuật dink và reset',
+    type: 'Lớp học',
+    date: '24/06/2026',
+    time: '19:00 - 21:00',
+    court: 'Sân trung tâm',
+    capacity: 16,
+    registered: 16,
+    status: 'Đã khóa',
+  },
+];
+
+const initialPosts: ClubPost[] = [
+  {
+    id: 31,
+    title: 'Kết quả ladder tuần này',
+    author: 'Nguyễn Văn An',
+    status: 'Đã đăng',
+    createdAt: '18/06/2026',
+    views: 428,
+    comments: 32,
+    pinned: true,
+  },
+  {
+    id: 32,
+    title: 'Mở đăng ký lớp beginner tối thứ 5',
+    author: 'Linh Nguyễn',
+    status: 'Chờ duyệt',
+    createdAt: '17/06/2026',
+    views: 96,
+    comments: 8,
+    pinned: false,
+  },
+  {
+    id: 33,
+    title: 'Quy định check-in khi tham gia open play',
+    author: 'Tuấn Trần',
+    status: 'Nháp',
+    createdAt: '15/06/2026',
+    views: 0,
+    comments: 0,
+    pinned: false,
+  },
+];
+
+const initialChatMessages: ClubChatMessage[] = [
+  {
+    id: 41,
+    author: 'Linh Nguyễn',
+    avatar: 'LN',
+    text: 'Tối nay nhóm 3.0 còn thiếu 2 người, ai hỗ trợ ghép đội giúp mình nhé.',
+    time: '09:12',
+  },
+  {
+    id: 42,
+    author: 'Tuấn Trần',
+    avatar: 'TT',
+    text: 'Mình sẽ đứng lớp kỹ thuật ở sân trung tâm. Bạn nào mới tham gia cứ nhắn mình trước.',
+    time: '09:35',
+  },
+  {
+    id: 43,
+    author: 'Bạn',
+    avatar: 'B',
+    text: 'Mình đã ghim thông báo lịch ladder cuối tuần trong bảng tin.',
+    time: '10:05',
+    mine: true,
+  },
+];
+
+const roleOptions: MemberRole[] = ['Chủ nhiệm', 'Quản trị viên', 'Huấn luyện viên', 'Thành viên'];
+
+const permissionByRole: Record<MemberRole, string[]> = {
+  'Chủ nhiệm': ['Toàn quyền', 'Duyệt thành viên', 'Tạo sự kiện', 'Quản lý bài viết', 'Chat CLB'],
+  'Quản trị viên': ['Duyệt thành viên', 'Tạo sự kiện', 'Quản lý bài viết', 'Chat CLB'],
+  'Huấn luyện viên': ['Tạo sự kiện', 'Chat CLB'],
+  'Thành viên': ['Chat CLB'],
+};
+
+const statusClassNames: Record<EventStatus | PostStatus, string> = {
+  'Đang mở': 'bg-[#eaf7df] text-primary',
+  'Sắp diễn ra': 'bg-[#fff4d8] text-[#7a5600]',
+  'Đã khóa': 'bg-surface-container-low text-on-surface-variant',
+  'Đã đăng': 'bg-[#eaf7df] text-primary',
+  'Chờ duyệt': 'bg-[#fff4d8] text-[#7a5600]',
+  Nháp: 'bg-surface-container-low text-on-surface-variant',
+};
+
+const getCurrentTime = () =>
+  new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+
+const getRoleClassName = (role: MemberRole) => {
+  if (role === 'Chủ nhiệm') {
+    return 'bg-primary text-white';
+  }
+
+  if (role === 'Quản trị viên') {
+    return 'bg-primary-container text-on-primary-container';
+  }
+
+  if (role === 'Huấn luyện viên') {
+    return 'bg-[#fff4d8] text-[#7a5600]';
+  }
+
+  return 'bg-surface-container-low text-on-surface-variant';
+};
 
 export const ClubDashboard = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [requests, setRequests] = useState(initialRequests);
+  const [members, setMembers] = useState(initialMembers);
+  const [events, setEvents] = useState(initialEvents);
+  const [posts, setPosts] = useState(initialPosts);
+  const [chatMessages, setChatMessages] = useState(initialChatMessages);
+  const [chatDraft, setChatDraft] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [eventForm, setEventForm] = useState<EventForm>({
+    title: '',
+    type: 'Open play',
+    date: '2026-06-25',
+    time: '18:00 - 20:00',
+    court: 'Sân 1 & 2',
+    capacity: '24',
+  });
 
-  return (
-    <div className="flex bg-[#f9f9ff] min-h-screen font-body-md text-[#151c27] w-full">
-      {/* Sidebar */}
-      <aside className="w-[280px] bg-white border-r border-[#c2c9b3]/60 flex flex-col hidden md:flex shrink-0 fixed h-screen z-20">
-        <div className="p-6">
-          <Link to="/" className="text-[24px] font-bold text-[#3d6a00] tracking-tight">Picklink</Link>
-        </div>
-        
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 bg-[#84c33e] text-white rounded-xl font-bold transition-all">
-            <LayoutDashboard className="w-5 h-5" />
-            Tổng quan
-          </Link>
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#f0f3ff] hover:text-[#3d6a00] rounded-xl font-medium transition-all">
-            <Users className="w-5 h-5" />
-            Thành viên
-          </Link>
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#f0f3ff] hover:text-[#3d6a00] rounded-xl font-medium transition-all">
-            <Calendar className="w-5 h-5" />
-            Sự kiện
-          </Link>
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#f0f3ff] hover:text-[#3d6a00] rounded-xl font-medium transition-all">
-            <Settings className="w-5 h-5" />
-            Cài đặt
-          </Link>
-        </nav>
+  const clubCode = id?.replace(/-/g, ' ') || 'hanoi elite';
+  const pendingPosts = posts.filter((post) => post.status === 'Chờ duyệt').length;
+  const openEvents = events.filter((event) => event.status !== 'Đã khóa').length;
+  const filteredMembers = members.filter((member) => {
+    const keyword = memberSearch.trim().toLowerCase();
 
-        <div className="p-4 space-y-4">
-          <button className="w-full bg-[#3d6a00] text-white font-bold py-3 px-4 rounded-xl hover:bg-[#2b4d00] transition-colors flex items-center justify-center gap-2">
-            Sự kiện mới
-          </button>
-          
-          <div className="pt-4 border-t border-[#c2c9b3]/40 space-y-2">
-            <Link to="#" className="flex items-center gap-3 px-4 py-2 text-[#555f6f] hover:text-[#151c27] font-medium transition-all">
-              <HelpCircle className="w-5 h-5" />
-              Hỗ trợ
-            </Link>
-            <button onClick={() => navigate('/')} className="flex items-center gap-3 px-4 py-2 text-[#ba1a1a] hover:bg-[#ffdad6]/50 rounded-lg w-full font-bold transition-all">
-              <LogOut className="w-5 h-5" />
-              Đăng xuất
+    return (
+      !keyword ||
+      member.name.toLowerCase().includes(keyword) ||
+      member.role.toLowerCase().includes(keyword) ||
+      member.level.includes(keyword)
+    );
+  });
+
+  const sideNavItems: Array<{ id: DashboardTab; label: string; icon: LucideIcon; badge?: number }> = [
+    { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
+    { id: 'members', label: 'Thành viên', icon: Users, badge: requests.length },
+    { id: 'events', label: 'Sự kiện', icon: CalendarDays, badge: openEvents },
+    { id: 'posts', label: 'Bài viết', icon: FileText, badge: pendingPosts },
+    { id: 'chat', label: 'Chat CLB', icon: MessageCircle },
+  ];
+
+  const stats = useMemo(
+    () => [
+      {
+        label: 'Tổng thành viên',
+        value: members.length.toString(),
+        helper: `${requests.length} yêu cầu chờ duyệt`,
+        icon: Users,
+      },
+      {
+        label: 'Sự kiện đang quản lý',
+        value: events.length.toString(),
+        helper: `${openEvents} sự kiện còn mở`,
+        icon: CalendarDays,
+      },
+      {
+        label: 'Bài viết chờ duyệt',
+        value: pendingPosts.toString(),
+        helper: `${posts.length} bài trong bảng tin`,
+        icon: FileText,
+      },
+      {
+        label: 'Tin nhắn hôm nay',
+        value: chatMessages.length.toString(),
+        helper: '45 thành viên đang trực tuyến',
+        icon: MessageCircle,
+      },
+    ],
+    [chatMessages.length, events.length, members.length, openEvents, pendingPosts, posts.length, requests.length],
+  );
+
+  const approveRequest = (request: JoinRequest) => {
+    setRequests((currentRequests) => currentRequests.filter((item) => item.id !== request.id));
+    setMembers((currentMembers) => [
+      ...currentMembers,
+      {
+        id: Date.now(),
+        name: request.name,
+        avatar: request.avatar,
+        level: request.level,
+        role: 'Thành viên',
+        joinedAt: '18/06/2026',
+        status: 'Đang hoạt động',
+        permissions: permissionByRole['Thành viên'],
+      },
+    ]);
+  };
+
+  const rejectRequest = (requestId: number) => {
+    setRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
+  };
+
+  const updateMemberRole = (memberId: number, role: MemberRole) => {
+    setMembers((currentMembers) =>
+      currentMembers.map((member) =>
+        member.id === memberId
+          ? {
+              ...member,
+              role,
+              permissions: permissionByRole[role],
+            }
+          : member,
+      ),
+    );
+  };
+
+  const toggleMemberStatus = (memberId: number) => {
+    setMembers((currentMembers) =>
+      currentMembers.map((member) =>
+        member.id === memberId
+          ? {
+              ...member,
+              status: member.status === 'Đang hoạt động' ? 'Tạm khóa' : 'Đang hoạt động',
+            }
+          : member,
+      ),
+    );
+  };
+
+  const createEvent = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const capacity = Number(eventForm.capacity) || 16;
+
+    setEvents((currentEvents) => [
+      {
+        id: Date.now(),
+        title: eventForm.title || 'Sự kiện CLB mới',
+        type: eventForm.type,
+        date: new Intl.DateTimeFormat('vi-VN').format(new Date(`${eventForm.date}T00:00:00`)),
+        time: eventForm.time,
+        court: eventForm.court,
+        capacity,
+        registered: 0,
+        status: 'Đang mở',
+      },
+      ...currentEvents,
+    ]);
+    setEventForm((currentForm) => ({ ...currentForm, title: '', capacity: '24' }));
+  };
+
+  const approvePost = (postId: number) => {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) => (post.id === postId ? { ...post, status: 'Đã đăng' } : post)),
+    );
+  };
+
+  const togglePinPost = (postId: number) => {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) => (post.id === postId ? { ...post, pinned: !post.pinned } : post)),
+    );
+  };
+
+  const deletePost = (postId: number) => {
+    setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId));
+  };
+
+  const sendChatMessage = () => {
+    const text = chatDraft.trim();
+
+    if (!text) {
+      return;
+    }
+
+    setChatMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: Date.now(),
+        author: 'Bạn',
+        avatar: 'B',
+        text,
+        time: getCurrentTime(),
+        mine: true,
+      },
+    ]);
+    setChatDraft('');
+  };
+
+  const renderOverview = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[13px] font-bold uppercase text-on-surface-variant">{stat.label}</p>
+                <p className="mt-3 text-[34px] font-bold leading-none text-on-surface">{stat.value}</p>
+                <p className="mt-2 text-[13px] font-medium text-on-surface-variant">{stat.helper}</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-container-low text-primary">
+                <stat.icon className="h-5 w-5" />
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
+        <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-[20px] font-bold">Việc cần xử lý</h2>
+              <p className="mt-1 text-[13px] text-on-surface-variant">Các mục ưu tiên trong ngày của ban quản lý CLB.</p>
+            </div>
+            <button
+              className="rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold text-on-surface hover:bg-surface-container-low"
+              onClick={() => setActiveTab('members')}
+              type="button"
+            >
+              Xem tất cả
             </button>
           </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {[
+              {
+                title: 'Duyệt thành viên',
+                value: requests.length,
+                text: 'Yêu cầu tham gia mới cần phản hồi.',
+                icon: UserCheck,
+                tab: 'members' as const,
+              },
+              {
+                title: 'Tạo lịch tuần',
+                value: openEvents,
+                text: 'Sự kiện đang mở hoặc sắp diễn ra.',
+                icon: CalendarDays,
+                tab: 'events' as const,
+              },
+              {
+                title: 'Duyệt bài viết',
+                value: pendingPosts,
+                text: 'Bài đăng cộng đồng chờ kiểm duyệt.',
+                icon: FileText,
+                tab: 'posts' as const,
+              },
+            ].map((item) => (
+              <button
+                className="rounded-lg border border-outline-variant p-4 text-left transition-colors hover:border-primary hover:bg-surface-container-low"
+                key={item.title}
+                onClick={() => setActiveTab(item.tab)}
+                type="button"
+              >
+                <item.icon className="h-6 w-6 text-primary" />
+                <p className="mt-4 text-[28px] font-bold leading-none">{item.value}</p>
+                <h3 className="mt-2 text-[15px] font-bold">{item.title}</h3>
+                <p className="mt-1 text-[13px] leading-5 text-on-surface-variant">{item.text}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-[20px] font-bold">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Quyền quản trị
+          </h2>
+          <div className="mt-5 space-y-3">
+            {roleOptions.map((role) => (
+              <div className="rounded-lg bg-white p-3" key={role}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${getRoleClassName(role)}`}>
+                    {role}
+                  </span>
+                  <span className="text-[12px] font-bold text-on-surface-variant">
+                    {members.filter((member) => member.role === role).length} người
+                  </span>
+                </div>
+                <p className="mt-2 text-[12px] leading-5 text-on-surface-variant">
+                  {permissionByRole[role].join(' · ')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+
+  const renderMembers = () => (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-[20px] font-bold">Duyệt thành viên</h2>
+            <p className="mt-1 text-[13px] text-on-surface-variant">Kiểm tra trình độ, khu vực và ghi chú trước khi duyệt.</p>
+          </div>
+          <span className="w-fit rounded-full bg-[#fff4d8] px-3 py-1 text-[12px] font-bold text-[#7a5600]">
+            {requests.length} yêu cầu chờ
+          </span>
+        </div>
+
+        <div className="divide-y divide-outline-variant">
+          {requests.length > 0 ? (
+            requests.map((request) => (
+              <article className="p-5" key={request.id}>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex min-w-0 gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-[14px] font-bold text-white">
+                      {request.avatar}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-[16px] font-bold">{request.name}</h3>
+                      <p className="mt-1 text-[13px] font-medium text-on-surface-variant">
+                        Level {request.level} · {request.area} · Gửi ngày {request.requestedAt}
+                      </p>
+                      <p className="mt-2 text-[13px] leading-5 text-on-surface-variant">{request.note}</p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      aria-label={`Duyệt ${request.name}`}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white hover:bg-primary/90"
+                      onClick={() => approveRequest(request)}
+                      type="button"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Duyệt
+                    </button>
+                    <button
+                      aria-label={`Từ chối ${request.name}`}
+                      className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+                      onClick={() => rejectRequest(request.id)}
+                      type="button"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Từ chối
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="p-8 text-center">
+              <UserCheck className="mx-auto h-10 w-10 text-primary" />
+              <p className="mt-3 text-[15px] font-bold">Không còn yêu cầu chờ duyệt</p>
+              <p className="mt-1 text-[13px] text-on-surface-variant">Các yêu cầu mới sẽ hiển thị tại đây.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+        <h2 className="text-[20px] font-bold">Phân quyền nhanh</h2>
+        <p className="mt-1 text-[13px] text-on-surface-variant">Mỗi vai trò được gắn sẵn nhóm quyền phù hợp.</p>
+        <div className="mt-5 space-y-3">
+          {roleOptions.map((role) => (
+            <div className="rounded-lg border border-outline-variant p-4" key={role}>
+              <span className={`inline-flex rounded-full px-3 py-1 text-[12px] font-bold ${getRoleClassName(role)}`}>
+                {role}
+              </span>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {permissionByRole[role].map((permission) => (
+                  <span className="rounded-full bg-surface-container-low px-2 py-1 text-[11px] font-bold text-on-surface-variant" key={permission}>
+                    {permission}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-outline-variant bg-white shadow-sm xl:col-span-2">
+        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-[20px] font-bold">Danh sách thành viên</h2>
+            <p className="mt-1 text-[13px] text-on-surface-variant">Cập nhật vai trò, trạng thái và quyền thao tác trong CLB.</p>
+          </div>
+          <div className="relative w-full md:w-[320px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+            <input
+              className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setMemberSearch(event.target.value)}
+              placeholder="Tìm thành viên, vai trò..."
+              type="text"
+              value={memberSearch}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-left">
+            <thead className="bg-surface-container-low">
+              <tr>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Thành viên</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Vai trò</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Quyền</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {filteredMembers.map((member) => (
+                <tr className="hover:bg-[#f9f9ff]" key={member.id}>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-white">
+                        {member.avatar}
+                      </div>
+                      <div>
+                        <p className="font-bold">{member.name}</p>
+                        <p className="text-[12px] font-medium text-on-surface-variant">
+                          Level {member.level} · Gia nhập {member.joinedAt}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <select
+                      className="h-10 rounded-lg border border-outline-variant bg-white px-3 text-[13px] font-bold outline-none focus:border-primary"
+                      onChange={(event) => updateMemberRole(member.id, event.target.value as MemberRole)}
+                      value={member.role}
+                    >
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex max-w-[320px] flex-wrap gap-1.5">
+                      {member.permissions.map((permission) => (
+                        <span className="rounded-full bg-surface-container-low px-2 py-1 text-[11px] font-bold text-on-surface-variant" key={permission}>
+                          {permission}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-[12px] font-bold ${
+                        member.status === 'Đang hoạt động'
+                          ? 'bg-[#eaf7df] text-primary'
+                          : 'bg-[#ffdad6] text-[#ba1a1a]'
+                      }`}
+                    >
+                      {member.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <button
+                      className="rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold hover:bg-surface-container-low"
+                      onClick={() => toggleMemberStatus(member.id)}
+                      type="button"
+                    >
+                      {member.status === 'Đang hoạt động' ? 'Tạm khóa' : 'Mở khóa'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+
+  const renderEvents = () => (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
+      <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+        <h2 className="flex items-center gap-2 text-[20px] font-bold">
+          <Plus className="h-5 w-5 text-primary" />
+          Tạo sự kiện
+        </h2>
+        <form className="mt-5 space-y-4" onSubmit={createEvent}>
+          <label className="block">
+            <span className="text-[13px] font-bold text-on-surface-variant">Tên sự kiện</span>
+            <input
+              className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setEventForm((form) => ({ ...form, title: event.target.value }))}
+              placeholder="Ví dụ: Open play tối thứ 5"
+              type="text"
+              value={eventForm.title}
+            />
+          </label>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[13px] font-bold text-on-surface-variant">Hình thức</span>
+              <select
+                className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] outline-none focus:border-primary"
+                onChange={(event) => setEventForm((form) => ({ ...form, type: event.target.value }))}
+                value={eventForm.type}
+              >
+                <option>Open play</option>
+                <option>Giải nội bộ</option>
+                <option>Lớp học</option>
+                <option>Giao lưu CLB</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-[13px] font-bold text-on-surface-variant">Sức chứa</span>
+              <input
+                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                min="2"
+                onChange={(event) => setEventForm((form) => ({ ...form, capacity: event.target.value }))}
+                type="number"
+                value={eventForm.capacity}
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[13px] font-bold text-on-surface-variant">Ngày</span>
+              <input
+                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setEventForm((form) => ({ ...form, date: event.target.value }))}
+                type="date"
+                value={eventForm.date}
+              />
+            </label>
+            <label className="block">
+              <span className="text-[13px] font-bold text-on-surface-variant">Giờ</span>
+              <input
+                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setEventForm((form) => ({ ...form, time: event.target.value }))}
+                type="text"
+                value={eventForm.time}
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-[13px] font-bold text-on-surface-variant">Sân / địa điểm</span>
+            <input
+              className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setEventForm((form) => ({ ...form, court: event.target.value }))}
+              type="text"
+              value={eventForm.court}
+            />
+          </label>
+
+          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" type="submit">
+            <CalendarDays className="h-5 w-5" />
+            Tạo và mở đăng ký
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-outline-variant p-5">
+          <div>
+            <h2 className="text-[20px] font-bold">Quản lý sự kiện</h2>
+            <p className="mt-1 text-[13px] text-on-surface-variant">Theo dõi số người đăng ký, trạng thái mở và lịch sắp tới.</p>
+          </div>
+          <button className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" type="button">
+            <MoreVertical className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="divide-y divide-outline-variant">
+          {events.map((event) => (
+            <article className="p-5" key={event.id}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[16px] font-bold">{event.title}</h3>
+                    <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${statusClassNames[event.status]}`}>
+                      {event.status}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[13px] font-medium text-on-surface-variant">
+                    {event.type} · {event.date} · {event.time} · {event.court}
+                  </p>
+                  <div className="mt-3 h-2 w-full max-w-[420px] overflow-hidden rounded-full bg-surface-container-low">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.min((event.registered / event.capacity) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[12px] font-bold text-on-surface-variant">
+                    {event.registered}/{event.capacity} người đăng ký
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button className="rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold hover:bg-surface-container-low" type="button">
+                    Chỉnh sửa
+                  </button>
+                  <button className="rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white hover:bg-primary/90" type="button">
+                    Danh sách
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+
+  const renderPosts = () => (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-[20px] font-bold">Quản lý bài viết</h2>
+            <p className="mt-1 text-[13px] text-on-surface-variant">Duyệt, ghim, ẩn hoặc xóa nội dung trong bảng tin CLB.</p>
+          </div>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-[13px] font-bold text-white hover:bg-primary/90" type="button">
+            <Megaphone className="h-4 w-4" />
+            Tạo thông báo
+          </button>
+        </div>
+
+        <div className="divide-y divide-outline-variant">
+          {posts.map((post) => (
+            <article className="p-5" key={post.id}>
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {post.pinned && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary text-white px-2 py-1 text-[11px] font-bold">
+                        <Pin className="h-3 w-3" />
+                        Đã ghim
+                      </span>
+                    )}
+                    <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${statusClassNames[post.status]}`}>
+                      {post.status}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 text-[17px] font-bold">{post.title}</h3>
+                  <p className="mt-1 text-[13px] text-on-surface-variant">
+                    {post.author} · {post.createdAt} · {post.views} lượt xem · {post.comments} bình luận
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {post.status === 'Chờ duyệt' && (
+                    <button
+                      className="rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white hover:bg-primary/90"
+                      onClick={() => approvePost(post.id)}
+                      type="button"
+                    >
+                      Duyệt
+                    </button>
+                  )}
+                  <button
+                    aria-label={post.pinned ? 'Bỏ ghim bài viết' : 'Ghim bài viết'}
+                    className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
+                    onClick={() => togglePinPost(post.id)}
+                    type="button"
+                  >
+                    <Pin className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Xem bài viết" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" type="button">
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Chỉnh sửa bài viết" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" type="button">
+                    <Edit3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    aria-label="Xóa bài viết"
+                    className="rounded-lg border border-outline-variant p-2 text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+                    onClick={() => deletePost(post.id)}
+                    type="button"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <aside className="space-y-6">
+        <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+          <h2 className="text-[20px] font-bold">Bộ lọc kiểm duyệt</h2>
+          <div className="mt-4 space-y-2">
+            {(['Chờ duyệt', 'Đã đăng', 'Nháp'] as PostStatus[]).map((status) => (
+              <button
+                className="flex w-full items-center justify-between rounded-lg border border-outline-variant px-3 py-3 text-left text-[13px] font-bold hover:bg-surface-container-low"
+                key={status}
+                type="button"
+              >
+                <span>{status}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] ${statusClassNames[status]}`}>
+                  {posts.filter((post) => post.status === status).length}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-[20px] font-bold">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Quy tắc đăng bài
+          </h2>
+          <ul className="mt-4 space-y-3 text-[13px] leading-5 text-on-surface-variant">
+            {['Không đăng nội dung mua bán ngoài hệ thống.', 'Bài ghim ưu tiên lịch thi đấu và thông báo CLB.', 'Bài từ thành viên mới cần quản trị viên duyệt.'].map((rule) => (
+              <li className="flex gap-2" key={rule}>
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {rule}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </aside>
+    </div>
+  );
+
+  const renderChat = () => (
+    <div className="grid min-h-[680px] grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <section className="flex min-h-[620px] flex-col overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-bold text-white">
+              HE
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-[17px] font-bold">Chat Hanoi Elite Pickleball Club</h2>
+              <p className="truncate text-[12px] font-bold text-on-surface-variant">45 thành viên đang trực tuyến</p>
+            </div>
+          </div>
+          <button className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" type="button">
+            <Settings className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div
+          className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-5"
+          style={{
+            backgroundImage: 'radial-gradient(#dce2f3 1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+          }}
+        >
+          {chatMessages.map((message) => (
+            <div className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`} key={message.id}>
+              <div className={`flex max-w-[78%] gap-3 md:max-w-[620px] ${message.mine ? 'flex-row-reverse' : ''}`}>
+                <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-white">
+                  {message.avatar}
+                </div>
+                <div className={message.mine ? 'text-right' : ''}>
+                  <div className={`mb-1 flex items-center gap-2 ${message.mine ? 'justify-end' : ''}`}>
+                    <span className="text-[12px] font-bold text-on-surface-variant">{message.author}</span>
+                    <span className="text-[11px] text-on-surface-variant">{message.time}</span>
+                  </div>
+                  <div
+                    className={`rounded-2xl px-4 py-3 text-[14px] leading-6 shadow-sm ${
+                      message.mine
+                        ? 'rounded-tr-sm bg-primary text-white'
+                        : 'rounded-tl-sm border border-outline-variant bg-white text-on-surface'
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="shrink-0 border-t border-outline-variant p-4">
+          <div className="flex items-end gap-2">
+            <textarea
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              onChange={(event) => setChatDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  sendChatMessage();
+                }
+              }}
+              placeholder="Nhập tin nhắn CLB..."
+              rows={1}
+              value={chatDraft}
+            />
+            <button
+              aria-label="Gửi tin nhắn CLB"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-[#8a9380]"
+              disabled={!chatDraft.trim()}
+              onClick={sendChatMessage}
+              type="button"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside className="space-y-6">
+        <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+          <h2 className="text-[20px] font-bold">Thành viên trực tuyến</h2>
+          <div className="mt-4 space-y-3">
+            {members.slice(0, 4).map((member) => (
+              <div className="flex items-center gap-3" key={member.id}>
+                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-white">
+                  {member.avatar}
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-[#2f9e44]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-bold">{member.name}</p>
+                  <p className="truncate text-[12px] text-on-surface-variant">{member.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-outline-variant bg-[#fff8e6] p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-[18px] font-bold text-[#7a5600]">
+            <LockKeyhole className="h-5 w-5" />
+            Quyền chat CLB
+          </h2>
+          <p className="mt-3 text-[13px] leading-5 text-[#7a5600]">
+            Thành viên đã được duyệt mới có thể tham gia chat. Quản trị viên có thể ghim thông báo, ẩn tin nhắn và khóa thành viên vi phạm.
+          </p>
+        </section>
+      </aside>
+    </div>
+  );
+
+  const renderActiveTab = () => {
+    if (activeTab === 'members') {
+      return renderMembers();
+    }
+
+    if (activeTab === 'events') {
+      return renderEvents();
+    }
+
+    if (activeTab === 'posts') {
+      return renderPosts();
+    }
+
+    if (activeTab === 'chat') {
+      return renderChat();
+    }
+
+    return renderOverview();
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f9f9ff] text-on-surface">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r border-outline-variant bg-white lg:flex">
+        <div className="border-b border-outline-variant p-6">
+          <Link className="text-[24px] font-bold text-primary" to="/">
+            Picklink
+          </Link>
+          <p className="mt-2 text-[13px] font-bold text-on-surface-variant">Quản lý CLB</p>
+        </div>
+
+        <nav className="flex-1 space-y-2 p-4">
+          {sideNavItems.map((item) => (
+            <button
+              className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-[14px] font-bold transition-colors ${
+                activeTab === item.id
+                  ? 'bg-primary text-white'
+                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+              }`}
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              type="button"
+            >
+              <span className="inline-flex items-center gap-3">
+                <item.icon className="h-5 w-5" />
+                {item.label}
+              </span>
+              {item.badge !== undefined && item.badge > 0 && (
+                <span className={`rounded-full px-2 py-0.5 text-[11px] ${activeTab === item.id ? 'bg-white text-primary' : 'bg-[#eab526] text-white'}`}>
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="border-t border-outline-variant p-4">
+          <button
+            className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-4 py-3 text-[14px] font-bold text-on-primary-container"
+            onClick={() => setActiveTab('events')}
+            type="button"
+          >
+            <Plus className="h-5 w-5" />
+            Sự kiện mới
+          </button>
+          <button
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+            onClick={() => navigate('/')}
+            type="button"
+          >
+            <LogOut className="h-5 w-5" />
+            Đăng xuất
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 md:ml-[280px] w-full">
-        {/* Top Header */}
-        <header className="h-[72px] bg-white border-b border-[#c2c9b3]/60 px-8 flex items-center justify-between sticky top-0 z-10">
-          <div className="relative w-full max-w-[400px]">
-            <Search className="w-5 h-5 text-[#555f6f] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm thành viên, sân tập..." 
-              className="w-full bg-[#f0f3ff] border-none rounded-xl pl-10 pr-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-[#84c33e]/50"
-            />
+      <main className="lg:pl-[280px]">
+        <header className="sticky top-0 z-20 border-b border-outline-variant bg-white/95 px-4 py-4 backdrop-blur md:px-8">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-on-surface-variant">
+                <Link className="hover:text-primary" to="/clubs">
+                  CLB
+                </Link>
+                <ChevronRight className="h-4 w-4" />
+                <span className="text-on-surface">Hanoi Elite Pickleball Club</span>
+              </div>
+              <h1 className="mt-2 text-[26px] font-bold leading-tight md:text-[32px]">
+                Quản lý CLB
+              </h1>
+              <p className="mt-1 text-[14px] text-on-surface-variant">
+                Mã CLB: {clubCode.toUpperCase()} · Duyệt thành viên, phân quyền, sự kiện, bài viết và chat.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative hidden w-[320px] md:block">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                <input
+                  className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  placeholder="Tìm thành viên, bài viết..."
+                  type="text"
+                />
+              </div>
+              <button className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low" type="button">
+                <Bell className="h-5 w-5" />
+                <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#eab526]" />
+              </button>
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-white">
+                NA
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-[#555f6f] hover:bg-[#f0f3ff] rounded-full transition-colors">
-              <Bell className="w-6 h-6" />
-              <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-[#ba1a1a] rounded-full border-2 border-white"></span>
-            </button>
-            <button className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#84c33e]/30">
-              <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Profile" className="w-full h-full object-cover" />
-            </button>
-          </div>
+
+          <nav className="mt-4 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            {sideNavItems.map((item) => (
+              <button
+                className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-[13px] font-bold ${
+                  activeTab === item.id ? 'bg-primary text-white' : 'border border-outline-variant bg-white text-on-surface-variant'
+                }`}
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                type="button"
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className={`rounded-full px-1.5 text-[11px] ${activeTab === item.id ? 'bg-white text-primary' : 'bg-[#eab526] text-white'}`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
         </header>
 
-        <div className="p-8 max-w-[1200px] mx-auto">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-[28px] font-bold text-[#151c27] mb-2 tracking-tight">Tổng quan</h1>
-            <p className="text-[16px] text-[#555f6f]">Chào mừng trở lại, đây là những gì đang diễn ra tại câu lạc bộ của bạn hôm nay.</p>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-2xl p-6 border border-[#c2c9b3]/60 shadow-sm flex items-start justify-between">
-              <div>
-                <h3 className="text-[13px] font-bold text-[#555f6f] uppercase tracking-wider mb-2">Tổng thành viên</h3>
-                <div className="flex items-end gap-3">
-                  <span className="text-[32px] font-bold text-[#151c27] leading-none">245</span>
-                  <span className="flex items-center text-[#3d6a00] text-[14px] font-bold pb-1 text-[#84c33e]">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    12 tháng này
-                  </span>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-[#e7eefe] flex items-center justify-center text-[#3d6a00]">
-                <Users className="w-6 h-6" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-[#c2c9b3]/60 shadow-sm flex items-start justify-between">
-              <div>
-                <h3 className="text-[13px] font-bold text-[#555f6f] uppercase tracking-wider mb-2">Sự kiện sắp tới</h3>
-                <div className="flex items-end gap-3">
-                  <span className="text-[32px] font-bold text-[#151c27] leading-none">12</span>
-                  <span className="text-[#555f6f] text-[14px] font-medium pb-1">Tuần này</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-[#ffdad6]/50 flex items-center justify-center text-[#ba1a1a]">
-                <Calendar className="w-6 h-6" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-[#c2c9b3]/60 shadow-sm flex items-start justify-between">
-              <div>
-                <h3 className="text-[13px] font-bold text-[#555f6f] uppercase tracking-wider mb-2">Yêu cầu tham gia mới</h3>
-                <div className="flex items-end gap-3">
-                  <span className="text-[32px] font-bold text-[#ba1a1a] leading-none">8</span>
-                  <span className="text-[#ba1a1a] text-[14px] font-bold pb-1">Chưa xử lý</span>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-[#e7eefe] flex items-center justify-center text-[#3d6a00]">
-                <UserPlus className="w-6 h-6" />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column (Span 2) */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Join Requests */}
-              <div className="bg-white rounded-2xl border border-[#c2c9b3]/60 shadow-sm overflow-hidden">
-                <div className="flex justify-between items-center px-6 py-5 border-b border-[#c2c9b3]/40">
-                  <h2 className="text-[18px] font-bold text-[#151c27]">Yêu cầu tham gia</h2>
-                  <Link to="#" className="text-[#3d6a00] text-[14px] font-bold hover:underline">Xem tất cả</Link>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-[#f9f9ff]">
-                      <tr>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#555f6f] uppercase tracking-wider">Tên người chơi</th>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#555f6f] uppercase tracking-wider text-center">Trình độ</th>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#555f6f] uppercase tracking-wider">Ngày đăng ký</th>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#555f6f] uppercase tracking-wider text-center">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#c2c9b3]/40">
-                      <tr className="hover:bg-[#f9f9ff] transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#d6e0f3] flex items-center justify-center text-[#151c27] font-bold text-[12px]">NL</div>
-                            <span className="font-bold text-[#151c27]">Nguyen Linh</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-block px-3 py-1 bg-[#f0f3ff] text-[#3d6a00] font-bold rounded-lg text-[13px]">3.5</span>
-                        </td>
-                        <td className="px-6 py-4 text-[14px] text-[#555f6f] font-medium">24 Thg 10, 2023</td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-center gap-2">
-                            <button className="text-[#84c33e] hover:text-[#3d6a00] hover:bg-[#e7eefe] p-1.5 rounded-full transition-colors"><CheckCircle2 className="w-5 h-5" /></button>
-                            <button className="text-[#ba1a1a] hover:bg-[#ffdad6] p-1.5 rounded-full transition-colors"><XCircle className="w-5 h-5" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-[#f9f9ff] transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#ffade0] flex items-center justify-center text-[#7b1963] font-bold text-[12px]">TA</div>
-                            <span className="font-bold text-[#151c27]">Tran Anh</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-block px-3 py-1 bg-[#f0f3ff] text-[#3d6a00] font-bold rounded-lg text-[13px]">4.0</span>
-                        </td>
-                        <td className="px-6 py-4 text-[14px] text-[#555f6f] font-medium">24 Thg 10, 2023</td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-center gap-2">
-                            <button className="text-[#84c33e] hover:text-[#3d6a00] hover:bg-[#e7eefe] p-1.5 rounded-full transition-colors"><CheckCircle2 className="w-5 h-5" /></button>
-                            <button className="text-[#ba1a1a] hover:bg-[#ffdad6] p-1.5 rounded-full transition-colors"><XCircle className="w-5 h-5" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-[#f9f9ff] transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#b3f66a] flex items-center justify-center text-[#0f2000] font-bold text-[12px]">LM</div>
-                            <span className="font-bold text-[#151c27]">Le Minh</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-block px-3 py-1 bg-[#f0f3ff] text-[#3d6a00] font-bold rounded-lg text-[13px]">2.5</span>
-                        </td>
-                        <td className="px-6 py-4 text-[14px] text-[#555f6f] font-medium">23 Thg 10, 2023</td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-center gap-2">
-                            <button className="text-[#84c33e] hover:text-[#3d6a00] hover:bg-[#e7eefe] p-1.5 rounded-full transition-colors"><CheckCircle2 className="w-5 h-5" /></button>
-                            <button className="text-[#ba1a1a] hover:bg-[#ffdad6] p-1.5 rounded-full transition-colors"><XCircle className="w-5 h-5" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Event Schedule */}
-              <div className="bg-white rounded-2xl border border-[#c2c9b3]/60 shadow-sm p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-[18px] font-bold text-[#151c27]">Lịch trình sự kiện tuần này</h2>
-                  <button className="text-[#555f6f] hover:bg-[#f0f3ff] p-2 rounded-full transition-colors">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-[#c2c9b3]/60 shadow-sm bg-white hover:border-[#84c33e] transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-[#84c33e] text-white flex flex-col items-center justify-center shrink-0">
-                        <span className="text-[12px] font-bold uppercase opacity-90">TH 4</span>
-                        <span className="text-[20px] font-bold leading-tight">25</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-[#151c27] text-[16px] mb-1 group-hover:text-[#3d6a00] transition-colors">Giao lưu Pickleball Nam/Nữ</h4>
-                        <div className="flex items-center text-[#555f6f] text-[13px] font-medium">
-                          <span>18:00 - 20:00</span>
-                          <span className="mx-2">•</span>
-                          <span>24 người tham gia</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="px-4 py-1.5 bg-[#2b4d00] text-white font-bold rounded-full text-[13px]">
-                      Đang mở
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-[#c2c9b3]/60 shadow-sm bg-[#f9f9ff]">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-[#dce2f3] text-[#151c27] flex flex-col items-center justify-center shrink-0">
-                        <span className="text-[12px] font-bold uppercase opacity-70">TH 6</span>
-                        <span className="text-[20px] font-bold leading-tight">27</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-[#151c27] text-[16px] mb-1">Giải đấu Nội bộ Tháng 10</h4>
-                        <div className="flex items-center text-[#555f6f] text-[13px] font-medium">
-                          <span>08:00 - 17:00</span>
-                          <span className="mx-2">•</span>
-                          <span>48 người tham gia</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="px-4 py-1.5 bg-[#e7eefe] text-[#3d6a00] font-bold rounded-full text-[13px]">
-                      Sắp diễn ra
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column (Span 1) */}
-            <div className="lg:col-span-1 space-y-8">
-              {/* Quick Actions */}
-              <div className="bg-white rounded-2xl border border-[#c2c9b3]/60 shadow-sm p-6">
-                <h2 className="text-[18px] font-bold text-[#151c27] mb-6">Thao tác nhanh</h2>
-                <div className="grid grid-cols-3 gap-4">
-                  <button className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-[#c2c9b3]/60 hover:bg-[#f0f3ff] hover:border-[#84c33e] transition-all group">
-                    <div className="text-[#3d6a00] group-hover:scale-110 transition-transform"><PlusCircle className="w-6 h-6" /></div>
-                    <span className="text-[13px] font-bold text-[#151c27] text-center">Tạo<br/>sự kiện</span>
-                  </button>
-                  <button className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-[#c2c9b3]/60 hover:bg-[#f0f3ff] hover:border-[#84c33e] transition-all group">
-                    <div className="text-[#3d6a00] group-hover:scale-110 transition-transform"><Megaphone className="w-6 h-6" /></div>
-                    <span className="text-[13px] font-bold text-[#151c27] text-center">Thông<br/>báo</span>
-                  </button>
-                  <button className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-[#c2c9b3]/60 hover:bg-[#f0f3ff] hover:border-[#84c33e] transition-all group">
-                    <div className="text-[#3d6a00] group-hover:scale-110 transition-transform"><UserPlus className="w-6 h-6" /></div>
-                    <span className="text-[13px] font-bold text-[#151c27] text-center">Mời<br/>thành viên</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Upcoming Sessions */}
-              <div className="bg-[#f0f3ff] rounded-2xl border border-[#c2c9b3]/40 shadow-sm p-6 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#84c33e] opacity-5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-                <h2 className="text-[18px] font-bold text-[#151c27] mb-6 relative z-10">Các phiên sắp tới</h2>
-                <div className="relative border-l-2 border-[#dce2f3] ml-3 pl-5 space-y-6 z-10">
-                  <div className="relative">
-                    <div className="absolute w-3 h-3 bg-[#84c33e] rounded-full -left-[27px] top-1"></div>
-                    <div className="bg-[#84c33e] text-white text-[12px] font-bold px-2 py-0.5 rounded-md inline-block mb-1">17:00</div>
-                    <h4 className="font-bold text-[#151c27] text-[15px]">Đánh đôi Nâng cao</h4>
-                    <p className="text-[13px] text-[#555f6f] font-medium flex items-center mt-1"><MapPin className="w-3.5 h-3.5 mr-1" /> Sân 1 & 2</p>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute w-3 h-3 bg-[#dce2f3] rounded-full -left-[27px] top-1"></div>
-                    <div className="bg-[#dce2f3] text-[#151c27] text-[12px] font-bold px-2 py-0.5 rounded-md inline-block mb-1">19:00</div>
-                    <h4 className="font-bold text-[#151c27] text-[15px]">Lớp học cho người mới</h4>
-                    <p className="text-[13px] text-[#555f6f] font-medium flex items-center mt-1"><MapPin className="w-3.5 h-3.5 mr-1" /> Sân 3</p>
-                  </div>
-                </div>
-                
-                <button className="w-full mt-6 text-center text-[#3d6a00] font-bold text-[14px] hover:underline relative z-10">
-                  Xem toàn bộ lịch trình
-                </button>
-              </div>
-            </div>
-          </div>
+        <div className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
+          {renderActiveTab()}
         </div>
       </main>
     </div>
