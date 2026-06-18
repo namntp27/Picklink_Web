@@ -6,10 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
-  CreditCard,
-  HelpCircle,
   Lock,
-  Map,
   MessageSquare,
   Save,
   Settings,
@@ -17,6 +14,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
+import { OwnerShell } from './components/OwnerShell';
 
 type OwnerProfile = {
   businessName: string;
@@ -49,14 +47,6 @@ type PayoutSettings = {
   accountHolder: string;
   payoutCycle: 'daily' | 'weekly' | 'monthly';
 };
-
-const navItems = [
-  { label: 'Lịch đặt sân', icon: CalendarDays, to: '/owner', active: false },
-  { label: 'Đơn đặt sân', icon: CreditCard, to: '/owner/bookings', active: false },
-  { label: 'Sân & court', icon: Map, to: '/owner/courts', active: false },
-  { label: 'Doanh thu', icon: Banknote, to: '/owner/revenue', active: false },
-  { label: 'Cài đặt', icon: Settings, to: '/owner/settings', active: true },
-];
 
 const initialProfile: OwnerProfile = {
   businessName: 'Pickleball Pro Duy Tân',
@@ -133,64 +123,7 @@ export const OwnerSettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] text-on-surface">
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between bg-primary px-4 text-white shadow-md md:px-margin-desktop">
-        <div className="flex items-center gap-4">
-          <Link className="text-[24px] font-bold tracking-tight" to="/">
-            Picklink
-          </Link>
-          <span className="hidden rounded-lg border border-white/20 px-3 py-1 text-[12px] font-bold text-white/86 md:inline-flex">
-            Chủ sân
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link className="hidden rounded-lg bg-white/10 px-4 py-2 text-[14px] font-bold hover:bg-white/16 md:inline-flex" to="/owner">
-            Lịch sân
-          </Link>
-          <Link className="hidden rounded-lg bg-white/10 px-4 py-2 text-[14px] font-bold hover:bg-white/16 md:inline-flex" to="/owner/bookings">
-            Đơn đặt sân
-          </Link>
-          <Link className="hidden rounded-lg bg-white px-4 py-2 text-[14px] font-bold text-primary md:inline-flex" to="/owner/settings">
-            Cài đặt
-          </Link>
-          <button aria-label="Thông báo chủ sân" className="rounded-lg p-2 hover:bg-white/10" type="button">
-            <Bell className="h-5 w-5" />
-          </button>
-          <button aria-label="Trợ giúp" className="hidden rounded-lg p-2 hover:bg-white/10 sm:inline-flex" type="button">
-            <HelpCircle className="h-5 w-5" />
-          </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/30 bg-white/12">
-            <User className="h-5 w-5" />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex min-w-0">
-        <aside className="sticky top-16 hidden h-[calc(100vh-64px)] w-64 shrink-0 border-r border-outline-variant bg-white p-4 md:block">
-          <div className="mb-6 px-2 pt-2">
-            <h2 className="text-[20px] font-bold text-primary">Picklink Admin</h2>
-            <p className="mt-1 text-[12px] font-medium text-on-surface-variant">Quản lý vận hành sân</p>
-          </div>
-
-          <nav className="space-y-1">
-            {navItems.map((item) => (
-              <Link
-                className={`flex items-center gap-3 rounded-lg px-3 py-3 text-[14px] font-bold transition-colors ${
-                  item.active ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'
-                }`}
-                key={item.label}
-                to={item.to}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </aside>
-
-        <main className="min-w-0 flex-1 px-4 py-6 pb-24 md:px-8 md:pb-8">
-          <div className="mx-auto max-w-[1320px] space-y-6">
+    <OwnerShell activeId="settings" innerClassName="max-w-[1320px]">
             <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">
@@ -479,32 +412,6 @@ export const OwnerSettings = () => {
                 </section>
               </aside>
             </section>
-          </div>
-        </main>
-      </div>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-50 grid h-16 grid-cols-5 border-t border-outline-variant bg-white md:hidden">
-        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner">
-          <CalendarDays className="h-5 w-5" />
-          <span className="text-[10px] font-bold">Lịch</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/bookings">
-          <CreditCard className="h-5 w-5" />
-          <span className="text-[10px] font-bold">Đơn</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/courts">
-          <Map className="h-5 w-5" />
-          <span className="text-[10px] font-bold">Sân</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/revenue">
-          <Banknote className="h-5 w-5" />
-          <span className="text-[10px] font-bold">Doanh thu</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center gap-1 text-primary" to="/owner/settings">
-          <Settings className="h-5 w-5" />
-          <span className="text-[10px] font-bold">Cài đặt</span>
-        </Link>
-      </nav>
-    </div>
+    </OwnerShell>
   );
 };

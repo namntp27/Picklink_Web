@@ -4,6 +4,7 @@ import { ProtectedRoute, PublicOnlyRoute } from './auth/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { Login } from './pages/auth/Login';
+import { NotFound } from './pages/auth/NotFound';
 import { Register } from './pages/auth/Register';
 import { Unauthorized } from './pages/auth/Unauthorized';
 import { BookingDetail } from './pages/bookings/BookingDetail';
@@ -125,6 +126,7 @@ function App() {
       </Route>
       <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
       <Route path="/court/:id" element={<CourtDetail />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

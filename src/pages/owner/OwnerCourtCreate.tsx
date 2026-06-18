@@ -2,19 +2,14 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Banknote,
-  Bell,
-  CalendarDays,
   CheckCircle2,
-  HelpCircle,
   Image as ImageIcon,
   Map,
   MapPin,
   Plus,
-  Settings,
   ShieldCheck,
-  User,
 } from 'lucide-react';
+import { OwnerShell } from './components/OwnerShell';
 
 type CourtCreateDraft = {
   name: string;
@@ -82,37 +77,7 @@ export const OwnerCourtCreate = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] text-on-surface">
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between bg-primary px-4 text-white shadow-md md:px-margin-desktop">
-        <div className="flex items-center gap-4">
-          <Link className="text-[24px] font-bold tracking-tight" to="/">
-            Picklink
-          </Link>
-          <span className="hidden rounded-lg border border-white/20 px-3 py-1 text-[12px] font-bold text-white/86 md:inline-flex">
-            Chủ sân
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link className="hidden rounded-lg bg-white/10 px-4 py-2 text-[14px] font-bold hover:bg-white/16 md:inline-flex" to="/owner">
-            Lịch đặt sân
-          </Link>
-          <Link className="hidden rounded-lg bg-white px-4 py-2 text-[14px] font-bold text-primary md:inline-flex" to="/owner/courts">
-            Sân & court
-          </Link>
-          <button aria-label="Thông báo chủ sân" className="rounded-lg p-2 hover:bg-white/10" type="button">
-            <Bell className="h-5 w-5" />
-          </button>
-          <button aria-label="Trợ giúp" className="hidden rounded-lg p-2 hover:bg-white/10 sm:inline-flex" type="button">
-            <HelpCircle className="h-5 w-5" />
-          </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/30 bg-white/12">
-            <User className="h-5 w-5" />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8">
+    <OwnerShell activeId="courts" innerClassName="max-w-[1280px]">
         <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/courts">
           <ArrowLeft className="h-4 w-4" />
           Quay lại quản lý sân
@@ -388,7 +353,6 @@ export const OwnerCourtCreate = () => {
             </section>
           </aside>
         </section>
-      </main>
-    </div>
+    </OwnerShell>
   );
 };
