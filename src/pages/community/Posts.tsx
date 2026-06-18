@@ -1,215 +1,224 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Home, 
-  TrendingUp, 
-  Users, 
-  Bookmark, 
-  Settings, 
+import {
+  Bookmark,
+  Home,
   Image as ImageIcon,
   MapPin,
-  UserPlus,
-  ThumbsUp,
   MessageCircle,
+  MoreHorizontal,
+  Plus,
+  Send,
+  Settings,
   Share2,
-  MoreHorizontal
+  ThumbsUp,
+  TrendingUp,
+  UserPlus,
+  Users,
 } from 'lucide-react';
+import type { CommunityPost } from '../../data/communityPosts';
+import { activeCommunityPlayers, communityPosts, currentCommunityUser, trendingTopics } from '../../data/communityPosts';
+
+const CommunitySidebar = () => (
+  <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[280px] shrink-0 overflow-y-auto p-4 md:block">
+    <div className="mb-8 flex items-center gap-3 p-2">
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white shadow-sm">
+        <img alt={currentCommunityUser.name} className="h-full w-full object-cover" src={currentCommunityUser.avatar} />
+      </div>
+      <div>
+        <h3 className="text-[16px] font-bold text-primary">{currentCommunityUser.name}</h3>
+        <p className="text-[13px] font-medium text-[#555f6f]">Trình độ {currentCommunityUser.level}</p>
+      </div>
+    </div>
+
+    <nav className="space-y-2">
+      {[
+        { label: 'Bảng tin', icon: Home, to: '/posts', active: true },
+        { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
+        { label: 'Câu lạc bộ', icon: Users, to: '/clubs' },
+        { label: 'Bài viết đã lưu', icon: Bookmark, to: '/posts/saved' },
+        { label: 'Cài đặt', icon: Settings, to: '/profile' },
+      ].map((item) => (
+        <Link
+          className={`flex items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold transition-colors ${
+            item.active ? 'bg-primary text-white shadow-sm' : 'text-[#555f6f] hover:bg-[#e7eefe] hover:text-primary'
+          }`}
+          key={item.label}
+          to={item.to}
+        >
+          <item.icon className="h-5 w-5" />
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  </aside>
+);
+
+const CommunityRightSidebar = () => (
+  <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[300px] shrink-0 overflow-y-auto p-4 lg:block">
+    <section className="mb-4 rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+      <h3 className="mb-4 text-[16px] font-bold">Chủ đề nổi bật</h3>
+      <div className="space-y-4">
+        {trendingTopics.map((topic) => (
+          <button className="block w-full text-left" key={topic.title} type="button">
+            <p className="mb-0.5 text-[12px] text-[#555f6f]">{topic.category}</p>
+            <h4 className="text-[14px] font-bold transition-colors hover:text-primary">{topic.title}</h4>
+            <p className="text-[12px] text-[#555f6f]">{topic.posts}</p>
+          </button>
+        ))}
+      </div>
+    </section>
+
+    <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+      <h3 className="mb-4 text-[16px] font-bold">Người chơi tích cực</h3>
+      <div className="space-y-4">
+        {activeCommunityPlayers.map((player) => (
+          <div className="flex items-center justify-between gap-3" key={player.name}>
+            <div className="flex min-w-0 items-center gap-3">
+              <img alt={player.name} className="h-10 w-10 rounded-lg object-cover" src={player.avatar} />
+              <div className="min-w-0">
+                <h4 className="truncate text-[14px] font-bold">{player.name}</h4>
+                <p className="text-[12px] text-[#555f6f]">Trình độ {player.level}</p>
+              </div>
+            </div>
+            <button className="shrink-0 rounded-lg bg-[#e7eefe] px-3 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-container" type="button">
+              Kết bạn
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  </aside>
+);
+
+const PostCard = ({ post }: { post: CommunityPost }) => (
+  <article className="mb-4 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <Link className="flex min-w-0 gap-3" to={`/posts/${post.id}`}>
+        <img alt={post.authorName} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={post.avatar} />
+        <div className="min-w-0">
+          <h4 className="truncate text-[15px] font-bold">{post.authorName}</h4>
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#555f6f]">
+            <span className="rounded-sm bg-[#e7eefe] px-1.5 py-0.5 font-bold text-[#3d6a00]">Trình độ {post.level}</span>
+            <span>{post.createdAt}</span>
+            <span>{post.location}</span>
+          </div>
+        </div>
+      </Link>
+      <button className="rounded-lg p-1.5 text-[#555f6f] hover:bg-[#f0f3ff]" type="button" aria-label="Tùy chọn bài viết">
+        <MoreHorizontal className="h-5 w-5" />
+      </button>
+    </div>
+
+    <Link className="block" to={`/posts/${post.id}`}>
+      <h3 className="mb-2 text-[18px] font-bold leading-6 text-on-surface">{post.title}</h3>
+      <p className="mb-4 text-[15px] leading-6 text-[#151c27]">{post.content}</p>
+
+      {post.lookingFor && (
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/8 p-3">
+          <p className="flex items-center gap-2 text-[13px] font-bold text-primary">
+            <Users className="h-4 w-4" />
+            {post.lookingFor}
+          </p>
+        </div>
+      )}
+
+      {post.image && <img alt={post.title} className="mb-3 h-[300px] w-full rounded-lg object-cover" src={post.image} />}
+    </Link>
+
+    <div className="mb-3 flex flex-wrap gap-2">
+      {post.tags.map((tag) => (
+        <span className="rounded-full bg-[#f0f3ff] px-3 py-1 text-[12px] font-bold text-[#555f6f]" key={tag}>
+          #{tag}
+        </span>
+      ))}
+    </div>
+
+    <div className="mb-3 flex items-center justify-between px-2 text-[13px] text-[#555f6f]">
+      <span className="flex items-center gap-1 font-medium">
+        <ThumbsUp className="h-4 w-4 text-primary" fill={post.liked ? 'currentColor' : 'none'} />
+        {post.likes}
+      </span>
+      <span>
+        {post.comments} bình luận · {post.shares} chia sẻ
+      </span>
+    </div>
+
+    <div className="grid grid-cols-3 gap-2 border-t border-outline-variant/40 pt-3">
+      <button
+        className={`flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold transition-colors ${
+          post.liked ? 'bg-[#e7eefe] text-primary' : 'text-[#555f6f] hover:bg-[#f0f3ff]'
+        }`}
+        type="button"
+      >
+        <ThumbsUp className="h-5 w-5" fill={post.liked ? 'currentColor' : 'none'} />
+        Thích
+      </button>
+      <Link
+        className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]"
+        to={`/posts/${post.id}`}
+      >
+        <MessageCircle className="h-5 w-5" />
+        Bình luận
+      </Link>
+      <button className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" type="button">
+        <Share2 className="h-5 w-5" />
+        Chia sẻ
+      </button>
+    </div>
+  </article>
+);
 
 export const Posts = () => {
   return (
-    <div className="flex bg-[#f9f9ff] min-h-screen font-body-md text-[#151c27] max-w-[1200px] mx-auto pt-[72px]">
-      
-      {/* Left Sidebar */}
-      <aside className="w-[280px] shrink-0 p-4 sticky top-[72px] h-[calc(100vh-72px)] overflow-y-auto hidden md:block">
-        <div className="flex items-center gap-3 mb-8 p-2">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0">
-            <img src="https://i.pravatar.cc/150?u=a042581f4e29026024d" alt="Court Leader" className="w-full h-full object-cover" />
-          </div>
-          <div>
-            <h3 className="font-bold text-[16px] text-primary">Court Leader</h3>
-            <p className="text-[#555f6f] text-[13px] font-medium">Skill Level: 4.5</p>
-          </div>
-        </div>
+    <div className="mx-auto flex min-h-screen max-w-[1200px] bg-[#f9f9ff] pt-[72px] font-body-md text-[#151c27]">
+      <CommunitySidebar />
 
-        <nav className="space-y-2">
-          <Link to="/posts" className="flex items-center gap-3 px-4 py-3 bg-[#84c33e] text-white rounded-xl font-bold transition-all shadow-sm">
-            <Home className="w-5 h-5" />
-            Bảng tin
-          </Link>
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#e7eefe] rounded-xl font-medium transition-all">
-            <TrendingUp className="w-5 h-5" />
-            Xu hướng
-          </Link>
-          <Link to="/clubs" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#e7eefe] rounded-xl font-medium transition-all">
-            <Users className="w-5 h-5" />
-            Câu lạc bộ
-          </Link>
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#e7eefe] rounded-xl font-medium transition-all">
-            <Bookmark className="w-5 h-5" />
-            Bài viết đã lưu
-          </Link>
-          <Link to="#" className="flex items-center gap-3 px-4 py-3 text-[#555f6f] hover:bg-[#e7eefe] rounded-xl font-medium transition-all">
-            <Settings className="w-5 h-5" />
-            Cài đặt
-          </Link>
-        </nav>
-      </aside>
-
-      {/* Main Content Flow */}
-      <main className="flex-1 max-w-[600px] p-4">
-        {/* Create Post Box */}
-        <div className="bg-white rounded-xl border border-outline-variant p-4 shadow-sm mb-6">
-          <div className="flex gap-3 mb-4">
-            <img src="https://i.pravatar.cc/150?u=a042581f4e29026024d" alt="User" className="w-10 h-10 rounded-full shrink-0" />
-            <input 
-              type="text" 
-              placeholder="Bạn đang nghĩ gì về trận đấu hôm nay?" 
-              className="w-full bg-[#f0f3ff] rounded-xl px-4 py-2 text-[14px] text-[#151c27] focus:outline-none focus:ring-1 focus:ring-primary-container"
-            />
+      <main className="min-w-0 flex-1 p-4 lg:max-w-[620px]">
+        <section className="mb-6 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
+          <div className="mb-4 flex gap-3">
+            <img alt={currentCommunityUser.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={currentCommunityUser.avatar} />
+            <Link
+              className="flex min-h-11 w-full items-center rounded-lg bg-[#f0f3ff] px-4 text-[14px] font-medium text-[#555f6f] hover:ring-2 hover:ring-primary/20"
+              to="/posts/create"
+            >
+              Bạn đang nghĩ gì về trận đấu hôm nay?
+            </Link>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-outline-variant/40">
+          <div className="flex items-center justify-between border-t border-outline-variant/40 pt-3">
             <div className="flex gap-2">
-              <button className="p-2 text-[#555f6f] hover:bg-[#f0f3ff] rounded-full transition-colors"><ImageIcon className="w-5 h-5" /></button>
-              <button className="p-2 text-[#555f6f] hover:bg-[#f0f3ff] rounded-full transition-colors"><MapPin className="w-5 h-5" /></button>
-              <button className="p-2 text-[#555f6f] hover:bg-[#f0f3ff] rounded-full transition-colors"><UserPlus className="w-5 h-5" /></button>
+              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Thêm ảnh">
+                <ImageIcon className="h-5 w-5" />
+              </Link>
+              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Gắn địa điểm">
+                <MapPin className="h-5 w-5" />
+              </Link>
+              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Tìm người chơi">
+                <UserPlus className="h-5 w-5" />
+              </Link>
             </div>
-            <button className="bg-primary text-white font-bold px-6 py-2 rounded-full hover:bg-primary/90 transition-colors text-[14px]">
-              Đăng Bài
-            </button>
+            <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts/create">
+              <Plus className="h-4 w-4" />
+              Tạo bài viết
+            </Link>
           </div>
-        </div>
+        </section>
 
-        {/* Post 1 */}
-        <div className="bg-white rounded-xl border border-outline-variant p-4 shadow-sm mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex gap-3">
-              <img src="https://i.pravatar.cc/150?u=a042581f4e29026703d" alt="Trần Văn Nam" className="w-10 h-10 rounded-full" />
-              <div>
-                <h4 className="font-bold text-[15px]">Trần Văn Nam</h4>
-                <div className="flex items-center gap-2 text-[12px] text-[#555f6f]">
-                  <span className="bg-[#e7eefe] text-[#3d6a00] font-bold px-1.5 py-0.5 rounded-sm">Level 3.5</span>
-                  <span>•</span>
-                  <span>2 giờ trước</span>
-                </div>
-              </div>
-            </div>
-            <button className="text-[#555f6f] hover:bg-[#f0f3ff] p-1.5 rounded-full"><MoreHorizontal className="w-5 h-5" /></button>
-          </div>
-          <p className="text-[15px] mb-4">
-            Tìm đồng đội chơi tối nay ở sân Cầu Giấy. Mình đang cần 2 slot đánh đôi, trình độ từ 3.0 - 4.0. Ai rảnh inbox nhé! 🏓🔥
-          </p>
-          <div className="flex items-center justify-between pt-3 border-t border-outline-variant/40">
-            <button className="flex-1 flex items-center justify-center gap-2 text-[#555f6f] hover:bg-[#f0f3ff] py-2 rounded-lg transition-colors font-medium text-[14px]">
-              <ThumbsUp className="w-5 h-5" /> Thích
-            </button>
-            <button className="flex-1 flex items-center justify-center gap-2 text-[#555f6f] hover:bg-[#f0f3ff] py-2 rounded-lg transition-colors font-medium text-[14px]">
-              <MessageCircle className="w-5 h-5" /> Bình luận
-            </button>
-            <button className="flex-1 flex items-center justify-center gap-2 text-[#555f6f] hover:bg-[#f0f3ff] py-2 rounded-lg transition-colors font-medium text-[14px]">
-              <Share2 className="w-5 h-5" /> Chia sẻ
-            </button>
-          </div>
-        </div>
-
-        {/* Post 2 */}
-        <div className="bg-white rounded-xl border border-outline-variant p-4 shadow-sm mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex gap-3">
-              <img src="https://i.pravatar.cc/150?u=a042581f4e29026702d" alt="Lê Thu Hà" className="w-10 h-10 rounded-full" />
-              <div>
-                <h4 className="font-bold text-[15px]">Lê Thu Hà</h4>
-                <div className="flex items-center gap-2 text-[12px] text-[#555f6f]">
-                  <span className="bg-[#b3f66a] text-[#0f2000] font-bold px-1.5 py-0.5 rounded-sm">Level 4.0</span>
-                  <span>•</span>
-                  <span>6 giờ trước</span>
-                </div>
-              </div>
-            </div>
-            <button className="text-[#555f6f] hover:bg-[#f0f3ff] p-1.5 rounded-full"><MoreHorizontal className="w-5 h-5" /></button>
-          </div>
-          <p className="text-[15px] mb-3">
-            Khoe vợt mới mua! Sẵn sàng cho giải đấu cuối tuần này. Cảm ơn The Pickleball Shop đã tư vấn rất nhiệt tình. 💚
-          </p>
-          <img src="https://images.unsplash.com/photo-1626245465352-87ff55a6d0ab?q=80&w=1470&auto=format&fit=crop" alt="Pickleball Paddle" className="w-full h-[300px] object-cover rounded-xl mb-3" />
-          
-          <div className="flex items-center justify-between text-[13px] text-[#555f6f] mb-3 px-2">
-            <span className="flex items-center gap-1 font-medium"><ThumbsUp className="w-4 h-4 text-primary" /> 42</span>
-            <span>12 bình luận • 3 chia sẻ</span>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-outline-variant/40">
-            <button className="flex-1 flex items-center justify-center gap-2 text-primary bg-[#e7eefe] py-2 rounded-lg transition-colors font-bold text-[14px]">
-              <ThumbsUp className="w-5 h-5" fill="currentColor" /> Thích
-            </button>
-            <button className="flex-1 flex items-center justify-center gap-2 text-[#555f6f] hover:bg-[#f0f3ff] py-2 rounded-lg transition-colors font-medium text-[14px]">
-              <MessageCircle className="w-5 h-5" /> Bình luận
-            </button>
-            <button className="flex-1 flex items-center justify-center gap-2 text-[#555f6f] hover:bg-[#f0f3ff] py-2 rounded-lg transition-colors font-medium text-[14px]">
-              <Share2 className="w-5 h-5" /> Chia sẻ
-            </button>
-          </div>
-        </div>
-
+        <section>
+          {communityPosts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </section>
       </main>
 
-      {/* Right Sidebar */}
-      <aside className="w-[300px] shrink-0 p-4 sticky top-[72px] h-[calc(100vh-72px)] overflow-y-auto hidden lg:block">
-        
-        {/* Trending Topics */}
-        <div className="bg-white rounded-xl border border-outline-variant p-5 shadow-sm mb-4">
-          <h3 className="font-bold text-[16px] mb-4">Chủ Đề Nổi Bật</h3>
-          <div className="space-y-4">
-            <div className="cursor-pointer group">
-              <p className="text-[12px] text-[#555f6f] mb-0.5">Giải đấu Hà Nội Mở Rộng</p>
-              <h4 className="font-bold text-[14px] group-hover:text-primary transition-colors">Đăng ký tham gia ngay</h4>
-              <p className="text-[12px] text-[#555f6f]">1.2k bài viết</p>
-            </div>
-            <div className="cursor-pointer group">
-              <p className="text-[12px] text-[#555f6f] mb-0.5">Thiết bị & Dụng cụ</p>
-              <h4 className="font-bold text-[14px] group-hover:text-primary transition-colors">Review vợt Joola Ben Johns</h4>
-              <p className="text-[12px] text-[#555f6f]">850 bài viết</p>
-            </div>
-            <div className="cursor-pointer group">
-              <p className="text-[12px] text-[#555f6f] mb-0.5">Hướng dẫn kỹ thuật</p>
-              <h4 className="font-bold text-[14px] group-hover:text-primary transition-colors">Cách giao bóng xoáy</h4>
-              <p className="text-[12px] text-[#555f6f]">640 bài viết</p>
-            </div>
-          </div>
-        </div>
+      <CommunityRightSidebar />
 
-        {/* Active Players */}
-        <div className="bg-white rounded-xl border border-outline-variant p-5 shadow-sm">
-          <h3 className="font-bold text-[16px] mb-4">Người Chơi Tích Cực</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-3 items-center">
-                <img src="https://i.pravatar.cc/150?u=a042581f4e29026705d" alt="Hoàng Minh" className="w-10 h-10 rounded-full" />
-                <div>
-                  <h4 className="font-bold text-[14px]">Hoàng Minh</h4>
-                  <p className="text-[12px] text-[#555f6f]">Level 5.0</p>
-                </div>
-              </div>
-              <button className="bg-[#e7eefe] text-primary text-[12px] font-bold px-3 py-1.5 rounded-full hover:bg-primary-container transition-colors">
-                Kết bạn
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex gap-3 items-center">
-                <img src="https://i.pravatar.cc/150?u=a042581f4e29026706d" alt="Mai Phương" className="w-10 h-10 rounded-full" />
-                <div>
-                  <h4 className="font-bold text-[14px]">Mai Phương</h4>
-                  <p className="text-[12px] text-[#555f6f]">Level 4.0</p>
-                </div>
-              </div>
-              <button className="bg-[#e7eefe] text-primary text-[12px] font-bold px-3 py-1.5 rounded-full hover:bg-primary-container transition-colors">
-                Kết bạn
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </aside>
-
+      <Link
+        className="fixed bottom-5 right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white shadow-lg hover:bg-primary/90 md:hidden"
+        to="/posts/create"
+        aria-label="Tạo bài viết"
+      >
+        <Send className="h-5 w-5" />
+      </Link>
     </div>
   );
 };

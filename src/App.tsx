@@ -12,10 +12,12 @@ import { ClubDashboard } from './pages/clubs/ClubDashboard';
 import { ClubDetail } from './pages/clubs/ClubDetail';
 import { Clubs } from './pages/clubs/Clubs';
 import { CreateClub } from './pages/clubs/CreateClub';
+import { CreatePost } from './pages/community/CreatePost';
 import { MatchDetail } from './pages/community/MatchDetail';
 import { MyMatches } from './pages/community/MyMatches';
 import { Opponents } from './pages/community/Opponents';
 import { PendingInvites } from './pages/community/PendingInvites';
+import { PostDetail } from './pages/community/PostDetail';
 import { Posts } from './pages/community/Posts';
 import { Checkout } from './pages/courts/Checkout';
 import { BookCourt } from './pages/courts/BookCourt';
@@ -54,6 +56,8 @@ function App() {
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />
+        <Route path="posts/create" element={<CreatePost />} />
+        <Route path="posts/:id" element={<PostDetail />} />
         <Route path="clubs/create" element={<CreateClub />} />
         <Route path="clubs/:id" element={<ClubDetail />} />
         <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
