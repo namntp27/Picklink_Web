@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  CreditCard,
   Eye,
   HelpCircle,
   LayoutDashboard,
@@ -459,6 +460,9 @@ export const OwnerDashboard = () => {
           <Link className="hidden rounded-lg bg-white/10 px-4 py-2 text-[14px] font-bold hover:bg-white/16 md:inline-flex" to="/owner">
             Lịch đặt sân
           </Link>
+          <Link className="hidden rounded-lg bg-white/10 px-4 py-2 text-[14px] font-bold hover:bg-white/16 md:inline-flex" to="/owner/bookings">
+            Đơn đặt sân
+          </Link>
           <button aria-label="Thông báo chủ sân" className="rounded-lg p-2 hover:bg-white/10" type="button">
             <Bell className="h-5 w-5" />
           </button>
@@ -481,6 +485,7 @@ export const OwnerDashboard = () => {
           <nav className="space-y-1">
             {[
               { label: 'Lịch đặt sân', icon: CalendarDays, to: '/owner', active: true },
+              { label: 'Đơn đặt sân', icon: CreditCard, to: '/owner/bookings' },
               { label: 'Sân & court', icon: Map, to: '/owner/courts' },
               { label: 'Doanh thu', icon: Banknote, to: '/owner' },
               { label: 'Cài đặt', icon: Settings, to: '/owner' },
@@ -996,10 +1001,14 @@ export const OwnerDashboard = () => {
         </main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 grid h-16 grid-cols-4 border-t border-outline-variant bg-white md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid h-16 grid-cols-5 border-t border-outline-variant bg-white md:hidden">
         <Link className="flex flex-col items-center justify-center gap-1 text-primary" to="/owner">
           <CalendarDays className="h-5 w-5" />
-          <span className="text-[10px] font-bold">Lịch sân</span>
+          <span className="text-[10px] font-bold">Lịch</span>
+        </Link>
+        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/bookings">
+          <CreditCard className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Đơn</span>
         </Link>
         <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/courts">
           <Map className="h-5 w-5" />
