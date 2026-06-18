@@ -123,9 +123,9 @@ export const Login = () => {
                     />
                     <span className="ml-2 text-[14px] font-medium text-on-surface-variant group-hover:text-on-surface transition-colors">Ghi nhớ đăng nhập</span>
                   </label>
-                  <a href="#" className="text-[14px] text-primary font-bold hover:text-on-primary-container transition-colors">
+                  <Link to="/forgot-password" className="text-[14px] text-primary font-bold hover:text-on-primary-container transition-colors">
                     Quên mật khẩu?
-                  </a>
+                  </Link>
                 </div>
 
                 <button 
