@@ -10,6 +10,7 @@ import { BookingSuccess } from './pages/bookings/BookingSuccess';
 import { MyBookings } from './pages/bookings/MyBookings';
 import { ClubDashboard } from './pages/clubs/ClubDashboard';
 import { ClubDetail } from './pages/clubs/ClubDetail';
+import { ClubMembers } from './pages/clubs/ClubMembers';
 import { Clubs } from './pages/clubs/Clubs';
 import { CreateClub } from './pages/clubs/CreateClub';
 import { CreatePost } from './pages/community/CreatePost';
@@ -62,8 +63,9 @@ function App() {
         <Route path="posts/saved" element={<SavedPosts />} />
         <Route path="posts/:id" element={<PostDetail />} />
         <Route path="clubs/create" element={<CreateClub />} />
-        <Route path="clubs/:id" element={<ClubDetail />} />
+        <Route path="clubs/:id/members" element={<ClubMembers />} />
         <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
+        <Route path="clubs/:id" element={<ClubDetail />} />
         <Route path="tournaments" element={<Tournaments />} />
       </Route>
       <Route path="/login" element={<Login />} />

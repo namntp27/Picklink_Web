@@ -309,9 +309,12 @@ export const ClubDetail = () => {
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-[24px] font-bold text-on-surface">Thành viên nổi bật</h2>
-                  <button className="w-fit rounded-lg border border-outline-variant px-4 py-2 text-[14px] font-bold text-on-surface hover:bg-surface-container-low" type="button">
+                  <Link
+                    className="w-fit rounded-lg border border-outline-variant px-4 py-2 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
+                    to={`/clubs/${id ?? 'hanoi-elite'}/members`}
+                  >
                     Xem tất cả
-                  </button>
+                  </Link>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   {featuredMembers.map((member) => (
