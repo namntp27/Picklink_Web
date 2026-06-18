@@ -24,6 +24,7 @@ import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
 import { Home } from './pages/home/Home';
 import { Notifications } from './pages/notifications/Notifications';
+import { Profile } from './pages/profile/Profile';
 import { Tournaments } from './pages/tournaments/Tournaments';
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
         <Route path="matches/:id" element={<MatchDetail />} />
         <Route path="my-matches" element={<MyMatches />} />
         <Route path="my-bookings" element={<MyBookings />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Menu, X } from 'lucide-react';
+import { Bell, Menu, UserRound, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Header = () => {
@@ -64,6 +64,17 @@ export const Header = () => {
       </div>
       <div className="hidden items-center gap-4 md:flex">
         <Link
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
+            location.pathname.startsWith('/profile')
+              ? 'bg-white text-primary'
+              : 'text-on-primary/90 hover:bg-white/10'
+          }`}
+          to="/profile"
+        >
+          <UserRound className="h-5 w-5" />
+          Hồ sơ
+        </Link>
+        <Link
           className={`rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
             location.pathname.startsWith('/my-bookings')
               ? 'bg-white text-primary'
@@ -114,6 +125,9 @@ export const Header = () => {
             ))}
             <Link to="/my-bookings" className={getMobileNavLinkClass('/my-bookings')}>
               Lịch sử đặt sân
+            </Link>
+            <Link to="/profile" className={getMobileNavLinkClass('/profile')}>
+              Hồ sơ cá nhân
             </Link>
             <Link to="/notifications" className={`${getMobileNavLinkClass('/notifications')} flex items-center justify-between`}>
               <span>Thông báo</span>
