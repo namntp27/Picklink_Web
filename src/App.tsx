@@ -43,6 +43,7 @@ import { OwnerCourtEdit } from './pages/owner/OwnerCourtEdit';
 import { OwnerCourts } from './pages/owner/OwnerCourts';
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerRevenue } from './pages/owner/OwnerRevenue';
+import { OwnerSettings } from './pages/owner/OwnerSettings';
 import { Home } from './pages/home/Home';
 import { Messages } from './pages/messages/Messages';
 import { Notifications } from './pages/notifications/Notifications';
@@ -104,6 +105,7 @@ function App() {
       <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
       <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
       <Route path="/owner/revenue" element={<OwnerRevenue />} />
+      <Route path="/owner/settings" element={<OwnerSettings />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/checkout/success" element={<BookingSuccess />} />
       <Route path="/checkout/fail" element={<BookingFail />} />

@@ -488,7 +488,7 @@ export const OwnerDashboard = () => {
               { label: 'Đơn đặt sân', icon: CreditCard, to: '/owner/bookings' },
               { label: 'Sân & court', icon: Map, to: '/owner/courts' },
               { label: 'Doanh thu', icon: Banknote, to: '/owner/revenue' },
-              { label: 'Cài đặt', icon: Settings, to: '/owner' },
+              { label: 'Cài đặt', icon: Settings, to: '/owner/settings' },
             ].map((item) => (
               <Link
                 className={`flex items-center gap-3 rounded-lg px-3 py-3 text-[14px] font-bold transition-colors ${
@@ -1018,7 +1018,7 @@ export const OwnerDashboard = () => {
           <Banknote className="h-5 w-5" />
           <span className="text-[10px] font-bold">Doanh thu</span>
         </Link>
-        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner">
+        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/settings">
           <Settings className="h-5 w-5" />
           <span className="text-[10px] font-bold">Cài đặt</span>
         </Link>
