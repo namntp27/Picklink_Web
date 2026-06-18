@@ -1,1 +1,3 @@
-export { AdminOverview as AdminDashboard } from './AdminSectionPage';
+import { AdminDataPage } from './components/AdminDataPage';
+
+export const AdminDashboard = () => <AdminDataPage sectionId="overview" />;

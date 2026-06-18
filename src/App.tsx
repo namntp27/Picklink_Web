@@ -25,19 +25,17 @@ import { Checkout } from './pages/courts/Checkout';
 import { BookCourt } from './pages/courts/BookCourt';
 import { CourtDetail } from './pages/courts/CourtDetail';
 import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
+import { AdminBookings } from './pages/admin/AdminBookings';
+import { AdminClubs } from './pages/admin/AdminClubs';
+import { AdminCourts } from './pages/admin/AdminCourts';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-import {
-  AdminBookings,
-  AdminClubs,
-  AdminCourts,
-  AdminPosts,
-  AdminReports,
-  AdminReviews,
-  AdminSettings,
-  AdminTournaments,
-  AdminTransactions,
-  AdminUsers,
-} from './pages/admin/AdminSectionPage';
+import { AdminPosts } from './pages/admin/AdminPosts';
+import { AdminReports } from './pages/admin/AdminReports';
+import { AdminReviews } from './pages/admin/AdminReviews';
+import { AdminSettings } from './pages/admin/AdminSettings';
+import { AdminTournaments } from './pages/admin/AdminTournaments';
+import { AdminTransactions } from './pages/admin/AdminTransactions';
+import { AdminUsers } from './pages/admin/AdminUsers';
 import { OwnerBookingDetail } from './pages/owner/OwnerBookingDetail';
 import { OwnerBookings } from './pages/owner/OwnerBookings';
 import { OwnerCourtCreate } from './pages/owner/OwnerCourtCreate';
