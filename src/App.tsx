@@ -22,6 +22,9 @@ import { BookCourt } from './pages/courts/BookCourt';
 import { CourtDetail } from './pages/courts/CourtDetail';
 import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
+import { OwnerCourtCreate } from './pages/dashboard/OwnerCourtCreate';
+import { OwnerCourtEdit } from './pages/dashboard/OwnerCourtEdit';
+import { OwnerCourts } from './pages/dashboard/OwnerCourts';
 import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
 import { Home } from './pages/home/Home';
 import { Messages } from './pages/messages/Messages';
@@ -59,6 +62,9 @@ function App() {
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/owner" element={<OwnerDashboard />} />
       <Route path="/owner/schedule" element={<OwnerDashboard />} />
+      <Route path="/owner/courts" element={<OwnerCourts />} />
+      <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
+      <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/checkout/success" element={<BookingSuccess />} />
       <Route path="/checkout/fail" element={<BookingFail />} />

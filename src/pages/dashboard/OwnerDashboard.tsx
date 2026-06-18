@@ -481,7 +481,7 @@ export const OwnerDashboard = () => {
           <nav className="space-y-1">
             {[
               { label: 'Lịch đặt sân', icon: CalendarDays, to: '/owner', active: true },
-              { label: 'Sân & court', icon: Map, to: '/owner' },
+              { label: 'Sân & court', icon: Map, to: '/owner/courts' },
               { label: 'Doanh thu', icon: Banknote, to: '/owner' },
               { label: 'Cài đặt', icon: Settings, to: '/owner' },
             ].map((item) => (
@@ -1001,7 +1001,7 @@ export const OwnerDashboard = () => {
           <CalendarDays className="h-5 w-5" />
           <span className="text-[10px] font-bold">Lịch sân</span>
         </Link>
-        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner">
+        <Link className="flex flex-col items-center justify-center gap-1 text-on-surface-variant" to="/owner/courts">
           <Map className="h-5 w-5" />
           <span className="text-[10px] font-bold">Sân</span>
         </Link>
