@@ -24,6 +24,7 @@ import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
 import { Home } from './pages/home/Home';
+import { Messages } from './pages/messages/Messages';
 import { Notifications } from './pages/notifications/Notifications';
 import { Profile } from './pages/profile/Profile';
 import { CreateReview } from './pages/reviews/CreateReview';
@@ -41,6 +42,7 @@ function App() {
         <Route path="my-matches" element={<MyMatches />} />
         <Route path="my-bookings" element={<MyBookings />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="messages" element={<Messages />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="reviews/create" element={<CreateReview />} />
         <Route path="clubs" element={<Clubs />} />

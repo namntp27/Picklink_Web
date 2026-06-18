@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Menu, UserRound, X } from 'lucide-react';
+import { Bell, Menu, MessageCircle, UserRound, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Header = () => {
@@ -85,6 +85,17 @@ export const Header = () => {
           Lịch sử đặt sân
         </Link>
         <Link
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
+            location.pathname.startsWith('/messages')
+              ? 'bg-white text-primary'
+              : 'text-on-primary/90 hover:bg-white/10'
+          }`}
+          to="/messages"
+        >
+          <MessageCircle className="h-5 w-5" />
+          Tin nhắn
+        </Link>
+        <Link
           aria-label="Thông báo"
           className={`relative flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 transition-colors ${
             location.pathname.startsWith('/notifications')
@@ -123,6 +134,9 @@ export const Header = () => {
                 {item.label}
               </Link>
             ))}
+            <Link to="/messages" className={getMobileNavLinkClass('/messages')}>
+              Tin nhắn
+            </Link>
             <Link to="/my-bookings" className={getMobileNavLinkClass('/my-bookings')}>
               Lịch sử đặt sân
             </Link>
