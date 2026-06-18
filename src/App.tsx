@@ -43,6 +43,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/owner" element={<OwnerDashboard />} />
+      <Route path="/owner/schedule" element={<OwnerDashboard />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
       <Route path="/court/:id" element={<CourtDetail />} />
