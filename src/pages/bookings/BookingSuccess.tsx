@@ -28,7 +28,7 @@ export const BookingSuccess = () => {
           <Link className="text-[24px] font-bold tracking-tight" to="/">
             Picklink
           </Link>
-          <span className="rounded-lg bg-white/14 px-3 py-2 text-[13px] font-bold">Dat san thanh cong</span>
+          <span className="rounded-lg bg-white/14 px-3 py-2 text-[13px] font-bold">Đặt sân thành công</span>
         </div>
       </header>
 
@@ -40,12 +40,12 @@ export const BookingSuccess = () => {
                 <CheckCircle2 className="h-9 w-9" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold uppercase text-primary">Thanh toan da duoc xac nhan</p>
+                <p className="text-[13px] font-bold uppercase text-primary">Thanh toán đã được xác nhận</p>
                 <h1 className="mt-2 text-[30px] font-bold leading-tight md:text-[42px]">
-                  San cua ban da duoc giu thanh cong
+                  Sân của bạn đã được giữ thành công
                 </h1>
                 <p className="mt-3 max-w-2xl text-[15px] leading-7 text-on-surface-variant">
-                  Hay luu ma dat san va den truoc gio choi 10 phut de check-in. Thong tin chi tiet da duoc cap nhat trong don dat san.
+                  Hãy lưu mã đặt sân và đến trước giờ chơi 10 phút để check-in. Thông tin chi tiết đã được cập nhật trong đơn đặt sân.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -53,14 +53,14 @@ export const BookingSuccess = () => {
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
                     to={`/bookings/${booking.id}`}
                   >
-                    Xem chi tiet don
+                    Xem chi tiết đơn
                     <ArrowRight className="h-5 w-5" />
                   </Link>
                   <Link
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
                     to="/book-court"
                   >
-                    Dat san khac
+                    Đặt sân khác
                   </Link>
                 </div>
               </div>
@@ -68,9 +68,9 @@ export const BookingSuccess = () => {
 
             <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
               {[
-                { icon: CalendarDays, label: 'Ngay choi', value: formatBookingDate(booking.date) },
-                { icon: Clock, label: 'Khung gio', value: `${booking.startTime} - ${booking.endTime}` },
-                { icon: MapPin, label: 'San con', value: booking.subCourt },
+                { icon: CalendarDays, label: 'Ngày chơi', value: formatBookingDate(booking.date) },
+                { icon: Clock, label: 'Khung giờ', value: `${booking.startTime} - ${booking.endTime}` },
+                { icon: MapPin, label: 'Sân con', value: booking.subCourt },
               ].map((item) => (
                 <div className="rounded-lg border border-outline-variant bg-surface-container-low p-4" key={item.label}>
                   <item.icon className="h-5 w-5 text-primary" />
@@ -83,7 +83,7 @@ export const BookingSuccess = () => {
             <div className="mt-6 rounded-lg border border-outline-variant p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-[13px] font-bold uppercase text-on-surface-variant">Ma dat san</p>
+                  <p className="text-[13px] font-bold uppercase text-on-surface-variant">Mã đặt sân</p>
                   <p className="mt-1 break-all text-[26px] font-bold tracking-wide text-primary">{booking.code}</p>
                 </div>
                 <button
@@ -91,11 +91,11 @@ export const BookingSuccess = () => {
                   type="button"
                 >
                   <Copy className="h-5 w-5" />
-                  Sao chep ma
+                  Sao chép mã
                 </button>
               </div>
               <p className="mt-4 text-[13px] leading-6 text-on-surface-variant">
-                Tao luc {formatBookingDateTime(booking.createdAt)}. Neu can ho tro, lien he san qua so {booking.ownerPhone}.
+                Tạo lúc {formatBookingDateTime(booking.createdAt)}. Nếu cần hỗ trợ, liên hệ sân qua số {booking.ownerPhone}.
               </p>
             </div>
           </div>
@@ -104,19 +104,19 @@ export const BookingSuccess = () => {
             <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
               <h2 className="flex items-center gap-2 text-[20px] font-bold">
                 <ReceiptText className="h-5 w-5 text-primary" />
-                Tom tat thanh toan
+                Tóm tắt thanh toán
               </h2>
               <div className="mt-5 space-y-3 text-[14px]">
                 <div className="flex justify-between gap-4">
-                  <span className="font-bold text-on-surface-variant">Tien san</span>
+                  <span className="font-bold text-on-surface-variant">Tiền sân</span>
                   <span className="font-bold">{formatBookingCurrency(booking.pricePerHour * booking.durationHours)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="font-bold text-on-surface-variant">Phi dich vu</span>
+                  <span className="font-bold text-on-surface-variant">Phí dịch vụ</span>
                   <span className="font-bold">{formatBookingCurrency(booking.serviceFee)}</span>
                 </div>
                 <div className="flex justify-between gap-4 border-t border-outline-variant pt-3">
-                  <span className="font-bold text-on-surface-variant">Tong cong</span>
+                  <span className="font-bold text-on-surface-variant">Tổng cộng</span>
                   <span className="text-[24px] font-bold text-primary">{formatBookingCurrency(booking.totalAmount)}</span>
                 </div>
               </div>
@@ -125,17 +125,17 @@ export const BookingSuccess = () => {
                 type="button"
               >
                 <Download className="h-5 w-5" />
-                Tai hoa don
+                Tải hóa đơn
               </button>
             </section>
 
             <section className="rounded-lg border border-[#84c33e]/40 bg-[#f2f9eb] p-5">
               <h2 className="flex items-center gap-2 text-[18px] font-bold">
                 <ShieldCheck className="h-5 w-5 text-primary" />
-                Luu y check-in
+                Lưu ý check-in
               </h2>
               <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">
-                Xuat trinh ma dat san cho le tan. San co the huy lich neu nguoi choi den tre hon 15 phut ma khong lien he truoc.
+                Xuất trình mã đặt sân cho lễ tân. Sân có thể hủy lịch nếu người chơi đến trễ hơn 15 phút mà không liên hệ trước.
               </p>
             </section>
           </aside>

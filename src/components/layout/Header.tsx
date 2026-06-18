@@ -64,6 +64,16 @@ export const Header = () => {
       </div>
       <div className="hidden items-center gap-4 md:flex">
         <Link
+          className={`rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
+            location.pathname.startsWith('/my-bookings')
+              ? 'bg-white text-primary'
+              : 'text-on-primary/90 hover:bg-white/10'
+          }`}
+          to="/my-bookings"
+        >
+          Lịch sử đặt sân
+        </Link>
+        <Link
           aria-label="Thông báo"
           className={`relative flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 transition-colors ${
             location.pathname.startsWith('/notifications')
@@ -102,6 +112,9 @@ export const Header = () => {
                 {item.label}
               </Link>
             ))}
+            <Link to="/my-bookings" className={getMobileNavLinkClass('/my-bookings')}>
+              Lịch sử đặt sân
+            </Link>
             <Link to="/notifications" className={`${getMobileNavLinkClass('/notifications')} flex items-center justify-between`}>
               <span>Thông báo</span>
               <span className="rounded-full bg-[#eab526] px-2 py-0.5 text-[12px] font-bold text-white">3</span>

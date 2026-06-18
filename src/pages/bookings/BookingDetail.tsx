@@ -42,18 +42,18 @@ const getTimelineClassName = (status: BookingTimelineStep['status']) => {
 
 const getStatusLabel = (bookingStatus: string, paymentStatus: string) => {
   if (paymentStatus === 'failed') {
-    return 'Thanh toan loi';
+    return 'Thanh toán lỗi';
   }
 
   if (bookingStatus === 'confirmed') {
-    return 'Da xac nhan';
+    return 'Đã xác nhận';
   }
 
   if (bookingStatus === 'holding') {
-    return 'Dang giu tam';
+    return 'Đang giữ tạm';
   }
 
-  return 'Da huy';
+  return 'Đã hủy';
 };
 
 const getStatusClassName = (bookingStatus: string, paymentStatus: string) => {
@@ -81,14 +81,14 @@ export const BookingDetail = () => {
           <Link className="text-[24px] font-bold tracking-tight" to="/">
             Picklink
           </Link>
-          <span className="rounded-lg bg-white/14 px-3 py-2 text-[13px] font-bold">Chi tiet don dat san</span>
+          <span className="rounded-lg bg-white/14 px-3 py-2 text-[13px] font-bold">Chi tiết đơn đặt sân</span>
         </div>
       </header>
 
       <main className="mx-auto max-w-[1200px] px-4 py-8 md:px-margin-desktop md:py-10">
         <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/book-court">
           <ArrowLeft className="h-4 w-4" />
-          Quay lai tim san
+          Quay lại tìm sân
         </Link>
 
         <section className="mt-6 rounded-lg border border-outline-variant bg-white p-6 shadow-sm md:p-8">
@@ -102,25 +102,25 @@ export const BookingDetail = () => {
             </div>
 
             <div className="rounded-lg border border-outline-variant bg-surface-container-low p-4 lg:w-[320px]">
-              <p className="text-[12px] font-bold uppercase text-on-surface-variant">Ma dat san</p>
+              <p className="text-[12px] font-bold uppercase text-on-surface-variant">Mã đặt sân</p>
               <div className="mt-2 flex items-center justify-between gap-3">
                 <p className="break-all text-[20px] font-bold text-primary">{booking.code}</p>
-                <button aria-label="Sao chep ma dat san" className="rounded-lg p-2 text-primary hover:bg-primary/10" type="button">
+                <button aria-label="Sao chép mã đặt sân" className="rounded-lg p-2 text-primary hover:bg-primary/10" type="button">
                   <Copy className="h-5 w-5" />
                 </button>
               </div>
               <p className="mt-3 text-[12px] font-medium text-on-surface-variant">
-                Tao luc {formatBookingDateTime(booking.createdAt)}
+                Tạo lúc {formatBookingDateTime(booking.createdAt)}
               </p>
             </div>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-4">
             {[
-              { icon: CalendarDays, label: 'Ngay choi', value: formatBookingDate(booking.date) },
-              { icon: Clock, label: 'Khung gio', value: `${booking.startTime} - ${booking.endTime}` },
-              { icon: MapPin, label: 'San con', value: booking.subCourt },
-              { icon: CreditCard, label: 'Thanh toan', value: booking.paymentMethod },
+              { icon: CalendarDays, label: 'Ngày chơi', value: formatBookingDate(booking.date) },
+              { icon: Clock, label: 'Khung giờ', value: `${booking.startTime} - ${booking.endTime}` },
+              { icon: MapPin, label: 'Sân con', value: booking.subCourt },
+              { icon: CreditCard, label: 'Thanh toán', value: booking.paymentMethod },
             ].map((item) => (
               <div className="rounded-lg border border-outline-variant bg-surface-container-low p-4" key={item.label}>
                 <item.icon className="h-5 w-5 text-primary" />
@@ -134,7 +134,7 @@ export const BookingDetail = () => {
         <section className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-6">
             <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="text-[22px] font-bold">Tien trinh don</h2>
+              <h2 className="text-[22px] font-bold">Tiến trình đơn</h2>
               <div className="mt-5 space-y-4">
                 {booking.timeline.map((step, index) => (
                   <div className="flex gap-3" key={step.label}>
@@ -144,7 +144,7 @@ export const BookingDetail = () => {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-[15px] font-bold">{step.label}</p>
-                        <span className="text-[12px] font-bold text-on-surface-variant">Buoc {index + 1}</span>
+                        <span className="text-[12px] font-bold text-on-surface-variant">Bước {index + 1}</span>
                       </div>
                       <p className="mt-1 text-[13px] leading-5 text-on-surface-variant">{step.description}</p>
                     </div>
@@ -154,19 +154,19 @@ export const BookingDetail = () => {
             </section>
 
             <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="text-[22px] font-bold">Thong tin nguoi dat</h2>
+              <h2 className="text-[22px] font-bold">Thông tin người đặt</h2>
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-lg border border-outline-variant p-4">
                   <p className="flex items-center gap-2 text-[13px] font-bold text-on-surface-variant">
                     <UserRound className="h-4 w-4 text-primary" />
-                    Ho ten
+                    Họ tên
                   </p>
                   <p className="mt-2 text-[16px] font-bold">{booking.customerName}</p>
                 </div>
                 <div className="rounded-lg border border-outline-variant p-4">
                   <p className="flex items-center gap-2 text-[13px] font-bold text-on-surface-variant">
                     <Phone className="h-4 w-4 text-primary" />
-                    So dien thoai
+                    Số điện thoại
                   </p>
                   <p className="mt-2 text-[16px] font-bold">{booking.customerPhone}</p>
                 </div>
@@ -176,7 +176,7 @@ export const BookingDetail = () => {
             <section className="rounded-lg border border-[#84c33e]/40 bg-[#f2f9eb] p-5">
               <h2 className="flex items-center gap-2 text-[18px] font-bold">
                 <ShieldCheck className="h-5 w-5 text-primary" />
-                Ghi chu tu san
+                Ghi chú từ sân
               </h2>
               <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">{booking.note}</p>
             </section>
@@ -186,7 +186,7 @@ export const BookingDetail = () => {
             <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
               <h2 className="flex items-center gap-2 text-[20px] font-bold">
                 <ReceiptText className="h-5 w-5 text-primary" />
-                Chi phi
+                Chi phí
               </h2>
               <div className="mt-5 space-y-3 text-[14px]">
                 <div className="flex justify-between gap-4">
@@ -194,32 +194,32 @@ export const BookingDetail = () => {
                   <span className="font-bold">{formatBookingCurrency(courtAmount)}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="font-bold text-on-surface-variant">Phi dich vu</span>
+                  <span className="font-bold text-on-surface-variant">Phí dịch vụ</span>
                   <span className="font-bold">{formatBookingCurrency(booking.serviceFee)}</span>
                 </div>
                 <div className="flex justify-between gap-4 border-t border-outline-variant pt-3">
-                  <span className="font-bold text-on-surface-variant">Tong thanh toan</span>
+                  <span className="font-bold text-on-surface-variant">Tổng thanh toán</span>
                   <span className="text-[24px] font-bold text-primary">{formatBookingCurrency(booking.totalAmount)}</span>
                 </div>
               </div>
             </section>
 
             <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="text-[20px] font-bold">Hanh dong</h2>
+              <h2 className="text-[20px] font-bold">Hành động</h2>
               <div className="mt-5 space-y-3">
                 <Link
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
                   to={`/court/${booking.courtId}/schedule`}
                 >
                   <RefreshCcw className="h-5 w-5" />
-                  Doi lich
+                  Đổi lịch
                 </Link>
                 <button
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#ba1a1a] px-4 py-3 text-[14px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40"
                   type="button"
                 >
                   <XCircle className="h-5 w-5" />
-                  Huy dat san
+                  Hủy đặt sân
                 </button>
               </div>
             </section>
@@ -227,10 +227,10 @@ export const BookingDetail = () => {
             <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
               <h2 className="flex items-center gap-2 text-[18px] font-bold">
                 <AlertCircle className="h-5 w-5 text-primary" />
-                Ho tro
+                Hỗ trợ
               </h2>
               <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">
-                Lien he chu san qua {booking.ownerPhone} neu ban can doi thong tin check-in hoac bao den tre.
+                Liên hệ chủ sân qua {booking.ownerPhone} nếu bạn cần đổi thông tin check-in hoặc báo đến trễ.
               </p>
             </section>
           </aside>

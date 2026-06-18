@@ -6,6 +6,7 @@ import { Register } from './pages/auth/Register';
 import { BookingDetail } from './pages/bookings/BookingDetail';
 import { BookingFail } from './pages/bookings/BookingFail';
 import { BookingSuccess } from './pages/bookings/BookingSuccess';
+import { MyBookings } from './pages/bookings/MyBookings';
 import { ClubDashboard } from './pages/clubs/ClubDashboard';
 import { ClubDetail } from './pages/clubs/ClubDetail';
 import { Clubs } from './pages/clubs/Clubs';
@@ -33,6 +34,7 @@ function App() {
         <Route path="opponents" element={<Opponents />} />
         <Route path="matches/:id" element={<MatchDetail />} />
         <Route path="my-matches" element={<MyMatches />} />
+        <Route path="my-bookings" element={<MyBookings />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
