@@ -25,14 +25,26 @@ import { Checkout } from './pages/courts/Checkout';
 import { BookCourt } from './pages/courts/BookCourt';
 import { CourtDetail } from './pages/courts/CourtDetail';
 import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
-import { AdminDashboard } from './pages/dashboard/AdminDashboard';
-import { OwnerBookingDetail } from './pages/dashboard/OwnerBookingDetail';
-import { OwnerBookings } from './pages/dashboard/OwnerBookings';
-import { OwnerCourtCreate } from './pages/dashboard/OwnerCourtCreate';
-import { OwnerCourtEdit } from './pages/dashboard/OwnerCourtEdit';
-import { OwnerCourts } from './pages/dashboard/OwnerCourts';
-import { OwnerDashboard } from './pages/dashboard/OwnerDashboard';
-import { OwnerRevenue } from './pages/dashboard/OwnerRevenue';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import {
+  AdminBookings,
+  AdminClubs,
+  AdminCourts,
+  AdminPosts,
+  AdminReports,
+  AdminReviews,
+  AdminSettings,
+  AdminTournaments,
+  AdminTransactions,
+  AdminUsers,
+} from './pages/admin/AdminSectionPage';
+import { OwnerBookingDetail } from './pages/owner/OwnerBookingDetail';
+import { OwnerBookings } from './pages/owner/OwnerBookings';
+import { OwnerCourtCreate } from './pages/owner/OwnerCourtCreate';
+import { OwnerCourtEdit } from './pages/owner/OwnerCourtEdit';
+import { OwnerCourts } from './pages/owner/OwnerCourts';
+import { OwnerDashboard } from './pages/owner/OwnerDashboard';
+import { OwnerRevenue } from './pages/owner/OwnerRevenue';
 import { Home } from './pages/home/Home';
 import { Messages } from './pages/messages/Messages';
 import { Notifications } from './pages/notifications/Notifications';
@@ -76,6 +88,16 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/register" element={<Register />} />
       <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/users" element={<AdminUsers />} />
+      <Route path="/admin/courts" element={<AdminCourts />} />
+      <Route path="/admin/clubs" element={<AdminClubs />} />
+      <Route path="/admin/bookings" element={<AdminBookings />} />
+      <Route path="/admin/reports" element={<AdminReports />} />
+      <Route path="/admin/posts" element={<AdminPosts />} />
+      <Route path="/admin/reviews" element={<AdminReviews />} />
+      <Route path="/admin/tournaments" element={<AdminTournaments />} />
+      <Route path="/admin/transactions" element={<AdminTransactions />} />
+      <Route path="/admin/settings" element={<AdminSettings />} />
       <Route path="/owner" element={<OwnerDashboard />} />
       <Route path="/owner/schedule" element={<OwnerDashboard />} />
       <Route path="/owner/bookings" element={<OwnerBookings />} />
