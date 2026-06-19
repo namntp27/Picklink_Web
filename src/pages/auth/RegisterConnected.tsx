@@ -77,9 +77,9 @@ export const Register = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-surface text-on-surface">
-      <main className="flex flex-1 items-center justify-center px-4 py-8 md:px-8">
-        <section className="grid w-full max-w-5xl overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-lg lg:grid-cols-2">
-          <div className="hidden min-h-[680px] bg-surface-variant lg:block">
+      <main className="flex flex-1 items-center justify-center px-4 py-4 md:px-8 md:py-6">
+        <section className="grid w-full max-w-5xl overflow-hidden rounded-lg border border-surface-variant bg-surface-container-lowest shadow-lg lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          <div className="hidden min-h-[620px] bg-surface-variant lg:block">
             <img
               alt="Sân pickleball"
               className="h-full w-full object-cover"
@@ -87,25 +87,26 @@ export const Register = () => {
             />
           </div>
 
-          <div className="flex items-center bg-surface-bright p-8 md:p-12 lg:p-16">
-            <div className="mx-auto w-full max-w-md">
-              <Link to="/" className="mb-6 inline-flex text-[24px] font-bold text-primary">
+          <div className="flex items-center bg-surface-bright p-6 md:p-8 lg:p-10">
+            <div className="mx-auto w-full max-w-xl">
+              <Link to="/" className="mb-3 inline-flex text-[22px] font-bold text-primary">
                 Picklink
               </Link>
-              <div className="mb-8">
-                <h1 className="mb-2 text-[32px] font-bold tracking-tight text-on-surface">Tạo tài khoản</h1>
-                <p className="text-[14px] font-medium text-secondary">Đăng ký bằng backend Picklink API.</p>
+              <div className="mb-5">
+                <h1 className="mb-1 text-[28px] font-bold tracking-tight text-on-surface">Tạo tài khoản</h1>
+                <p className="text-[14px] font-medium text-secondary">Tham gia cộng đồng Picklink.</p>
               </div>
 
-              <form className="space-y-5" onSubmit={handleRegister}>
+              <form className="space-y-4" onSubmit={handleRegister}>
                 {errorMessage && (
                   <div className="rounded-lg border border-[#ba1a1a]/30 bg-[#ffdad6] px-4 py-3 text-[13px] font-bold text-[#ba1a1a]">
                     {errorMessage}
                   </div>
                 )}
 
+                <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-[14px] font-bold" htmlFor="fullName">
+                  <label className="mb-1 block text-[13px] font-bold" htmlFor="fullName">
                     Họ và tên
                   </label>
                   <div className="relative">
@@ -115,13 +116,13 @@ export const Register = () => {
                       value={fullName}
                       onChange={(event) => setFullName(event.target.value)}
                       required
-                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2.5 pl-10 pr-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[14px] font-bold" htmlFor="email">
+                  <label className="mb-1 block text-[13px] font-bold" htmlFor="email">
                     Email
                   </label>
                   <div className="relative">
@@ -132,13 +133,13 @@ export const Register = () => {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       required
-                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2.5 pl-10 pr-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[14px] font-bold" htmlFor="phoneNumber">
+                  <label className="mb-1 block text-[13px] font-bold" htmlFor="phoneNumber">
                     Số điện thoại
                   </label>
                   <div className="relative">
@@ -147,20 +148,20 @@ export const Register = () => {
                       id="phoneNumber"
                       value={phoneNumber}
                       onChange={(event) => setPhoneNumber(event.target.value)}
-                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2.5 pl-10 pr-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[14px] font-bold" htmlFor="role">
+                  <label className="mb-1 block text-[13px] font-bold" htmlFor="role">
                     Vai trò
                   </label>
                   <select
                     id="role"
                     value={role}
                     onChange={(event) => setRole(event.target.value as RegisterRole)}
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-2.5 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   >
                     <option value="player">Người chơi</option>
                     <option value="owner">Chủ sân</option>
@@ -168,7 +169,7 @@ export const Register = () => {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[14px] font-bold" htmlFor="password">
+                  <label className="mb-1 block text-[13px] font-bold" htmlFor="password">
                     Mật khẩu
                   </label>
                   <div className="relative">
@@ -181,7 +182,7 @@ export const Register = () => {
                       minLength={8}
                       placeholder="Ví dụ: Picklink123"
                       required
-                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-10 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2.5 pl-10 pr-10 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                     <button
                       type="button"
@@ -192,13 +193,13 @@ export const Register = () => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  <p className="mt-1.5 text-[12px] font-medium text-secondary">
+                  <p className="mt-1 text-[11px] font-medium text-secondary">
                     Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường và số.
                   </p>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[14px] font-bold" htmlFor="confirmPassword">
+                  <label className="mb-1 block text-[13px] font-bold" htmlFor="confirmPassword">
                     Xác nhận mật khẩu
                   </label>
                   <input
@@ -208,20 +209,21 @@ export const Register = () => {
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     minLength={8}
                     required
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-2.5 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   />
+                </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[14px] font-bold text-on-primary-container shadow-sm transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-lg border border-transparent bg-primary-container px-4 py-3 text-[14px] font-bold text-on-primary-container shadow-sm transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? 'Đang tạo tài khoản...' : 'Đăng ký'}
                 </button>
               </form>
 
-              <div className="mt-8">
+              <div className="mt-5">
                 <SocialAuthButtons
                   disabled={isSubmitting}
                   role={role}
@@ -230,7 +232,7 @@ export const Register = () => {
                 />
               </div>
 
-              <p className="mt-8 text-center text-[14px] font-medium text-secondary">
+              <p className="mt-5 text-center text-[14px] font-medium text-secondary">
                 Đã có tài khoản?{' '}
                 <Link to="/login" className="font-bold text-primary hover:underline">
                   Đăng nhập
