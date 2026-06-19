@@ -23,7 +23,7 @@ const ownerNavItems: Array<{
 }> = [
   { id: 'schedule', label: 'Lịch đặt sân', shortLabel: 'Lịch', to: '/owner', icon: CalendarDays },
   { id: 'bookings', label: 'Đơn đặt sân', shortLabel: 'Đơn', to: '/owner/bookings', icon: CreditCard },
-  { id: 'courts', label: 'Sân & court', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
+  { id: 'courts', label: 'Cơ sở & sân', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
   { id: 'revenue', label: 'Doanh thu', shortLabel: 'Doanh thu', to: '/owner/revenue', icon: Banknote },
   { id: 'settings', label: 'Cài đặt', shortLabel: 'Cài đặt', to: '/owner/settings', icon: Settings },
 ];
@@ -78,7 +78,7 @@ export const OwnerShell = ({
     <div className="flex min-w-0">
       <aside className="sticky top-16 hidden h-[calc(100vh-64px)] w-64 shrink-0 border-r border-outline-variant bg-white p-4 md:block">
         <div className="mb-6 px-2 pt-2">
-          <h2 className="text-[20px] font-bold text-primary">Picklink Admin</h2>
+          <h2 className="text-[20px] font-bold text-primary">Quản lý sân</h2>
           <p className="mt-1 text-[12px] font-medium text-on-surface-variant">Quản lý vận hành sân</p>
         </div>
 
