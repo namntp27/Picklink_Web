@@ -12,15 +12,19 @@ import {
 } from 'lucide-react';
 import { sectionConfigs } from '../adminData';
 import { queueToneClasses } from '../adminStyles';
-import type { AdminDataSectionId } from '../types';
+import type { AdminDataSectionId, AdminRow } from '../types';
+import { AdminDetailDrawer } from './AdminDetailDrawer';
 import { AdminShell } from './AdminShell';
 import { MobileAdminNav } from './MobileAdminNav';
 import { StatusBadge } from './StatusBadge';
+
+const isViewAction = (action: string) => action.trim().toLowerCase() === 'xem';
 
 export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) => {
   const config = sectionConfigs[sectionId];
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tất cả');
+  const [selectedRow, setSelectedRow] = useState<AdminRow | null>(null);
 
   const visibleRows = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -129,16 +133,21 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
-                        {row.actions.map((action, index) => (
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-on-primary transition-opacity hover:opacity-90"
+                          onClick={() => setSelectedRow(row)}
+                          type="button"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Chi tiết
+                        </button>
+                        {row.actions.filter((action) => !isViewAction(action)).map((action) => (
                           <button
                             key={action}
-                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold transition-colors ${
-                              index === 0
-                                ? 'bg-primary text-on-primary hover:opacity-90'
-                                : 'border border-outline-variant bg-surface text-secondary hover:border-primary hover:text-primary'
-                            }`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-[12px] font-bold text-secondary transition-colors hover:border-primary hover:text-primary"
+                            type="button"
                           >
-                            {index === 0 ? <Eye className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                            <Pencil className="h-4 w-4" />
                             {action}
                           </button>
                         ))}
@@ -208,6 +217,8 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
           </section>
         </aside>
       </div>
+
+      <AdminDetailDrawer config={config} onClose={() => setSelectedRow(null)} row={selectedRow} />
     </AdminShell>
   );
 };
