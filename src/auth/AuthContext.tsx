@@ -22,12 +22,18 @@ type RegisterInput = {
   role: Extract<UserRole, 'player' | 'owner'>;
 };
 
+type ExternalLoginInput = {
+  token: string;
+  role?: Extract<UserRole, 'player' | 'owner'>;
+};
+
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (input: LoginInput) => Promise<AuthUser | null>;
   register: (input: RegisterInput) => Promise<AuthUser>;
+  loginWithGoogle: (input: ExternalLoginInput) => Promise<AuthUser>;
   logout: () => Promise<void>;
 };
 
@@ -167,6 +173,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       },
       register: async (input) => {
         const response = await authApi.register(input);
+        const authUser = persistAuthResponse(response);
+
+        setUser(authUser);
+        return authUser;
+      },
+      loginWithGoogle: async (input) => {
+        const response = await authApi.loginWithGoogle(input);
         const authUser = persistAuthResponse(response);
 
         setUser(authUser);

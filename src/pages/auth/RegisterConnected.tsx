@@ -4,6 +4,7 @@ import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react';
 import { ApiError } from '../../api/client';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
 import type { UserRole } from '../../types';
+import { SocialAuthButtons } from './SocialAuthButtons';
 
 type RegisterRole = Extract<UserRole, 'player' | 'owner'>;
 
@@ -219,6 +220,15 @@ export const Register = () => {
                   {isSubmitting ? 'Đang tạo tài khoản...' : 'Đăng ký'}
                 </button>
               </form>
+
+              <div className="mt-8">
+                <SocialAuthButtons
+                  disabled={isSubmitting}
+                  role={role}
+                  onAuthenticated={(authUser) => navigate(getDefaultPathForRole(authUser.role), { replace: true })}
+                  onError={setErrorMessage}
+                />
+              </div>
 
               <p className="mt-8 text-center text-[14px] font-medium text-secondary">
                 Đã có tài khoản?{' '}

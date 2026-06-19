@@ -46,6 +46,11 @@ export type RegisterRequest = {
   role: Extract<UserRole, 'player' | 'owner'>;
 };
 
+export type ExternalLoginRequest = {
+  token: string;
+  role?: Extract<UserRole, 'player' | 'owner'>;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -63,6 +68,15 @@ const apiErrorTranslations: Record<string, string> = {
   'Email already exists.': 'Email đã tồn tại.',
   'Invalid email or password.': 'Email hoặc mật khẩu không đúng.',
   'Validation failed.': 'Dữ liệu chưa hợp lệ.',
+  'Google login is not configured.': 'Chưa cấu hình đăng nhập Google trên backend.',
+  'Google token is invalid.': 'Token Google không hợp lệ.',
+  'Google token audience is invalid.': 'Client ID của Google không khớp với backend.',
+  'Google email is not verified.': 'Email Google chưa được xác minh.',
+  'External account does not expose an email address.': 'Tài khoản mạng xã hội không cung cấp email.',
+  'Cannot create external user.': 'Không thể tạo tài khoản từ mạng xã hội.',
+  'Cannot assign role to external user.': 'Không thể gán vai trò cho tài khoản mạng xã hội.',
+  'External login can create only Player or Owner accounts.': 'Đăng nhập mạng xã hội chỉ có thể tạo tài khoản Người chơi hoặc Chủ sân.',
+  'Unsupported external login provider.': 'Nhà cung cấp đăng nhập không được hỗ trợ.',
   'Passwords must be at least 8 characters.': 'Mật khẩu phải có ít nhất 8 ký tự.',
   "Passwords must have at least one lowercase ('a'-'z').": 'Mật khẩu phải có ít nhất một chữ thường.',
   "Passwords must have at least one uppercase ('A'-'Z').": 'Mật khẩu phải có ít nhất một chữ hoa.',
@@ -186,6 +200,15 @@ export const authApi = {
 
   async register(input: RegisterRequest) {
     const response = await apiRequest<BackendAuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+
+    return storeAuthResponse(response);
+  },
+
+  async loginWithGoogle(input: ExternalLoginRequest) {
+    const response = await apiRequest<BackendAuthResponse>('/auth/google', {
       method: 'POST',
       body: JSON.stringify(input),
     });

@@ -2,7 +2,7 @@
 
 ## 1. Muc tieu
 
-Xay dung backend ASP.NET Core Web API cho Picklink: ung dung dat san, booking, tim doi thu va social/community. Backend dung Code First voi Entity Framework Core, SQL Server, JWT authentication, refresh token, social login Google/Facebook, phan quyen theo role va API du cho frontend React hien tai.
+Xay dung backend ASP.NET Core Web API cho Picklink: ung dung dat san, booking, tim doi thu va social/community. Backend dung Code First voi Entity Framework Core, SQL Server, JWT authentication, refresh token, social login Google, phan quyen theo role va API du cho frontend React hien tai.
 
 Repo hien tai `D:\Picklink_Web` dang la frontend Vite/React. Backend se tao moi trong cung repo theo thu muc rieng:
 
@@ -25,7 +25,7 @@ D:\Picklink_Web
 - ORM: Entity Framework Core Code First.
 - API docs: Swagger/OpenAPI.
 - Auth: ASP.NET Core Identity + JWT + refresh token.
-- Social login: Google/Facebook OAuth.
+- Social login: Google OAuth.
 - Validation: FluentValidation.
 - Mapping: AutoMapper hoac Mapster. De xuat Mapster vi nhe va it boilerplate.
 - Logging: Serilog.
@@ -251,7 +251,6 @@ Gan cho hau het entity:
 - `POST /api/auth/reset-password`
 - `GET /api/auth/me`
 - `POST /api/auth/google`
-- `POST /api/auth/facebook`
 
 ### Courts va venues
 
@@ -455,7 +454,7 @@ Integration tests:
 - User, roles, refresh token.
 - Register/login/refresh/logout/me.
 - Seed roles/admin.
-- Google/Facebook login endpoint dang khung, sau do gan client id/secret that.
+- Google login endpoint dang khung, sau do gan client id that.
 
 ### Phase 3: Courts/venues/owner
 

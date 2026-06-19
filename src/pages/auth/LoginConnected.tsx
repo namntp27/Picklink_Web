@@ -4,6 +4,7 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { ApiError } from '../../api/client';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
 import type { UserRole } from '../../types';
+import { SocialAuthButtons } from './SocialAuthButtons';
 
 const canReturnToPath = (path: string, role: UserRole) => {
   if (path.startsWith('/admin')) {
@@ -28,6 +29,12 @@ export const Login = () => {
   const navigate = useNavigate();
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
 
+  const navigateAfterLogin = (authUser: { role: UserRole }) => {
+    const defaultPath = getDefaultPathForRole(authUser.role);
+    const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
+    navigate(nextPath, { replace: true });
+  };
+
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setErrorMessage('');
@@ -41,9 +48,7 @@ export const Login = () => {
         return;
       }
 
-      const defaultPath = getDefaultPathForRole(authUser.role);
-      const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
-      navigate(nextPath, { replace: true });
+      navigateAfterLogin(authUser);
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không thể kết nối backend. Vui lòng thử lại.');
     } finally {
@@ -144,6 +149,14 @@ export const Login = () => {
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </form>
+
+              <div className="mt-8">
+                <SocialAuthButtons
+                  disabled={isSubmitting}
+                  onAuthenticated={navigateAfterLogin}
+                  onError={setErrorMessage}
+                />
+              </div>
 
               <p className="mt-8 text-center text-[14px] font-medium text-secondary">
                 Chưa có tài khoản?{' '}
