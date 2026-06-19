@@ -25,8 +25,8 @@ import { SavedPosts, TrendingPosts } from './pages/community/PostCollections';
 import { PostDetail } from './pages/community/PostDetail';
 import { Posts } from './pages/community/Posts';
 import { Checkout } from './pages/courts/Checkout';
-import { BookCourt } from './pages/courts/BookCourt';
-import { CourtDetail } from './pages/courts/CourtDetail';
+import { BookCourtConnected as BookCourt } from './pages/courts/BookCourtConnected';
+import { CourtDetailConnected as CourtDetail } from './pages/courts/CourtDetailConnected';
 import { CourtScheduleDetail } from './pages/courts/CourtScheduleDetail';
 import { AdminBookings } from './pages/admin/AdminBookings';
 import { AdminClubs } from './pages/admin/AdminClubs';
@@ -43,6 +43,7 @@ import { OwnerBookingDetail } from './pages/owner/OwnerBookingDetail';
 import { OwnerBookings } from './pages/owner/OwnerBookings';
 import { OwnerCourtCreate } from './pages/owner/OwnerCourtCreate';
 import { OwnerCourtEdit } from './pages/owner/OwnerCourtEdit';
+import { OwnerVenueForm } from './pages/owner/OwnerVenueForm';
 import { OwnerCourts } from './pages/owner/OwnerCourts';
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerRevenue } from './pages/owner/OwnerRevenue';
@@ -62,6 +63,8 @@ function App() {
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="book-court" element={<BookCourt />} />
+        <Route path="court/:id" element={<CourtDetail />} />
+        <Route path="court/:id/schedule" element={<CourtScheduleDetail />} />
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />
@@ -113,6 +116,8 @@ function App() {
         <Route path="/owner/bookings" element={<OwnerBookings />} />
         <Route path="/owner/bookings/:id" element={<OwnerBookingDetail />} />
         <Route path="/owner/courts" element={<OwnerCourts />} />
+        <Route path="/owner/venues/create" element={<OwnerVenueForm />} />
+        <Route path="/owner/venues/:id/edit" element={<OwnerVenueForm />} />
         <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
         <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
         <Route path="/owner/revenue" element={<OwnerRevenue />} />
@@ -124,8 +129,6 @@ function App() {
         <Route path="/checkout/fail" element={<BookingFail />} />
         <Route path="/bookings/:id" element={<BookingDetail />} />
       </Route>
-      <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
-      <Route path="/court/:id" element={<CourtDetail />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
