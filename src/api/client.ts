@@ -1,6 +1,10 @@
 import type { UserRole } from '../types';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5190/api').replace(/\/+$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5190/api').replace(/\/+$/, '');
+export const toMediaUrl = (url?: string | null) => {
+  if (!url || !url.startsWith('/')) return url ?? '';
+  return `${new URL(API_BASE_URL).origin}${url}`;
+};
 
 const TOKEN_STORAGE_KEY = 'picklink.auth.tokens';
 
