@@ -7,6 +7,26 @@ import type { UserRole } from '../../types';
 
 type RegisterRole = Extract<UserRole, 'player' | 'owner'>;
 
+const getPasswordValidationMessage = (value: string) => {
+  if (value.length < 8) {
+    return 'Mật khẩu phải có ít nhất 8 ký tự.';
+  }
+
+  if (!/[a-z]/.test(value)) {
+    return 'Mật khẩu phải có ít nhất một chữ thường.';
+  }
+
+  if (!/[A-Z]/.test(value)) {
+    return 'Mật khẩu phải có ít nhất một chữ hoa.';
+  }
+
+  if (!/\d/.test(value)) {
+    return 'Mật khẩu phải có ít nhất một chữ số.';
+  }
+
+  return '';
+};
+
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -23,6 +43,12 @@ export const Register = () => {
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
     setErrorMessage('');
+
+    const passwordValidationMessage = getPasswordValidationMessage(password);
+    if (passwordValidationMessage) {
+      setErrorMessage(passwordValidationMessage);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setErrorMessage('Mật khẩu xác nhận không khớp.');
@@ -152,6 +178,7 @@ export const Register = () => {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       minLength={8}
+                      placeholder="Ví dụ: Picklink123"
                       required
                       className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-10 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     />
@@ -164,6 +191,9 @@ export const Register = () => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  <p className="mt-1.5 text-[12px] font-medium text-secondary">
+                    Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường và số.
+                  </p>
                 </div>
 
                 <div>

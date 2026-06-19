@@ -56,6 +56,48 @@ export class ApiError extends Error {
   }
 }
 
+const apiErrorTranslations: Record<string, string> = {
+  'API request failed.': 'Yêu cầu API thất bại.',
+  'API response is empty.': 'Phản hồi API trống.',
+  'Cannot create user.': 'Không thể tạo tài khoản.',
+  'Email already exists.': 'Email đã tồn tại.',
+  'Invalid email or password.': 'Email hoặc mật khẩu không đúng.',
+  'Validation failed.': 'Dữ liệu chưa hợp lệ.',
+  'Passwords must be at least 8 characters.': 'Mật khẩu phải có ít nhất 8 ký tự.',
+  "Passwords must have at least one lowercase ('a'-'z').": 'Mật khẩu phải có ít nhất một chữ thường.',
+  "Passwords must have at least one uppercase ('A'-'Z').": 'Mật khẩu phải có ít nhất một chữ hoa.',
+  "Passwords must have at least one digit ('0'-'9').": 'Mật khẩu phải có ít nhất một chữ số.',
+};
+
+const translateApiError = (message: string) => apiErrorTranslations[message] ?? message;
+
+const collectErrorMessages = (errors: unknown): string[] => {
+  if (!errors) {
+    return [];
+  }
+
+  if (typeof errors === 'string') {
+    return [errors];
+  }
+
+  if (Array.isArray(errors)) {
+    return errors.flatMap(collectErrorMessages);
+  }
+
+  if (typeof errors === 'object') {
+    return Object.values(errors as Record<string, unknown>).flatMap(collectErrorMessages);
+  }
+
+  return [String(errors)];
+};
+
+const buildApiErrorMessage = <T>(payload: ApiResponse<T> | null) => {
+  const message = translateApiError(payload?.message ?? 'API request failed.');
+  const details = collectErrorMessages(payload?.errors).map(translateApiError);
+
+  return details.length > 0 ? `${message} ${details.join(' ')}` : message;
+};
+
 export const getStoredTokens = (): AuthTokens | null => {
   if (typeof window === 'undefined') {
     return null;
@@ -86,11 +128,11 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok || payload?.success === false) {
-    throw new ApiError(payload?.message ?? 'API request failed.', response.status, payload?.errors);
+    throw new ApiError(buildApiErrorMessage(payload), response.status, payload?.errors);
   }
 
   if (!payload) {
-    throw new ApiError('API response is empty.', response.status);
+    throw new ApiError(translateApiError('API response is empty.'), response.status);
   }
 
   return payload.data;
