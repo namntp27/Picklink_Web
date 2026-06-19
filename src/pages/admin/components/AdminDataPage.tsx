@@ -13,6 +13,11 @@ import {
 import { sectionConfigs } from '../adminData';
 import { queueToneClasses } from '../adminStyles';
 import type { AdminDataSectionId, AdminRow } from '../types';
+import {
+  AdminConfirmDialog,
+  type AdminActionTarget,
+  isDangerousAdminAction,
+} from './AdminConfirmDialog';
 import { AdminDetailDrawer } from './AdminDetailDrawer';
 import { AdminShell } from './AdminShell';
 import { MobileAdminNav } from './MobileAdminNav';
@@ -25,6 +30,17 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tất cả');
   const [selectedRow, setSelectedRow] = useState<AdminRow | null>(null);
+  const [pendingAction, setPendingAction] = useState<AdminActionTarget | null>(null);
+
+  const handleActionSelect = (action: string, row?: AdminRow | null) => {
+    if (isDangerousAdminAction(action)) {
+      setPendingAction({ action, config, row });
+    }
+  };
+
+  const handleConfirmAction = () => {
+    setPendingAction(null);
+  };
 
   const visibleRows = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -49,7 +65,13 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
           <h1 className="text-[30px] font-bold leading-tight text-on-background md:text-[36px]">{config.title}</h1>
           <p className="mt-2 max-w-3xl text-[15px] leading-6 text-secondary">{config.description}</p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-on-primary shadow-sm transition-opacity hover:opacity-90">
+        <button
+          className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-[14px] font-bold shadow-sm transition-opacity hover:opacity-90 ${
+            isDangerousAdminAction(config.primaryAction) ? 'bg-error text-white' : 'bg-primary text-on-primary'
+          }`}
+          onClick={() => handleActionSelect(config.primaryAction)}
+          type="button"
+        >
           <Plus className="h-5 w-5" />
           {config.primaryAction}
         </button>
@@ -144,7 +166,12 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
                         {row.actions.filter((action) => !isViewAction(action)).map((action) => (
                           <button
                             key={action}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-[12px] font-bold text-secondary transition-colors hover:border-primary hover:text-primary"
+                            className={`inline-flex items-center gap-1.5 rounded-lg border bg-surface px-3 py-2 text-[12px] font-bold transition-colors ${
+                              isDangerousAdminAction(action)
+                                ? 'border-error/30 text-error hover:bg-error-container/60'
+                                : 'border-outline-variant text-secondary hover:border-primary hover:text-primary'
+                            }`}
+                            onClick={() => handleActionSelect(action, row)}
                             type="button"
                           >
                             <Pencil className="h-4 w-4" />
@@ -197,19 +224,35 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
           <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm">
             <h2 className="mb-4 text-[18px] font-bold text-on-background">Thao tác nhanh</h2>
             <div className="grid grid-cols-2 gap-3">
-              <button className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-primary hover:text-primary">
+              <button
+                className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-primary hover:text-primary"
+                onClick={() => handleActionSelect('Duyệt')}
+                type="button"
+              >
                 <CheckCircle2 className="h-5 w-5" />
                 Duyệt
               </button>
-              <button className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-error hover:text-error">
+              <button
+                className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-error hover:text-error"
+                onClick={() => handleActionSelect('Từ chối')}
+                type="button"
+              >
                 <XCircle className="h-5 w-5" />
                 Từ chối
               </button>
-              <button className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-primary hover:text-primary">
+              <button
+                className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-primary hover:text-primary"
+                onClick={() => handleActionSelect('Mở khóa')}
+                type="button"
+              >
                 <Unlock className="h-5 w-5" />
                 Mở khóa
               </button>
-              <button className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-error hover:text-error">
+              <button
+                className="flex flex-col items-center gap-2 rounded-lg border border-outline-variant bg-surface p-4 text-[12px] font-bold text-secondary hover:border-error hover:text-error"
+                onClick={() => handleActionSelect('Khóa')}
+                type="button"
+              >
                 <Lock className="h-5 w-5" />
                 Khóa
               </button>
@@ -218,7 +261,17 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
         </aside>
       </div>
 
-      <AdminDetailDrawer config={config} onClose={() => setSelectedRow(null)} row={selectedRow} />
+      <AdminDetailDrawer
+        config={config}
+        onActionSelect={(row, action) => handleActionSelect(action, row)}
+        onClose={() => setSelectedRow(null)}
+        row={selectedRow}
+      />
+      <AdminConfirmDialog
+        onCancel={() => setPendingAction(null)}
+        onConfirm={handleConfirmAction}
+        target={pendingAction}
+      />
     </AdminShell>
   );
 };

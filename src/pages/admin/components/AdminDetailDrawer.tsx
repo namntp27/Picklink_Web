@@ -7,6 +7,7 @@ import {
   X,
 } from 'lucide-react';
 import type { AdminConfig, AdminDataSectionId, AdminRow } from '../types';
+import { isDangerousAdminAction } from './AdminConfirmDialog';
 import { StatusBadge } from './StatusBadge';
 
 type DetailCopy = {
@@ -83,10 +84,12 @@ export const AdminDetailDrawer = ({
   config,
   row,
   onClose,
+  onActionSelect,
 }: {
   config: AdminConfig;
   row: AdminRow | null;
   onClose: () => void;
+  onActionSelect?: (row: AdminRow, action: string) => void;
 }) => {
   useEffect(() => {
     if (!row) {
@@ -231,8 +234,13 @@ export const AdminDetailDrawer = ({
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {row.actions.map((action) => (
                 <button
-                  className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-left text-[13px] font-bold text-secondary transition-colors hover:border-primary hover:text-primary"
+                  className={`rounded-lg border bg-surface-container-lowest px-4 py-3 text-left text-[13px] font-bold transition-colors ${
+                    isDangerousAdminAction(action)
+                      ? 'border-error/30 text-error hover:bg-error-container/60'
+                      : 'border-outline-variant text-secondary hover:border-primary hover:text-primary'
+                  }`}
                   key={action}
+                  onClick={() => onActionSelect?.(row, action)}
                   type="button"
                 >
                   {action}
