@@ -1,0 +1,175 @@
+import type { UserRole } from '../types';
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5190/api').replace(/\/+$/, '');
+
+const TOKEN_STORAGE_KEY = 'picklink.auth.tokens';
+
+export type ApiResponse<T> = {
+  success: boolean;
+  message: string;
+  data: T;
+  errors?: unknown;
+  meta?: unknown;
+};
+
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresAt: string;
+};
+
+export type BackendUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+  status: string;
+  roles: string[];
+};
+
+export type BackendAuthResponse = AuthTokens & {
+  user: BackendUser;
+};
+
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+export type RegisterRequest = {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber?: string;
+  role: Extract<UserRole, 'player' | 'owner'>;
+};
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly errors?: unknown,
+  ) {
+    super(message);
+  }
+}
+
+export const getStoredTokens = (): AuthTokens | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as AuthTokens) : null;
+  } catch {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    return null;
+  }
+};
+
+export const persistTokens = (tokens: AuthTokens | null) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (tokens) {
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
+  } else {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+};
+
+const parseResponse = async <T>(response: Response): Promise<T> => {
+  const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+
+  if (!response.ok || payload?.success === false) {
+    throw new ApiError(payload?.message ?? 'API request failed.', response.status, payload?.errors);
+  }
+
+  if (!payload) {
+    throw new ApiError('API response is empty.', response.status);
+  }
+
+  return payload.data;
+};
+
+export const apiRequest = async <T>(
+  path: string,
+  init: RequestInit = {},
+  options: { auth?: boolean } = {},
+): Promise<T> => {
+  const headers = new Headers(init.headers);
+  if (!(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (options.auth) {
+    const tokens = getStoredTokens();
+    if (tokens?.accessToken) {
+      headers.set('Authorization', `${tokens.tokenType || 'Bearer'} ${tokens.accessToken}`);
+    }
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+
+  return parseResponse<T>(response);
+};
+
+const storeAuthResponse = (response: BackendAuthResponse) => {
+  persistTokens({
+    accessToken: response.accessToken,
+    refreshToken: response.refreshToken,
+    tokenType: response.tokenType,
+    expiresAt: response.expiresAt,
+  });
+
+  return response;
+};
+
+export const authApi = {
+  async login(input: LoginRequest) {
+    const response = await apiRequest<BackendAuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+
+    return storeAuthResponse(response);
+  },
+
+  async register(input: RegisterRequest) {
+    const response = await apiRequest<BackendAuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+
+    return storeAuthResponse(response);
+  },
+
+  async me() {
+    return apiRequest<BackendUser>('/auth/me', {}, { auth: true });
+  },
+
+  async refreshToken(refreshToken: string) {
+    const response = await apiRequest<BackendAuthResponse>('/auth/refresh-token', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    return storeAuthResponse(response);
+  },
+
+  async logout(refreshToken: string) {
+    await apiRequest<unknown>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    });
+  },
+};
+
+export const getApiBaseUrl = () => API_BASE_URL;

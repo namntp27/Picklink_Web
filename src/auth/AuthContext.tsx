@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { ApiError, authApi, getStoredTokens, persistTokens, type BackendAuthResponse, type BackendUser } from '../api/client';
 import type { UserRole } from '../types';
 
 export type AuthUser = {
@@ -13,40 +14,47 @@ type LoginInput = {
   password: string;
 };
 
+type RegisterInput = {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber?: string;
+  role: Extract<UserRole, 'player' | 'owner'>;
+};
+
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (input: LoginInput) => AuthUser | null;
-  logout: () => void;
+  isLoading: boolean;
+  login: (input: LoginInput) => Promise<AuthUser | null>;
+  register: (input: RegisterInput) => Promise<AuthUser>;
+  logout: () => Promise<void>;
 };
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'picklink.auth.user';
 
-const testUsers: Array<AuthUser & { password: string }> = [
-  {
-    id: 'admin-test',
-    name: 'Admin Cao Cấp',
-    email: 'admin@picklink.vn',
-    password: 'admin123',
-    role: 'admin',
-  },
-  {
-    id: 'owner-test',
-    name: 'Nguyễn Văn An',
-    email: 'owner@picklink.vn',
-    password: 'owner123',
-    role: 'owner',
-  },
-  {
-    id: 'player-test',
-    name: 'Nguyễn Minh Anh',
-    email: 'player@picklink.vn',
-    password: 'player123',
-    role: 'player',
-  },
-];
+const mapRole = (roles: string[]): UserRole => {
+  const normalizedRoles = roles.map((role) => role.toLowerCase());
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+  if (normalizedRoles.includes('admin')) {
+    return 'admin';
+  }
+
+  if (normalizedRoles.includes('owner')) {
+    return 'owner';
+  }
+
+  return 'player';
+};
+
+const mapUser = (user: BackendUser): AuthUser => ({
+  id: user.id,
+  name: user.fullName,
+  email: user.email,
+  role: mapRole(user.roles),
+});
 
 const getStoredUser = () => {
   if (typeof window === 'undefined') {
@@ -76,6 +84,12 @@ const persistUser = (user: AuthUser | null) => {
   }
 };
 
+const persistAuthResponse = (response: BackendAuthResponse) => {
+  const authUser = mapUser(response.user);
+  persistUser(authUser);
+  return authUser;
+};
+
 export const getDefaultPathForRole = (role: UserRole) => {
   if (role === 'admin') {
     return '/admin';
@@ -90,33 +104,86 @@ export const getDefaultPathForRole = (role: UserRole) => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  const [isLoading, setIsLoading] = useState(() => Boolean(getStoredTokens()));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateUser = async () => {
+      const tokens = getStoredTokens();
+      if (!tokens?.accessToken) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const backendUser = await authApi.me();
+        if (cancelled) {
+          return;
+        }
+
+        const authUser = mapUser(backendUser);
+        setUser(authUser);
+        persistUser(authUser);
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+          persistUser(null);
+          persistTokens(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    hydrateUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       isAuthenticated: Boolean(user),
-      login: ({ email, password }) => {
-        const matchedUser = testUsers.find(
-          (testUser) => testUser.email === email.trim().toLowerCase() && testUser.password === password,
-        );
+      isLoading,
+      login: async ({ email, password }) => {
+        try {
+          const response = await authApi.login({ email, password });
+          const authUser = persistAuthResponse(response);
 
-        if (!matchedUser) {
-          return null;
+          setUser(authUser);
+          return authUser;
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            return null;
+          }
+
+          throw error;
         }
-
-        const { password: _password, ...authUser } = matchedUser;
+      },
+      register: async (input) => {
+        const response = await authApi.register(input);
+        const authUser = persistAuthResponse(response);
 
         setUser(authUser);
-        persistUser(authUser);
-
         return authUser;
       },
-      logout: () => {
+      logout: async () => {
+        const tokens = getStoredTokens();
         setUser(null);
         persistUser(null);
+        persistTokens(null);
+
+        if (tokens?.refreshToken) {
+          await authApi.logout(tokens.refreshToken).catch(() => undefined);
+        }
       },
     }),
-    [user],
+    [isLoading, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

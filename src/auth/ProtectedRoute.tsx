@@ -8,8 +8,12 @@ type ProtectedRouteProps = {
 };
 
 export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
-  const { user } = useAuth();
+  const { isLoading, user } = useAuth();
   const location = useLocation();
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-surface" />;
+  }
 
   if (!user) {
     return <Navigate replace state={{ from: location }} to="/login" />;
@@ -23,7 +27,11 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
 };
 
 export const PublicOnlyRoute = () => {
-  const { user } = useAuth();
+  const { isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-surface" />;
+  }
 
   if (user) {
     return <Navigate replace to={getDefaultPathForRole(user.role)} />;
