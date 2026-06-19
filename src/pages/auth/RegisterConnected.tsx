@@ -25,7 +25,7 @@ export const Register = () => {
     setErrorMessage('');
 
     if (password !== confirmPassword) {
-      setErrorMessage('Mat khau xac nhan khong khop.');
+      setErrorMessage('Mật khẩu xác nhận không khớp.');
       return;
     }
 
@@ -42,7 +42,7 @@ export const Register = () => {
 
       navigate(getDefaultPathForRole(authUser.role), { replace: true });
     } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : 'Khong the ket noi backend. Vui long thu lai.');
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không thể kết nối backend. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -54,7 +54,7 @@ export const Register = () => {
         <section className="grid w-full max-w-5xl overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-lg lg:grid-cols-2">
           <div className="hidden min-h-[680px] bg-surface-variant lg:block">
             <img
-              alt="Pickleball court"
+              alt="Sân pickleball"
               className="h-full w-full object-cover"
               src="https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?auto=format&fit=crop&w=1200&q=80"
             />
@@ -66,8 +66,8 @@ export const Register = () => {
                 Picklink
               </Link>
               <div className="mb-8">
-                <h1 className="mb-2 text-[32px] font-bold tracking-tight text-on-surface">Tao tai khoan</h1>
-                <p className="text-[14px] font-medium text-secondary">Dang ky bang backend Picklink API.</p>
+                <h1 className="mb-2 text-[32px] font-bold tracking-tight text-on-surface">Tạo tài khoản</h1>
+                <p className="text-[14px] font-medium text-secondary">Đăng ký bằng backend Picklink API.</p>
               </div>
 
               <form className="space-y-5" onSubmit={handleRegister}>
@@ -79,7 +79,7 @@ export const Register = () => {
 
                 <div>
                   <label className="mb-1.5 block text-[14px] font-bold" htmlFor="fullName">
-                    Ho va ten
+                    Họ và tên
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-outline" />
@@ -112,7 +112,7 @@ export const Register = () => {
 
                 <div>
                   <label className="mb-1.5 block text-[14px] font-bold" htmlFor="phoneNumber">
-                    So dien thoai
+                    Số điện thoại
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-outline" />
@@ -127,7 +127,7 @@ export const Register = () => {
 
                 <div>
                   <label className="mb-1.5 block text-[14px] font-bold" htmlFor="role">
-                    Vai tro
+                    Vai trò
                   </label>
                   <select
                     id="role"
@@ -135,14 +135,14 @@ export const Register = () => {
                     onChange={(event) => setRole(event.target.value as RegisterRole)}
                     className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   >
-                    <option value="player">Nguoi choi</option>
-                    <option value="owner">Chu san</option>
+                    <option value="player">Người chơi</option>
+                    <option value="owner">Chủ sân</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-[14px] font-bold" htmlFor="password">
-                    Mat khau
+                    Mật khẩu
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-outline" />
@@ -159,7 +159,7 @@ export const Register = () => {
                       type="button"
                       onClick={() => setShowPassword((value) => !value)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -168,7 +168,7 @@ export const Register = () => {
 
                 <div>
                   <label className="mb-1.5 block text-[14px] font-bold" htmlFor="confirmPassword">
-                    Xac nhan mat khau
+                    Xác nhận mật khẩu
                   </label>
                   <input
                     id="confirmPassword"
@@ -186,14 +186,14 @@ export const Register = () => {
                   disabled={isSubmitting}
                   className="w-full rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[14px] font-bold text-on-primary-container shadow-sm transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmitting ? 'Dang tao tai khoan...' : 'Dang ky'}
+                  {isSubmitting ? 'Đang tạo tài khoản...' : 'Đăng ký'}
                 </button>
               </form>
 
               <p className="mt-8 text-center text-[14px] font-medium text-secondary">
-                Da co tai khoan?{' '}
+                Đã có tài khoản?{' '}
                 <Link to="/login" className="font-bold text-primary hover:underline">
-                  Dang nhap
+                  Đăng nhập
                 </Link>
               </p>
             </div>

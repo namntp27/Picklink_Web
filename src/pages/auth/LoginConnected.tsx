@@ -37,7 +37,7 @@ export const Login = () => {
       const authUser = await login({ email, password });
 
       if (!authUser) {
-        setErrorMessage('Email hoac mat khau khong dung.');
+        setErrorMessage('Email hoặc mật khẩu không đúng.');
         return;
       }
 
@@ -45,7 +45,7 @@ export const Login = () => {
       const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
       navigate(nextPath, { replace: true });
     } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : 'Khong the ket noi backend. Vui long thu lai.');
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không thể kết nối backend. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -62,7 +62,7 @@ export const Login = () => {
             to="/register"
             className="rounded-lg bg-on-primary px-4 py-2 text-[14px] font-bold text-primary shadow-sm transition-colors hover:bg-surface-bright"
           >
-            Dang ky
+            Đăng ký
           </Link>
         </div>
       </header>
@@ -71,7 +71,7 @@ export const Login = () => {
         <section className="grid w-full max-w-5xl overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-lg md:grid-cols-2">
           <div className="hidden min-h-[560px] bg-surface-variant md:block">
             <img
-              alt="Pickleball court"
+              alt="Sân pickleball"
               className="h-full w-full object-cover"
               src="https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1200&q=80"
             />
@@ -80,8 +80,8 @@ export const Login = () => {
           <div className="flex items-center bg-surface-bright p-8 md:p-12 lg:p-16">
             <div className="mx-auto w-full max-w-md">
               <div className="mb-8">
-                <h1 className="mb-2 text-[32px] font-bold tracking-tight text-on-surface">Dang nhap</h1>
-                <p className="text-[14px] font-medium text-secondary">Su dung tai khoan Picklink cua ban.</p>
+                <h1 className="mb-2 text-[32px] font-bold tracking-tight text-on-surface">Đăng nhập</h1>
+                <p className="text-[14px] font-medium text-secondary">Sử dụng tài khoản Picklink của bạn.</p>
               </div>
 
               <form className="space-y-6" onSubmit={handleLogin}>
@@ -111,7 +111,7 @@ export const Login = () => {
 
                 <div>
                   <label className="mb-1.5 block text-[14px] font-bold text-on-surface" htmlFor="password">
-                    Mat khau
+                    Mật khẩu
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary/60" />
@@ -120,7 +120,7 @@ export const Login = () => {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      placeholder="Nhap mat khau"
+                      placeholder="Nhập mật khẩu"
                       required
                       className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-10 text-[14px] font-medium text-on-surface outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
                     />
@@ -128,7 +128,7 @@ export const Login = () => {
                       type="button"
                       onClick={() => setShowPassword((value) => !value)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary/60 transition-colors hover:text-primary"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -140,15 +140,15 @@ export const Login = () => {
                   disabled={isSubmitting}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[16px] font-bold text-on-primary shadow-sm transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmitting ? 'Dang dang nhap...' : 'Dang nhap'}
+                  {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </form>
 
               <p className="mt-8 text-center text-[14px] font-medium text-secondary">
-                Chua co tai khoan?{' '}
+                Chưa có tài khoản?{' '}
                 <Link to="/register" className="font-bold text-primary hover:underline">
-                  Dang ky ngay
+                  Đăng ký ngay
                 </Link>
               </p>
             </div>
