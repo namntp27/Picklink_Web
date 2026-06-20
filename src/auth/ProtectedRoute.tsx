@@ -8,8 +8,12 @@ type ProtectedRouteProps = {
 };
 
 export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
-  const { user } = useAuth();
+  const { isInitializing, user } = useAuth();
   const location = useLocation();
+
+  if (isInitializing) {
+    return <div className="flex min-h-screen items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
+  }
 
   if (!user) {
     return <Navigate replace state={{ from: location }} to="/login" />;
@@ -23,7 +27,11 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
 };
 
 export const PublicOnlyRoute = () => {
-  const { user } = useAuth();
+  const { isInitializing, user } = useAuth();
+
+  if (isInitializing) {
+    return <div className="flex min-h-screen items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
+  }
 
   if (user) {
     return <Navigate replace to={getDefaultPathForRole(user.role)} />;

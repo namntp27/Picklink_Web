@@ -13,10 +13,12 @@ import {
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
+import { forgotPasswordRequest, resetPasswordRequest } from '../../api/auth';
+import { ApiError } from '../../api/client';
 
 type RecoveryStep = 'request' | 'otp' | 'reset' | 'success';
 
-const otpLength = 6;
+const otpLength = 8;
 
 export const ForgotPassword = () => {
   const [step, setStep] = useState<RecoveryStep>('request');
@@ -27,17 +29,27 @@ export const ForgotPassword = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const navigate = useNavigate();
 
   const completedOtp = useMemo(() => otp.join(''), [otp]);
-  const maskedAccount = account.includes('@') ? account : account.replace(/(\d{3})\d+(\d{3})/, '$1******$2');
+  const maskedAccount = account;
 
-  const handleRequestOtp = (event: FormEvent<HTMLFormElement>) => {
+  const handleRequestOtp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setMessage('Mã OTP đã được gửi.');
-    setStep('otp');
-    window.setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    setMessage('');
+    setIsSubmitting(true);
+    try {
+      const result = await forgotPasswordRequest(account.trim().toLowerCase());
+      setMessage(result.message);
+      setStep('otp');
+      window.setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : 'Không thể gửi mã. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -64,19 +76,19 @@ export const ForgotPassword = () => {
     event.preventDefault();
 
     if (completedOtp.length < otpLength) {
-      setMessage('Vui lòng nhập đủ 6 số OTP.');
+      setMessage(`Vui lòng nhập đủ ${otpLength} số trong mã.`);
       return;
     }
 
-    setMessage('Xác thực OTP thành công.');
+    setMessage('Hãy tạo mật khẩu mới để hoàn tất xác thực mã.');
     setStep('reset');
   };
 
-  const handleResetPassword = (event: FormEvent<HTMLFormElement>) => {
+  const handleResetPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (newPassword.length < 6) {
-      setMessage('Mật khẩu mới cần tối thiểu 6 ký tự.');
+    if (newPassword.length < 8) {
+      setMessage('Mật khẩu mới cần tối thiểu 8 ký tự.');
       return;
     }
 
@@ -86,13 +98,30 @@ export const ForgotPassword = () => {
     }
 
     setMessage('');
-    setStep('success');
+    setIsSubmitting(true);
+    try {
+      await resetPasswordRequest(account.trim().toLowerCase(), completedOtp, newPassword);
+      setStep('success');
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : 'Không thể đổi mật khẩu. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     setOtp(Array.from({ length: otpLength }, () => ''));
-    setMessage('Mã OTP mới đã được gửi.');
-    window.setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    setMessage('');
+    setIsSubmitting(true);
+    try {
+      const result = await forgotPasswordRequest(account.trim().toLowerCase());
+      setMessage(result.message);
+      window.setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : 'Không thể gửi lại mã. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStepBadge = (currentStep: RecoveryStep, label: string, order: number) => {
@@ -159,8 +188,8 @@ export const ForgotPassword = () => {
                 </p>
               </div>
               <div className="relative rounded-lg border border-white/20 bg-white/12 p-5">
-                <p className="text-[14px] font-bold text-white/80">Mã OTP mẫu</p>
-                <p className="mt-2 text-[30px] font-bold tracking-[0.25em]">123456</p>
+                <p className="text-[14px] font-bold text-white/80">Bảo mật tài khoản</p>
+                <p className="mt-2 text-[14px] leading-6">Mã đặt lại mật khẩu chỉ có hiệu lực trong 15 phút và được gửi tới email đã đăng ký.</p>
               </div>
             </div>
           </section>
@@ -190,7 +219,7 @@ export const ForgotPassword = () => {
                 <form className="space-y-5" onSubmit={handleRequestOtp}>
                   <div>
                     <label className="mb-1.5 block text-[14px] font-bold text-on-surface" htmlFor="account">
-                      Email hoặc số điện thoại
+                      Email đã đăng ký
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary/60" />
@@ -201,8 +230,9 @@ export const ForgotPassword = () => {
                           setAccount(event.target.value);
                           setMessage('');
                         }}
-                        placeholder="email@example.com hoặc 09xxxxxxxx"
+                        placeholder="email@example.com"
                         required
+                        type="email"
                         value={account}
                       />
                     </div>
@@ -210,9 +240,10 @@ export const ForgotPassword = () => {
 
                   <button
                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[16px] font-bold text-on-primary transition-colors hover:bg-primary"
+                    disabled={isSubmitting}
                     type="submit"
                   >
-                    Gửi mã OTP
+                    {isSubmitting ? 'Đang gửi...' : 'Gửi mã xác thực'}
                     <ArrowRight className="h-5 w-5" />
                   </button>
                 </form>
@@ -225,7 +256,7 @@ export const ForgotPassword = () => {
                       <Smartphone className="h-5 w-5 text-primary" />
                       Mã xác thực gửi tới {maskedAccount}
                     </div>
-                    <div className="grid grid-cols-6 gap-2">
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                       {otp.map((value, index) => (
                         <input
                           aria-label={`OTP số ${index + 1}`}
@@ -247,6 +278,7 @@ export const ForgotPassword = () => {
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <button
                       className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface transition-colors hover:bg-surface-container-low"
+                      disabled={isSubmitting}
                       onClick={handleResendOtp}
                       type="button"
                     >
@@ -281,6 +313,7 @@ export const ForgotPassword = () => {
                         }}
                         placeholder="Tạo mật khẩu mới"
                         required
+                        minLength={8}
                         type={showNewPassword ? 'text' : 'password'}
                         value={newPassword}
                       />
@@ -324,9 +357,10 @@ export const ForgotPassword = () => {
 
                   <button
                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[16px] font-bold text-on-primary transition-colors hover:bg-primary"
+                    disabled={isSubmitting}
                     type="submit"
                   >
-                    Cập nhật mật khẩu
+                    {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
                     <ArrowRight className="h-5 w-5" />
                   </button>
                 </form>

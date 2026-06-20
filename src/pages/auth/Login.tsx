@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { ApiError } from '../../api/client';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
 import type { UserRole } from '../../types';
 
@@ -21,25 +22,27 @@ export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    setIsSubmitting(true);
 
-    const authUser = login({ email, password });
-
-    if (!authUser) {
-      setErrorMessage('Email hoặc mật khẩu không đúng với tài khoản test.');
-      return;
+    try {
+      const authUser = await login({ email, password });
+      const defaultPath = getDefaultPathForRole(authUser.role);
+      const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
+      navigate(nextPath, { replace: true });
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không thể đăng nhập. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const defaultPath = getDefaultPathForRole(authUser.role);
-    const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
-
-    navigate(nextPath, { replace: true });
   };
 
   return (
@@ -83,19 +86,6 @@ export const Login = () => {
               <div className="mb-8 text-center md:text-left">
                 <h1 className="text-[28px] md:text-[32px] font-bold text-on-surface mb-2 tracking-tight">Đăng nhập</h1>
                 <p className="text-[14px] font-medium text-secondary">Chào mừng bạn trở lại! Vui lòng nhập thông tin.</p>
-                <div className="mt-2 p-3 bg-primary/10 border border-primary/20 rounded-lg text-[13px] text-primary">
-                  <span className="font-bold">Tài khoản Admin Test:</span><br/>
-                  Email: admin@picklink.vn<br/>
-                  Mật khẩu: admin123<br/>
-                  <div className="h-px bg-primary/20 my-2"></div>
-                  <span className="font-bold">Tài khoản Chủ Sân Test:</span><br/>
-                  Email: owner@picklink.vn<br/>
-                  Mật khẩu: owner123<br/>
-                  <div className="h-px bg-primary/20 my-2"></div>
-                  <span className="font-bold">Tài khoản Người Chơi Test:</span><br/>
-                  Email: player@picklink.vn<br/>
-                  Mật khẩu: player123
-                </div>
               </div>
 
               <form className="space-y-6" onSubmit={handleLogin}>
@@ -115,6 +105,7 @@ export const Login = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="email@example.com" 
+                      required
                       className="w-full pl-10 pr-4 py-3 rounded-lg border border-outline-variant bg-surface-container-lowest focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none transition-colors text-[14px] font-medium text-on-surface" 
                     />
                   </div>
@@ -130,6 +121,7 @@ export const Login = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••" 
+                      required
                       className="w-full pl-10 pr-10 py-3 rounded-lg border border-outline-variant bg-surface-container-lowest focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none transition-colors text-[14px] font-medium text-on-surface" 
                     />
                     <button 
@@ -157,9 +149,10 @@ export const Login = () => {
 
                 <button 
                   type="submit" 
-                  className="w-full bg-primary-container text-on-primary font-bold text-[16px] py-3.5 px-4 rounded-lg hover:bg-primary transition-colors duration-200 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 border border-transparent"
+                  disabled={isSubmitting}
+                  className="w-full bg-primary-container text-on-primary font-bold text-[16px] py-3.5 px-4 rounded-lg hover:bg-primary transition-colors duration-200 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 border border-transparent disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Đăng nhập
+                  {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </form>

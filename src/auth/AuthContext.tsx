@@ -1,12 +1,13 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  getCurrentUser,
+  loginRequest,
+  registerRequest,
+  type AuthSession,
+  type AuthUser,
+  type RegisterInput,
+} from '../api/auth';
 import type { UserRole } from '../types';
-
-export type AuthUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-};
 
 type LoginInput = {
   email: string;
@@ -15,119 +16,112 @@ type LoginInput = {
 
 type AuthContextValue = {
   user: AuthUser | null;
+  token: string | null;
   isAuthenticated: boolean;
-  login: (input: LoginInput) => AuthUser | null;
+  isInitializing: boolean;
+  login: (input: LoginInput) => Promise<AuthUser>;
+  register: (input: RegisterInput) => Promise<AuthUser>;
   logout: () => void;
 };
 
-const AUTH_STORAGE_KEY = 'picklink.auth.user';
-
-const testUsers: Array<AuthUser & { password: string }> = [
-  {
-    id: 'admin-test',
-    name: 'Admin Cao Cấp',
-    email: 'admin@picklink.vn',
-    password: 'admin123',
-    role: 'admin',
-  },
-  {
-    id: 'owner-test',
-    name: 'Nguyễn Văn An',
-    email: 'owner@picklink.vn',
-    password: 'owner123',
-    role: 'owner',
-  },
-  {
-    id: 'player-test',
-    name: 'Nguyễn Minh Anh',
-    email: 'player@picklink.vn',
-    password: 'player123',
-    role: 'player',
-  },
-];
-
+const AUTH_STORAGE_KEY = 'picklink.auth.session';
+const LEGACY_AUTH_STORAGE_KEY = 'picklink.auth.user';
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const getStoredUser = () => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+const getStoredSession = (): AuthSession | null => {
+  if (typeof window === 'undefined') return null;
 
   try {
-    const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
+    const value = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!value) return null;
 
-    return storedUser ? (JSON.parse(storedUser) as AuthUser) : null;
+    const session = JSON.parse(value) as AuthSession;
+    if (!session.token || !session.user || new Date(session.expiresAt).getTime() <= Date.now()) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+
+    return session;
   } catch {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
-
     return null;
   }
 };
 
-const persistUser = (user: AuthUser | null) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
+const persistSession = (session: AuthSession | null) => {
+  if (typeof window === 'undefined') return;
 
-  if (user) {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  if (session) {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
   } else {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
   }
 };
 
 export const getDefaultPathForRole = (role: UserRole) => {
-  if (role === 'admin') {
-    return '/admin';
-  }
-
-  if (role === 'owner') {
-    return '/owner';
-  }
-
+  if (role === 'admin') return '/admin';
+  if (role === 'owner') return '/owner';
   return '/';
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
+  const [isInitializing, setIsInitializing] = useState(Boolean(session));
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      isAuthenticated: Boolean(user),
-      login: ({ email, password }) => {
-        const matchedUser = testUsers.find(
-          (testUser) => testUser.email === email.trim().toLowerCase() && testUser.password === password,
-        );
+  const saveSession = useCallback((nextSession: AuthSession | null) => {
+    setSession(nextSession);
+    persistSession(nextSession);
+  }, []);
 
-        if (!matchedUser) {
-          return null;
-        }
+  useEffect(() => {
+    if (!session) {
+      setIsInitializing(false);
+      return;
+    }
 
-        const { password: _password, ...authUser } = matchedUser;
+    let isActive = true;
+    getCurrentUser(session.token)
+      .then((user) => {
+        if (isActive) saveSession({ ...session, user });
+      })
+      .catch(() => {
+        if (isActive) saveSession(null);
+      })
+      .finally(() => {
+        if (isActive) setIsInitializing(false);
+      });
 
-        setUser(authUser);
-        persistUser(authUser);
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
-        return authUser;
-      },
-      logout: () => {
-        setUser(null);
-        persistUser(null);
-      },
-    }),
-    [user],
-  );
+  const value = useMemo<AuthContextValue>(() => ({
+    user: session?.user ?? null,
+    token: session?.token ?? null,
+    isAuthenticated: Boolean(session),
+    isInitializing,
+    login: async ({ email, password }) => {
+      const nextSession = await loginRequest(email.trim().toLowerCase(), password);
+      saveSession(nextSession);
+      return nextSession.user;
+    },
+    register: async (input) => {
+      const nextSession = await registerRequest(input);
+      saveSession(nextSession);
+      return nextSession.user;
+    },
+    logout: () => saveSession(null),
+  }), [isInitializing, saveSession, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider');
-  }
-
+  if (!context) throw new Error('useAuth must be used inside AuthProvider');
   return context;
 };
+
+export type { AuthUser, RegisterInput };
