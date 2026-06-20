@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { OwnerVenueInput } from '../../../api/owner';
 import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
@@ -13,7 +14,7 @@ type VenueFormDraft = {
   longitude: string;
   basePrice: string;
   initialCourtCount: string;
-  amenities: string;
+  amenities: string[];
 };
 
 const fieldClassName = 'w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary';
@@ -39,10 +40,11 @@ export const OwnerVenueForm = ({
     longitude: initial?.longitude ?? '',
     basePrice: initial?.basePrice ?? '100000',
     initialCourtCount: initial?.initialCourtCount ?? '1',
-    amenities: initial?.amenities ?? '',
+    amenities: initial?.amenities ?? [],
   });
+  const [amenityDraft, setAmenityDraft] = useState('');
 
-  const update = (key: keyof VenueFormDraft, value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  const update = <K extends keyof VenueFormDraft>(key: K, value: VenueFormDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -56,7 +58,7 @@ export const OwnerVenueForm = ({
       longitude: draft.longitude ? Number(draft.longitude) : null,
       basePrice: Number(draft.basePrice) || 0,
       initialCourtCount: isCreate ? Number(draft.initialCourtCount) || 0 : 0,
-      amenities: draft.amenities.split(',').map((item) => item.trim()).filter(Boolean),
+      amenities: draft.amenities,
     });
   };
 
@@ -98,10 +100,45 @@ export const OwnerVenueForm = ({
             <input className={fieldClassName} max="100" min="0" onChange={(event) => update('initialCourtCount', event.target.value)} type="number" value={draft.initialCourtCount} />
           </label>
         )}
-        <label className={isCreate ? '' : 'md:col-span-2'}>
+        <div className={isCreate ? '' : 'md:col-span-2'}>
           <span className="mb-1.5 block text-[13px] font-bold">Tiện ích</span>
-          <input className={fieldClassName} onChange={(event) => update('amenities', event.target.value)} placeholder="Bãi xe, phòng thay đồ, nước uống" value={draft.amenities} />
-        </label>
+          <div className="flex gap-2">
+            <input
+              className={fieldClassName}
+              onChange={(event) => setAmenityDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                const value = amenityDraft.trim();
+                if (value && !draft.amenities.some((item) => item.toLowerCase() === value.toLowerCase())) {
+                  setDraft((current) => ({ ...current, amenities: [...current.amenities, value] }));
+                }
+                setAmenityDraft('');
+              }}
+              placeholder="Ví dụ: Bãi xe"
+              value={amenityDraft}
+            />
+            <button
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-primary px-3 text-[13px] font-bold text-primary"
+              onClick={() => {
+                const value = amenityDraft.trim();
+                if (value && !draft.amenities.some((item) => item.toLowerCase() === value.toLowerCase())) {
+                  setDraft((current) => ({ ...current, amenities: [...current.amenities, value] }));
+                }
+                setAmenityDraft('');
+              }}
+              type="button"
+            ><Plus className="h-4 w-4" /> Thêm</button>
+          </div>
+          <div className="mt-2 flex min-h-7 flex-wrap gap-2">
+            {draft.amenities.map((amenity) => (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-[12px] font-bold text-primary" key={amenity}>
+                {amenity}
+                <button aria-label={`Xóa ${amenity}`} onClick={() => setDraft((current) => ({ ...current, amenities: current.amenities.filter((item) => item !== amenity) }))} type="button"><X className="h-3.5 w-3.5" /></button>
+              </span>
+            ))}
+          </div>
+        </div>
         {/* <label>
           <span className="mb-1.5 block text-[13px] font-bold">Vĩ độ</span>
           <input className={fieldClassName} max="90" min="-90" onChange={(event) => update('latitude', event.target.value)} step="any" type="number" value={draft.latitude} />

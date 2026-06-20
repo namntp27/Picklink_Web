@@ -5,8 +5,18 @@ export type OwnerCourt = {
   venueId: number;
   courtNumber: number;
   surfaceType?: string | null;
+  courtType: string;
+  hourlyPrice: number;
   isIndoor: boolean;
   availabilityStatus: 'Available' | 'Maintenance' | 'Inactive';
+};
+
+export type OwnerVenueImage = {
+  venueImageId: number;
+  imageUrl: string;
+  caption?: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
 };
 
 export type OwnerVenue = {
@@ -20,7 +30,11 @@ export type OwnerVenue = {
   latitude?: number | null;
   longitude?: number | null;
   basePrice: number;
+  isOpen: boolean;
+  approvalStatus: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string | null;
   amenities: string[];
+  images: OwnerVenueImage[];
   courts: OwnerCourt[];
 };
 
@@ -40,6 +54,8 @@ export type OwnerVenueInput = {
 export type OwnerCourtInput = {
   courtNumber: number;
   surfaceType?: string;
+  courtType: string;
+  hourlyPrice: number;
   isIndoor: boolean;
   availabilityStatus: OwnerCourt['availabilityStatus'];
 };
@@ -57,12 +73,35 @@ export type OwnerScheduleItem = {
   amount: number;
   paymentStatus?: string | null;
   isOwnerBlock: boolean;
+  isOwnerEntry: boolean;
+  entryType?: OwnerScheduleEntryType | null;
+  title?: string | null;
+};
+
+export type OwnerScheduleEntryType = 'Blocked' | 'Maintenance' | 'Event';
+
+export type OwnerScheduleSlot = {
+  courtId: number;
+  venueId: number;
+  venueName: string;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  status: 'Available' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed' | 'Inactive';
+  bookingId?: number | null;
+  entryType?: OwnerScheduleEntryType | null;
+  title?: string | null;
 };
 
 export type OwnerSchedule = {
   date: string;
+  startDate: string;
+  endDate: string;
+  view: 'day' | 'week';
+  slotMinutes: number;
   venues: OwnerVenue[];
   items: OwnerScheduleItem[];
+  slots: OwnerScheduleSlot[];
 };
 
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
@@ -74,21 +113,53 @@ const mapVenueInput = (input: OwnerVenueInput) => ({
   initialCourtCount: input.initialCourtCount ?? 0,
 });
 
-export const getOwnerVenues = (token: string) => apiRequest<OwnerVenue[]>('/api/owner/venues', {}, token);
+const normalizeOwnerVenue = (venue: OwnerVenue): OwnerVenue => ({
+  ...venue,
+  isOpen: venue.isOpen ?? true,
+  approvalStatus: venue.approvalStatus ?? 'Draft',
+  rejectionReason: venue.rejectionReason ?? null,
+  amenities: venue.amenities ?? [],
+  images: venue.images ?? [],
+  courts: (venue.courts ?? []).map((court) => ({
+    ...court,
+    courtType: court.courtType ?? 'Tiêu chuẩn',
+    hourlyPrice: court.hourlyPrice ?? venue.basePrice ?? 0,
+  })),
+});
 
-export const getOwnerVenue = (token: string, venueId: number) => apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}`, {}, token);
+export const getOwnerVenues = async (token: string) => (await apiRequest<OwnerVenue[]>('/api/owner/venues', {}, token)).map(normalizeOwnerVenue);
 
-export const createOwnerVenue = (token: string, input: OwnerVenueInput) => apiRequest<OwnerVenue>('/api/owner/venues', {
+export const getOwnerVenue = async (token: string, venueId: number) => normalizeOwnerVenue(await apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}`, {}, token));
+
+export const createOwnerVenue = async (token: string, input: OwnerVenueInput) => normalizeOwnerVenue(await apiRequest<OwnerVenue>('/api/owner/venues', {
   method: 'POST',
   body: JSON.stringify(mapVenueInput(input)),
-}, token);
+}, token));
 
-export const updateOwnerVenue = (token: string, venueId: number, input: OwnerVenueInput) => apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}`, {
+export const updateOwnerVenue = async (token: string, venueId: number, input: OwnerVenueInput) => normalizeOwnerVenue(await apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}`, {
   method: 'PUT',
   body: JSON.stringify(mapVenueInput(input)),
-}, token);
+}, token));
 
 export const deleteOwnerVenue = (token: string, venueId: number) => apiRequest<void>(`/api/owner/venues/${venueId}`, { method: 'DELETE' }, token);
+
+export const setOwnerVenueOpenStatus = async (token: string, venueId: number, isOpen: boolean) => normalizeOwnerVenue(await apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}/open-status`, {
+  method: 'PATCH',
+  body: JSON.stringify({ isOpen }),
+}, token));
+
+export const submitOwnerVenue = async (token: string, venueId: number) => normalizeOwnerVenue(await apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}/submit`, { method: 'POST' }, token));
+
+export const uploadOwnerVenueImage = (token: string, venueId: number, image: File, caption = '') => {
+  const formData = new FormData();
+  formData.append('image', image);
+  if (caption.trim()) formData.append('caption', caption.trim());
+  return apiRequest<OwnerVenueImage>(`/api/owner/venues/${venueId}/images`, { method: 'POST', body: formData }, token);
+};
+
+export const setPrimaryOwnerVenueImage = async (token: string, venueId: number, imageId: number) => normalizeOwnerVenue(await apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}/images/${imageId}/primary`, { method: 'PATCH' }, token));
+
+export const deleteOwnerVenueImage = (token: string, venueId: number, imageId: number) => apiRequest<void>(`/api/owner/venues/${venueId}/images/${imageId}`, { method: 'DELETE' }, token);
 
 export const createOwnerCourt = (token: string, venueId: number, input: OwnerCourtInput) => apiRequest<OwnerCourt>(`/api/owner/venues/${venueId}/courts`, {
   method: 'POST',
@@ -102,7 +173,26 @@ export const updateOwnerCourt = (token: string, courtId: number, input: OwnerCou
 
 export const deleteOwnerCourt = (token: string, courtId: number) => apiRequest<void>(`/api/owner/courts/${courtId}`, { method: 'DELETE' }, token);
 
-export const getOwnerSchedule = (token: string, date: string) => apiRequest<OwnerSchedule>(`/api/owner/schedule?date=${encodeURIComponent(date)}`, {}, token);
+export const getOwnerSchedule = async (token: string, date: string, view: 'day' | 'week' = 'day') => {
+  const result = await apiRequest<OwnerSchedule>(`/api/owner/schedule?date=${encodeURIComponent(date)}&view=${view}`, {}, token);
+  return {
+    ...result,
+    startDate: result.startDate ?? result.date,
+    endDate: result.endDate ?? result.date,
+    view: result.view ?? view,
+    slotMinutes: result.slotMinutes ?? 30,
+    venues: (result.venues ?? []).map(normalizeOwnerVenue),
+    items: (result.items ?? []).map((item) => ({ ...item, isOwnerEntry: item.isOwnerEntry ?? item.isOwnerBlock, entryType: item.entryType ?? (item.isOwnerBlock ? 'Blocked' : null) })),
+    slots: result.slots ?? [],
+  };
+};
+
+export const createOwnerScheduleEntry = (token: string, input: { courtId: number; startTime: string; endTime: string; entryType: OwnerScheduleEntryType; title?: string }) => apiRequest<OwnerScheduleItem>('/api/owner/schedule/entries', {
+  method: 'POST',
+  body: JSON.stringify(input),
+}, token);
+
+export const deleteOwnerScheduleEntry = (token: string, bookingId: number) => apiRequest<void>(`/api/owner/schedule/entries/${bookingId}`, { method: 'DELETE' }, token);
 
 export const createOwnerScheduleBlock = (token: string, input: { courtId: number; startTime: string; endTime: string }) => apiRequest<OwnerScheduleItem>('/api/owner/schedule/blocks', {
   method: 'POST',

@@ -62,7 +62,7 @@ export const OwnerCourtEdit = () => {
               latitude: venue.latitude?.toString() ?? '',
               longitude: venue.longitude?.toString() ?? '',
               basePrice: venue.basePrice.toString(),
-              amenities: venue.amenities.join(', '),
+              amenities: venue.amenities,
             }}
             isSaving={isSaving}
             onSubmit={handleSubmit}

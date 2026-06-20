@@ -44,6 +44,7 @@ import { OwnerBookings } from './pages/owner/OwnerBookings';
 import { OwnerCourtCreate } from './pages/owner/OwnerCourtCreate';
 import { OwnerCourtEdit } from './pages/owner/OwnerCourtEdit';
 import { OwnerCourts } from './pages/owner/OwnerCourts';
+import { OwnerVenueDetail } from './pages/owner/OwnerVenueDetail';
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerRevenue } from './pages/owner/OwnerRevenue';
 import { OwnerSettings } from './pages/owner/OwnerSettings';
@@ -114,6 +115,7 @@ function App() {
         <Route path="/owner/bookings/:id" element={<OwnerBookingDetail />} />
         <Route path="/owner/courts" element={<OwnerCourts />} />
         <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
+        <Route path="/owner/courts/:id" element={<OwnerVenueDetail />} />
         <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
         <Route path="/owner/revenue" element={<OwnerRevenue />} />
         <Route path="/owner/settings" element={<OwnerSettings />} />
