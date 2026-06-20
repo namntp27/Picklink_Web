@@ -135,6 +135,11 @@ export const forgotPasswordRequest = (email: string) => apiRequest<{ message: st
   { method: 'POST', body: JSON.stringify({ email }) },
 );
 
+export const verifyPasswordResetCodeRequest = (email: string, token: string) => apiRequest<{ message: string }>(
+  '/api/auth/verify-reset-code',
+  { method: 'POST', body: JSON.stringify({ email, token }) },
+);
+
 export const resetPasswordRequest = (email: string, token: string, newPassword: string) => apiRequest<{ message: string }>(
   '/api/auth/reset-password',
   { method: 'POST', body: JSON.stringify({ email, token, newPassword }) },

@@ -13,12 +13,13 @@ import {
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
-import { forgotPasswordRequest, resetPasswordRequest } from '../../api/auth';
+import { forgotPasswordRequest, resetPasswordRequest, verifyPasswordResetCodeRequest } from '../../api/auth';
 import { ApiError } from '../../api/client';
 
 type RecoveryStep = 'request' | 'otp' | 'reset' | 'success';
 
 const otpLength = 8;
+const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).+$/;
 
 export const ForgotPassword = () => {
   const [step, setStep] = useState<RecoveryStep>('request');
@@ -72,7 +73,7 @@ export const ForgotPassword = () => {
     }
   };
 
-  const handleVerifyOtp = (event: FormEvent<HTMLFormElement>) => {
+  const handleVerifyOtp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (completedOtp.length < otpLength) {
@@ -80,8 +81,20 @@ export const ForgotPassword = () => {
       return;
     }
 
-    setMessage('Hãy tạo mật khẩu mới để hoàn tất xác thực mã.');
-    setStep('reset');
+    setMessage('');
+    setIsSubmitting(true);
+    try {
+      const result = await verifyPasswordResetCodeRequest(
+        account.trim().toLowerCase(),
+        completedOtp,
+      );
+      setMessage(result.message);
+      setStep('reset');
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : 'Không thể xác thực mã. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResetPassword = async (event: FormEvent<HTMLFormElement>) => {
@@ -89,6 +102,11 @@ export const ForgotPassword = () => {
 
     if (newPassword.length < 8) {
       setMessage('Mật khẩu mới cần tối thiểu 8 ký tự.');
+      return;
+    }
+
+    if (!strongPasswordPattern.test(newPassword)) {
+      setMessage('Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt.');
       return;
     }
 
@@ -287,9 +305,10 @@ export const ForgotPassword = () => {
                     </button>
                     <button
                       className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white transition-colors hover:bg-primary/90"
+                      disabled={isSubmitting}
                       type="submit"
                     >
-                      Xác thực
+                      {isSubmitting ? 'Đang xác thực...' : 'Xác thực'}
                       <ArrowRight className="h-5 w-5" />
                     </button>
                   </div>
@@ -325,6 +344,9 @@ export const ForgotPassword = () => {
                         {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
+                    <p className="mt-1.5 text-[11px] leading-4 text-on-surface-variant">
+                      Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
+                    </p>
                   </div>
 
                   <div>
