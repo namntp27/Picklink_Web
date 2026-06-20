@@ -25,6 +25,21 @@ npm run dev
 
 Mở `http://localhost:3000`. Trong môi trường dev, Vite tự chuyển tiếp `/api` và `/uploads` sang backend nên không cần tạo `.env`.
 
+## Cấu hình Google
+
+Trong Google Cloud Console, tạo OAuth 2.0 Client ID loại **Web application** và thêm JavaScript origin:
+
+```text
+http://localhost:3000
+```
+
+Client ID phải giống nhau ở hai nơi:
+
+- Frontend: `VITE_GOOGLE_CLIENT_ID` trong `.env.local`.
+- Backend: `Authentication:Google:ClientId` trong `appsettings.Development.json` hoặc biến môi trường tương ứng.
+
+Sau khi đổi Client ID hoặc `.env.local`, khởi động lại cả frontend và backend.
+
 ## Cấu hình deploy
 
 Sao chép `.env.example` thành `.env.local` khi cần đổi địa chỉ API. Với frontend và backend deploy ở hai domain khác nhau, đặt:

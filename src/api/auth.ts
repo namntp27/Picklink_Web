@@ -82,6 +82,20 @@ export const loginRequest = async (email: string, password: string) => {
   return mapSession(response);
 };
 
+const googleAuthRequest = async (idToken: string, mode: 'login' | 'register') => {
+  const path = mode === 'register' ? '/api/auth/google/register' : '/api/auth/google';
+  const response = await apiRequest<AuthResponse>(path, {
+    method: 'POST',
+    body: JSON.stringify({ idToken }),
+  });
+
+  return mapSession(response);
+};
+
+export const googleLoginRequest = (idToken: string) => googleAuthRequest(idToken, 'login');
+
+export const googleRegisterRequest = (idToken: string) => googleAuthRequest(idToken, 'register');
+
 export const registerRequest = async (input: RegisterInput) => {
   const response = await apiRequest<AuthResponse>('/api/auth/register', {
     method: 'POST',

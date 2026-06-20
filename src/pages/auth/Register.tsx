@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Eye, EyeOff, Lock, Mail, RotateCcw, User } from 'lucide-react';
 import { ApiError } from '../../api/client';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
+import { GoogleAuthButton } from '../../components/auth/GoogleAuthButton';
 
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -12,7 +13,7 @@ export const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register } = useAuth();
+  const { googleRegister, register } = useAuth();
   const navigate = useNavigate();
 
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
@@ -38,6 +39,16 @@ export const Register = () => {
       setErrorMessage(error instanceof ApiError ? error.message : 'Không thể đăng ký. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleRegister = async (idToken: string) => {
+    setErrorMessage('');
+    try {
+      const user = await googleRegister(idToken);
+      navigate(getDefaultPathForRole(user.role), { replace: true });
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'Không thể đăng ký bằng Google. Vui lòng thử lại.');
     }
   };
 
@@ -134,6 +145,17 @@ export const Register = () => {
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </form>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-surface-variant" />
+                </div>
+                <div className="relative flex justify-center text-[11px] font-medium">
+                  <span className="bg-surface-bright px-2 text-secondary">Hoặc đăng ký bằng</span>
+                </div>
+              </div>
+
+              <GoogleAuthButton mode="register" onCredential={handleGoogleRegister} onError={setErrorMessage} />
 
               <p className="mt-4 text-center text-[14px] text-on-surface-variant md:hidden">
                 Đã có tài khoản? <Link className="font-bold text-primary hover:underline" to="/login">Đăng nhập</Link>

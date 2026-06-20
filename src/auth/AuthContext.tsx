@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   getCurrentUser,
+  googleLoginRequest,
+  googleRegisterRequest,
   loginRequest,
   registerRequest,
   type AuthSession,
@@ -21,6 +23,8 @@ type AuthContextValue = {
   isInitializing: boolean;
   login: (input: LoginInput) => Promise<AuthUser>;
   register: (input: RegisterInput) => Promise<AuthUser>;
+  googleLogin: (idToken: string) => Promise<AuthUser>;
+  googleRegister: (idToken: string) => Promise<AuthUser>;
   logout: () => void;
 };
 
@@ -109,6 +113,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     },
     register: async (input) => {
       const nextSession = await registerRequest(input);
+      saveSession(nextSession);
+      return nextSession.user;
+    },
+    googleLogin: async (idToken) => {
+      const nextSession = await googleLoginRequest(idToken);
+      saveSession(nextSession);
+      return nextSession.user;
+    },
+    googleRegister: async (idToken) => {
+      const nextSession = await googleRegisterRequest(idToken);
       saveSession(nextSession);
       return nextSession.user;
     },
