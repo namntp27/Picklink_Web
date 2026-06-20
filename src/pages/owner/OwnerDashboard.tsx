@@ -1,943 +1,131 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, CheckCircle2, Clock, Lock, RefreshCw, Unlock, XCircle } from 'lucide-react';
+import { ApiError } from '../../api/client';
 import {
-  AlertCircle,
-  Banknote,
-  Bell,
-  CalendarDays,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  CreditCard,
-  Eye,
-  HelpCircle,
-  LayoutDashboard,
-  Lock,
-  Map,
-  Menu,
-  Pencil,
-  Plus,
-  Settings,
-  ShieldCheck,
-  User,
-  Users,
-  X,
-  XCircle,
-} from 'lucide-react';
+  createOwnerScheduleBlock,
+  deleteOwnerScheduleBlock,
+  getOwnerSchedule,
+  updateOwnerBookingStatus,
+  type OwnerSchedule,
+  type OwnerScheduleItem,
+} from '../../api/owner';
+import { useAuth } from '../../auth/AuthContext';
 import { OwnerShell } from './components/OwnerShell';
 
-type ScheduleStatus = 'booked' | 'pending' | 'locked' | 'event';
-type StatusFilter = 'all' | ScheduleStatus;
-
-type SubCourt = {
-  id: string;
-  name: string;
+const localDate = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 };
 
-type CourtGroup = {
-  id: string;
-  name: string;
-  subCourts: SubCourt[];
-};
-
-type ScheduleBlock = {
-  id: string;
-  date: string;
-  groupId: string;
-  subCourtId: string;
-  startTime: string;
-  endTime: string;
-  status: ScheduleStatus;
-  customerName?: string;
-  phone?: string;
-  price?: number;
-  paymentStatus?: 'paid' | 'unpaid' | 'deposit';
-  note: string;
-};
-
-type SelectedSlot = {
-  subCourtId: string;
-  time: string;
-};
-
-const courtGroups: CourtGroup[] = [
-  {
-    id: 'pickleball',
-    name: 'Pickleball',
-    subCourts: [
-      { id: 'pb-1', name: 'PB 1' },
-      { id: 'pb-2', name: 'PB 2' },
-      { id: 'pb-3', name: 'PB 3' },
-      { id: 'pb-4', name: 'PB 4' },
-      { id: 'pb-5', name: 'PB 5' },
-      { id: 'pb-6', name: 'PB 6' },
-    ],
-  },
-  {
-    id: 'indoor',
-    name: 'Trong nhà',
-    subCourts: [
-      { id: 'in-1', name: 'Indoor 1' },
-      { id: 'in-2', name: 'Indoor 2' },
-      { id: 'in-3', name: 'Indoor 3' },
-    ],
-  },
-];
-
-const initialBlocks: ScheduleBlock[] = [
-  {
-    id: 'booking-1',
-    date: '2026-06-18',
-    groupId: 'pickleball',
-    subCourtId: 'pb-1',
-    startTime: '07:00',
-    endTime: '08:30',
-    status: 'booked',
-    customerName: 'Nguyễn Minh Anh',
-    phone: '0912 345 678',
-    price: 330000,
-    paymentStatus: 'paid',
-    note: 'Đặt đơn, đã thanh toán toàn bộ.',
-  },
-  {
-    id: 'booking-2',
-    date: '2026-06-18',
-    groupId: 'pickleball',
-    subCourtId: 'pb-2',
-    startTime: '18:00',
-    endTime: '20:00',
-    status: 'pending',
-    customerName: 'Trần Quốc Bảo',
-    phone: '0937 294 949',
-    price: 480000,
-    paymentStatus: 'deposit',
-    note: 'Ghép trận 2vs2, đang chờ đủ người cùng thanh toán.',
-  },
-  {
-    id: 'booking-3',
-    date: '2026-06-18',
-    groupId: 'pickleball',
-    subCourtId: 'pb-3',
-    startTime: '17:00',
-    endTime: '19:30',
-    status: 'booked',
-    customerName: 'Lê Tuyết Mai',
-    phone: '0988 776 655',
-    price: 600000,
-    paymentStatus: 'paid',
-    note: 'Nhóm 4 người, cần mượn 2 vợt.',
-  },
-  {
-    id: 'booking-4',
-    date: '2026-06-18',
-    groupId: 'pickleball',
-    subCourtId: 'pb-5',
-    startTime: '19:30',
-    endTime: '21:00',
-    status: 'pending',
-    customerName: 'Phạm Tuấn',
-    phone: '0904 112 233',
-    price: 360000,
-    paymentStatus: 'unpaid',
-    note: 'Chờ xác nhận từ chủ sân trước khi thanh toán.',
-  },
-  {
-    id: 'locked-1',
-    date: '2026-06-18',
-    groupId: 'indoor',
-    subCourtId: 'in-1',
-    startTime: '09:00',
-    endTime: '11:00',
-    status: 'locked',
-    note: 'Bảo trì mặt sân và kiểm tra lưới.',
-  },
-  {
-    id: 'event-1',
-    date: '2026-06-18',
-    groupId: 'indoor',
-    subCourtId: 'in-2',
-    startTime: '13:00',
-    endTime: '15:00',
-    status: 'event',
-    note: 'Lớp học pickleball cơ bản cho thành viên mới.',
-  },
-  {
-    id: 'booking-5',
-    date: '2026-06-19',
-    groupId: 'pickleball',
-    subCourtId: 'pb-1',
-    startTime: '18:30',
-    endTime: '20:30',
-    status: 'booked',
-    customerName: 'Hoàng Gia Huy',
-    phone: '0977 555 222',
-    price: 520000,
-    paymentStatus: 'paid',
-    note: 'Đặt sân cố định thứ sáu hằng tuần.',
-  },
-  {
-    id: 'booking-6',
-    date: '2026-06-19',
-    groupId: 'pickleball',
-    subCourtId: 'pb-4',
-    startTime: '07:00',
-    endTime: '08:00',
-    status: 'pending',
-    customerName: 'Đỗ Lan Anh',
-    phone: '0919 858 563',
-    price: 220000,
-    paymentStatus: 'unpaid',
-    note: 'Khách mới, cần gọi xác nhận trước giờ chơi.',
-  },
-];
-
-const filterOptions: Array<{ label: string; value: StatusFilter }> = [
-  { label: 'Tất cả', value: 'all' },
-  { label: 'Đã đặt', value: 'booked' },
-  { label: 'Chờ xác nhận', value: 'pending' },
-  { label: 'Khóa sân', value: 'locked' },
-  { label: 'Sự kiện', value: 'event' },
-];
-
-const statusConfig: Record<
-  ScheduleStatus,
-  {
-    label: string;
-    className: string;
-    cellClassName: string;
-    icon: React.ElementType;
-  }
-> = {
-  booked: {
-    label: 'Đã đặt',
-    className: 'bg-[#eaf7df] text-primary',
-    cellClassName: 'border-[#39a85b] bg-[#58c978]',
-    icon: CheckCircle2,
-  },
-  pending: {
-    label: 'Chờ xác nhận',
-    className: 'bg-[#fff4d8] text-[#755400]',
-    cellClassName: 'border-[#eab526] bg-[#f6c642]',
-    icon: AlertCircle,
-  },
-  locked: {
-    label: 'Khóa sân',
-    className: 'bg-[#eef0ef] text-[#57615b]',
-    cellClassName: 'border-[#8f9892] bg-[#8f9892]',
-    icon: Lock,
-  },
-  event: {
-    label: 'Sự kiện',
-    className: 'bg-[#fbe9f8] text-[#8c287e]',
-    cellClassName: 'border-[#e869de] bg-[#e869de]',
-    icon: ShieldCheck,
-  },
-};
-
-const paymentLabels: Record<NonNullable<ScheduleBlock['paymentStatus']>, string> = {
-  paid: 'Đã thanh toán',
-  deposit: 'Đã cọc',
-  unpaid: 'Chưa thanh toán',
-};
-
-const firstScheduleDate = '2026-06-18';
-const timelineStartMinutes = 5 * 60;
-const timelineEndMinutes = 22 * 60 + 30;
-const timelineStepMinutes = 30;
-const weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
-const timeToMinutes = (time: string) => {
-  const [hours, minutes] = time.split(':').map(Number);
-
-  return hours * 60 + minutes;
-};
-
-const minutesToTime = (value: number) => {
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
-
-  return `${hours}:${minutes.toString().padStart(2, '0')}`;
-};
-
-const timelineColumns = Array.from(
-  { length: (timelineEndMinutes - timelineStartMinutes) / timelineStepMinutes },
-  (_, index) => minutesToTime(timelineStartMinutes + index * timelineStepMinutes),
-);
-
-const toDateValue = (date: Date) =>
-  `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date
-    .getDate()
-    .toString()
-    .padStart(2, '0')}`;
-
-const formatDate = (date: string) =>
-  new Intl.DateTimeFormat('vi-VN', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-  }).format(new Date(`${date}T00:00:00`));
-
-const formatLongDate = (date: string) =>
-  new Intl.DateTimeFormat('vi-VN', {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(`${date}T00:00:00`));
-
-const formatCalendarDate = (date: string) =>
-  new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(`${date}T00:00:00`));
-
-const toMonthDate = (date: string) => {
-  const parsedDate = new Date(`${date}T00:00:00`);
-
-  return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
-};
-
-const formatMonthTitle = (date: Date) => `tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`;
-
-const getCalendarMonthCells = (monthDate: Date) => {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const leadingEmptyCells = (firstDay.getDay() + 6) % 7;
-  const cells: Array<string | null> = Array.from({ length: leadingEmptyCells }, () => null);
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push(toDateValue(new Date(year, month, day)));
-  }
-
-  while (cells.length % 7 !== 0) {
-    cells.push(null);
-  }
-
-  return cells;
-};
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(value);
-
-const getBlockForCell = (blocks: ScheduleBlock[], subCourtId: string, time: string) =>
-  blocks.find((block) => {
-    const cellStart = timeToMinutes(time);
-
-    return block.subCourtId === subCourtId && cellStart >= timeToMinutes(block.startTime) && cellStart < timeToMinutes(block.endTime);
-  });
-
-const getBlockDurationHours = (block: ScheduleBlock) => (timeToMinutes(block.endTime) - timeToMinutes(block.startTime)) / 60;
+const timeValue = (dateTime: string) => dateTime.slice(11, 16);
+const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+const statusLabel: Record<string, string> = { Pending: 'Chờ xác nhận', Confirmed: 'Đã xác nhận', Blocked: 'Đã khóa', Cancelled: 'Đã hủy' };
 
 export const OwnerDashboard = () => {
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>(initialBlocks);
-  const [selectedDate, setSelectedDate] = useState(firstScheduleDate);
-  const [activeGroupId, setActiveGroupId] = useState('all');
-  const [activeFilter, setActiveFilter] = useState<StatusFilter>('all');
-  const [selectedBlockId, setSelectedBlockId] = useState(initialBlocks[0].id);
-  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [draftDate, setDraftDate] = useState(firstScheduleDate);
-  const [calendarMonthDate, setCalendarMonthDate] = useState(() => toMonthDate(firstScheduleDate));
+  const { token } = useAuth();
+  const [date, setDate] = useState(localDate);
+  const [schedule, setSchedule] = useState<OwnerSchedule | null>(null);
+  const [venueFilter, setVenueFilter] = useState('all');
+  const [courtId, setCourtId] = useState('');
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('09:00');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const visibleGroups = useMemo(
-    () => (activeGroupId === 'all' ? courtGroups : courtGroups.filter((group) => group.id === activeGroupId)),
-    [activeGroupId],
-  );
-  const calendarCells = useMemo(() => getCalendarMonthCells(calendarMonthDate), [calendarMonthDate]);
-  const dateBlocks = useMemo(() => blocks.filter((block) => block.date === selectedDate), [blocks, selectedDate]);
-  const filteredDateBlocks = useMemo(
-    () => (activeFilter === 'all' ? dateBlocks : dateBlocks.filter((block) => block.status === activeFilter)),
-    [activeFilter, dateBlocks],
-  );
-  const selectedBlock = blocks.find((block) => block.id === selectedBlockId);
-  const pendingBlocks = dateBlocks.filter((block) => block.status === 'pending');
-  const bookedBlocks = dateBlocks.filter((block) => block.status === 'booked');
-  const lockedBlocks = dateBlocks.filter((block) => block.status === 'locked' || block.status === 'event');
-  const totalRevenue = bookedBlocks.reduce((total, block) => total + (block.price ?? 0), 0);
-  const totalCourtHours = courtGroups.flatMap((group) => group.subCourts).length * timelineColumns.length * 0.5;
-  const usedHours = dateBlocks.reduce((total, block) => total + getBlockDurationHours(block), 0);
-  const occupancyRate = Math.round((usedHours / totalCourtHours) * 100);
-  const timelineGridStyle = { gridTemplateColumns: `repeat(${timelineColumns.length}, minmax(40px, 1fr))` };
-
-  const counts = useMemo(
-    () =>
-      dateBlocks.reduce(
-        (currentCounts, block) => ({
-          ...currentCounts,
-          all: currentCounts.all + 1,
-          [block.status]: currentCounts[block.status] + 1,
-        }),
-        { all: 0, booked: 0, pending: 0, locked: 0, event: 0 } as Record<StatusFilter, number>,
-      ),
-    [dateBlocks],
-  );
-
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-    setSelectedSlot(null);
-    const nextBlock = blocks.find((block) => block.date === date);
-    setSelectedBlockId(nextBlock?.id ?? '');
+  const load = async () => {
+    if (!token) return;
+    setError('');
+    setIsLoading(true);
+    try {
+      const result = await getOwnerSchedule(token, date);
+      setSchedule(result);
+      const firstCourt = result.venues.flatMap((venue) => venue.courts).find((court) => court.availabilityStatus === 'Available');
+      setCourtId((current) => current || firstCourt?.courtId.toString() || '');
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
+    } finally { setIsLoading(false); }
   };
 
-  const openCalendar = () => {
-    setDraftDate(selectedDate);
-    setCalendarMonthDate(toMonthDate(selectedDate));
-    setIsCalendarOpen(true);
+  useEffect(() => { void load(); }, [token, date]);
+
+  const visibleItems = useMemo(() => schedule?.items.filter((item) => venueFilter === 'all' || item.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
+  const pendingCount = visibleItems.filter((item) => item.status === 'Pending').length;
+  const confirmedCount = visibleItems.filter((item) => item.status === 'Confirmed').length;
+  const blockedCount = visibleItems.filter((item) => item.isOwnerBlock).length;
+  const revenue = visibleItems.filter((item) => item.status === 'Confirmed').reduce((sum, item) => sum + item.amount, 0);
+
+  const createBlock = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!token || !courtId) return;
+    setError('');
+    setIsSaving(true);
+    try {
+      await createOwnerScheduleBlock(token, {
+        courtId: Number(courtId),
+        startTime: `${date}T${startTime}:00`,
+        endTime: `${date}T${endTime}:00`,
+      });
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể khóa khung giờ.');
+    } finally { setIsSaving(false); }
   };
 
-  const confirmCalendarDate = () => {
-    handleDateChange(draftDate);
-    setIsCalendarOpen(false);
+  const updateStatus = async (item: OwnerScheduleItem, status: 'Confirmed' | 'Cancelled') => {
+    if (!token) return;
+    try { await updateOwnerBookingStatus(token, item.bookingId, status); await load(); }
+    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật booking.'); }
   };
 
-  const handleBlockClick = (block: ScheduleBlock) => {
-    setSelectedBlockId(block.id);
-    setSelectedSlot(null);
+  const unlock = async (item: OwnerScheduleItem) => {
+    if (!token) return;
+    try { await deleteOwnerScheduleBlock(token, item.bookingId); await load(); }
+    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể mở khóa khung giờ.'); }
   };
-
-  const handleAvailableCellClick = (subCourtId: string, time: string) => {
-    setSelectedBlockId('');
-    setSelectedSlot({ subCourtId, time });
-  };
-
-  const confirmPendingBlock = (blockId: string) => {
-    setBlocks((current) =>
-      current.map((block) =>
-        block.id === blockId ? { ...block, status: 'booked', paymentStatus: block.paymentStatus === 'unpaid' ? 'deposit' : block.paymentStatus } : block,
-      ),
-    );
-  };
-
-  const cancelBlock = (blockId: string) => {
-    setBlocks((current) => current.filter((block) => block.id !== blockId));
-    setSelectedBlockId('');
-  };
-
-  const lockSelectedSlot = () => {
-    if (!selectedSlot) {
-      return;
-    }
-
-    const subCourtGroup = courtGroups.find((group) => group.subCourts.some((subCourt) => subCourt.id === selectedSlot.subCourtId));
-    const newBlock: ScheduleBlock = {
-      id: `locked-${selectedDate}-${selectedSlot.subCourtId}-${selectedSlot.time}`,
-      date: selectedDate,
-      groupId: subCourtGroup?.id ?? 'pickleball',
-      subCourtId: selectedSlot.subCourtId,
-      startTime: selectedSlot.time,
-      endTime: minutesToTime(timeToMinutes(selectedSlot.time) + timelineStepMinutes),
-      status: 'locked',
-      note: 'Chủ sân khóa nhanh khung giờ này.',
-    };
-
-    setBlocks((current) => [...current, newBlock]);
-    setSelectedBlockId(newBlock.id);
-    setSelectedSlot(null);
-  };
-
-  const selectedSlotCourt = courtGroups.flatMap((group) => group.subCourts).find((subCourt) => subCourt.id === selectedSlot?.subCourtId);
 
   return (
-    <OwnerShell activeId="schedule" innerClassName="max-w-[1280px]">
-            <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">
-                  <Clock className="h-4 w-4" />
-                  Lịch vận hành theo thời gian thực
-                </p>
-                <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[40px]">Quản lý lịch sân</h1>
-                <p className="mt-2 max-w-2xl text-[15px] leading-6 text-on-surface-variant">
-                  Theo dõi toàn bộ sân con, xác nhận booking đang chờ và khóa nhanh các khung giờ cần bảo trì hoặc tổ chức sự kiện.
-                </p>
+    <OwnerShell activeId="schedule">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><p className="text-[13px] font-bold uppercase tracking-wider text-primary">Lịch vận hành</p><h1 className="mt-1 text-[30px] font-bold">Lịch sân theo ngày</h1><p className="mt-1 text-[14px] text-on-surface-variant">Xác nhận đơn đặt, theo dõi doanh thu và khóa giờ bảo trì.</p></div>
+        <div className="flex flex-wrap gap-2"><input className="rounded-lg border border-outline-variant bg-white px-4 py-2.5 text-[14px] font-bold" onChange={(event) => setDate(event.target.value)} type="date" value={date} /><select className="rounded-lg border border-outline-variant bg-white px-4 py-2.5 text-[14px] font-bold" onChange={(event) => setVenueFilter(event.target.value)} value={venueFilter}><option value="all">Tất cả cụm sân</option>{schedule?.venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select><button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={load} type="button"><RefreshCw className="h-5 w-5" /></button></div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
+        { label: 'Chờ xác nhận', value: pendingCount, icon: Clock },
+        { label: 'Đã xác nhận', value: confirmedCount, icon: CheckCircle2 },
+        { label: 'Khung đã khóa', value: blockedCount, icon: Lock },
+        { label: 'Doanh thu trong ngày', value: money.format(revenue), icon: CalendarDays },
+      ].map((item) => <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={item.label}><div className="flex items-center justify-between"><p className="text-[13px] font-bold text-on-surface-variant">{item.label}</p><item.icon className="h-5 w-5 text-primary" /></div><p className="mt-2 text-[24px] font-bold">{item.value}</p></div>)}</section>
+
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
+
+      <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
+        <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+          <div className="border-b border-outline-variant p-5"><h2 className="text-[20px] font-bold">Booking và khung khóa</h2><p className="mt-1 text-[13px] text-on-surface-variant">{date}</p></div>
+          {isLoading && <p className="p-10 text-center font-bold text-on-surface-variant">Đang tải lịch...</p>}
+          {!isLoading && visibleItems.length === 0 && <p className="p-10 text-center font-bold text-on-surface-variant">Chưa có booking hoặc khung khóa trong ngày.</p>}
+          <div className="divide-y divide-outline-variant">
+            {visibleItems.map((item) => (
+              <div className="grid gap-3 p-4 md:grid-cols-[1fr_120px_130px_1fr_auto] md:items-center" key={item.bookingId}>
+                <div><p className="text-[14px] font-bold">{item.venueName} · Sân {item.courtNumber}</p><p className="text-[12px] text-on-surface-variant">{item.customerName ?? 'Khóa bởi chủ sân'}</p></div>
+                <p className="text-[14px] font-bold">{timeValue(item.startTime)}–{timeValue(item.endTime)}</p>
+                <span className={`w-fit rounded-full px-3 py-1 text-[11px] font-bold ${item.status === 'Confirmed' ? 'bg-green-100 text-green-700' : item.isOwnerBlock ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-700'}`}>{statusLabel[item.status] ?? item.status}</span>
+                <p className="text-[13px] font-bold">{item.amount ? money.format(item.amount) : '—'}<span className="ml-2 text-[11px] text-on-surface-variant">{item.paymentStatus}</span></p>
+                <div className="flex gap-2">{item.isOwnerBlock ? <button className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold" onClick={() => unlock(item)} type="button"><Unlock className="h-4 w-4" /> Mở</button> : <>{item.status === 'Pending' && <button className="rounded-lg bg-primary p-2 text-white" onClick={() => updateStatus(item, 'Confirmed')} title="Xác nhận" type="button"><CheckCircle2 className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" onClick={() => updateStatus(item, 'Cancelled')} title="Hủy" type="button"><XCircle className="h-4 w-4" /></button></>}</div>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:flex">
-                <button className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10" type="button">
-                  <Pencil className="h-5 w-5" />
-                  Sửa giá giờ
-                </button>
-                <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" type="button">
-                  <Plus className="h-5 w-5" />
-                  Tạo lịch khóa
-                </button>
-              </div>
-            </section>
-
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: 'Đơn đã đặt', value: bookedBlocks.length, icon: CheckCircle2, helper: formatCurrency(totalRevenue) },
-                { label: 'Chờ xác nhận', value: pendingBlocks.length, icon: AlertCircle, helper: 'Cần xử lý trong ngày' },
-                { label: 'Khóa / sự kiện', value: lockedBlocks.length, icon: Lock, helper: 'Không nhận đặt mới' },
-                { label: 'Tỷ lệ lấp đầy', value: `${occupancyRate}%`, icon: Users, helper: `${usedHours.toFixed(1)} giờ đã sử dụng` },
-              ].map((stat) => (
-                <div className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[13px] font-bold text-on-surface-variant">{stat.label}</p>
-                      <p className="mt-2 text-[30px] font-bold text-on-surface">{stat.value}</p>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <stat.icon className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <p className="mt-3 text-[12px] font-medium text-on-surface-variant">{stat.helper}</p>
-                </div>
-              ))}
-            </section>
-
-            <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="min-w-0 space-y-4">
-                <div className="rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="relative">
-                      <button
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90 sm:w-auto"
-                        onClick={openCalendar}
-                        type="button"
-                      >
-                        <CalendarDays className="h-5 w-5" />
-                        {formatCalendarDate(selectedDate)}
-                      </button>
-
-                      {isCalendarOpen && (
-                        <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/35 px-3 pt-20">
-                          <div className="w-full max-w-[356px] rounded-lg bg-white p-6 text-on-surface shadow-2xl ring-1 ring-black/10">
-                            <div className="flex items-center justify-between">
-                              <button
-                                aria-label="Tháng trước"
-                                className="rounded-lg p-2 text-primary hover:bg-primary/10"
-                                onClick={() =>
-                                  setCalendarMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))
-                                }
-                                type="button"
-                              >
-                                <ChevronLeft className="h-5 w-5" />
-                              </button>
-                              <p className="text-[16px] font-bold">{formatMonthTitle(calendarMonthDate)}</p>
-                              <button
-                                aria-label="Tháng sau"
-                                className="rounded-lg p-2 text-primary hover:bg-primary/10"
-                                onClick={() =>
-                                  setCalendarMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))
-                                }
-                                type="button"
-                              >
-                                <ChevronRight className="h-5 w-5" />
-                              </button>
-                            </div>
-
-                            <div className="mt-6 grid grid-cols-7 gap-1 text-center text-[13px] font-bold text-on-surface-variant">
-                              {weekdayLabels.map((label) => (
-                                <span className="py-2" key={label}>
-                                  {label}
-                                </span>
-                              ))}
-                            </div>
-
-                            <div className="grid grid-cols-7 gap-1">
-                              {calendarCells.map((date, index) => {
-                                if (!date) {
-                                  return <span className="h-11" key={`empty-${index}`} />;
-                                }
-
-                                const day = new Date(`${date}T00:00:00`).getDate();
-                                const isSelected = draftDate === date;
-                                const isPast = date < firstScheduleDate;
-
-                                return (
-                                  <button
-                                    className={`h-11 rounded-lg text-[16px] font-bold transition-colors ${
-                                      isSelected
-                                        ? 'bg-primary text-white'
-                                        : isPast
-                                          ? 'cursor-not-allowed text-on-surface-variant/35'
-                                          : 'text-on-surface hover:bg-primary/10 hover:text-primary'
-                                    }`}
-                                    disabled={isPast}
-                                    key={date}
-                                    onClick={() => setDraftDate(date)}
-                                    type="button"
-                                  >
-                                    {day}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            <div className="mt-9 flex items-center justify-end gap-3">
-                              <button
-                                aria-label="Hủy chọn ngày"
-                                className="rounded-lg px-4 py-2 text-[14px] font-bold text-primary hover:bg-primary/10"
-                                onClick={() => setIsCalendarOpen(false)}
-                                type="button"
-                              >
-                                Hủy
-                              </button>
-                              <button
-                                aria-label="Xác nhận ngày"
-                                className="rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                                onClick={confirmCalendarDate}
-                                type="button"
-                              >
-                                Xác nhận
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-[360px]">
-                      <select
-                        className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-[14px] font-bold outline-none focus:border-primary"
-                        onChange={(event) => setActiveGroupId(event.target.value)}
-                        value={activeGroupId}
-                      >
-                        <option value="all">Tất cả cụm sân</option>
-                        {courtGroups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.name}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-[14px] font-bold outline-none focus:border-primary"
-                        onChange={(event) => setActiveFilter(event.target.value as StatusFilter)}
-                        value={activeFilter}
-                      >
-                        {filterOptions.map((filter) => (
-                          <option key={filter.value} value={filter.value}>
-                            {filter.label} ({counts[filter.value]})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-4 text-[12px] font-bold text-on-surface-variant">
-                    <span>{formatLongDate(selectedDate)}</span>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-4 w-4 rounded bg-white ring-1 ring-[#c9d2c9]" />
-                      Trống
-                    </span>
-                    {Object.entries(statusConfig).map(([status, config]) => (
-                      <span className="inline-flex items-center gap-2" key={status}>
-                        <span className={`h-4 w-4 rounded ${config.cellClassName}`} />
-                        {config.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <section className="rounded-lg border border-outline-variant bg-white shadow-sm">
-                  <div className="flex items-center justify-between rounded-t-lg bg-primary px-4 py-3 text-white">
-                    <div>
-                      <h2 className="text-[20px] font-bold">Bảng lịch sân con</h2>
-                      <p className="mt-1 text-[12px] font-medium text-white/75">Bấm vào ô có màu để xem booking, bấm ô trắng để chọn khóa nhanh.</p>
-                    </div>
-                    <Menu className="h-5 w-5 text-white/80 md:hidden" />
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[1500px]">
-                      <div className="grid grid-cols-[86px_112px_auto] bg-[#b7eef2] text-[12px] font-medium text-[#356058]">
-                        <div className="sticky left-0 z-30 col-span-2 border-r border-[#93cfc4] bg-[#b7eef2] px-3 py-3 font-bold">
-                          Cụm sân / sân con
-                        </div>
-                        <div className="grid" style={timelineGridStyle}>
-                          {timelineColumns.map((time) => (
-                            <span className="border-r border-[#93cfc4] px-1 py-3 text-center" key={time}>
-                              {time}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {visibleGroups.map((group) => (
-                        <div
-                          className="grid grid-cols-[86px_112px_auto] border-b border-[#c5d7cd]"
-                          key={group.id}
-                          style={{ gridTemplateRows: `repeat(${group.subCourts.length}, 56px)` }}
-                        >
-                          <div
-                            className="sticky left-0 z-30 flex items-center justify-center border-r border-[#a7d9c1] bg-[#d9f7e8] px-2 text-center"
-                            style={{ gridRow: `1 / span ${group.subCourts.length}` }}
-                          >
-                            <span className="line-clamp-3 text-[12px] font-bold leading-5 text-[#226143]">{group.name}</span>
-                          </div>
-
-                          {group.subCourts.map((subCourt, rowIndex) => (
-                            <React.Fragment key={subCourt.id}>
-                              <div
-                                className="sticky left-[86px] z-20 flex items-center border-r border-b border-[#b9d8ca] bg-[#dff7ea] px-3"
-                                style={{ gridColumn: 2, gridRow: rowIndex + 1 }}
-                              >
-                                <span className="text-[13px] font-bold text-[#226143]">{subCourt.name}</span>
-                              </div>
-
-                              <div className="relative border-b border-[#c5d7cd]" style={{ gridColumn: 3, gridRow: rowIndex + 1 }}>
-                                <div className="grid h-full" style={timelineGridStyle}>
-                                  {timelineColumns.map((time) => {
-                                    const block = getBlockForCell(dateBlocks, subCourt.id, time);
-                                    const shouldHideByFilter = block && activeFilter !== 'all' && block.status !== activeFilter;
-                                    const isSelectedSlot = selectedSlot?.subCourtId === subCourt.id && selectedSlot.time === time;
-
-                                    if (shouldHideByFilter) {
-                                      return (
-                                        <div
-                                          className="h-14 border-r border-[#aeb7b0] bg-white opacity-45 last:border-r-0"
-                                          key={`${subCourt.id}-${time}-hidden`}
-                                        />
-                                      );
-                                    }
-
-                                    return (
-                                      <button
-                                        aria-label={
-                                          block
-                                            ? `${subCourt.name} ${time} ${statusConfig[block.status].label}`
-                                            : `${subCourt.name} ${time} trống`
-                                        }
-                                        className={`h-14 border-r border-[#aeb7b0] transition-colors last:border-r-0 ${
-                                          block
-                                            ? `${statusConfig[block.status].cellClassName} hover:brightness-95`
-                                            : isSelectedSlot
-                                              ? 'border-[#4c9b62] bg-[#c7f0d8] hover:bg-[#a9e7c3]'
-                                              : 'bg-white hover:bg-[#eefbf4]'
-                                        }`}
-                                        key={`${subCourt.id}-${time}`}
-                                        onClick={() => (block ? handleBlockClick(block) : handleAvailableCellClick(subCourt.id, time))}
-                                        title={
-                                          block
-                                            ? `${statusConfig[block.status].label}: ${block.startTime} - ${block.endTime}`
-                                            : `${subCourt.name} - ${time} đến ${minutesToTime(timeToMinutes(time) + timelineStepMinutes)}`
-                                        }
-                                        type="button"
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </React.Fragment>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-[20px] font-bold">Booking cần xử lý</h2>
-                      <p className="mt-1 text-[13px] text-on-surface-variant">Các đơn chờ xác nhận trong ngày đang chọn.</p>
-                    </div>
-                    <span className="w-fit rounded-full bg-[#fff4d8] px-3 py-1 text-[12px] font-bold text-[#755400]">
-                      {pendingBlocks.length} đơn
-                    </span>
-                  </div>
-
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left">
-                      <thead>
-                        <tr className="border-b border-outline-variant bg-surface-container-low">
-                          <th className="px-4 py-3 text-[13px] font-bold text-on-surface-variant">Khách</th>
-                          <th className="px-4 py-3 text-[13px] font-bold text-on-surface-variant">Sân</th>
-                          <th className="px-4 py-3 text-[13px] font-bold text-on-surface-variant">Giờ</th>
-                          <th className="px-4 py-3 text-[13px] font-bold text-on-surface-variant">Thanh toán</th>
-                          <th className="px-4 py-3 text-[13px] font-bold text-on-surface-variant text-right">Hành động</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-outline-variant">
-                        {pendingBlocks.map((block) => {
-                          const subCourt = courtGroups.flatMap((group) => group.subCourts).find((court) => court.id === block.subCourtId);
-
-                          return (
-                            <tr className="bg-white hover:bg-surface-container-low" key={block.id}>
-                              <td className="px-4 py-3">
-                                <p className="text-[14px] font-bold">{block.customerName}</p>
-                                <p className="text-[12px] text-on-surface-variant">{block.phone}</p>
-                              </td>
-                              <td className="px-4 py-3 text-[14px] font-bold">{subCourt?.name}</td>
-                              <td className="px-4 py-3 text-[14px] font-medium">
-                                {block.startTime} - {block.endTime}
-                              </td>
-                              <td className="px-4 py-3 text-[14px] font-bold">
-                                {block.paymentStatus ? paymentLabels[block.paymentStatus] : 'Không có'}
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                    aria-label={`Xem ${block.customerName}`}
-                                    className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low"
-                                    onClick={() => handleBlockClick(block)}
-                                    type="button"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    className="rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white hover:bg-primary/90"
-                                    onClick={() => confirmPendingBlock(block.id)}
-                                    type="button"
-                                  >
-                                    Xác nhận
-                                  </button>
-                                  <button
-                                    className="rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold text-on-surface-variant hover:bg-[#ffe8e8] hover:text-[#a33535]"
-                                    onClick={() => cancelBlock(block.id)}
-                                    type="button"
-                                  >
-                                    Từ chối
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-
-                        {pendingBlocks.length === 0 && (
-                          <tr>
-                            <td className="px-4 py-8 text-center text-[14px] font-bold text-on-surface-variant" colSpan={5}>
-                              Không có đơn chờ xác nhận trong ngày này.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
-
-              <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
-                <section className="rounded-lg border border-primary bg-white p-5 shadow-sm">
-                  <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                    <CalendarDays className="h-5 w-5 text-primary" />
-                    Chi tiết lịch
-                  </h2>
-
-                  {selectedBlock ? (
-                    <div className="mt-5 space-y-4">
-                      <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold ${statusConfig[selectedBlock.status].className}`}>
-                        {React.createElement(statusConfig[selectedBlock.status].icon, { className: 'h-4 w-4' })}
-                        {statusConfig[selectedBlock.status].label}
-                      </span>
-
-                      <div>
-                        <p className="text-[13px] font-bold text-on-surface-variant">Khung giờ</p>
-                        <p className="mt-1 text-[18px] font-bold">
-                          {selectedBlock.startTime} - {selectedBlock.endTime}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg bg-surface-container-low p-3">
-                          <p className="text-[12px] font-bold text-on-surface-variant">Khách hàng</p>
-                          <p className="mt-1 text-[14px] font-bold">{selectedBlock.customerName ?? 'Nội bộ'}</p>
-                        </div>
-                        <div className="rounded-lg bg-surface-container-low p-3">
-                          <p className="text-[12px] font-bold text-on-surface-variant">Liên hệ</p>
-                          <p className="mt-1 text-[14px] font-bold">{selectedBlock.phone ?? 'Không có'}</p>
-                        </div>
-                        <div className="rounded-lg bg-surface-container-low p-3">
-                          <p className="text-[12px] font-bold text-on-surface-variant">Thanh toán</p>
-                          <p className="mt-1 text-[14px] font-bold">
-                            {selectedBlock.paymentStatus ? paymentLabels[selectedBlock.paymentStatus] : 'Không áp dụng'}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-surface-container-low p-3">
-                          <p className="text-[12px] font-bold text-on-surface-variant">Giá trị</p>
-                          <p className="mt-1 text-[14px] font-bold">{formatCurrency(selectedBlock.price ?? 0)}</p>
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-outline-variant p-4">
-                        <p className="text-[13px] font-bold text-on-surface-variant">Ghi chú</p>
-                        <p className="mt-2 text-[14px] leading-6">{selectedBlock.note}</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                        {selectedBlock.status === 'pending' && (
-                          <button
-                            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                            onClick={() => confirmPendingBlock(selectedBlock.id)}
-                            type="button"
-                          >
-                            <CheckCircle2 className="h-5 w-5" />
-                            Xác nhận booking
-                          </button>
-                        )}
-                        <button
-                          className="flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface-variant hover:bg-[#ffe8e8] hover:text-[#a33535]"
-                          onClick={() => cancelBlock(selectedBlock.id)}
-                          type="button"
-                        >
-                          <XCircle className="h-5 w-5" />
-                          Hủy / mở khung giờ
-                        </button>
-                      </div>
-                    </div>
-                  ) : selectedSlot ? (
-                    <div className="mt-5 space-y-4">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-[#eaf7df] px-3 py-1 text-[12px] font-bold text-primary">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Ô trống
-                      </span>
-                      <div>
-                        <p className="text-[13px] font-bold text-on-surface-variant">Sân con</p>
-                        <p className="mt-1 text-[18px] font-bold">{selectedSlotCourt?.name}</p>
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-bold text-on-surface-variant">Khung giờ</p>
-                        <p className="mt-1 text-[18px] font-bold">
-                          {selectedSlot.time} - {minutesToTime(timeToMinutes(selectedSlot.time) + timelineStepMinutes)}
-                        </p>
-                      </div>
-                      <button
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                        onClick={lockSelectedSlot}
-                        type="button"
-                      >
-                        <Lock className="h-5 w-5" />
-                        Khóa khung giờ này
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="mt-5 rounded-lg bg-surface-container-low p-4 text-[14px] font-bold text-on-surface-variant">
-                      Chọn một ô lịch để xem chi tiết hoặc khóa nhanh khung giờ.
-                    </div>
-                  )}
-                </section>
-
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                  <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                    <Clock className="h-5 w-5 text-primary" />
-                    Gợi ý vận hành
-                  </h2>
-                  <div className="mt-4 space-y-3 text-[13px] font-medium text-on-surface-variant">
-                    <p className="flex gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#755400]" />
-                      Xử lý booking chờ xác nhận trước giờ chơi ít nhất 30 phút.
-                    </p>
-                    <p className="flex gap-2">
-                      <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      Khóa trước các khung bảo trì để người chơi không đặt nhầm.
-                    </p>
-                    <p className="flex gap-2">
-                      <Banknote className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      Theo dõi tỷ lệ lấp đầy giờ cao điểm để điều chỉnh giá linh hoạt.
-                    </p>
-                  </div>
-                </section>
-              </aside>
-            </section>
+        <form className="h-fit space-y-4 rounded-xl border border-outline-variant bg-white p-5 shadow-sm" onSubmit={createBlock}>
+          <div><h2 className="text-[20px] font-bold">Khóa khung giờ</h2><p className="mt-1 text-[13px] text-on-surface-variant">Dùng cho bảo trì, sự kiện hoặc vận hành nội bộ.</p></div>
+          <label><span className="mb-1.5 block text-[13px] font-bold">Sân con</span><select className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" onChange={(event) => setCourtId(event.target.value)} required value={courtId}><option value="">Chọn sân</option>{schedule?.venues.flatMap((venue) => venue.courts.filter((court) => court.availabilityStatus === 'Available').map((court) => <option key={court.courtId} value={court.courtId}>{venue.venueName} · Sân {court.courtNumber}</option>))}</select></label>
+          <div className="grid grid-cols-2 gap-3"><label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu</span><input className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setStartTime(event.target.value)} required type="time" value={startTime} /></label><label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc</span><input className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setEndTime(event.target.value)} required type="time" value={endTime} /></label></div>
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-60" disabled={isSaving || !courtId} type="submit"><Lock className="h-4 w-4" /> {isSaving ? 'Đang khóa...' : 'Khóa khung giờ'}</button>
+        </form>
+      </section>
     </OwnerShell>
   );
 };

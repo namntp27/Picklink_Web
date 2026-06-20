@@ -40,6 +40,12 @@ Client ID phải giống nhau ở hai nơi:
 
 Sau khi đổi Client ID hoặc `.env.local`, khởi động lại cả frontend và backend.
 
+## Bản đồ địa chỉ sân
+
+Form tạo và sửa cụm sân dùng Leaflet + OpenStreetMap, không cần API key. Tìm kiếm và lấy tên địa chỉ sử dụng Nominatim; người dùng cũng có thể bấm bản đồ, kéo marker hoặc dùng vị trí hiện tại.
+
+Khi triển khai với lượng truy cập lớn, nên dùng nhà cung cấp geocoding/tile riêng hoặc tự vận hành dịch vụ thay vì phụ thuộc endpoint Nominatim công cộng.
+
 ## Cấu hình deploy
 
 Sao chép `.env.example` thành `.env.local` khi cần đổi địa chỉ API. Với frontend và backend deploy ở hai domain khác nhau, đặt:

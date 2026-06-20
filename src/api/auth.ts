@@ -108,7 +108,7 @@ export const registerRequest = async (input: RegisterInput) => {
     }),
   });
 
-  await apiRequest<{ userType: string }>('/api/auth/assign-role', {
+  const assignedSession = await apiRequest<AuthResponse>('/api/auth/assign-role', {
     method: 'POST',
     body: JSON.stringify({
       role: input.role === 'owner' ? 'VenueOwner' : 'Player',
@@ -116,11 +116,11 @@ export const registerRequest = async (input: RegisterInput) => {
     }),
   }, response.token);
 
-  const user = await getCurrentUser(response.token);
+  const user = await getCurrentUser(assignedSession.token);
 
   return {
-    token: response.token,
-    expiresAt: response.expiresAt,
+    token: assignedSession.token,
+    expiresAt: assignedSession.expiresAt,
     user,
   } satisfies AuthSession;
 };
