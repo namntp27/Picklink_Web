@@ -1,146 +1,25 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  CalendarDays,
-  CheckCircle2,
-  Clock,
-  Copy,
-  Download,
-  MapPin,
-  ReceiptText,
-  ShieldCheck,
-} from 'lucide-react';
-import {
-  formatBookingCurrency,
-  formatBookingDate,
-  formatBookingDateTime,
-  sampleBooking,
-} from '../../data/bookings';
+import { useEffect, useState } from 'react';
+import { CalendarDays, CheckCircle2, Clock, Home, MapPin } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { getBookingHolding, type BookingHolding } from '../../api/booking';
+import { ApiError } from '../../api/client';
+import { useAuth } from '../../auth/AuthContext';
+
+const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+const date = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date(value));
 
 export const BookingSuccess = () => {
-  const booking = sampleBooking;
-
-  return (
-    <div className="min-h-screen bg-[#f9f9ff] text-on-surface">
-      <header className="border-b border-outline-variant bg-primary text-white">
-        <div className="mx-auto flex h-[72px] max-w-[1200px] items-center justify-between px-4 md:px-margin-desktop">
-          <Link className="text-[24px] font-bold tracking-tight" to="/">
-            Picklink
-          </Link>
-          <span className="rounded-lg bg-white/14 px-3 py-2 text-[13px] font-bold">Đặt sân thành công</span>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-[1200px] px-4 py-8 md:px-margin-desktop md:py-10">
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-lg border border-[#b7d9ad] bg-white p-6 shadow-sm md:p-8">
-            <div className="flex flex-col gap-5 md:flex-row md:items-start">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#eaf7df] text-primary">
-                <CheckCircle2 className="h-9 w-9" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold uppercase text-primary">Thanh toán đã được xác nhận</p>
-                <h1 className="mt-2 text-[30px] font-bold leading-tight md:text-[42px]">
-                  Sân của bạn đã được giữ thành công
-                </h1>
-                <p className="mt-3 max-w-2xl text-[15px] leading-7 text-on-surface-variant">
-                  Hãy lưu mã đặt sân và đến trước giờ chơi 10 phút để check-in. Thông tin chi tiết đã được cập nhật trong đơn đặt sân.
-                </p>
-
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                    to={`/bookings/${booking.id}`}
-                  >
-                    Xem chi tiết đơn
-                    <ArrowRight className="h-5 w-5" />
-                  </Link>
-                  <Link
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
-                    to="/book-court"
-                  >
-                    Đặt sân khác
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {[
-                { icon: CalendarDays, label: 'Ngày chơi', value: formatBookingDate(booking.date) },
-                { icon: Clock, label: 'Khung giờ', value: `${booking.startTime} - ${booking.endTime}` },
-                { icon: MapPin, label: 'Sân con', value: booking.subCourt },
-              ].map((item) => (
-                <div className="rounded-lg border border-outline-variant bg-surface-container-low p-4" key={item.label}>
-                  <item.icon className="h-5 w-5 text-primary" />
-                  <p className="mt-3 text-[12px] font-bold uppercase text-on-surface-variant">{item.label}</p>
-                  <p className="mt-1 text-[15px] font-bold leading-6">{item.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-lg border border-outline-variant p-5">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-[13px] font-bold uppercase text-on-surface-variant">Mã đặt sân</p>
-                  <p className="mt-1 break-all text-[26px] font-bold tracking-wide text-primary">{booking.code}</p>
-                </div>
-                <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
-                  type="button"
-                >
-                  <Copy className="h-5 w-5" />
-                  Sao chép mã
-                </button>
-              </div>
-              <p className="mt-4 text-[13px] leading-6 text-on-surface-variant">
-                Tạo lúc {formatBookingDateTime(booking.createdAt)}. Nếu cần hỗ trợ, liên hệ sân qua số {booking.ownerPhone}.
-              </p>
-            </div>
-          </div>
-
-          <aside className="space-y-5">
-            <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                <ReceiptText className="h-5 w-5 text-primary" />
-                Tóm tắt thanh toán
-              </h2>
-              <div className="mt-5 space-y-3 text-[14px]">
-                <div className="flex justify-between gap-4">
-                  <span className="font-bold text-on-surface-variant">Tiền sân</span>
-                  <span className="font-bold">{formatBookingCurrency(booking.pricePerHour * booking.durationHours)}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="font-bold text-on-surface-variant">Phí dịch vụ</span>
-                  <span className="font-bold">{formatBookingCurrency(booking.serviceFee)}</span>
-                </div>
-                <div className="flex justify-between gap-4 border-t border-outline-variant pt-3">
-                  <span className="font-bold text-on-surface-variant">Tổng cộng</span>
-                  <span className="text-[24px] font-bold text-primary">{formatBookingCurrency(booking.totalAmount)}</span>
-                </div>
-              </div>
-              <button
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
-                type="button"
-              >
-                <Download className="h-5 w-5" />
-                Tải hóa đơn
-              </button>
-            </section>
-
-            <section className="rounded-lg border border-[#84c33e]/40 bg-[#f2f9eb] p-5">
-              <h2 className="flex items-center gap-2 text-[18px] font-bold">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                Lưu ý check-in
-              </h2>
-              <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">
-                Xuất trình mã đặt sân cho lễ tân. Sân có thể hủy lịch nếu người chơi đến trễ hơn 15 phút mà không liên hệ trước.
-              </p>
-            </section>
-          </aside>
-        </section>
-      </main>
-    </div>
-  );
+  const [params] = useSearchParams();
+  const bookingId = Number(params.get('bookingId'));
+  const { token } = useAuth();
+  const [booking, setBooking] = useState<BookingHolding | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => { if (token && Number.isInteger(bookingId)) getBookingHolding(token, bookingId).then(setBooking).catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking.')); }, [bookingId, token]);
+  if (!booking) return <div className="flex min-h-[70vh] items-center justify-center font-bold">{error || 'Đang tải booking...'}</div>;
+  return <div className="min-h-screen bg-surface-container-low px-4 py-10"><div className="mx-auto max-w-2xl rounded-2xl border border-outline-variant bg-white p-7 text-center shadow-sm md:p-10"><CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" /><h1 className="mt-4 text-[32px] font-bold">Đặt sân thành công</h1><p className="mt-2 text-[14px] text-on-surface-variant">Booking đã được xác nhận và các slot đã được khóa chính thức.</p><p className="mt-5 font-mono text-[20px] font-bold text-primary">{booking.bookingCode}</p><div className="mt-7 grid gap-3 text-left sm:grid-cols-2">{[
+    { icon: MapPin, label: 'Cụm sân', value: `${booking.venueName} · Sân ${booking.courtNumber}` },
+    { icon: CalendarDays, label: 'Ngày chơi', value: date(booking.startTime) },
+    { icon: Clock, label: 'Khung giờ', value: `${booking.startTime.slice(11,16)}–${booking.endTime.slice(11,16)} (${booking.durationHours} giờ)` },
+    { icon: CheckCircle2, label: 'Tổng tiền sân', value: currency.format(booking.totalAmount) },
+  ].map((item) => <div className="rounded-xl bg-surface-container-low p-4" key={item.label}><item.icon className="h-5 w-5 text-primary" /><p className="mt-2 text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p><p className="mt-1 text-[14px] font-bold">{item.value}</p></div>)}</div><div className="mt-7 flex flex-wrap justify-center gap-3"><Link className="rounded-xl border border-outline-variant px-5 py-3 text-[14px] font-bold" to="/my-bookings">Booking của tôi</Link><Link className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-[14px] font-bold text-white" to="/"><Home className="h-4 w-4" />Trang chủ</Link></div></div></div>;
 };

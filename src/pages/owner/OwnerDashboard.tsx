@@ -13,6 +13,7 @@ import {
   type OwnerScheduleSlot,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
 
 const toLocalDate = (date = new Date()) => {
@@ -50,10 +51,10 @@ export const OwnerDashboard = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = async (showLoading = true) => {
     if (!token) return;
     setError('');
-    setIsLoading(true);
+    if (showLoading) setIsLoading(true);
     try {
       const result = await getOwnerSchedule(token, date, view);
       setSchedule(result);
@@ -61,10 +62,16 @@ export const OwnerDashboard = () => {
       setCourtId((current) => result.venues.some((venue) => venue.courts.some((court) => court.courtId.toString() === current)) ? current : firstCourt?.courtId.toString() || '');
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
-    } finally { setIsLoading(false); }
+    } finally { if (showLoading) setIsLoading(false); }
   };
 
   useEffect(() => { void load(); }, [token, date, view]);
+  useScheduleRealtime((notification) => {
+    const visibleVenue = schedule?.venues.some((venue) => venue.venueId === notification.venueId);
+    const endDate = view === 'week' ? addDays(date, 6) : date;
+    const changedDate = notification.startTime.slice(0, 10);
+    if (visibleVenue && changedDate >= date && changedDate <= endDate) void load(false);
+  });
 
   const visibleItems = useMemo(() => schedule?.items.filter((item) => venueFilter === 'all' || item.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
   const visibleSlots = useMemo(() => schedule?.slots.filter((slot) => venueFilter === 'all' || slot.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
