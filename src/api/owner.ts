@@ -104,6 +104,95 @@ export type OwnerSchedule = {
   slots: OwnerScheduleSlot[];
 };
 
+export type StaffPermission = 'ViewBookings' | 'VerifyBooking' | 'ConfirmPayment' | 'CheckIn' | 'MarkNoShow';
+
+export type OwnerStaffAssignment = {
+  staffId: number;
+  userId: number;
+  username: string;
+  email: string;
+  venueId: number;
+  venueName: string;
+  role: string;
+  permissions: StaffPermission[];
+  isActive: boolean;
+  assignedAt: string;
+  revokedAt?: string | null;
+};
+
+export type OwnerCheckInHistory = {
+  bookingId: number;
+  bookingCode: string;
+  venueId: number;
+  venueName: string;
+  courtNumber: number;
+  playerName: string;
+  startTime: string;
+  checkInStatus: string;
+  codeVerifiedAt?: string | null;
+  codeVerifiedBy?: string | null;
+  paymentConfirmedAt?: string | null;
+  paymentConfirmedBy?: string | null;
+  checkedInAt?: string | null;
+  checkedInBy?: string | null;
+  noShowAt?: string | null;
+  noShowBy?: string | null;
+};
+
+export type OwnerBookingRecord = {
+  bookingId: number;
+  bookingCode: string;
+  bookingStatus: string;
+  checkInStatus: string;
+  paymentStatus: string;
+  paymentMethod?: string | null;
+  paymentId?: number | null;
+  totalAmount: number;
+  courtAmount: number;
+  hourlyPrice: number;
+  venueId: number;
+  venueName: string;
+  venuePhone?: string | null;
+  address: string;
+  courtId: number;
+  courtNumber: number;
+  playerName: string;
+  playerEmail?: string | null;
+  playerCity?: string | null;
+  playerCommune?: string | null;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+  holdExpiresAt?: string | null;
+  codeVerifiedAt?: string | null;
+  paymentConfirmedAt?: string | null;
+  checkedInAt?: string | null;
+  noShowAt?: string | null;
+  codeVerifiedBy?: string | null;
+  paymentConfirmedBy?: string | null;
+  checkedInBy?: string | null;
+  noShowBy?: string | null;
+  paymentPaidAt?: string | null;
+  paymentVerifiedAt?: string | null;
+  transferCode?: string | null;
+  receiptImageUrl?: string | null;
+  rejectionReason?: string | null;
+  bookingHistory: Array<{ fromStatus?: string | null; toStatus: string; reason?: string | null; actorName?: string | null; changedAt: string }>;
+  paymentHistory: Array<{ fromStatus?: string | null; toStatus: string; action: string; reason?: string | null; actorName?: string | null; createdAt: string }>;
+};
+
+export type OwnerRevenueReport = {
+  from: string;
+  to: string;
+  grossRevenue: number;
+  paidBookings: number;
+  pendingAmount: number;
+  cancelledBookings: number;
+  averageBookingValue: number;
+  daily: Array<{ date: string; revenue: number; bookingCount: number }>;
+  bookings: OwnerBookingRecord[];
+};
+
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
 
 const mapVenueInput = (input: OwnerVenueInput) => ({
@@ -205,3 +294,39 @@ export const updateOwnerBookingStatus = (token: string, bookingId: number, statu
   method: 'PATCH',
   body: JSON.stringify({ status }),
 }, token);
+
+export const getOwnerStaff = (token: string) => apiRequest<OwnerStaffAssignment[]>('/api/owner/staff', {}, token);
+
+export const assignOwnerStaff = (token: string, input: { venueId: number; email: string; role?: string; permissions: StaffPermission[] }) => apiRequest<OwnerStaffAssignment>('/api/owner/staff', {
+  method: 'POST',
+  body: JSON.stringify(input),
+}, token);
+
+export const createOwnerStaffAccount = (token: string, input: { venueId: number; username: string; email: string; password: string; role?: string; permissions: StaffPermission[] }) => apiRequest<OwnerStaffAssignment>('/api/owner/staff/accounts', {
+  method: 'POST',
+  body: JSON.stringify(input),
+}, token);
+
+export const updateOwnerStaff = (token: string, staffId: number, input: { role?: string; permissions: StaffPermission[]; isActive: boolean }) => apiRequest<OwnerStaffAssignment>(`/api/owner/staff/${staffId}`, {
+  method: 'PATCH',
+  body: JSON.stringify(input),
+}, token);
+
+export const getOwnerCheckInHistory = (token: string, filters: { venueId?: number; date?: string } = {}) => {
+  const params = new URLSearchParams();
+  if (filters.venueId) params.set('venueId', String(filters.venueId));
+  if (filters.date) params.set('date', filters.date);
+  const query = params.toString();
+  return apiRequest<OwnerCheckInHistory[]>(`/api/owner/staff/check-in-history${query ? `?${query}` : ''}`, {}, token);
+};
+
+export const getOwnerBookings = (token: string, filters: { from?: string; to?: string; status?: string; search?: string } = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
+  const query = params.toString();
+  return apiRequest<OwnerBookingRecord[]>(`/api/owner/bookings${query ? `?${query}` : ''}`, {}, token);
+};
+
+export const getOwnerBooking = (token: string, bookingId: number) => apiRequest<OwnerBookingRecord>(`/api/owner/bookings/${bookingId}`, {}, token);
+
+export const getOwnerRevenueReport = (token: string, from: string, to: string) => apiRequest<OwnerRevenueReport>(`/api/owner/reports/revenue?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {}, token);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle,
@@ -24,8 +24,10 @@ import {
   BookingStatus,
   formatBookingCurrency,
   formatBookingDate,
-  playerBookings,
 } from '../../data/bookings';
+import { getOwnerBookings, updateOwnerBookingStatus } from '../../api/owner';
+import { useAuth } from '../../auth/AuthContext';
+import { ownerBookingToDetail } from './ownerBookingAdapter';
 
 type OwnerBookingFilter = 'all' | BookingStatus | 'paid' | 'pending_payment' | 'ready_checkin';
 
@@ -92,9 +94,22 @@ const getPaymentClassName = (paymentStatus: BookingDetail['paymentStatus']) => {
 };
 
 export const OwnerBookings = () => {
-  const [bookings, setBookings] = useState<BookingDetail[]>(playerBookings);
+  const { token } = useAuth();
+  const [bookings, setBookings] = useState<BookingDetail[]>([]);
   const [activeFilter, setActiveFilter] = useState<OwnerBookingFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true); setError('');
+    try { setBookings((await getOwnerBookings(token)).map(ownerBookingToDetail)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải booking.'); }
+    finally { setIsLoading(false); }
+  }, [token]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const filteredBookings = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -125,37 +140,22 @@ export const OwnerBookings = () => {
     .filter((booking) => booking.paymentStatus === 'paid' && booking.bookingStatus !== 'cancelled')
     .reduce((total, booking) => total + booking.totalAmount, 0);
 
-  const confirmBooking = (bookingId: string) => {
-    setBookings((currentBookings) =>
-      currentBookings.map((booking) =>
-        booking.id === bookingId
-          ? {
-              ...booking,
-              bookingStatus: 'confirmed',
-              paymentStatus: booking.paymentStatus === 'failed' ? 'pending' : booking.paymentStatus,
-              checkInStatus: booking.checkInStatus === 'not_open' ? 'ready' : booking.checkInStatus,
-            }
-          : booking,
-      ),
-    );
+  const confirmBooking = async (bookingId: string) => {
+    if (!token) return;
+    try { await updateOwnerBookingStatus(token, Number(bookingId), 'Confirmed'); await load(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể xác nhận booking.'); }
   };
 
-  const cancelBooking = (bookingId: string) => {
-    setBookings((currentBookings) =>
-      currentBookings.map((booking) =>
-        booking.id === bookingId
-          ? {
-              ...booking,
-              bookingStatus: 'cancelled',
-              checkInStatus: 'cancelled',
-            }
-          : booking,
-      ),
-    );
+  const cancelBooking = async (bookingId: string) => {
+    if (!token || !window.confirm('Từ chối/hủy booking này?')) return;
+    try { await updateOwnerBookingStatus(token, Number(bookingId), 'Cancelled'); await load(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể hủy booking.'); }
   };
 
   return (
     <OwnerShell activeId="bookings" innerClassName="max-w-[1320px]">
+            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700">{error}</div>}
+            {isLoading && <div className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-[13px] font-bold text-on-surface-variant">Đang tải booking thực tế...</div>}
             <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">

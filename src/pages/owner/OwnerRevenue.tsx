@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
@@ -22,7 +22,10 @@ import {
 } from 'lucide-react';
 import { OwnerShell } from './components/OwnerShell';
 import type { BookingDetail } from '../../data/bookings';
-import { formatBookingCurrency, formatBookingDateTime, playerBookings } from '../../data/bookings';
+import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
+import { getOwnerBookings } from '../../api/owner';
+import { useAuth } from '../../auth/AuthContext';
+import { ownerBookingToDetail } from './ownerBookingAdapter';
 
 type RevenuePeriod = 'today' | 'week' | 'month';
 type TransactionStatus = 'all' | 'paid' | 'pending' | 'failed' | 'refunded';
@@ -34,12 +37,17 @@ type PaymentTransaction = {
   paidAt: string;
 };
 
-const reportDate = new Date('2026-06-18T00:00:00');
+const reportDate = new Date();
+const reportWeekStart = new Date(reportDate);
+reportWeekStart.setDate(reportDate.getDate() - ((reportDate.getDay() + 6) % 7));
+const reportWeekEnd = new Date(reportWeekStart);
+reportWeekEnd.setDate(reportWeekStart.getDate() + 6);
+const shortDate = (value: Date) => new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(value);
 
 const periodOptions: Array<{ label: string; value: RevenuePeriod; helper: string }> = [
-  { label: 'Hôm nay', value: 'today', helper: '18/06/2026' },
-  { label: 'Tuần này', value: 'week', helper: '15/06 - 21/06' },
-  { label: 'Tháng này', value: 'month', helper: 'Tháng 06/2026' },
+  { label: 'Hôm nay', value: 'today', helper: new Intl.DateTimeFormat('vi-VN').format(reportDate) },
+  { label: 'Tuần này', value: 'week', helper: `${shortDate(reportWeekStart)} - ${shortDate(reportWeekEnd)}` },
+  { label: 'Tháng này', value: 'month', helper: `Tháng ${String(reportDate.getMonth() + 1).padStart(2, '0')}/${reportDate.getFullYear()}` },
 ];
 
 const transactionStatusOptions: Array<{ label: string; value: TransactionStatus }> = [
@@ -141,7 +149,10 @@ const getDateRange = (period: RevenuePeriod) => {
     });
   }
 
-  return Array.from({ length: 30 }, (_, index) => `2026-06-${(index + 1).toString().padStart(2, '0')}`);
+  const year = reportDate.getFullYear();
+  const month = reportDate.getMonth();
+  const dayCount = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: dayCount }, (_, index) => `${year}-${String(month + 1).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`);
 };
 
 const formatShortDate = (date: string) =>
@@ -153,19 +164,28 @@ const formatShortDate = (date: string) =>
 const formatPercent = (value: number) => `${Math.round(value)}%`;
 
 export const OwnerRevenue = () => {
+  const { token } = useAuth();
   const [activePeriod, setActivePeriod] = useState<RevenuePeriod>('month');
   const [activeStatus, setActiveStatus] = useState<TransactionStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [ownerBookings, setOwnerBookings] = useState<BookingDetail[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    getOwnerBookings(token)
+      .then((records) => setOwnerBookings(records.map(ownerBookingToDetail)))
+      .catch(() => setOwnerBookings([]));
+  }, [token]);
 
   const transactions = useMemo<PaymentTransaction[]>(
     () =>
-      playerBookings.map((booking) => ({
+      ownerBookings.map((booking) => ({
         id: `pay-${booking.id}`,
         booking,
         status: getTransactionStatus(booking),
         paidAt: booking.paymentStatus === 'paid' ? booking.createdAt : booking.holdExpiresAt,
       })),
-    [],
+    [ownerBookings],
   );
 
   const periodDates = useMemo(() => getDateRange(activePeriod), [activePeriod]);

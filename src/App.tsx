@@ -49,6 +49,8 @@ import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerRevenue } from './pages/owner/OwnerRevenue';
 import { OwnerPayments } from './pages/owner/OwnerPayments';
 import { OwnerSettings } from './pages/owner/OwnerSettings';
+import { OwnerStaff } from './pages/owner/OwnerStaff';
+import { StaffDashboard } from './pages/staff/StaffDashboard';
 import { Home } from './pages/home/Home';
 import { Messages } from './pages/messages/Messages';
 import { Notifications } from './pages/notifications/Notifications';
@@ -120,9 +122,13 @@ function App() {
         <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
         <Route path="/owner/revenue" element={<OwnerRevenue />} />
         <Route path="/owner/settings" element={<OwnerSettings />} />
+        <Route path="/owner/staff" element={<OwnerStaff />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['owner', 'staff']} />}>
         <Route path="/owner/payments" element={<OwnerPayments />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['staff']} />}>
+        <Route path="/staff" element={<StaffDashboard />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['player']} />}>
         <Route path="/checkout" element={<Checkout />} />

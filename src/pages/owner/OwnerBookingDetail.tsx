@@ -1,487 +1,160 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
   Banknote,
-  Bell,
   CalendarDays,
   CheckCircle2,
-  ClipboardCheck,
-  Clock,
+  Clock3,
   CreditCard,
-  HelpCircle,
-  Map,
+  ExternalLink,
+  History,
+  Mail,
   MapPin,
-  MessageCircle,
-  Phone,
   ReceiptText,
-  Settings,
   ShieldCheck,
-  User,
   UserRound,
   XCircle,
 } from 'lucide-react';
+import { getOwnerBooking, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
+import { useAuth } from '../../auth/AuthContext';
 import { OwnerShell } from './components/OwnerShell';
-import type { BookingCheckInStatus, BookingPaymentStatus, BookingStatus } from '../../data/bookings';
-import { formatBookingCurrency, formatBookingDate, formatBookingDateTime, getBookingById } from '../../data/bookings';
 
-type StatusConfig = {
-  label: string;
-  helper: string;
-  className: string;
-  icon: React.ElementType;
+const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+const dateTime = (value?: string | null) => value
+  ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  : '—';
+const time = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+
+const statusLabel: Record<string, string> = {
+  Holding: 'Đang giữ chỗ', Confirmed: 'Đã xác nhận', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
+  Pending: 'Chờ thanh toán', WaitingForConfirmation: 'Chờ duyệt thanh toán', Paid: 'Đã thanh toán',
+  Ready: 'Sẵn sàng check-in', NotOpen: 'Chưa mở check-in', CheckedIn: 'Đã check-in', NoShow: 'No-show',
+};
+const statusClass = (status: string) => {
+  if (status === 'Confirmed' || status === 'Paid' || status === 'CheckedIn') return 'bg-green-100 text-green-700';
+  if (status === 'Cancelled' || status === 'Expired') return 'bg-red-100 text-red-700';
+  if (status === 'NoShow' || status === 'Pending' || status === 'WaitingForConfirmation' || status === 'Holding') return 'bg-amber-100 text-amber-700';
+  return 'bg-slate-100 text-slate-600';
 };
 
-type TimelineState = 'done' | 'current' | 'upcoming' | 'failed';
-
-const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
-  confirmed: {
-    label: 'Đã xác nhận',
-    helper: 'Sân đã được giữ cho khách.',
-    className: 'bg-[#eaf7df] text-primary',
-    icon: CheckCircle2,
-  },
-  holding: {
-    label: 'Chờ xử lý',
-    helper: 'Cần xác nhận hoặc hủy đơn.',
-    className: 'bg-[#fff4d8] text-[#755400]',
-    icon: AlertCircle,
-  },
-  cancelled: {
-    label: 'Đã hủy',
-    helper: 'Đơn không còn giữ sân.',
-    className: 'bg-[#ffdad6] text-[#ba1a1a]',
-    icon: XCircle,
-  },
-};
-
-const paymentStatusConfig: Record<BookingPaymentStatus, StatusConfig> = {
-  paid: {
-    label: 'Đã thanh toán',
-    helper: 'Giao dịch đã được ghi nhận.',
-    className: 'bg-[#eaf7df] text-primary',
-    icon: CreditCard,
-  },
-  pending: {
-    label: 'Chờ thanh toán',
-    helper: 'Khách cần thanh toán tại sân hoặc hoàn tất online.',
-    className: 'bg-[#fff4d8] text-[#755400]',
-    icon: Clock,
-  },
-  failed: {
-    label: 'Thanh toán lỗi',
-    helper: 'Cần liên hệ khách để xử lý lại.',
-    className: 'bg-[#ffdad6] text-[#ba1a1a]',
-    icon: XCircle,
-  },
-};
-
-const checkInStatusConfig: Record<BookingCheckInStatus, StatusConfig> = {
-  not_open: {
-    label: 'Chưa mở check-in',
-    helper: 'Check-in sẽ mở gần giờ chơi.',
-    className: 'bg-[#eef0ef] text-[#57615b]',
-    icon: Clock,
-  },
-  ready: {
-    label: 'Sẵn sàng check-in',
-    helper: 'Khách có thể check-in tại quầy.',
-    className: 'bg-[#eaf7df] text-primary',
-    icon: ClipboardCheck,
-  },
-  checked_in: {
-    label: 'Đã check-in',
-    helper: 'Khách đã nhận sân.',
-    className: 'bg-[#eaf7df] text-primary',
-    icon: CheckCircle2,
-  },
-  missed: {
-    label: 'Khách vắng mặt',
-    helper: 'Đã quá giờ nhưng khách chưa đến.',
-    className: 'bg-[#fff4d8] text-[#755400]',
-    icon: AlertCircle,
-  },
-  cancelled: {
-    label: 'Đã hủy check-in',
-    helper: 'Không cần xử lý check-in.',
-    className: 'bg-[#ffdad6] text-[#ba1a1a]',
-    icon: XCircle,
-  },
-};
-
-const getTimelineStateClassName = (state: TimelineState) => {
-  if (state === 'done') {
-    return 'border-primary bg-primary text-white';
-  }
-
-  if (state === 'failed') {
-    return 'border-[#ba1a1a] bg-[#ffdad6] text-[#ba1a1a]';
-  }
-
-  if (state === 'current') {
-    return 'border-[#755400] bg-[#fff4d8] text-[#755400]';
-  }
-
-  return 'border-outline-variant bg-white text-on-surface-variant';
-};
+type TimelineEvent = { label: string; detail: string; actor?: string | null; at: string };
 
 export const OwnerBookingDetail = () => {
   const { id } = useParams();
-  const booking = getBookingById(id);
-  const [bookingStatus, setBookingStatus] = useState<BookingStatus>(booking.bookingStatus);
-  const [paymentStatus, setPaymentStatus] = useState<BookingPaymentStatus>(booking.paymentStatus);
-  const [checkInStatus, setCheckInStatus] = useState<BookingCheckInStatus>(booking.checkInStatus);
-  const [ownerNote, setOwnerNote] = useState(
-    `Khách ưu tiên ${booking.subCourt}. Kiểm tra trạng thái thanh toán và chuẩn bị sân trước ${booking.startTime}.`,
-  );
+  const { token } = useAuth();
+  const bookingId = Number(id);
+  const [booking, setBooking] = useState<OwnerBookingRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    setBookingStatus(booking.bookingStatus);
-    setPaymentStatus(booking.paymentStatus);
-    setCheckInStatus(booking.checkInStatus);
-    setOwnerNote(`Khách ưu tiên ${booking.subCourt}. Kiểm tra trạng thái thanh toán và chuẩn bị sân trước ${booking.startTime}.`);
-  }, [booking.bookingStatus, booking.checkInStatus, booking.id, booking.paymentStatus, booking.startTime, booking.subCourt]);
+  const load = useCallback(async () => {
+    if (!token || !Number.isInteger(bookingId) || bookingId <= 0) {
+      setError('Mã booking không hợp lệ.');
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true); setError('');
+    try { setBooking(await getOwnerBooking(token, bookingId)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải chi tiết booking.'); }
+    finally { setIsLoading(false); }
+  }, [bookingId, token]);
 
-  const activeBookingStatusConfig = bookingStatusConfig[bookingStatus];
-  const activePaymentStatusConfig = paymentStatusConfig[paymentStatus];
-  const activeCheckInStatusConfig = checkInStatusConfig[checkInStatus];
+  useEffect(() => { void load(); }, [load]);
 
-  const timelineSteps = useMemo(
-    () => [
-      {
-        label: 'Tiếp nhận đơn',
-        description: `Đơn được tạo lúc ${formatBookingDateTime(booking.createdAt)}.`,
-        state: 'done' as TimelineState,
-      },
-      {
-        label: 'Thanh toán',
-        description: activePaymentStatusConfig.helper,
-        state: paymentStatus === 'paid' ? ('done' as TimelineState) : paymentStatus === 'failed' ? ('failed' as TimelineState) : ('current' as TimelineState),
-      },
-      {
-        label: 'Xác nhận sân',
-        description: activeBookingStatusConfig.helper,
-        state:
-          bookingStatus === 'confirmed' ? ('done' as TimelineState) : bookingStatus === 'cancelled' ? ('failed' as TimelineState) : ('current' as TimelineState),
-      },
-      {
-        label: 'Check-in',
-        description: activeCheckInStatusConfig.helper,
-        state:
-          checkInStatus === 'checked_in'
-            ? ('done' as TimelineState)
-            : checkInStatus === 'missed' || checkInStatus === 'cancelled'
-              ? ('failed' as TimelineState)
-              : checkInStatus === 'ready'
-                ? ('current' as TimelineState)
-                : ('upcoming' as TimelineState),
-      },
-    ],
-    [
-      activeBookingStatusConfig.helper,
-      activeCheckInStatusConfig.helper,
-      activePaymentStatusConfig.helper,
-      booking.createdAt,
-      bookingStatus,
-      checkInStatus,
-      paymentStatus,
-    ],
-  );
+  const timeline = useMemo<TimelineEvent[]>(() => {
+    if (!booking) return [];
+    const events: TimelineEvent[] = [
+      { label: 'Player tạo booking', detail: `Mã ${booking.bookingCode}`, actor: booking.playerName, at: booking.createdAt },
+      ...booking.bookingHistory.map((item) => ({
+        label: `Booking → ${statusLabel[item.toStatus] ?? item.toStatus}`,
+        detail: item.reason || 'Cập nhật trạng thái booking', actor: item.actorName, at: item.changedAt,
+      })),
+      ...booking.paymentHistory.map((item) => ({
+        label: `Thanh toán → ${statusLabel[item.toStatus] ?? item.toStatus}`,
+        detail: item.reason || item.action, actor: item.actorName, at: item.createdAt,
+      })),
+    ];
+    if (booking.codeVerifiedAt) events.push({ label: 'Đã xác minh mã booking', detail: 'Mã hợp lệ tại đúng cụm sân', actor: booking.codeVerifiedBy, at: booking.codeVerifiedAt });
+    if (booking.paymentConfirmedAt) events.push({ label: 'Đã thu tiền tại sân', detail: 'Staff xác nhận thanh toán tại quầy', actor: booking.paymentConfirmedBy, at: booking.paymentConfirmedAt });
+    if (booking.checkedInAt) events.push({ label: 'Player đã check-in', detail: 'Bàn giao sân thành công', actor: booking.checkedInBy, at: booking.checkedInAt });
+    if (booking.noShowAt) events.push({ label: 'Đánh dấu no-show', detail: 'Player không đến sân đúng thời gian', actor: booking.noShowBy, at: booking.noShowAt });
+    return events.sort((left, right) => new Date(left.at).getTime() - new Date(right.at).getTime());
+  }, [booking]);
 
-  const confirmBooking = () => {
-    setBookingStatus('confirmed');
-    setPaymentStatus((currentPaymentStatus) => (currentPaymentStatus === 'failed' ? 'pending' : currentPaymentStatus));
-    setCheckInStatus((currentCheckInStatus) => (currentCheckInStatus === 'not_open' ? 'ready' : currentCheckInStatus));
+  const updateStatus = async (status: 'Confirmed' | 'Cancelled') => {
+    if (!token || !booking) return;
+    if (status === 'Cancelled' && !window.confirm('Xác nhận từ chối/hủy booking này?')) return;
+    setIsBusy(true); setError(''); setSuccess('');
+    try {
+      await updateOwnerBookingStatus(token, booking.bookingId, status);
+      setSuccess(status === 'Confirmed' ? 'Đã xác nhận booking.' : 'Đã hủy booking.');
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể cập nhật booking.');
+    } finally { setIsBusy(false); }
   };
 
-  const cancelBooking = () => {
-    setBookingStatus('cancelled');
-    setCheckInStatus('cancelled');
-  };
+  if (isLoading) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-outline-variant bg-white p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết booking...</div></OwnerShell>;
+  if (!booking) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700"><AlertCircle className="mx-auto h-7 w-7" /><p className="mt-3 font-bold">{error || 'Không tìm thấy booking.'}</p><Link className="mt-4 inline-flex font-bold underline" to="/owner/bookings">Quay lại danh sách</Link></div></OwnerShell>;
 
-  const canConfirm = bookingStatus === 'holding';
-  const canCheckIn = bookingStatus !== 'cancelled' && checkInStatus === 'ready';
-  const canMarkMissed = bookingStatus !== 'cancelled' && checkInStatus !== 'checked_in' && checkInStatus !== 'cancelled';
-  const phoneHref = `tel:${booking.customerPhone.replace(/\s/g, '')}`;
+  const serviceFee = Math.max(0, booking.totalAmount - booking.courtAmount);
+  const playerLocation = [booking.playerCommune, booking.playerCity].filter(Boolean).join(', ') || 'Chưa cập nhật';
 
   return (
-    <OwnerShell activeId="bookings" innerClassName="max-w-[1320px]">
-            <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/bookings">
-                  <ArrowLeft className="h-4 w-4" />
-                  Quay lại danh sách đơn
-                </Link>
-                <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[40px]">Chi tiết đơn đặt sân</h1>
-                <p className="mt-2 max-w-2xl text-[15px] leading-6 text-on-surface-variant">
-                  Kiểm tra thông tin khách, thanh toán, check-in và xử lý trạng thái đơn từ một màn hình dành cho chủ sân.
-                </p>
-              </div>
+    <OwnerShell activeId="bookings">
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><Link className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" to="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Link><h1 className="mt-3 text-[32px] font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
+        <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired' && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Cancelled')} type="button">Từ chối / Hủy</button>}</div>
+      </section>
 
-              <div className="grid grid-cols-2 gap-2 sm:flex">
-                <a
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
-                  href={phoneHref}
-                >
-                  <Phone className="h-5 w-5" />
-                  Gọi khách
-                </a>
-                <Link
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                  to="/messages"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Nhắn khách
-                </Link>
-              </div>
-            </section>
+      {(error || success) && <div className={`rounded-lg border px-4 py-3 text-[13px] font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{error || success}</div>}
 
-            <section className="overflow-hidden rounded-lg border border-outline-variant bg-white shadow-sm">
-              <div className="bg-primary px-5 py-6 text-white md:px-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="text-[13px] font-bold uppercase text-white/70">Mã đơn</p>
-                    <h2 className="mt-2 text-[28px] font-bold leading-tight md:text-[36px]">{booking.code}</h2>
-                    <p className="mt-3 max-w-3xl text-[14px] leading-6 text-white/82">
-                      {booking.courtName} · {booking.subCourt} · {formatBookingDate(booking.date)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { config: activeBookingStatusConfig, value: bookingStatus },
-                      { config: activePaymentStatusConfig, value: paymentStatus },
-                      { config: activeCheckInStatusConfig, value: checkInStatus },
-                    ].map((item) => (
-                      <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold ${item.config.className}`} key={item.value}>
-                        <item.config.icon className="h-4 w-4" />
-                        {item.config.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+      <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+        <div className="bg-primary p-6 text-white"><p className="text-[11px] font-bold uppercase text-white/70">Mã booking</p><div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-[30px] font-bold">{booking.bookingCode}</h2><div className="flex flex-wrap gap-2">{[booking.bookingStatus, booking.paymentStatus, booking.checkInStatus].map((status) => <span className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold" key={status}>{statusLabel[status] ?? status}</span>)}</div></div></div>
+        <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">{[
+          { icon: CalendarDays, label: 'Ngày chơi', value: dateTime(booking.startTime) },
+          { icon: Clock3, label: 'Khung giờ', value: `${time(booking.startTime)}–${time(booking.endTime)}` },
+          { icon: MapPin, label: 'Sân', value: `${booking.venueName} · Sân ${booking.courtNumber}` },
+          { icon: ReceiptText, label: 'Tổng tiền', value: currency.format(booking.totalAmount) },
+        ].map((item) => <div className="rounded-lg bg-surface-container-low p-4" key={item.label}><item.icon className="h-5 w-5 text-primary" /><p className="mt-3 text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p><p className="mt-1 text-[14px] font-bold">{item.value}</p></div>)}</div>
+      </section>
 
-              <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
-                {[
-                  { label: 'Ngày chơi', value: formatBookingDate(booking.date), icon: CalendarDays },
-                  { label: 'Khung giờ', value: `${booking.startTime} - ${booking.endTime}`, icon: Clock },
-                  { label: 'Sân con', value: booking.subCourt, icon: MapPin },
-                  { label: 'Tổng tiền', value: formatBookingCurrency(booking.totalAmount), icon: ReceiptText },
-                ].map((item) => (
-                  <div className="rounded-lg bg-surface-container-low p-4" key={item.label}>
-                    <item.icon className="h-5 w-5 text-primary" />
-                    <p className="mt-3 text-[12px] font-bold uppercase text-on-surface-variant">{item.label}</p>
-                    <p className="mt-1 text-[15px] font-bold leading-5">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="space-y-6">
+          <section className="grid gap-6 md:grid-cols-2">
+            <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><UserRound className="h-5 w-5 text-primary" /> Thông tin Player</h2><div className="mt-4 space-y-3">{[
+              { label: 'Tên tài khoản', value: booking.playerName },
+              { label: 'Email', value: booking.playerEmail || 'Chưa cập nhật' },
+              { label: 'Khu vực', value: playerLocation },
+            ].map((item) => <div className="rounded-lg bg-surface-container-low p-3" key={item.label}><p className="text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p><p className="mt-1 break-words text-[13px] font-bold">{item.value}</p></div>)}</div>{booking.playerEmail && <a className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-primary" href={`mailto:${booking.playerEmail}`}><Mail className="h-4 w-4" /> Gửi email cho Player</a>}</div>
+            <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><MapPin className="h-5 w-5 text-primary" /> Thông tin sân</h2><div className="mt-4 space-y-3"><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Cụm sân</p><p className="mt-1 text-[13px] font-bold">{booking.venueName}</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Sân con</p><p className="mt-1 text-[13px] font-bold">Sân {booking.courtNumber}</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Địa chỉ</p><p className="mt-1 text-[13px] font-bold">{booking.address}</p></div></div></div>
+          </section>
 
-            <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="space-y-6">
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                        <ClipboardCheck className="h-5 w-5 text-primary" />
-                        Tiến trình xử lý
-                      </h2>
-                      <p className="mt-1 text-[13px] text-on-surface-variant">Theo dõi các bước từ lúc tiếp nhận đến khi khách check-in.</p>
-                    </div>
-                    <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-[12px] font-bold text-primary">
-                      Tạo lúc {formatBookingDateTime(booking.createdAt)}
-                    </span>
-                  </div>
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><History className="h-5 w-5 text-primary" /> Lịch sử booking</h2><div className="mt-5 space-y-4">{timeline.map((item, index) => <div className="grid grid-cols-[28px_1fr] gap-3" key={`${item.label}-${item.at}-${index}`}><div className="flex flex-col items-center"><span className="mt-1 h-3 w-3 rounded-full bg-primary" />{index < timeline.length - 1 && <span className="mt-1 h-full min-h-10 w-px bg-outline-variant" />}</div><div className="pb-2"><p className="text-[13px] font-bold">{item.label}</p><p className="mt-1 text-[12px] text-on-surface-variant">{item.detail}</p><p className="mt-1 text-[11px] font-bold text-on-surface-variant">{dateTime(item.at)}{item.actor ? ` · ${item.actor}` : ''}</p></div></div>)}</div></section>
+        </div>
 
-                  <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4">
-                    {timelineSteps.map((step, index) => {
-                      const StepIcon = step.state === 'failed' ? XCircle : step.state === 'done' ? CheckCircle2 : Clock;
+        <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán</h2><div className="mt-4 space-y-3 text-[13px]">{[
+            { label: 'Tiền sân', value: currency.format(booking.courtAmount) },
+            { label: 'Phí dịch vụ', value: currency.format(serviceFee) },
+            { label: 'Phương thức', value: booking.paymentMethod === 'AtCourt' ? 'Thanh toán tại sân' : booking.paymentMethod || 'Chưa chọn' },
+            { label: 'Trạng thái', value: statusLabel[booking.paymentStatus] ?? booking.paymentStatus },
+            { label: 'Đã thanh toán lúc', value: dateTime(booking.paymentPaidAt) },
+          ].map((item) => <div className="flex justify-between gap-4" key={item.label}><span className="text-on-surface-variant">{item.label}</span><span className="text-right font-bold">{item.value}</span></div>)}<div className="border-t border-outline-variant pt-3"><div className="flex items-center justify-between"><span className="font-bold">Tổng cộng</span><span className="text-[20px] font-bold text-primary">{currency.format(booking.totalAmount)}</span></div></div></div>{booking.transferCode && <p className="mt-4 rounded-lg bg-surface-container-low p-3 text-[12px]"><span className="text-on-surface-variant">Mã giao dịch:</span> <strong>{booking.transferCode}</strong></p>}{booking.rejectionReason && <p className="mt-3 rounded-lg bg-red-50 p-3 text-[12px] font-bold text-red-700">{booking.rejectionReason}</p>}{booking.receiptImageUrl && <a className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-primary" href={booking.receiptImageUrl} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" /> Xem biên lai</a>}</section>
 
-                      return (
-                        <div className="rounded-lg border border-outline-variant p-4" key={step.label}>
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[13px] font-bold ${getTimelineStateClassName(
-                                step.state,
-                              )}`}
-                            >
-                              <StepIcon className="h-4 w-4" />
-                            </span>
-                            <span className="text-[12px] font-bold text-on-surface-variant">Bước {index + 1}</span>
-                          </div>
-                          <h3 className="mt-4 text-[15px] font-bold">{step.label}</h3>
-                          <p className="mt-2 min-h-[48px] text-[13px] leading-5 text-on-surface-variant">{step.description}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><ShieldCheck className="h-5 w-5 text-primary" /> Vận hành tại sân</h2><div className="mt-4 space-y-3">{[
+            { label: 'Xác minh mã', status: booking.codeVerifiedAt ? 'Đã hoàn tất' : 'Chưa thực hiện', actor: booking.codeVerifiedBy, at: booking.codeVerifiedAt, icon: CheckCircle2 },
+            { label: 'Thu tiền tại sân', status: booking.paymentConfirmedAt ? 'Đã hoàn tất' : 'Không có/Chưa thực hiện', actor: booking.paymentConfirmedBy, at: booking.paymentConfirmedAt, icon: Banknote },
+            { label: booking.noShowAt ? 'No-show' : 'Check-in', status: statusLabel[booking.checkInStatus] ?? booking.checkInStatus, actor: booking.checkedInBy || booking.noShowBy, at: booking.checkedInAt || booking.noShowAt, icon: booking.noShowAt ? XCircle : ShieldCheck },
+          ].map((item) => <div className="flex gap-3 rounded-lg bg-surface-container-low p-3" key={item.label}><item.icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-[12px] font-bold">{item.label}: {item.status}</p><p className="mt-1 text-[11px] text-on-surface-variant">{item.actor || '—'} · {dateTime(item.at)}</p></div></div>)}</div></section>
 
-                <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                    <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                      <UserRound className="h-5 w-5 text-primary" />
-                      Thông tin khách
-                    </h2>
-                    <div className="mt-5 space-y-4">
-                      {[
-                        { label: 'Họ tên', value: booking.customerName },
-                        { label: 'Số điện thoại', value: booking.customerPhone },
-                        { label: 'Ghi chú khách', value: booking.note },
-                      ].map((item) => (
-                        <div className="rounded-lg bg-surface-container-low p-4" key={item.label}>
-                          <p className="text-[12px] font-bold uppercase text-on-surface-variant">{item.label}</p>
-                          <p className="mt-1 text-[14px] font-bold leading-6">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                    <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                      <MapPin className="h-5 w-5 text-primary" />
-                      Thông tin sân
-                    </h2>
-                    <div className="mt-5 space-y-4">
-                      {[
-                        { label: 'Cụm sân', value: booking.courtName },
-                        { label: 'Địa chỉ', value: booking.address },
-                        { label: 'Khu vực', value: booking.area },
-                      ].map((item) => (
-                        <div className="rounded-lg bg-surface-container-low p-4" key={item.label}>
-                          <p className="text-[12px] font-bold uppercase text-on-surface-variant">{item.label}</p>
-                          <p className="mt-1 text-[14px] font-bold leading-6">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                        <ShieldCheck className="h-5 w-5 text-primary" />
-                        Ghi chú vận hành
-                      </h2>
-                      <p className="mt-1 text-[13px] text-on-surface-variant">Ghi chú nội bộ cho lễ tân, điều phối sân hoặc bộ phận hỗ trợ.</p>
-                    </div>
-                    <button className="w-fit rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white hover:bg-primary/90" type="button">
-                      Lưu ghi chú
-                    </button>
-                  </div>
-                  <textarea
-                    className="mt-4 min-h-[120px] w-full rounded-lg border border-outline-variant bg-surface-container-low p-4 text-[14px] leading-6 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) => setOwnerNote(event.target.value)}
-                    value={ownerNote}
-                  />
-                </section>
-              </div>
-
-              <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-                <section className="rounded-lg border border-primary bg-white p-5 shadow-sm">
-                  <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                    <ReceiptText className="h-5 w-5 text-primary" />
-                    Thanh toán
-                  </h2>
-                  <div className="mt-5 space-y-3">
-                    {[
-                      { label: 'Giá theo giờ', value: `${formatBookingCurrency(booking.pricePerHour)} x ${booking.durationHours} giờ` },
-                      { label: 'Phí dịch vụ', value: formatBookingCurrency(booking.serviceFee) },
-                      { label: 'Phương thức', value: booking.paymentMethod },
-                    ].map((item) => (
-                      <div className="flex items-center justify-between gap-4 text-[14px]" key={item.label}>
-                        <span className="text-on-surface-variant">{item.label}</span>
-                        <span className="text-right font-bold">{item.value}</span>
-                      </div>
-                    ))}
-                    <div className="border-t border-outline-variant pt-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[14px] font-bold">Tổng cộng</span>
-                        <span className="text-[22px] font-bold text-primary">{formatBookingCurrency(booking.totalAmount)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {paymentStatus !== 'paid' && (
-                    <button
-                      className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                      onClick={() => setPaymentStatus('paid')}
-                      type="button"
-                    >
-                      <CreditCard className="h-5 w-5" />
-                      Ghi nhận đã thanh toán
-                    </button>
-                  )}
-                </section>
-
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-                  <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                    <Settings className="h-5 w-5 text-primary" />
-                    Thao tác đơn
-                  </h2>
-                  <div className="mt-5 space-y-3">
-                    <button
-                      className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[14px] font-bold ${
-                        canConfirm ? 'bg-primary text-white hover:bg-primary/90' : 'bg-surface-container-low text-on-surface-variant'
-                      }`}
-                      disabled={!canConfirm}
-                      onClick={confirmBooking}
-                      type="button"
-                    >
-                      <CheckCircle2 className="h-5 w-5" />
-                      Xác nhận đơn
-                    </button>
-                    <button
-                      className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[14px] font-bold ${
-                        canCheckIn ? 'bg-primary text-white hover:bg-primary/90' : 'bg-surface-container-low text-on-surface-variant'
-                      }`}
-                      disabled={!canCheckIn}
-                      onClick={() => setCheckInStatus('checked_in')}
-                      type="button"
-                    >
-                      <ClipboardCheck className="h-5 w-5" />
-                      Check-in khách
-                    </button>
-                    <button
-                      className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-[14px] font-bold ${
-                        canMarkMissed
-                          ? 'border-outline-variant text-[#755400] hover:bg-[#fff4d8]'
-                          : 'border-outline-variant bg-surface-container-low text-on-surface-variant'
-                      }`}
-                      disabled={!canMarkMissed}
-                      onClick={() => setCheckInStatus('missed')}
-                      type="button"
-                    >
-                      <AlertCircle className="h-5 w-5" />
-                      Đánh dấu vắng mặt
-                    </button>
-                    <button
-                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
-                      disabled={bookingStatus === 'cancelled'}
-                      onClick={cancelBooking}
-                      type="button"
-                    >
-                      <XCircle className="h-5 w-5" />
-                      Hủy đơn
-                    </button>
-                  </div>
-                </section>
-
-                <section className="rounded-lg border border-outline-variant bg-[#fff8e6] p-5 shadow-sm">
-                  <h2 className="flex items-center gap-2 text-[18px] font-bold text-[#755400]">
-                    <AlertCircle className="h-5 w-5" />
-                    Lưu ý xử lý
-                  </h2>
-                  <div className="mt-4 space-y-3 text-[13px] leading-5 text-[#755400]">
-                    <p>Đơn chờ xử lý nên được xác nhận trước giờ chơi để tránh giữ sân quá lâu.</p>
-                    <p>Nếu khách thanh toán tại sân, hãy ghi nhận thanh toán trước khi check-in.</p>
-                    <p>Khi hủy đơn, sân con sẽ cần được mở lại trên lịch vận hành.</p>
-                  </div>
-                </section>
-              </aside>
-            </section>
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="text-[18px] font-bold">Trạng thái hiện tại</h2><div className="mt-4 flex flex-wrap gap-2">{[booking.bookingStatus, booking.paymentStatus, booking.checkInStatus].map((status) => <span className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${statusClass(status)}`} key={status}>{statusLabel[status] ?? status}</span>)}</div></section>
+        </aside>
+      </section>
     </OwnerShell>
   );
 };

@@ -9,10 +9,11 @@ import {
   Map,
   Settings,
   User,
+  UsersRound,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'payments' | 'courts' | 'revenue' | 'settings';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'payments' | 'courts' | 'revenue' | 'staff' | 'settings';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -26,6 +27,7 @@ const ownerNavItems: Array<{
   { id: 'payments', label: 'Xác nhận thanh toán', shortLabel: 'Thanh toán', to: '/owner/payments', icon: Banknote },
   { id: 'courts', label: 'Sân & court', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
   { id: 'revenue', label: 'Doanh thu', shortLabel: 'Doanh thu', to: '/owner/revenue', icon: Banknote },
+  { id: 'staff', label: 'Nhân viên & CheckIn', shortLabel: 'Staff', to: '/owner/staff', icon: UsersRound },
   { id: 'settings', label: 'Cài đặt', shortLabel: 'Cài đặt', to: '/owner/settings', icon: Settings },
 ];
 
@@ -105,11 +107,11 @@ export const OwnerShell = ({
       </main>
     </div>
 
-    <nav className="fixed bottom-0 left-0 right-0 z-50 grid h-16 grid-cols-6 border-t border-outline-variant bg-white md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 overflow-x-auto border-t border-outline-variant bg-white md:hidden">
       {ownerNavItems.map((item) => (
         <Link
           className={cn(
-            'flex flex-col items-center justify-center gap-1',
+            'flex min-w-[76px] flex-1 flex-col items-center justify-center gap-1',
             activeId === item.id ? 'text-primary' : 'text-on-surface-variant',
           )}
           key={item.id}
