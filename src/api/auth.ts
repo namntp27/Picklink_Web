@@ -46,9 +46,11 @@ export type RegisterInput = {
 const mapRole = (userType: string): UserRole => {
   const normalizedRole = userType.trim().toLowerCase();
 
-  if (normalizedRole === 'admin' || normalizedRole === 'administrator' || normalizedRole === 'staff') {
+  if (normalizedRole === 'admin' || normalizedRole === 'administrator') {
     return 'admin';
   }
+
+  if (normalizedRole === 'staff') return 'staff';
 
   if (normalizedRole === 'venueowner' || normalizedRole === 'owner') {
     return 'owner';

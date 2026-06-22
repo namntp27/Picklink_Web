@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
@@ -15,6 +15,9 @@ import {
   Users,
 } from 'lucide-react';
 import { OwnerShell } from './components/OwnerShell';
+import { ApiError } from '../../api/client';
+import { getOwnerBankAccount, saveOwnerBankAccount } from '../../api/payment';
+import { useAuth } from '../../auth/AuthContext';
 
 type OwnerProfile = {
   businessName: string;
@@ -42,6 +45,7 @@ type NotificationSettings = {
 };
 
 type PayoutSettings = {
+  bankCode: string;
   bankName: string;
   accountNumber: string;
   accountHolder: string;
@@ -74,11 +78,35 @@ const initialNotifications: NotificationSettings = {
 };
 
 const initialPayout: PayoutSettings = {
-  bankName: 'Vietcombank',
-  accountNumber: '1023456789',
-  accountHolder: 'NGUYEN VAN AN',
+  bankCode: '',
+  bankName: '',
+  accountNumber: '',
+  accountHolder: '',
   payoutCycle: 'weekly',
 };
+
+const vietnameseBanks = [
+  { code: 'VCB', name: 'Vietcombank' },
+  { code: 'BIDV', name: 'BIDV' },
+  { code: 'ICB', name: 'VietinBank' },
+  { code: 'VBA', name: 'Agribank' },
+  { code: 'TCB', name: 'Techcombank' },
+  { code: 'MB', name: 'MB Bank' },
+  { code: 'ACB', name: 'ACB' },
+  { code: 'VPB', name: 'VPBank' },
+  { code: 'TPB', name: 'TPBank' },
+  { code: 'STB', name: 'Sacombank' },
+  { code: 'VIB', name: 'VIB' },
+  { code: 'HDB', name: 'HDBank' },
+  { code: 'SHB', name: 'SHB' },
+  { code: 'MSB', name: 'MSB' },
+  { code: 'OCB', name: 'OCB' },
+  { code: 'EIB', name: 'Eximbank' },
+  { code: 'SCB', name: 'SCB' },
+  { code: 'SEAB', name: 'SeABank' },
+  { code: 'NAB', name: 'Nam A Bank' },
+  { code: 'CAKE', name: 'CAKE by VPBank' },
+] as const;
 
 const payoutCycleLabels: Record<PayoutSettings['payoutCycle'], string> = {
   daily: 'Hằng ngày',
@@ -87,16 +115,39 @@ const payoutCycleLabels: Record<PayoutSettings['payoutCycle'], string> = {
 };
 
 export const OwnerSettings = () => {
+  const { token } = useAuth();
   const [profile, setProfile] = useState<OwnerProfile>(initialProfile);
   const [rules, setRules] = useState<BookingRules>(initialRules);
   const [notifications, setNotifications] = useState<NotificationSettings>(initialNotifications);
   const [payout, setPayout] = useState<PayoutSettings>(initialPayout);
   const [savedMessage, setSavedMessage] = useState('');
 
+  useEffect(() => {
+    if (!token) return;
+    getOwnerBankAccount(token).then((account) => setPayout((current) => ({
+      ...current,
+      bankCode: account.bankCode,
+      bankName: account.bankName,
+      accountNumber: account.accountNumber,
+      accountHolder: account.accountHolderName,
+    }))).catch((requestError) => {
+      if (requestError instanceof ApiError && requestError.status !== 404) setSavedMessage(requestError.message);
+    });
+  }, [token]);
+
   const enabledNotifications = useMemo(
     () => Object.values(notifications).filter(Boolean).length,
     [notifications],
   );
+
+  const payoutIsValid = Boolean(
+    payout.bankCode
+      && /^\d{5,30}$/.test(payout.accountNumber)
+      && payout.accountHolder.trim().length >= 2,
+  );
+  const qrPreviewUrl = payoutIsValid
+    ? `https://img.vietqr.io/image/${encodeURIComponent(payout.bankCode)}-${encodeURIComponent(payout.accountNumber)}-compact2.png?amount=10000&addInfo=${encodeURIComponent('PICKLINK TEST')}&accountName=${encodeURIComponent(payout.accountHolder.trim().toUpperCase())}`
+    : '';
 
   const updateProfile = <Field extends keyof OwnerProfile>(field: Field, value: OwnerProfile[Field]) => {
     setProfile((current) => ({ ...current, [field]: value }));
@@ -118,8 +169,29 @@ export const OwnerSettings = () => {
     setSavedMessage('');
   };
 
-  const handleSave = () => {
-    setSavedMessage('Đã lưu cấu hình chủ sân.');
+  const selectBank = (bankCode: string) => {
+    const bank = vietnameseBanks.find((item) => item.code === bankCode);
+    setPayout((current) => ({ ...current, bankCode, bankName: bank?.name ?? current.bankName }));
+    setSavedMessage('');
+  };
+
+  const handleSave = async () => {
+    if (!token) return;
+    if (!payoutIsValid) {
+      setSavedMessage('Vui lòng chọn ngân hàng, nhập đúng số tài khoản và tên chủ tài khoản.');
+      return;
+    }
+    try {
+      await saveOwnerBankAccount(token, {
+        bankCode: payout.bankCode,
+        bankName: payout.bankName,
+        accountNumber: payout.accountNumber,
+        accountHolderName: payout.accountHolder,
+      });
+      setSavedMessage('Đã lưu tài khoản nhận chuyển khoản.');
+    } catch (requestError) {
+      setSavedMessage(requestError instanceof ApiError ? requestError.message : 'Không thể lưu tài khoản ngân hàng.');
+    }
   };
 
   return (
@@ -316,43 +388,70 @@ export const OwnerSettings = () => {
                     <Banknote className="h-5 w-5 text-primary" />
                     Tài khoản đối soát
                   </h2>
-                  <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
-                    <label className="block">
-                      <span className="text-[13px] font-bold text-on-surface-variant">Ngân hàng</span>
-                      <input
-                        className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        onChange={(event) => updatePayout('bankName', event.target.value)}
-                        value={payout.bankName}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-[13px] font-bold text-on-surface-variant">Số tài khoản</span>
-                      <input
-                        className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        onChange={(event) => updatePayout('accountNumber', event.target.value)}
-                        value={payout.accountNumber}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-[13px] font-bold text-on-surface-variant">Chủ tài khoản</span>
-                      <input
-                        className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] font-bold uppercase outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        onChange={(event) => updatePayout('accountHolder', event.target.value)}
-                        value={payout.accountHolder}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-[13px] font-bold text-on-surface-variant">Chu kỳ chuyển khoản</span>
-                      <select
-                        className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary"
-                        onChange={(event) => updatePayout('payoutCycle', event.target.value as PayoutSettings['payoutCycle'])}
-                        value={payout.payoutCycle}
-                      >
-                        <option value="daily">Hằng ngày</option>
-                        <option value="weekly">Hằng tuần</option>
-                        <option value="monthly">Hằng tháng</option>
-                      </select>
-                    </label>
+                  <p className="mt-2 text-[13px] leading-5 text-on-surface-variant">
+                    Chọn ngân hàng, sau đó chỉ cần nhập số tài khoản và tên chủ tài khoản. Picklink tự cấu hình mã VietQR.
+                  </p>
+                  <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="grid content-start gap-4 sm:grid-cols-2">
+                      <label className="block sm:col-span-2">
+                        <span className="text-[13px] font-bold text-on-surface-variant">1. Chọn ngân hàng</span>
+                        <select
+                          className="mt-2 h-12 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          onChange={(event) => selectBank(event.target.value)}
+                          value={payout.bankCode}
+                        >
+                          <option value="">-- Chọn ngân hàng nhận tiền --</option>
+                          {!vietnameseBanks.some((bank) => bank.code === payout.bankCode) && payout.bankCode && (
+                            <option value={payout.bankCode}>{payout.bankName || payout.bankCode}</option>
+                          )}
+                          {vietnameseBanks.map((bank) => (
+                            <option key={bank.code} value={bank.code}>{bank.name} ({bank.code})</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-[13px] font-bold text-on-surface-variant">2. Số tài khoản</span>
+                        <input
+                          className="mt-2 h-12 w-full rounded-lg border border-outline-variant px-3 text-[16px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          inputMode="numeric"
+                          maxLength={30}
+                          onChange={(event) => updatePayout('accountNumber', event.target.value.replace(/\D/g, ''))}
+                          placeholder="Nhập số tài khoản"
+                          value={payout.accountNumber}
+                        />
+                        {payout.accountNumber && payout.accountNumber.length < 5 && <span className="mt-1 block text-[12px] text-red-600">Số tài khoản cần ít nhất 5 chữ số.</span>}
+                      </label>
+                      <label className="block">
+                        <span className="text-[13px] font-bold text-on-surface-variant">3. Tên chủ tài khoản</span>
+                        <input
+                          className="mt-2 h-12 w-full rounded-lg border border-outline-variant px-3 text-[14px] font-bold uppercase outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          maxLength={200}
+                          onChange={(event) => updatePayout('accountHolder', event.target.value.toUpperCase())}
+                          placeholder="NGUYEN VAN AN"
+                          value={payout.accountHolder}
+                        />
+                      </label>
+                      <div className="rounded-lg bg-primary/5 p-4 text-[13px] sm:col-span-2">
+                        <p className="font-bold text-primary">Thông tin sẽ hiển thị cho người chuyển</p>
+                        <p className="mt-1 text-on-surface-variant">
+                          {payout.bankName || 'Chưa chọn ngân hàng'} · {payout.accountNumber || 'Chưa nhập số tài khoản'} · {payout.accountHolder || 'Chưa nhập chủ tài khoản'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4 text-center">
+                      <p className="text-[12px] font-bold uppercase text-on-surface-variant">QR kiểm tra</p>
+                      {qrPreviewUrl ? (
+                        <>
+                          <img alt="QR kiểm tra tài khoản nhận tiền" className="mx-auto mt-3 w-full max-w-[220px] rounded-lg bg-white" src={qrPreviewUrl} />
+                          <p className="mt-2 text-[11px] leading-4 text-on-surface-variant">QR mẫu 10.000đ · PICKLINK TEST</p>
+                        </>
+                      ) : (
+                        <div className="mt-3 flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-outline-variant bg-white px-5 text-[13px] text-on-surface-variant">
+                          Điền đủ 3 bước để xem QR mẫu
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </section>
               </div>

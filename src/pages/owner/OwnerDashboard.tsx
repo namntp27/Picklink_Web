@@ -24,14 +24,15 @@ const addDays = (value: string, days: number) => { const date = new Date(`${valu
 const timeValue = (dateTime: string) => dateTime.slice(11, 16);
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
-const statusLabel: Record<string, string> = { Pending: 'Chờ xác nhận', Confirmed: 'Đã xác nhận', Blocked: 'Đã khóa', Cancelled: 'Đã hủy' };
+const statusLabel: Record<string, string> = { Holding: 'Giữ chỗ', Pending: 'Chờ xác nhận', Confirmed: 'Đã đặt', Blocked: 'Đã khóa', Cancelled: 'Đã hủy' };
 const entryLabel: Record<OwnerScheduleEntryType, string> = { Blocked: 'Khóa khung giờ', Maintenance: 'Bảo trì', Event: 'Sự kiện' };
 const slotClass: Record<OwnerScheduleSlot['status'], string> = {
   Available: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
+  Holding: 'border-amber-200 bg-amber-100 text-amber-800',
   Booked: 'border-blue-200 bg-blue-100 text-blue-800',
   Blocked: 'border-slate-300 bg-slate-200 text-slate-700',
-  Maintenance: 'border-orange-200 bg-orange-100 text-orange-800',
-  Event: 'border-violet-200 bg-violet-100 text-violet-800',
+  Maintenance: 'border-red-200 bg-red-100 text-red-800',
+  Event: 'border-pink-200 bg-pink-100 text-pink-800',
   Closed: 'border-slate-200 bg-slate-100 text-slate-400',
   Inactive: 'border-red-100 bg-red-50 text-red-400',
 };
@@ -77,6 +78,7 @@ export const OwnerDashboard = () => {
   const visibleSlots = useMemo(() => schedule?.slots.filter((slot) => venueFilter === 'all' || slot.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
   const days = useMemo(() => [...new Set(visibleSlots.map((slot) => slot.startTime.slice(0, 10)))], [visibleSlots]);
   const bookedCount = visibleSlots.filter((slot) => slot.status === 'Booked').length;
+  const holdingCount = visibleSlots.filter((slot) => slot.status === 'Holding').length;
   const availableCount = visibleSlots.filter((slot) => slot.status === 'Available').length;
   const operationCount = visibleItems.filter((item) => item.isOwnerEntry).length;
   const revenue = visibleItems.filter((item) => item.status === 'Confirmed').reduce((sum, item) => sum + item.amount, 0);
@@ -137,8 +139,9 @@ export const OwnerDashboard = () => {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[
         { label: 'Slot còn trống', value: availableCount, icon: Clock },
+        { label: 'Slot đang giữ chỗ', value: holdingCount, icon: Clock },
         { label: 'Slot đã đặt', value: bookedCount, icon: CheckCircle2 },
         { label: 'Lịch vận hành', value: operationCount, icon: Lock },
         { label: view === 'week' ? 'Doanh thu trong tuần' : 'Doanh thu trong ngày', value: money.format(revenue), icon: CalendarDays },
@@ -149,7 +152,7 @@ export const OwnerDashboard = () => {
       <section className="grid gap-5 xl:grid-cols-[1fr_350px]">
         <div className="space-y-4">
           <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-5"><div><h2 className="text-[20px] font-bold">Bảng slot {view === 'week' ? 'theo tuần' : 'trong ngày'}</h2><p className="mt-1 text-[13px] text-on-surface-variant">{schedule ? `${dateLabel(schedule.startDate)} – ${dateLabel(schedule.endDate)} · bước ${schedule.slotMinutes} phút` : date}</p></div><div className="flex flex-wrap gap-2 text-[11px] font-bold">{[['bg-emerald-100','Trống'],['bg-blue-100','Đã đặt'],['bg-slate-200','Đã khóa'],['bg-orange-100','Bảo trì'],['bg-violet-100','Sự kiện']].map(([color,label]) => <span className="inline-flex items-center gap-1" key={label}><i className={`h-3 w-3 rounded ${color}`} />{label}</span>)}</div></div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-5"><div><h2 className="text-[20px] font-bold">Bảng slot {view === 'week' ? 'theo tuần' : 'trong ngày'}</h2><p className="mt-1 text-[13px] text-on-surface-variant">{schedule ? `${dateLabel(schedule.startDate)} – ${dateLabel(schedule.endDate)} · bước ${schedule.slotMinutes} phút` : date}</p></div><div className="flex flex-wrap gap-2 text-[11px] font-bold">{[['bg-emerald-100','Trống'],['bg-amber-100','Giữ chỗ'],['bg-blue-100','Đã đặt'],['bg-slate-200','Đã khóa'],['bg-red-100','Bảo trì'],['bg-violet-100','Sự kiện']].map(([color,label]) => <span className="inline-flex items-center gap-1" key={label}><i className={`h-3 w-3 rounded ${color}`} />{label}</span>)}</div></div>
             {isLoading && <p className="p-10 text-center font-bold text-on-surface-variant">Đang sinh lịch...</p>}
             {!isLoading && visibleSlots.length === 0 && <p className="p-10 text-center font-bold text-on-surface-variant">Chưa có sân con hoặc chưa thiết lập giờ mở cửa.</p>}
             <div className="divide-y divide-outline-variant">
@@ -161,7 +164,7 @@ export const OwnerDashboard = () => {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm"><div className="border-b border-outline-variant p-5"><h2 className="text-[20px] font-bold">Booking và lịch vận hành</h2></div>{!isLoading && visibleItems.length === 0 && <p className="p-8 text-center text-[13px] font-bold text-on-surface-variant">Chưa có booking, khóa giờ, bảo trì hoặc sự kiện.</p>}<div className="divide-y divide-outline-variant">{visibleItems.map((item) => <div className="grid gap-3 p-4 md:grid-cols-[1fr_150px_140px_1fr_auto] md:items-center" key={item.bookingId}><div><p className="text-[14px] font-bold">{item.title || `${item.venueName} · Sân ${item.courtNumber}`}</p><p className="text-[12px] text-on-surface-variant">{item.venueName} · Sân {item.courtNumber} · {item.customerName ?? (item.entryType ? entryLabel[item.entryType] : 'Chủ sân')}</p></div><p className="text-[13px] font-bold">{item.startTime.slice(0, 10)}<br />{timeValue(item.startTime)}–{timeValue(item.endTime)}</p><span className={`w-fit rounded-full px-3 py-1 text-[11px] font-bold ${item.entryType === 'Maintenance' ? 'bg-orange-100 text-orange-800' : item.entryType === 'Event' ? 'bg-violet-100 text-violet-800' : item.isOwnerEntry ? 'bg-slate-200 text-slate-700' : item.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.entryType ? entryLabel[item.entryType] : statusLabel[item.status] ?? item.status}</span><p className="text-[13px] font-bold">{item.amount ? money.format(item.amount) : '—'}<span className="ml-2 text-[11px] text-on-surface-variant">{item.paymentStatus}</span></p><div className="flex gap-2">{item.isOwnerEntry ? <button className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold" onClick={() => void unlock(item)} type="button"><Unlock className="h-4 w-4" /> Mở</button> : <>{item.status === 'Pending' && <button className="rounded-lg bg-primary p-2 text-white" onClick={() => void updateStatus(item, 'Confirmed')} title="Xác nhận" type="button"><CheckCircle2 className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" onClick={() => void updateStatus(item, 'Cancelled')} title="Hủy" type="button"><XCircle className="h-4 w-4" /></button></>}</div></div>)}</div></div>
+          <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm"><div className="border-b border-outline-variant p-5"><h2 className="text-[20px] font-bold">Booking và lịch vận hành</h2></div>{!isLoading && visibleItems.length === 0 && <p className="p-8 text-center text-[13px] font-bold text-on-surface-variant">Chưa có booking, khóa giờ, bảo trì hoặc sự kiện.</p>}<div className="divide-y divide-outline-variant">{visibleItems.map((item) => <div className="grid gap-3 p-4 md:grid-cols-[1fr_150px_140px_1fr_auto] md:items-center" key={item.bookingId}><div><p className="text-[14px] font-bold">{item.title || `${item.venueName} · Sân ${item.courtNumber}`}</p><p className="text-[12px] text-on-surface-variant">{item.venueName} · Sân {item.courtNumber} · {item.customerName ?? (item.entryType ? entryLabel[item.entryType] : 'Chủ sân')}</p></div><p className="text-[13px] font-bold">{item.startTime.slice(0, 10)}<br />{timeValue(item.startTime)}–{timeValue(item.endTime)}</p><span className={`w-fit rounded-full px-3 py-1 text-[11px] font-bold ${item.entryType === 'Maintenance' ? 'bg-red-100 text-red-800' : item.entryType === 'Event' ? 'bg-violet-100 text-violet-800' : item.isOwnerEntry ? 'bg-slate-200 text-slate-700' : item.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.entryType ? entryLabel[item.entryType] : statusLabel[item.status] ?? item.status}</span><p className="text-[13px] font-bold">{item.amount ? money.format(item.amount) : '—'}<span className="ml-2 text-[11px] text-on-surface-variant">{item.paymentStatus}</span></p><div className="flex gap-2">{item.isOwnerEntry ? <button className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold" onClick={() => void unlock(item)} type="button"><Unlock className="h-4 w-4" /> Mở</button> : <>{item.status === 'Pending' && <button className="rounded-lg bg-primary p-2 text-white" onClick={() => void updateStatus(item, 'Confirmed')} title="Xác nhận" type="button"><CheckCircle2 className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" onClick={() => void updateStatus(item, 'Cancelled')} title="Hủy" type="button"><XCircle className="h-4 w-4" /></button></>}</div></div>)}</div></div>
         </div>
 
         <div className="space-y-5">

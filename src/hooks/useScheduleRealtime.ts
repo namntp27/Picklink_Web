@@ -6,8 +6,8 @@ export type ScheduleRealtimeEvent = {
   courtId: number;
   startTime: string;
   endTime: string;
-  entryType: 'Blocked' | 'Maintenance' | 'Event';
-  action: 'Created' | 'Deleted';
+  entryType: 'Blocked' | 'Maintenance' | 'Event' | 'Holding' | 'Confirmed' | 'Expired' | 'Cancelled';
+  action: 'Created' | 'Updated' | 'Deleted';
 };
 
 export const useScheduleRealtime = (onScheduleChanged: (event: ScheduleRealtimeEvent) => void) => {

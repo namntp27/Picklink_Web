@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'courts' | 'revenue' | 'settings';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'payments' | 'courts' | 'revenue' | 'settings';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -23,6 +23,7 @@ const ownerNavItems: Array<{
 }> = [
   { id: 'schedule', label: 'Lịch đặt sân', shortLabel: 'Lịch', to: '/owner', icon: CalendarDays },
   { id: 'bookings', label: 'Đơn đặt sân', shortLabel: 'Đơn', to: '/owner/bookings', icon: CreditCard },
+  { id: 'payments', label: 'Xác nhận thanh toán', shortLabel: 'Thanh toán', to: '/owner/payments', icon: Banknote },
   { id: 'courts', label: 'Sân & court', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
   { id: 'revenue', label: 'Doanh thu', shortLabel: 'Doanh thu', to: '/owner/revenue', icon: Banknote },
   { id: 'settings', label: 'Cài đặt', shortLabel: 'Cài đặt', to: '/owner/settings', icon: Settings },
@@ -104,7 +105,7 @@ export const OwnerShell = ({
       </main>
     </div>
 
-    <nav className="fixed bottom-0 left-0 right-0 z-50 grid h-16 grid-cols-5 border-t border-outline-variant bg-white md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 grid h-16 grid-cols-6 border-t border-outline-variant bg-white md:hidden">
       {ownerNavItems.map((item) => (
         <Link
           className={cn(

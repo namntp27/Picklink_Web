@@ -28,6 +28,8 @@ export type AvailabilitySlot = {
   startTime: string;
   endTime: string;
   status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed';
+  bookingId?: number | null;
+  isOwnedByCurrentUser?: boolean;
 };
 
 export type CourtAvailability = {
@@ -49,6 +51,42 @@ export type BookingHistory = {
   changedAt: string;
 };
 
+export type PaymentHistory = {
+  fromStatus?: string | null;
+  toStatus: string;
+  action: string;
+  reason?: string | null;
+  createdAt: string;
+};
+
+export type BankTransfer = {
+  paymentId: number;
+  bookingId: number;
+  bookingCode: string;
+  bookingStatus: string;
+  paymentStatus: 'Pending' | 'WaitingForConfirmation' | 'Paid' | 'Expired' | 'Cancelled';
+  amount: number;
+  transferCode?: string | null;
+  transferContent?: string | null;
+  bankCode?: string | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountName?: string | null;
+  qrImageUrl?: string | null;
+  receiptImageUrl?: string | null;
+  submittedAt?: string | null;
+  verifiedAt?: string | null;
+  rejectionReason?: string | null;
+  holdExpiresAt?: string | null;
+  venueId: number;
+  venueName: string;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  playerName: string;
+  history: PaymentHistory[];
+};
+
 export type BookingHolding = {
   bookingId: number;
   bookingCode: string;
@@ -67,12 +105,13 @@ export type BookingHolding = {
   courtAmount: number;
   totalAmount: number;
   paymentStatus: string;
+  bankTransfer?: BankTransfer | null;
   statusHistory: BookingHistory[];
 };
 
 export const getBookingVenues = () => apiRequest<BookingVenue[]>('/api/player-bookings/venues');
 
-export const getCourtAvailability = (venueId: number, date: string) => apiRequest<CourtAvailability>(`/api/player-bookings/venues/${venueId}/availability?date=${encodeURIComponent(date)}`);
+export const getCourtAvailability = (venueId: number, date: string, token?: string | null) => apiRequest<CourtAvailability>(`/api/player-bookings/venues/${venueId}/availability?date=${encodeURIComponent(date)}`, {}, token ?? undefined);
 
 export const createBookingHolding = (token: string, input: { courtId: number; date: string; slotStarts: string[] }) => apiRequest<BookingHolding>('/api/player-bookings/hold', {
   method: 'POST',
@@ -80,6 +119,10 @@ export const createBookingHolding = (token: string, input: { courtId: number; da
 }, token);
 
 export const getBookingHolding = (token: string, bookingId: number) => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}`, {}, token);
+
+export const cancelBookingHolding = (token: string, bookingId: number) => apiRequest<void>(`/api/player-bookings/${bookingId}/hold`, {
+  method: 'DELETE',
+}, token);
 
 export const completeBookingPayment = (token: string, bookingId: number, paymentMethod: 'Wallet' | 'BankTransfer' | 'AtCourt') => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}/pay`, {
   method: 'POST',

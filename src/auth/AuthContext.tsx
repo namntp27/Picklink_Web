@@ -66,6 +66,7 @@ const persistSession = (session: AuthSession | null) => {
 export const getDefaultPathForRole = (role: UserRole) => {
   if (role === 'admin') return '/admin';
   if (role === 'owner') return '/owner';
+  if (role === 'staff') return '/owner/payments';
   return '/';
 };
 

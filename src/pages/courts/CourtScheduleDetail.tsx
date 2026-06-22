@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CalendarDays, Clock, Info, Loader2, MapPin, RefreshCw, ShieldCheck } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
 const localDate = () => { const now = new Date(); return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10); };
+const validScheduleDate = (value: string | null) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localDate() ? value : localDate();
 const time = (value: string) => value.slice(11, 16);
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const minuteOfDay = (value: string) => { const [hour, minute] = value.split(':').map(Number); return hour * 60 + minute; };
@@ -15,8 +16,9 @@ const unavailableLabel: Record<string, string> = { Holding: 'Đang được gi�
 export const CourtScheduleDetail = () => {
   const venueId = Number(useParams().id);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { token } = useAuth();
-  const [date, setDate] = useState(localDate);
+  const [date, setDate] = useState(() => validScheduleDate(searchParams.get('date')));
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
   const [selectedCourtId, setSelectedCourtId] = useState<number | null>(null);
   const [selectedStarts, setSelectedStarts] = useState<string[]>([]);
@@ -29,7 +31,7 @@ export const CourtScheduleDetail = () => {
     if (showLoading) setIsLoading(true);
     setError('');
     try {
-      setAvailability(await getCourtAvailability(venueId, date));
+      setAvailability(await getCourtAvailability(venueId, date, token));
       setSelectedCourtId(null);
       setSelectedStarts([]);
     } catch (requestError) {
@@ -39,7 +41,7 @@ export const CourtScheduleDetail = () => {
     }
   };
 
-  useEffect(() => { void load(); }, [venueId, date]);
+  useEffect(() => { void load(); }, [venueId, date, token]);
   useScheduleRealtime((notification) => {
     if (notification.venueId === venueId && notification.startTime.slice(0, 10) === date) void load(false);
   });
@@ -52,6 +54,10 @@ export const CourtScheduleDetail = () => {
   const estimatedCourtAmount = (selectedCourt?.hourlyPrice ?? 0) * durationHours;
 
   const selectSlot = (slot: AvailabilitySlot) => {
+    if (slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId) {
+      navigate(`/checkout?bookingId=${slot.bookingId}&date=${encodeURIComponent(date)}`);
+      return;
+    }
     if (slot.status !== 'Available' || new Date(slot.startTime).getTime() <= Date.now()) return;
     const slotTime = time(slot.startTime);
     if (selectedCourtId !== slot.courtId) {
@@ -87,7 +93,7 @@ export const CourtScheduleDetail = () => {
         date,
         slotStarts: selectedStarts.map((item) => `${item}:00`),
       });
-      navigate(`/checkout?bookingId=${booking.bookingId}`);
+      navigate(`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(date)}`);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể giữ slot. Vui lòng tải lại lịch.');
       await load();
@@ -96,24 +102,30 @@ export const CourtScheduleDetail = () => {
     }
   };
 
+  const changeDate = (nextDate: string) => {
+    setDate(nextDate);
+    setSearchParams({ date: nextDate }, { replace: true });
+  };
+
   return <div className="min-h-screen bg-surface-container-low px-4 py-6 md:px-10"><div className="mx-auto max-w-[1280px] space-y-5">
     <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary" to="/book-court"><ArrowLeft className="h-4 w-4" /> Chọn cụm sân khác</Link>
     <section className="flex flex-col gap-4 rounded-2xl border border-outline-variant bg-white p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
       <div><p className="text-[12px] font-bold uppercase tracking-wider text-primary">Chọn ngày và slot</p><h1 className="mt-1 text-[28px] font-bold">{availability?.venueName ?? 'Lịch sân'}</h1><p className="mt-2 flex items-center gap-2 text-[13px] text-on-surface-variant"><MapPin className="h-4 w-4" />{availability?.address}</p></div>
-      <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" /><input className="rounded-xl border border-outline-variant px-4 py-3 text-[14px] font-bold" min={localDate()} onChange={(event) => setDate(event.target.value)} type="date" value={date} /><button className="rounded-xl border border-outline-variant p-3" onClick={() => void load()} type="button"><RefreshCw className="h-5 w-5" /></button></div>
+      <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" /><input className="rounded-xl border border-outline-variant px-4 py-3 text-[14px] font-bold" min={localDate()} onChange={(event) => changeDate(event.target.value)} type="date" value={date} /><button className="rounded-xl border border-outline-variant p-3" onClick={() => void load()} type="button"><RefreshCw className="h-5 w-5" /></button></div>
     </section>
     {error && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[13px] font-bold text-amber-800">{error}</div>}
     <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
       <div className="overflow-hidden rounded-2xl border border-outline-variant bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-5"><div><h2 className="text-[20px] font-bold">Slot 30 phút</h2><p className="text-[13px] text-on-surface-variant">{availability?.openTime}–{availability?.closeTime} · chỉ chọn trên cùng một sân</p></div><div className="flex gap-3 text-[11px] font-bold"><span>🟢 Trống</span><span>🔵 Không khả dụng</span><span>🟩 Đã chọn</span></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-5"><div><h2 className="text-[20px] font-bold">Slot 30 phút</h2><p className="text-[13px] text-on-surface-variant">{availability?.openTime}–{availability?.closeTime} · chỉ chọn trên cùng một sân</p></div><div className="flex flex-wrap gap-3 text-[11px] font-bold"><span>🟢 Trống</span><span>🟡 Giữ chỗ của bạn — bấm để tiếp tục</span><span>🔵 Không khả dụng</span><span>🟩 Đã chọn</span></div></div>
         {isLoading && <div className="flex items-center justify-center gap-2 p-14 font-bold text-on-surface-variant"><Loader2 className="h-5 w-5 animate-spin" />Đang kiểm tra slot...</div>}
         {!isLoading && <div className="divide-y divide-outline-variant">{availability?.courts.map((court) => <div className="grid gap-4 p-5 lg:grid-cols-[190px_1fr]" key={court.courtId}>
           <div><h3 className="text-[16px] font-bold">Sân {court.courtNumber}</h3><p className="mt-1 text-[12px] text-on-surface-variant">{court.courtType} · {court.isIndoor ? 'Trong nhà' : 'Ngoài trời'}</p><p className="mt-2 text-[14px] font-bold text-primary">{currency.format(court.hourlyPrice)}/giờ</p></div>
           <div className="flex flex-wrap gap-2">{availability.slots.filter((slot) => slot.courtId === court.courtId).map((slot) => {
             const selected = selectedCourtId === court.courtId && selectedStarts.includes(time(slot.startTime));
             const past = new Date(slot.startTime).getTime() <= Date.now();
-            const disabled = slot.status !== 'Available' || past;
-            return <button className={`min-w-[70px] rounded-lg border px-2 py-2 text-[12px] font-bold ${selected ? 'border-primary bg-primary text-white' : disabled ? 'cursor-not-allowed border-blue-100 bg-blue-50 text-blue-400' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`} disabled={disabled} key={`${court.courtId}-${slot.startTime}`} onClick={() => selectSlot(slot)} title={past ? 'Đã qua' : unavailableLabel[slot.status] ?? 'Còn trống'} type="button">{time(slot.startTime)}</button>;
+            const resumableHolding = slot.status === 'Holding' && Boolean(slot.isOwnedByCurrentUser && slot.bookingId);
+            const disabled = !resumableHolding && (slot.status !== 'Available' || past);
+            return <button className={`min-w-[70px] rounded-lg border px-2 py-2 text-[12px] font-bold ${selected ? 'border-primary bg-primary text-white' : resumableHolding ? 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200' : disabled ? 'cursor-not-allowed border-blue-100 bg-blue-50 text-blue-400' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`} disabled={disabled} key={`${court.courtId}-${slot.startTime}`} onClick={() => selectSlot(slot)} title={resumableHolding ? 'Tiếp tục thanh toán hoặc xem trạng thái xác nhận' : past ? 'Đã qua' : unavailableLabel[slot.status] ?? 'Còn trống'} type="button">{time(slot.startTime)}</button>;
           })}</div>
         </div>)}</div>}
       </div>

@@ -9,7 +9,7 @@ export interface Court {
   features: string[];
 }
 
-export type UserRole = 'player' | 'admin' | 'owner';
+export type UserRole = 'player' | 'admin' | 'owner' | 'staff';
 
 export interface User {
   id: string;

@@ -47,6 +47,7 @@ import { OwnerCourts } from './pages/owner/OwnerCourts';
 import { OwnerVenueDetail } from './pages/owner/OwnerVenueDetail';
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerRevenue } from './pages/owner/OwnerRevenue';
+import { OwnerPayments } from './pages/owner/OwnerPayments';
 import { OwnerSettings } from './pages/owner/OwnerSettings';
 import { Home } from './pages/home/Home';
 import { Messages } from './pages/messages/Messages';
@@ -119,6 +120,9 @@ function App() {
         <Route path="/owner/courts/:id/edit" element={<OwnerCourtEdit />} />
         <Route path="/owner/revenue" element={<OwnerRevenue />} />
         <Route path="/owner/settings" element={<OwnerSettings />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['owner', 'staff']} />}>
+        <Route path="/owner/payments" element={<OwnerPayments />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['player']} />}>
         <Route path="/checkout" element={<Checkout />} />

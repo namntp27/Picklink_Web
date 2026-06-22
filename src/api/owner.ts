@@ -87,7 +87,7 @@ export type OwnerScheduleSlot = {
   courtNumber: number;
   startTime: string;
   endTime: string;
-  status: 'Available' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed' | 'Inactive';
+  status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed' | 'Inactive';
   bookingId?: number | null;
   entryType?: OwnerScheduleEntryType | null;
   title?: string | null;
