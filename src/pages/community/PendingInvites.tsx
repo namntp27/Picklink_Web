@@ -19,6 +19,7 @@ import {
 import { getCourtsByProvince, getWardsByProvince, provinceOptions } from './Opponents';
 import { getOpenMatches, joinMatch, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 
 type MatchFormat = '1vs1' | '2vs2';
 
@@ -163,6 +164,7 @@ export const PendingInvites = () => {
   };
 
   useEffect(() => { void loadInvites(); }, [token]);
+  useMatchRealtime(() => { void loadInvites(); });
 
   const waitingSlots = useMemo(
     () => invites.reduce((total, invite) => total + Math.max(invite.needed - invite.joined, 0), 0),

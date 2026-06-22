@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { getBookingVenues, getCourtAvailability, type BookingVenue, type CourtAvailability } from '../../api/booking';
 import { createMatch } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
 type MatchFormat = '1vs1' | '2vs2';
 type LocatedVenue = BookingVenue & { latitude: number; longitude: number };
@@ -122,6 +123,13 @@ export const Opponents = () => {
       })
       .finally(() => setIsLoadingSchedule(false));
   }, [bookingDate, selectedVenueId, token]);
+
+  useScheduleRealtime((event) => {
+    if (event.venueId !== selectedVenueId || event.startTime.slice(0, 10) !== bookingDate) return;
+    getCourtAvailability(event.venueId, bookingDate, token)
+      .then(setAvailability)
+      .catch(() => setError('Không thể đồng bộ lịch sân mới nhất.'));
+  });
 
   const mappedVenues = useMemo(() => venues.filter(isLocatedVenue), [venues]);
   const selectedVenue = venues.find((venue) => venue.venueId === selectedVenueId);

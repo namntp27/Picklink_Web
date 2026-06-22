@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cancelMatch, getMyMatches, reopenMatch, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 
 type MatchStatus = 'waiting' | 'payment' | 'confirmed' | 'cancelled';
 type MatchRole = 'host' | 'participant';
@@ -221,6 +222,7 @@ export const MyMatches = () => {
   };
 
   useEffect(() => { void loadMatches(); }, [token]);
+  useMatchRealtime(() => { void loadMatches(); });
 
   const filteredMatches = useMemo(
     () => (activeFilter === 'all' ? matches : matches.filter((match) => match.status === activeFilter)),

@@ -20,6 +20,7 @@ import {
 import { submitBankTransfer } from '../../api/payment';
 import { acceptParticipant, getMatchDetail, joinMatch, leaveMatch, rejectParticipant, type MatchDetailResponse } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 
 type MatchFormat = '1vs1' | '2vs2';
 type PaymentStatus = 'paid' | 'pending' | 'not_joined';
@@ -186,6 +187,9 @@ export const MatchDetail = () => {
   };
 
   useEffect(() => { void loadMatch(); }, [matchId, token]);
+  useMatchRealtime((event) => {
+    if (event.matchId === matchId) void loadMatch();
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 1_000);
