@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -17,6 +17,8 @@ import {
   Users,
 } from 'lucide-react';
 import { getCourtsByProvince, getWardsByProvince, provinceOptions } from './Opponents';
+import { getOpenMatches, joinMatch, type MatchSummary } from '../../api/matches';
+import { useAuth } from '../../auth/AuthContext';
 
 type MatchFormat = '1vs1' | '2vs2';
 
@@ -131,9 +133,36 @@ const formatMatchDate = (date: string) =>
   }).format(new Date(`${date}T00:00:00`));
 
 export const PendingInvites = () => {
-  const [invites, setInvites] = useState<MatchInvite[]>(initialInvites);
+  const { token } = useAuth();
+  const [invites, setInvites] = useState<MatchInvite[]>([]);
   const [selectedInvite, setSelectedInvite] = useState<MatchInvite | null>(null);
   const [filters, setFilters] = useState<InviteFilters>(defaultFilters);
+
+  const mapInvite = (match: MatchSummary): MatchInvite => ({
+    id: match.matchId,
+    ownerType: match.isHost ? 'mine' : 'other',
+    host: match.isHost ? 'Bạn' : match.hostName,
+    level: String(match.matchSkillLevel),
+    province: 'Việt Nam',
+    ward: match.address,
+    court: `${match.venueName} - Sân ${match.courtNumber}`,
+    address: match.address,
+    date: match.startTime.slice(0, 10),
+    startTime: match.startTime.slice(11, 16),
+    endTime: match.endTime.slice(11, 16),
+    format: match.matchType,
+    note: match.note || 'Đang chờ người chơi phù hợp tham gia.',
+    price: match.totalBookingAmount,
+    joined: match.acceptedPlayerCount,
+    needed: match.requiredPlayerCount,
+  });
+
+  const loadInvites = async () => {
+    if (!token) return;
+    setInvites((await getOpenMatches(token)).map(mapInvite));
+  };
+
+  useEffect(() => { void loadInvites(); }, [token]);
 
   const waitingSlots = useMemo(
     () => invites.reduce((total, invite) => total + Math.max(invite.needed - invite.joined, 0), 0),
@@ -205,14 +234,11 @@ export const PendingInvites = () => {
     });
   };
 
-  const handleJoinInvite = (invite: MatchInvite) => {
-    const updatedInvite = {
-      ...invite,
-      joined: Math.min(invite.joined + 1, invite.needed),
-    };
-
-    setInvites((current) => current.map((item) => (item.id === invite.id ? updatedInvite : item)));
-    setSelectedInvite(updatedInvite);
+  const handleJoinInvite = async (invite: MatchInvite) => {
+    if (!token) return;
+    await joinMatch(token, invite.id);
+    setSelectedInvite(invite);
+    await loadInvites();
   };
 
   return (
@@ -505,7 +531,7 @@ export const PendingInvites = () => {
                               : 'bg-primary text-white hover:bg-primary/90'
                           }`}
                           disabled={availableSlots === 0}
-                          onClick={() => handleJoinInvite(invite)}
+                          onClick={() => void handleJoinInvite(invite)}
                           type="button"
                         >
                           {availableSlots === 0 ? <CheckCircle2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}

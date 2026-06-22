@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarClock,
@@ -16,6 +16,8 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
+import { cancelMatch, getMyMatches, reopenMatch, type MatchSummary } from '../../api/matches';
+import { useAuth } from '../../auth/AuthContext';
 
 type MatchStatus = 'waiting' | 'payment' | 'confirmed' | 'cancelled';
 type MatchRole = 'host' | 'participant';
@@ -175,8 +177,50 @@ const formatDate = (date: string) =>
   }).format(new Date(`${date}T00:00:00`));
 
 export const MyMatches = () => {
+  const { token } = useAuth();
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
-  const [matches, setMatches] = useState<MyMatch[]>(initialMatches);
+  const [matches, setMatches] = useState<MyMatch[]>([]);
+  const [error, setError] = useState('');
+
+  const mapStatus = (status: MatchSummary['status']): MatchStatus => {
+    if (status === 'Waiting' || status === 'Full') return 'waiting';
+    if (status === 'PaymentPending') return 'payment';
+    if (status === 'Cancelled') return 'cancelled';
+    return 'confirmed';
+  };
+
+  const mapMatch = (match: MatchSummary): MyMatch => ({
+    id: match.matchId,
+    title: `${match.matchType} tại ${match.venueName}`,
+    role: match.isHost ? 'host' : 'participant',
+    status: mapStatus(match.status),
+    level: String(match.matchSkillLevel),
+    format: match.matchType,
+    courtCluster: match.venueName,
+    subCourt: `Sân ${match.courtNumber}`,
+    ward: match.address,
+    province: '',
+    date: match.startTime.slice(0, 10),
+    startTime: match.startTime.slice(11, 16),
+    endTime: match.endTime.slice(11, 16),
+    joined: match.acceptedPlayerCount,
+    needed: match.requiredPlayerCount,
+    totalPrice: match.totalBookingAmount,
+    note: match.note || `Trạng thái hiện tại: ${match.status}.`,
+  });
+
+  const loadMatches = async () => {
+    if (!token) return;
+    try {
+      setMatches((await getMyMatches(token)).map(mapMatch));
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách trận.');
+    }
+  };
+
+  useEffect(() => { void loadMatches(); }, [token]);
 
   const filteredMatches = useMemo(
     () => (activeFilter === 'all' ? matches : matches.filter((match) => match.status === activeFilter)),
@@ -208,16 +252,19 @@ export const MyMatches = () => {
   const waitingMatches = matches.filter((match) => match.status === 'waiting');
 
   const handlePay = (matchId: number) => {
-    setMatches((current) => current.map((match) => (match.id === matchId ? { ...match, status: 'confirmed' } : match)));
-    setActiveFilter('confirmed');
+    navigate(`/matches/${matchId}`);
   };
 
-  const handleCancel = (matchId: number) => {
-    setMatches((current) => current.map((match) => (match.id === matchId ? { ...match, status: 'cancelled' } : match)));
+  const handleCancel = async (matchId: number) => {
+    if (!token || !window.confirm('Bạn chắc chắn muốn hủy trận này?')) return;
+    await cancelMatch(token, matchId);
+    await loadMatches();
   };
 
-  const handleReopen = (matchId: number) => {
-    setMatches((current) => current.map((match) => (match.id === matchId ? { ...match, status: 'waiting', joined: 1 } : match)));
+  const handleReopen = async (matchId: number) => {
+    if (!token) return;
+    await reopenMatch(token, matchId);
+    await loadMatches();
   };
 
   return (
@@ -255,6 +302,7 @@ export const MyMatches = () => {
 
       <main className="mx-auto grid max-w-[1200px] grid-cols-1 gap-6 px-4 py-8 md:px-margin-desktop lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] font-bold text-red-700">{error}</div>}
           <section className="rounded-xl border border-outline-variant bg-white p-4 shadow-sm">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {filters.map((filter) => (
@@ -325,10 +373,10 @@ export const MyMatches = () => {
                         </button>
                       )}
 
-                      {match.status === 'waiting' && (
+                      {match.status === 'waiting' && match.role === 'host' && (
                         <button
                           className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low xl:w-auto"
-                          onClick={() => handleCancel(match.id)}
+                          onClick={() => void handleCancel(match.id)}
                           type="button"
                         >
                           <XCircle className="h-5 w-5" />
@@ -336,10 +384,10 @@ export const MyMatches = () => {
                         </button>
                       )}
 
-                      {match.status === 'cancelled' && (
+                      {match.status === 'cancelled' && match.role === 'host' && (
                         <button
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90 xl:w-auto"
-                          onClick={() => handleReopen(match.id)}
+                          onClick={() => void handleReopen(match.id)}
                           type="button"
                         >
                           <RotateCcw className="h-5 w-5" />

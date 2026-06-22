@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -17,6 +17,9 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
+import { submitBankTransfer } from '../../api/payment';
+import { acceptParticipant, getMatchDetail, joinMatch, leaveMatch, rejectParticipant, type MatchDetailResponse } from '../../api/matches';
+import { useAuth } from '../../auth/AuthContext';
 
 type MatchFormat = '1vs1' | '2vs2';
 type PaymentStatus = 'paid' | 'pending' | 'not_joined';
@@ -51,7 +54,7 @@ type MatchDetailData = {
   players: Player[];
 };
 
-const matchDetail: MatchDetailData = {
+const fallbackMatchDetail: MatchDetailData = {
   id: '1',
   host: 'Trần Quốc Bảo',
   level: '3.0 - 3.5',
@@ -130,23 +133,67 @@ const getPaymentClassName = (status: PaymentStatus) => {
 
 export const MatchDetail = () => {
   const { id } = useParams();
+  const matchId = Number(id);
+  const { token } = useAuth();
+  const [matchDetail, setMatchDetail] = useState<MatchDetailData>(fallbackMatchDetail);
+  const [rawMatch, setRawMatch] = useState<MatchDetailResponse | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [error, setError] = useState('');
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  const mapDetail = (match: MatchDetailResponse): MatchDetailData => ({
+    id: String(match.matchId),
+    host: match.hostName,
+    level: String(match.matchSkillLevel),
+    format: match.matchType,
+    status: match.status === 'Waiting' ? 'waiting' : match.status === 'PaymentPending' ? 'payment_pending' : match.status === 'Confirmed' || match.status === 'Completed' ? 'confirmed' : 'matched',
+    province: '',
+    ward: match.address,
+    courtCluster: match.venueName,
+    subCourt: `Sân ${match.courtNumber}`,
+    address: match.address,
+    date: match.startTime.slice(0, 10),
+    startTime: match.startTime.slice(11, 16),
+    endTime: match.endTime.slice(11, 16),
+    durationHours: (new Date(match.endTime).getTime() - new Date(match.startTime).getTime()) / 3_600_000,
+    totalPrice: match.totalBookingAmount,
+    needed: match.requiredPlayerCount,
+    note: match.note || 'Đang chờ người chơi phù hợp tham gia.',
+    players: match.participants.filter((participant) => participant.status === 'Accepted').map((participant) => ({
+      id: participant.playerId,
+      name: participant.playerName,
+      avatar: participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]?.toUpperCase()).join(''),
+      level: participant.skillLevel.toFixed(1),
+      role: participant.isHost ? 'Chủ trận' : 'Người tham gia',
+      paymentStatus: participant.paymentStatus === 'Paid' ? 'paid' : 'pending',
+    })),
+  });
+
+  const loadMatch = async () => {
+    if (!token || !Number.isInteger(matchId)) return;
+    try {
+      const match = await getMatchDetail(token, matchId);
+      setRawMatch(match);
+      setMatchDetail(mapDetail(match));
+      setHasJoined(match.myParticipantStatus === 'Accepted');
+      setHasPaid(match.myPaymentStatus === 'Paid');
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể tải chi tiết trận.');
+    }
+  };
+
+  useEffect(() => { void loadMatch(); }, [matchId, token]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const players = useMemo(() => {
-    const joinedPlayers = hasJoined
-      ? [
-          ...matchDetail.players,
-          {
-            id: 99,
-            name: 'Bạn',
-            avatar: 'B',
-            level: '3.0',
-            role: 'Người tham gia' as const,
-            paymentStatus: hasPaid ? ('paid' as const) : ('pending' as const),
-          },
-        ]
-      : matchDetail.players;
+    const joinedPlayers = matchDetail.players;
 
     const emptySlots = Math.max(matchDetail.needed - joinedPlayers.length, 0);
     const placeholders: Player[] = Array.from({ length: emptySlots }, (_, index) => ({
@@ -159,13 +206,44 @@ export const MatchDetail = () => {
     }));
 
     return [...joinedPlayers, ...placeholders];
-  }, [hasJoined, hasPaid]);
+  }, [matchDetail]);
+
+  const handleJoin = async () => {
+    if (!token) return;
+    await joinMatch(token, matchId);
+    await loadMatch();
+  };
+
+  const handleLeave = async () => {
+    if (!token) return;
+    await leaveMatch(token, matchId);
+    await loadMatch();
+  };
+
+  const handlePayment = async () => {
+    if (!token || !rawMatch || !receipt) { setError('Vui lòng chọn ảnh biên lai.'); return; }
+    await submitBankTransfer(token, rawMatch.bookingId, receipt);
+    setReceipt(null);
+    await loadMatch();
+  };
 
   const joinedCount = players.filter((player) => player.role !== 'Chỗ trống').length;
   const availableSlots = Math.max(matchDetail.needed - joinedCount, 0);
   const perPlayerPrice = Math.ceil(matchDetail.totalPrice / matchDetail.needed);
   const isFull = availableSlots === 0;
   const detailId = id ?? matchDetail.id;
+  const isPaymentCountdown = rawMatch?.status === 'PaymentPending' && Boolean(rawMatch.paymentDeadline);
+  const countdownTarget = isPaymentCountdown
+    ? new Date(rawMatch!.paymentDeadline!).getTime()
+    : new Date(rawMatch?.startTime ?? `${matchDetail.date}T${matchDetail.startTime}:00`).getTime();
+  const countdownMilliseconds = Number.isFinite(countdownTarget) ? Math.max(0, countdownTarget - currentTime) : 0;
+  const countdownSeconds = Math.floor(countdownMilliseconds / 1_000);
+  const countdownDays = Math.floor(countdownSeconds / 86_400);
+  const countdownHours = Math.floor((countdownSeconds % 86_400) / 3_600);
+  const countdownMinutes = Math.floor((countdownSeconds % 3_600) / 60);
+  const countdownRemainingSeconds = countdownSeconds % 60;
+  const showCountdown = rawMatch?.status === 'Waiting' || rawMatch?.status === 'Full' || isPaymentCountdown;
+  const twoDigits = (value: number) => value.toString().padStart(2, '0');
 
   return (
     <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
@@ -201,6 +279,32 @@ export const MatchDetail = () => {
                   {isFull ? 'Đã đủ người' : `Còn ${availableSlots} chỗ`}
                 </span>
               </div>
+              {showCountdown && (
+                <div className="mt-5 border-t border-white/20 pt-4">
+                  <p className="text-[12px] font-bold uppercase tracking-wide text-white/72">
+                    {isPaymentCountdown ? 'Hạn thanh toán còn' : 'Trận bắt đầu sau'}
+                  </p>
+                  {countdownMilliseconds > 0 ? (
+                    <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                      {[
+                        { value: countdownDays, label: 'Ngày' },
+                        { value: countdownHours, label: 'Giờ' },
+                        { value: countdownMinutes, label: 'Phút' },
+                        { value: countdownRemainingSeconds, label: 'Giây' },
+                      ].map((item) => (
+                        <div className="rounded-lg bg-white/12 px-2 py-2" key={item.label}>
+                          <p className="text-[20px] font-bold tabular-nums">{twoDigits(item.value)}</p>
+                          <p className="mt-0.5 text-[10px] font-bold uppercase text-white/65">{item.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 rounded-lg bg-white/12 px-3 py-3 text-center text-[14px] font-bold">
+                      {isPaymentCountdown ? 'Đã hết thời gian thanh toán' : 'Đã đến giờ thi đấu'}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -208,6 +312,7 @@ export const MatchDetail = () => {
 
       <main className="mx-auto grid max-w-[1200px] grid-cols-1 gap-6 px-4 py-8 md:px-margin-desktop lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] font-bold text-red-700">{error}</div>}
           <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               {[
@@ -265,6 +370,21 @@ export const MatchDetail = () => {
                 Cần {matchDetail.needed} người
               </span>
             </div>
+
+            {rawMatch?.isHost && rawMatch.participants.some((participant) => participant.status === 'Pending') && (
+              <div className="mb-5 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-[14px] font-bold text-amber-900">Yêu cầu đang chờ chủ trận duyệt</p>
+                {rawMatch.participants.filter((participant) => participant.status === 'Pending').map((participant) => (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white p-3" key={participant.participantId}>
+                    <span className="text-[14px] font-bold">{participant.playerName} · Level {participant.skillLevel.toFixed(1)}</span>
+                    <div className="flex gap-2">
+                      <button className="rounded-lg border border-red-300 px-3 py-2 text-[12px] font-bold text-red-700" onClick={() => token && void rejectParticipant(token, matchId, participant.participantId).then(loadMatch)} type="button">Từ chối</button>
+                      <button className="rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white" onClick={() => token && void acceptParticipant(token, matchId, participant.participantId).then(loadMatch)} type="button">Chấp nhận</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {players.map((player) => (
@@ -337,33 +457,49 @@ export const MatchDetail = () => {
               </div>
             </div>
 
-            {!hasJoined ? (
+            {rawMatch?.myQrImageUrl && rawMatch.myPaymentStatus === 'Pending' && (
+              <img alt="QR thanh toán" className="mx-auto mt-5 w-full max-w-[260px] rounded-xl border border-outline-variant" src={rawMatch.myQrImageUrl} />
+            )}
+            {rawMatch?.myTransferContent && rawMatch.myPaymentStatus === 'Pending' && (
+              <div className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[13px]">Nội dung chuyển khoản: <strong>{rawMatch.myTransferContent}</strong></div>
+            )}
+            {hasJoined && rawMatch?.myPaymentStatus === 'Pending' && (
+              <label className="mt-3 block cursor-pointer rounded-lg border border-dashed border-primary p-3 text-center text-[13px] font-bold text-primary">
+                {receipt ? receipt.name : 'Chọn ảnh biên lai'}
+                <input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+              </label>
+            )}
+
+            {rawMatch?.isHost ? (
+              <div className="mt-5 rounded-lg bg-primary/10 p-3 text-center text-[13px] font-bold text-primary">Bạn là chủ trận. Hãy duyệt người chơi ở danh sách bên trái.</div>
+            ) : !hasJoined ? (
               <button
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[15px] font-bold text-white hover:bg-primary/90"
-                onClick={() => setHasJoined(true)}
+                disabled={rawMatch?.myParticipantStatus === 'Pending'}
+                onClick={() => void handleJoin()}
                 type="button"
               >
                 <UserCheck className="h-5 w-5" />
-                Tham gia trận
+                {rawMatch?.myParticipantStatus === 'Pending' ? 'Đang chờ chủ trận duyệt' : 'Tham gia trận'}
               </button>
             ) : (
               <button
                 className={`mt-5 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[15px] font-bold text-white ${
                   hasPaid ? 'bg-[#6f7a61]' : 'bg-primary hover:bg-primary/90'
                 }`}
-                disabled={hasPaid}
-                onClick={() => setHasPaid(true)}
+                disabled={hasPaid || rawMatch?.myPaymentStatus === 'WaitingForConfirmation' || rawMatch?.myPaymentStatus !== 'Pending'}
+                onClick={() => void handlePayment()}
                 type="button"
               >
                 <CreditCard className="h-5 w-5" />
-                {hasPaid ? 'Bạn đã thanh toán' : 'Thanh toán phần của tôi'}
+                {hasPaid ? 'Bạn đã thanh toán' : rawMatch?.myPaymentStatus === 'WaitingForConfirmation' ? 'Đang chờ xác nhận biên lai' : rawMatch?.myPaymentStatus === 'Pending' ? 'Gửi biên lai thanh toán' : 'Chờ trận đủ người'}
               </button>
             )}
 
-            {hasJoined && !hasPaid && (
+            {!rawMatch?.isHost && (hasJoined || rawMatch?.myParticipantStatus === 'Pending') && !hasPaid && (
               <button
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[15px] font-bold text-on-surface hover:bg-surface-container-low"
-                onClick={() => setHasJoined(false)}
+                onClick={() => void handleLeave()}
                 type="button"
               >
                 <XCircle className="h-5 w-5" />
