@@ -105,6 +105,7 @@ export type BookingHolding = {
   courtAmount: number;
   totalAmount: number;
   paymentStatus: string;
+  checkInStatus: 'NotOpen' | 'Ready' | 'CheckedIn' | 'Missed' | 'NotApplicable';
   bankTransfer?: BankTransfer | null;
   statusHistory: BookingHistory[];
 };
