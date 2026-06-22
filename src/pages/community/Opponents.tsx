@@ -78,6 +78,7 @@ export const Opponents = () => {
   const importedDate = searchParams.get('date') ?? '';
   const importedStart = searchParams.get('start') ?? '';
   const importedEnd = searchParams.get('end') ?? '';
+  const roomExpired = searchParams.get('expired') === '1';
 
   const [venues, setVenues] = useState<BookingVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(importedVenueId > 0 ? importedVenueId : null);
@@ -243,6 +244,7 @@ export const Opponents = () => {
         <div className="mt-5 flex flex-wrap gap-3"><Link className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/my-matches"><Trophy className="h-5 w-5" /> Xem trận của tôi</Link><Link className="inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-3 text-[14px] font-bold text-white" to="/opponents/pending"><ListChecks className="h-5 w-5" /> Lời mời đang chờ</Link></div>
       </div></section>
 
+      {roomExpired && <div className="mx-auto mt-6 w-[calc(100%-2rem)] max-w-[1200px] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800">Phòng ghép trận đã hết thời gian. Bạn đã được đưa ra khỏi phòng và khung giờ sân đã trở lại trạng thái trống.</div>}
       <main className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-6 px-4 py-8 md:px-margin-desktop lg:grid-cols-[420px_minmax(0,1fr)]">
         <aside className="lg:sticky lg:top-24 lg:self-start"><section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
           <div className="mb-5 flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-white"><PlusCircle className="h-6 w-6" /></div><div><h2 className="text-[20px] font-bold">Tạo lời mời ghép trận</h2><p className="text-[13px] text-on-surface-variant">Nhập đầy đủ thông tin trận đấu</p></div></div>

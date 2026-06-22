@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -134,6 +134,7 @@ const getPaymentClassName = (status: PaymentStatus) => {
 
 export const MatchDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const matchId = Number(id);
   const { token } = useAuth();
   const [matchDetail, setMatchDetail] = useState<MatchDetailData>(fallbackMatchDetail);
@@ -188,7 +189,12 @@ export const MatchDetail = () => {
 
   useEffect(() => { void loadMatch(); }, [matchId, token]);
   useMatchRealtime((event) => {
-    if (event.matchId === matchId) void loadMatch();
+    if (event.matchId !== matchId) return;
+    if (event.action === 'Expired') {
+      navigate('/opponents?expired=1', { replace: true });
+      return;
+    }
+    void loadMatch();
   });
 
   useEffect(() => {
