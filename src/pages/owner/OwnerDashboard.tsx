@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Lock, RefreshCw, Settings2, Sparkles, Unlock, Wrench, XCircle } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, Lock, RefreshCw, Settings2, Sparkles, Unlock, Wrench, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import {
@@ -14,6 +14,7 @@ import {
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { OwnerShell } from './components/OwnerShell';
 
 const toLocalDate = (date = new Date()) => {
@@ -25,6 +26,16 @@ const timeValue = (dateTime: string) => dateTime.slice(11, 16);
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
 const statusLabel: Record<string, string> = { Holding: 'Giữ chỗ', Pending: 'Chờ xác nhận', Confirmed: 'Đã đặt', Blocked: 'Đã khóa', Cancelled: 'Đã hủy' };
+const slotStatusLabel: Record<OwnerScheduleSlot['status'], string> = {
+  Available: 'Trống',
+  Holding: 'Giữ chỗ',
+  Booked: 'Đã đặt',
+  Blocked: 'Đã khóa',
+  Maintenance: 'Bảo trì',
+  Event: 'Sự kiện',
+  Closed: 'Đã đóng cửa',
+  Inactive: 'Ngừng hoạt động',
+};
 const entryLabel: Record<OwnerScheduleEntryType, string> = { Blocked: 'Khóa khung giờ', Maintenance: 'Bảo trì', Event: 'Sự kiện' };
 const slotClass: Record<OwnerScheduleSlot['status'], string> = {
   Available: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
@@ -51,6 +62,7 @@ export const OwnerDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState<OwnerScheduleSlot | null>(null);
 
   const load = async (showLoading = true) => {
     if (!token) return;
@@ -72,6 +84,9 @@ export const OwnerDashboard = () => {
     const endDate = view === 'week' ? addDays(date, 6) : date;
     const changedDate = notification.startTime.slice(0, 10);
     if (visibleVenue && changedDate >= date && changedDate <= endDate) void load(false);
+  });
+  usePaymentRealtime((notification) => {
+    if (schedule?.venues.some((venue) => venue.venueId === notification.venueId)) void load(false);
   });
 
   const visibleItems = useMemo(() => schedule?.items.filter((item) => venueFilter === 'all' || item.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
@@ -116,12 +131,18 @@ export const OwnerDashboard = () => {
   };
 
   const selectSlot = (slot: OwnerScheduleSlot) => {
-    if (slot.status !== 'Available') return;
-    setDate(slot.startTime.slice(0, 10));
-    setCourtId(slot.courtId.toString());
-    setStartTime(timeValue(slot.startTime));
-    setEndTime(timeValue(slot.endTime));
+    setSelectedSlot(slot);
+    if (slot.status === 'Available') {
+      setDate(slot.startTime.slice(0, 10));
+      setCourtId(slot.courtId.toString());
+      setStartTime(timeValue(slot.startTime));
+      setEndTime(timeValue(slot.endTime));
+    }
   };
+
+  const selectedSlotItem = selectedSlot?.bookingId
+    ? visibleItems.find((item) => item.bookingId === selectedSlot.bookingId)
+    : undefined;
 
   const movePeriod = (direction: number) => setDate((current) => addDays(current, direction * (view === 'week' ? 7 : 1)));
 
@@ -159,7 +180,7 @@ export const OwnerDashboard = () => {
               {days.map((day) => {
                 const daySlots = visibleSlots.filter((slot) => slot.startTime.startsWith(day));
                 const courts = [...new Map(daySlots.map((slot) => [slot.courtId, slot])).values()];
-                return <div className="p-4" key={day}><h3 className="mb-3 text-[15px] font-bold capitalize">{dateLabel(day)}</h3><div className="space-y-3">{courts.map((court) => { const slots = daySlots.filter((slot) => slot.courtId === court.courtId); return <div className="grid gap-2 lg:grid-cols-[180px_1fr]" key={court.courtId}><div><p className="text-[13px] font-bold">{court.venueName}</p><p className="text-[12px] text-on-surface-variant">Sân {court.courtNumber}</p></div><div className="flex flex-wrap gap-1.5">{slots.map((slot) => <button className={`min-w-[62px] rounded-md border px-2 py-1.5 text-[11px] font-bold ${slotClass[slot.status]}`} disabled={slot.status !== 'Available'} key={`${slot.courtId}-${slot.startTime}`} onClick={() => selectSlot(slot)} title={slot.title ?? slot.status} type="button">{timeValue(slot.startTime)}</button>)}</div></div>; })}</div></div>;
+                return <div className="p-4" key={day}><h3 className="mb-3 text-[15px] font-bold capitalize">{dateLabel(day)}</h3><div className="space-y-3">{courts.map((court) => { const slots = daySlots.filter((slot) => slot.courtId === court.courtId); return <div className="grid gap-2 lg:grid-cols-[180px_1fr]" key={court.courtId}><div><p className="text-[13px] font-bold">{court.venueName}</p><p className="text-[12px] text-on-surface-variant">Sân {court.courtNumber}</p></div><div className="flex flex-wrap gap-1.5">{slots.map((slot) => <button className={`min-w-[62px] cursor-pointer rounded-md border px-2 py-1.5 text-[11px] font-bold transition hover:ring-2 hover:ring-primary/30 ${slotClass[slot.status]}`} key={`${slot.courtId}-${slot.startTime}`} onClick={() => selectSlot(slot)} title={`Xem thông tin: ${slot.title ?? slotStatusLabel[slot.status]}`} type="button">{timeValue(slot.startTime)}</button>)}</div></div>; })}</div></div>;
               })}
             </div>
           </div>
@@ -181,6 +202,40 @@ export const OwnerDashboard = () => {
           <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><div className="mb-3 flex items-center gap-2"><Settings2 className="h-5 w-5 text-primary" /><h2 className="text-[18px] font-bold">Giờ mở cửa</h2></div><div className="space-y-3">{schedule?.venues.map((venue) => <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-container-low p-3" key={venue.venueId}><div><p className="text-[13px] font-bold">{venue.venueName}</p><p className="text-[12px] text-on-surface-variant">{venue.openTime.slice(0, 5)}–{venue.closeTime.slice(0, 5)}</p></div><Link className="text-[12px] font-bold text-primary hover:underline" to={`/owner/courts/${venue.venueId}/edit`}>Thiết lập</Link></div>)}</div></section>
         </div>
       </section>
+
+      {selectedSlot && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/45 p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedSlot(null)}>
+          <section aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="dialog">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[12px] font-bold uppercase tracking-wide text-primary">Thông tin khung giờ</p>
+                <h2 className="mt-1 text-[24px] font-bold">{selectedSlot.venueName} · Sân {selectedSlot.courtNumber}</h2>
+              </div>
+              <button aria-label="Đóng" className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-low" onClick={() => setSelectedSlot(null)} type="button"><XCircle className="h-6 w-6" /></button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 text-[13px]">
+              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Ngày</p><p className="mt-1 font-bold">{dateLabel(selectedSlot.startTime.slice(0, 10))}</p></div>
+              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Thời gian</p><p className="mt-1 font-bold">{timeValue(selectedSlot.startTime)}–{timeValue(selectedSlot.endTime)}</p></div>
+              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Trạng thái</p><span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${slotClass[selectedSlot.status]}`}>{slotStatusLabel[selectedSlot.status]}</span></div>
+              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Mã booking</p><p className="mt-1 font-bold">{selectedSlot.bookingId ? `#${selectedSlot.bookingId}` : 'Chưa có'}</p></div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-outline-variant p-4">
+              <p className="flex items-center gap-2 text-[14px] font-bold"><Eye className="h-4 w-4 text-primary" /> Chi tiết</p>
+              <div className="mt-3 space-y-2 text-[13px]">
+                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Nội dung</span><strong className="text-right">{selectedSlot.title || selectedSlotItem?.title || slotStatusLabel[selectedSlot.status]}</strong></div>
+                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Khách hàng</span><strong className="text-right">{selectedSlotItem?.customerName || '—'}</strong></div>
+                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Thanh toán</span><strong className="text-right">{selectedSlotItem?.paymentStatus || '—'}</strong></div>
+                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Số tiền</span><strong className="text-right">{selectedSlotItem?.amount ? money.format(selectedSlotItem.amount) : '—'}</strong></div>
+              </div>
+            </div>
+
+            {selectedSlot.status === 'Available' && <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-[12px] font-medium text-emerald-800">Khung giờ đang trống và đã được điền vào form “Tạo lịch vận hành”.</p>}
+            <button className="mt-5 w-full rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" onClick={() => setSelectedSlot(null)} type="button">Đóng</button>
+          </section>
+        </div>
+      )}
     </OwnerShell>
   );
 };

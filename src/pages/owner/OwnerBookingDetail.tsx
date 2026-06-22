@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { getOwnerBooking, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -64,6 +66,12 @@ export const OwnerBookingDetail = () => {
   }, [bookingId, token]);
 
   useEffect(() => { void load(); }, [load]);
+  useScheduleRealtime((event) => {
+    if (!booking || (event.venueId === booking.venueId && event.courtId === booking.courtId)) void load();
+  });
+  usePaymentRealtime((event) => {
+    if (event.bookingId === bookingId) void load();
+  });
 
   const timeline = useMemo<TimelineEvent[]>(() => {
     if (!booking) return [];

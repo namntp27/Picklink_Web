@@ -5,6 +5,7 @@ import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 
 const localDate = () => { const now = new Date(); return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10); };
 const validScheduleDate = (value: string | null) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localDate() ? value : localDate();
@@ -44,6 +45,9 @@ export const CourtScheduleDetail = () => {
   useEffect(() => { void load(); }, [venueId, date, token]);
   useScheduleRealtime((notification) => {
     if (notification.venueId === venueId && notification.startTime.slice(0, 10) === date) void load(false);
+  });
+  useVenueRealtime((notification) => {
+    if (notification.venueId === venueId) void load(false);
   });
 
   const selectedCourt = availability?.courts.find((court) => court.courtId === selectedCourtId);

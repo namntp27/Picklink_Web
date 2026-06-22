@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { addFavoriteVenue, getBookingVenues, removeFavoriteVenue, type BookingVenue } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
@@ -101,6 +102,21 @@ export const BookCourt = () => {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [area, favoritesOnly, maxPrice, minPrice, search, token]);
+
+  useVenueRealtime(() => {
+    getBookingVenues({
+      search,
+      area,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      favoritesOnly,
+    }, token)
+      .then((items) => {
+        setVenues(items);
+        setError('');
+      })
+      .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể đồng bộ danh sách sân.'));
+  });
 
   const visibleVenues = useMemo(() => {
     const keyword = search.trim().toLowerCase();

@@ -20,6 +20,8 @@ import {
 import { cancelPlayerBooking, getBookingHolding, retryBookingPayment, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const playDate = (value: string) => new Intl.DateTimeFormat('vi-VN', {
@@ -86,11 +88,12 @@ export const BookingDetail = () => {
   };
 
   useEffect(() => { void load(); }, [bookingId, token]);
-  useEffect(() => {
-    if (booking?.paymentStatus !== 'WaitingForConfirmation') return;
-    const timer = window.setInterval(() => void load(true), 5000);
-    return () => window.clearInterval(timer);
-  }, [booking?.paymentStatus, bookingId, token]);
+  usePaymentRealtime((event) => {
+    if (event.bookingId === bookingId) void load(true);
+  });
+  useScheduleRealtime((event) => {
+    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void load(true);
+  });
 
   const copyCode = async () => {
     if (!booking) return;

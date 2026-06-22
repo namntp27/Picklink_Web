@@ -9,6 +9,7 @@ import { getBookingVenues, getCourtAvailability, type BookingVenue, type CourtAv
 import { createMatch } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 
 type MatchFormat = '1vs1' | '2vs2';
 type LocatedVenue = BookingVenue & { latitude: number; longitude: number };
@@ -130,6 +131,11 @@ export const Opponents = () => {
     getCourtAvailability(event.venueId, bookingDate, token)
       .then(setAvailability)
       .catch(() => setError('Không thể đồng bộ lịch sân mới nhất.'));
+  });
+  useVenueRealtime(() => {
+    getBookingVenues({}, token)
+      .then(setVenues)
+      .catch(() => setError('Không thể đồng bộ danh sách sân mới nhất.'));
   });
 
   const mappedVenues = useMemo(() => venues.filter(isLocatedVenue), [venues]);

@@ -27,6 +27,8 @@ import {
 } from '../../data/bookings';
 import { getOwnerBookings, updateOwnerBookingStatus } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 
 type OwnerBookingFilter = 'all' | BookingStatus | 'paid' | 'pending_payment' | 'ready_checkin';
@@ -101,15 +103,18 @@ export const OwnerBookings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoading = true) => {
     if (!token) return;
-    setIsLoading(true); setError('');
+    if (showLoading) setIsLoading(true);
+    setError('');
     try { setBookings((await getOwnerBookings(token)).map(ownerBookingToDetail)); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải booking.'); }
-    finally { setIsLoading(false); }
+    finally { if (showLoading) setIsLoading(false); }
   }, [token]);
 
   useEffect(() => { void load(); }, [load]);
+  useScheduleRealtime(() => { void load(false); });
+  usePaymentRealtime(() => { void load(false); });
 
   const filteredBookings = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();

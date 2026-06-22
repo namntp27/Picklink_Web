@@ -4,6 +4,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getBookingHolding, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const date = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date(value));
@@ -14,7 +16,14 @@ export const BookingSuccess = () => {
   const { token } = useAuth();
   const [booking, setBooking] = useState<BookingHolding | null>(null);
   const [error, setError] = useState('');
-  useEffect(() => { if (token && Number.isInteger(bookingId)) getBookingHolding(token, bookingId).then(setBooking).catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking.')); }, [bookingId, token]);
+  const load = () => {
+    if (token && Number.isInteger(bookingId)) void getBookingHolding(token, bookingId).then(setBooking).catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking.'));
+  };
+  useEffect(load, [bookingId, token]);
+  usePaymentRealtime((event) => { if (event.bookingId === bookingId) load(); });
+  useScheduleRealtime((event) => {
+    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) load();
+  });
   if (!booking) return <div className="flex min-h-[70vh] items-center justify-center font-bold">{error || 'Đang tải booking...'}</div>;
   return <div className="min-h-screen bg-surface-container-low px-4 py-10"><div className="mx-auto max-w-2xl rounded-2xl border border-outline-variant bg-white p-7 text-center shadow-sm md:p-10"><CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" /><h1 className="mt-4 text-[32px] font-bold">Đặt sân thành công</h1><p className="mt-2 text-[14px] text-on-surface-variant">Booking đã được xác nhận và các slot đã được khóa chính thức.</p><p className="mt-5 font-mono text-[20px] font-bold text-primary">{booking.bookingCode}</p><div className="mt-7 grid gap-3 text-left sm:grid-cols-2">{[
     { icon: MapPin, label: 'Cụm sân', value: `${booking.venueName} · Sân ${booking.courtNumber}` },

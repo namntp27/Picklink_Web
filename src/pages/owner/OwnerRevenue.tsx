@@ -25,6 +25,8 @@ import type { BookingDetail } from '../../data/bookings';
 import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
 import { getOwnerBookings } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 
 type RevenuePeriod = 'today' | 'week' | 'month';
@@ -176,6 +178,14 @@ export const OwnerRevenue = () => {
       .then((records) => setOwnerBookings(records.map(ownerBookingToDetail)))
       .catch(() => setOwnerBookings([]));
   }, [token]);
+  const reloadRevenue = () => {
+    if (!token) return;
+    void getOwnerBookings(token)
+      .then((records) => setOwnerBookings(records.map(ownerBookingToDetail)))
+      .catch(() => undefined);
+  };
+  useScheduleRealtime(reloadRevenue);
+  usePaymentRealtime(reloadRevenue);
 
   const transactions = useMemo<PaymentTransaction[]>(
     () =>

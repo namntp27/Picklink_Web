@@ -21,6 +21,7 @@ import { cancelPlayerBooking, getMyBookingHistory, retryBookingPayment, type Boo
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 
 type BookingFilter = 'all' | 'upcoming' | 'pending' | 'paid' | 'cancelled';
 
@@ -83,6 +84,7 @@ export const MyBookings = () => {
 
   useEffect(() => { void load(); }, [token]);
   useScheduleRealtime(() => { void load(false); });
+  usePaymentRealtime(() => { void load(false); });
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();

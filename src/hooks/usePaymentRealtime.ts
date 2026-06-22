@@ -6,7 +6,7 @@ export type PaymentRealtimeEvent = {
   bookingId: number;
   venueId: number;
   paymentStatus: string;
-  action: 'Submitted' | 'Approved' | 'Rejected';
+  action: string;
 };
 
 export const usePaymentRealtime = (onPaymentChanged: (event: PaymentRealtimeEvent) => void) => {

@@ -5,6 +5,8 @@ import { cancelBookingHolding, getBookingHolding, type BookingHolding } from '..
 import { ApiError } from '../../api/client';
 import { submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const dateText = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date(value));
@@ -68,11 +70,12 @@ export const Checkout = () => {
     setReceiptPreview(previewUrl);
     return () => URL.revokeObjectURL(previewUrl);
   }, [receipt]);
-  useEffect(() => {
-    if (booking?.paymentStatus !== 'WaitingForConfirmation') return;
-    const timer = window.setInterval(() => void loadBooking(true), 5000);
-    return () => window.clearInterval(timer);
-  }, [booking?.paymentStatus, bookingId, token]);
+  usePaymentRealtime((event) => {
+    if (event.bookingId === bookingId) void loadBooking(true);
+  });
+  useScheduleRealtime((event) => {
+    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void loadBooking(true);
+  });
 
   const remainingSeconds = useMemo(() => booking?.holdExpiresAt
     ? Math.max(0, Math.floor((utcTimestamp(booking.holdExpiresAt) - now) / 1000)) : 0, [booking?.holdExpiresAt, now]);
