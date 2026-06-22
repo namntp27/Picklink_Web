@@ -121,6 +121,8 @@ export const createBookingHolding = (token: string, input: { courtId: number; da
 
 export const getBookingHolding = (token: string, bookingId: number) => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}`, {}, token);
 
+export const getMyBookingHistory = (token: string) => apiRequest<BookingHolding[]>('/api/player-bookings/mine', {}, token);
+
 export const cancelBookingHolding = (token: string, bookingId: number) => apiRequest<void>(`/api/player-bookings/${bookingId}/hold`, {
   method: 'DELETE',
 }, token);
