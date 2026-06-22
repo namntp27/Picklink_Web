@@ -33,6 +33,9 @@ export const saveOwnerBankAccount = (token: string, input: OwnerBankAccountInput
 export const getOperatorPayments = (token: string, status = 'WaitingForConfirmation') =>
   apiRequest<BankTransfer[]>(`/api/payments/operator?status=${encodeURIComponent(status)}`, {}, token);
 
+export const getOperatorPayment = (token: string, paymentId: number) =>
+  apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}`, {}, token);
+
 export const approveOperatorPayment = (token: string, paymentId: number) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}/approve`, { method: 'POST' }, token);
 

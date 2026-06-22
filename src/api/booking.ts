@@ -12,6 +12,7 @@ export type BookingVenue = {
   imageUrl?: string | null;
   fromPrice: number;
   courtCount: number;
+  isFavorite: boolean;
 };
 
 export type BookingCourt = {
@@ -90,7 +91,7 @@ export type BankTransfer = {
 export type BookingHolding = {
   bookingId: number;
   bookingCode: string;
-  status: 'Holding' | 'Confirmed' | 'Expired' | 'Cancelled';
+  status: 'Holding' | 'Confirmed' | 'Completed' | 'Expired' | 'Cancelled';
   createdAt: string;
   holdExpiresAt?: string | null;
   venueId: number;
@@ -105,12 +106,38 @@ export type BookingHolding = {
   courtAmount: number;
   totalAmount: number;
   paymentStatus: string;
-  checkInStatus: 'NotOpen' | 'Ready' | 'CheckedIn' | 'Missed' | 'NotApplicable';
+  checkInStatus: 'NotOpen' | 'Ready' | 'CheckedIn' | 'NoShow' | 'Missed' | 'NotApplicable';
+  checkInCode?: string | null;
+  canCancel: boolean;
+  canRetryPayment: boolean;
+  canReview: boolean;
+  hasReviewed: boolean;
   bankTransfer?: BankTransfer | null;
   statusHistory: BookingHistory[];
 };
 
-export const getBookingVenues = () => apiRequest<BookingVenue[]>('/api/player-bookings/venues');
+export type VenueFilters = {
+  search?: string;
+  area?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  favoritesOnly?: boolean;
+};
+
+export const getBookingVenues = (filters: VenueFilters = {}, token?: string | null) => {
+  const params = new URLSearchParams();
+  if (filters.search?.trim()) params.set('search', filters.search.trim());
+  if (filters.area?.trim()) params.set('area', filters.area.trim());
+  if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
+  if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
+  if (filters.favoritesOnly) params.set('favoritesOnly', 'true');
+  const query = params.toString();
+  return apiRequest<BookingVenue[]>(`/api/player-bookings/venues${query ? `?${query}` : ''}`, {}, token ?? undefined);
+};
+
+export const addFavoriteVenue = (token: string, venueId: number) => apiRequest<void>(`/api/player-bookings/favorites/${venueId}`, { method: 'PUT' }, token);
+
+export const removeFavoriteVenue = (token: string, venueId: number) => apiRequest<void>(`/api/player-bookings/favorites/${venueId}`, { method: 'DELETE' }, token);
 
 export const getCourtAvailability = (venueId: number, date: string, token?: string | null) => apiRequest<CourtAvailability>(`/api/player-bookings/venues/${venueId}/availability?date=${encodeURIComponent(date)}`, {}, token ?? undefined);
 
@@ -125,6 +152,14 @@ export const getMyBookingHistory = (token: string) => apiRequest<BookingHolding[
 
 export const cancelBookingHolding = (token: string, bookingId: number) => apiRequest<void>(`/api/player-bookings/${bookingId}/hold`, {
   method: 'DELETE',
+}, token);
+
+export const cancelPlayerBooking = (token: string, bookingId: number) => apiRequest<void>(`/api/player-bookings/${bookingId}/cancel`, {
+  method: 'POST',
+}, token);
+
+export const retryBookingPayment = (token: string, bookingId: number) => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}/retry-payment`, {
+  method: 'POST',
 }, token);
 
 export const completeBookingPayment = (token: string, bookingId: number, paymentMethod: 'Wallet' | 'BankTransfer' | 'AtCourt') => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}/pay`, {

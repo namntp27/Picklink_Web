@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarDays,
@@ -13,10 +13,11 @@ import {
   RefreshCcw,
   Search,
   ShieldCheck,
+  Star,
   TicketCheck,
   XCircle,
 } from 'lucide-react';
-import { cancelBookingHolding, getMyBookingHistory, type BookingHolding } from '../../api/booking';
+import { cancelPlayerBooking, getMyBookingHistory, retryBookingPayment, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
@@ -38,13 +39,13 @@ const date = (value: string) => new Intl.DateTimeFormat('vi-VN', {
 const time = (value: string) => value.slice(11, 16);
 
 const bookingLabels: Record<string, string> = {
-  Holding: 'Đang giữ chỗ', Confirmed: 'Đã đặt', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
+  Holding: 'Đang giữ chỗ', Confirmed: 'Đã đặt', Completed: 'Hoàn thành', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
 };
 const paymentLabels: Record<string, string> = {
   Pending: 'Chờ chuyển khoản', WaitingForConfirmation: 'Chờ Owner xác nhận', Paid: 'Đã thanh toán', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
 };
 const checkInLabels: Record<string, string> = {
-  NotOpen: 'Chưa mở check-in', Ready: 'Có thể check-in', CheckedIn: 'Đã check-in', Missed: 'Quá giờ', NotApplicable: 'Không áp dụng',
+  NotOpen: 'Chưa mở check-in', Ready: 'Có thể check-in', CheckedIn: 'Đã check-in', NoShow: 'Vắng mặt', Missed: 'Quá giờ', NotApplicable: 'Không áp dụng',
 };
 
 const statusClass = (status: string) => {
@@ -62,6 +63,7 @@ const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
 };
 
 export const MyBookings = () => {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const [bookings, setBookings] = useState<BookingHolding[]>([]);
   const [activeFilter, setActiveFilter] = useState<BookingFilter>('all');
@@ -98,12 +100,27 @@ export const MyBookings = () => {
   const readyCount = bookings.filter((booking) => booking.checkInStatus === 'Ready').length;
 
   const cancel = async (booking: BookingHolding) => {
-    if (!token || !window.confirm(`Hủy giữ chỗ ${booking.bookingCode}?`)) return;
+    if (!token || !window.confirm(`Hủy booking ${booking.bookingCode}?`)) return;
     setBusyId(booking.bookingId);
     setError('');
-    try { await cancelBookingHolding(token, booking.bookingId); await load(false); }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy giữ chỗ.'); }
+    try { await cancelPlayerBooking(token, booking.bookingId); await load(false); }
+    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.'); }
     finally { setBusyId(null); }
+  };
+
+  const retryPayment = async (booking: BookingHolding) => {
+    if (!token) return;
+    setBusyId(booking.bookingId);
+    setError('');
+    try {
+      const updatedBooking = await retryBookingPayment(token, booking.bookingId);
+      navigate(
+        `/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(booking.startTime.slice(0, 10))}`,
+        { state: { booking: updatedBooking } },
+      );
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể thanh toán lại.');
+    } finally { setBusyId(null); }
   };
 
   return <div className="min-h-screen bg-surface-container-low pt-[72px] text-on-surface">
@@ -117,11 +134,11 @@ export const MyBookings = () => {
         {loading ? <div className="flex justify-center rounded-xl border bg-white py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : <section className="space-y-4">
           {filtered.map((booking) => {
             const canContinue = booking.status === 'Holding' && ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
-            const canCancel = booking.status === 'Holding' && booking.paymentStatus === 'Pending';
+            const canCancel = booking.canCancel;
             const scheduleDate = booking.startTime.slice(0, 10);
             return <article className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={booking.bookingId}>
               <div className="flex flex-col gap-4 xl:flex-row xl:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(booking.status)}`}>{bookingLabels[booking.status] ?? booking.status}</span><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(booking.paymentStatus)}`}>{paymentLabels[booking.paymentStatus] ?? booking.paymentStatus}</span><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(booking.checkInStatus)}`}>{checkInLabels[booking.checkInStatus] ?? booking.checkInStatus}</span></div><Link className="mt-3 block text-[21px] font-bold hover:text-primary" to={`/bookings/${booking.bookingId}`}>{booking.venueName} · Sân {booking.courtNumber}</Link><p className="mt-1 text-[13px] font-bold text-primary">{booking.bookingCode}</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="flex gap-2 rounded-lg bg-surface-container-low p-3"><CalendarDays className="h-5 w-5 text-primary" /><div><p className="text-[11px] font-bold text-on-surface-variant">Ngày chơi</p><p className="mt-1 text-[13px] font-bold">{date(booking.startTime)}</p></div></div><div className="flex gap-2 rounded-lg bg-surface-container-low p-3"><Clock className="h-5 w-5 text-primary" /><div><p className="text-[11px] font-bold text-on-surface-variant">Khung giờ</p><p className="mt-1 text-[13px] font-bold">{time(booking.startTime)}–{time(booking.endTime)}</p></div></div><div className="flex gap-2 rounded-lg bg-surface-container-low p-3"><MapPin className="h-5 w-5 text-primary" /><div><p className="text-[11px] font-bold text-on-surface-variant">Địa chỉ</p><p className="mt-1 line-clamp-2 text-[13px] font-bold">{booking.address}</p></div></div></div></div><div className="h-fit shrink-0 rounded-lg border border-outline-variant p-4 xl:w-[210px]"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Tổng tiền</p><p className="mt-1 text-[23px] font-bold text-primary">{currency.format(booking.totalAmount)}</p></div></div>
-              <div className="mt-5 flex flex-wrap gap-2 border-t border-outline-variant pt-4"><Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2.5 text-[13px] font-bold hover:bg-surface-container-low" to={`/bookings/${booking.bookingId}`}><ReceiptText className="h-4 w-4" /> Chi tiết</Link>{canContinue && <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-4 w-4" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Thanh toán'}</Link>}{canCancel && <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-700 disabled:opacity-50" disabled={busyId === booking.bookingId} onClick={() => void cancel(booking)} type="button">{busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Hủy giữ chỗ</button>}<Link className="inline-flex items-center gap-2 rounded-lg border border-primary px-4 py-2.5 text-[13px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><RefreshCcw className="h-4 w-4" /> Xem lịch sân</Link></div>
+              <div className="mt-5 flex flex-wrap gap-2 border-t border-outline-variant pt-4"><Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2.5 text-[13px] font-bold hover:bg-surface-container-low" to={`/bookings/${booking.bookingId}`}><ReceiptText className="h-4 w-4" /> Chi tiết</Link>{canContinue && !booking.canRetryPayment && <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-4 w-4" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Thanh toán'}</Link>}{booking.canRetryPayment && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={busyId === booking.bookingId} onClick={() => void retryPayment(booking)} type="button"><RefreshCcw className="h-4 w-4" /> Thanh toán lại</button>}{canCancel && <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-700 disabled:opacity-50" disabled={busyId === booking.bookingId} onClick={() => void cancel(booking)} type="button">{busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Hủy booking</button>}{booking.canReview && <Link className="inline-flex items-center gap-2 rounded-lg border border-amber-300 px-4 py-2.5 text-[13px] font-bold text-amber-700" to={`/reviews/create?bookingId=${booking.bookingId}`}><Star className="h-4 w-4" /> Đánh giá sân</Link>}<Link className="inline-flex items-center gap-2 rounded-lg border border-primary px-4 py-2.5 text-[13px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><RefreshCcw className="h-4 w-4" /> Xem lịch sân</Link></div>
             </article>;
           })}
           {filtered.length === 0 && <div className="rounded-xl border border-outline-variant bg-white p-12 text-center"><CalendarDays className="mx-auto h-10 w-10 text-primary" /><h2 className="mt-3 text-[20px] font-bold">Không có booking phù hợp</h2><p className="mt-2 text-[14px] text-on-surface-variant">Hãy đổi bộ lọc hoặc đặt một sân mới.</p></div>}

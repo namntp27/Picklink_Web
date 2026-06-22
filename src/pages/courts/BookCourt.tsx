@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, Clock, Crosshair, LocateFixed, MapPin, Navigation, Search, Star } from 'lucide-react';
+import { Building2, Clock, Crosshair, Heart, LocateFixed, MapPin, Navigation, Search, Star } from 'lucide-react';
 import { divIcon, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
-import { getBookingVenues, type BookingVenue } from '../../api/booking';
+import { addFavoriteVenue, getBookingVenues, removeFavoriteVenue, type BookingVenue } from '../../api/booking';
 import { ApiError } from '../../api/client';
+import { useAuth } from '../../auth/AuthContext';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
@@ -70,8 +71,13 @@ const MapViewport = ({ venues, playerLocation, selectedVenue }: {
 };
 
 export const BookCourt = () => {
+  const { token } = useAuth();
   const [venues, setVenues] = useState<BookingVenue[]>([]);
   const [search, setSearch] = useState('');
+  const [area, setArea] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [favoritesOnly, setFavoritesOnly] = useState(() => new URLSearchParams(window.location.search).get('favorites') === 'true');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
@@ -80,11 +86,21 @@ export const BookCourt = () => {
   const [locationStatus, setLocationStatus] = useState('Bấm “Vị trí của tôi” để xem các sân gần bạn.');
 
   useEffect(() => {
-    getBookingVenues()
-      .then(setVenues)
-      .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.'))
-      .finally(() => setIsLoading(false));
-  }, []);
+    const timer = window.setTimeout(() => {
+      setIsLoading(true);
+      getBookingVenues({
+        search,
+        area,
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        favoritesOnly,
+      }, token)
+        .then((items) => { setVenues(items); setError(''); })
+        .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.'))
+        .finally(() => setIsLoading(false));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [area, favoritesOnly, maxPrice, minPrice, search, token]);
 
   const visibleVenues = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -125,6 +141,22 @@ export const BookCourt = () => {
     );
   };
 
+  const toggleFavorite = async (venue: BookingVenue) => {
+    if (!token) {
+      setError('Vui lòng đăng nhập bằng tài khoản Player để lưu sân yêu thích.');
+      return;
+    }
+    try {
+      if (venue.isFavorite) await removeFavoriteVenue(token, venue.venueId);
+      else await addFavoriteVenue(token, venue.venueId);
+      setVenues((current) => current
+        .map((item) => item.venueId === venue.venueId ? { ...item, isFavorite: !venue.isFavorite } : item)
+        .filter((item) => !favoritesOnly || item.isFavorite));
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật sân yêu thích.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface-container-low px-4 py-6 md:px-8">
       <div className="mx-auto max-w-[1440px] space-y-5">
@@ -147,6 +179,13 @@ export const BookCourt = () => {
 
         {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] font-bold text-red-700">{error}</div>}
 
+        <section className="grid gap-3 rounded-xl border border-outline-variant bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+          <label className="lg:col-span-2"><span className="text-[11px] font-bold uppercase text-on-surface-variant">Khu vực</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" onChange={(event) => setArea(event.target.value)} placeholder="Quận, huyện, thành phố..." value={area} /></label>
+          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá từ</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => setMinPrice(event.target.value)} placeholder="100000" type="number" value={minPrice} /></label>
+          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá đến</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => setMaxPrice(event.target.value)} placeholder="300000" type="number" value={maxPrice} /></label>
+          <button className={`mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg border px-3 text-[13px] font-bold ${favoritesOnly ? 'border-primary bg-primary text-white' : 'border-outline-variant text-on-surface-variant'}`} onClick={() => token ? setFavoritesOnly((value) => !value) : setError('Vui lòng đăng nhập để xem sân yêu thích.')} type="button"><Heart className={`h-4 w-4 ${favoritesOnly ? 'fill-current' : ''}`} /> Sân yêu thích</button>
+        </section>
+
         <section className="grid gap-5 lg:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
           <div className="flex min-h-[620px] flex-col overflow-hidden rounded-2xl border border-outline-variant bg-white shadow-sm lg:h-[calc(100vh-230px)]">
             <div className="border-b border-outline-variant px-4 py-3.5">
@@ -168,7 +207,7 @@ export const BookCourt = () => {
                   <article className={`cursor-pointer rounded-xl border p-4 transition ${selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-outline-variant hover:border-primary/50 hover:bg-surface-container-low'}`} key={venue.venueId} onClick={() => setSelectedVenueId(venue.venueId)}>
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="text-[16px] font-bold leading-snug">{venue.venueName}</h3>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700"><Star className="h-3 w-3 fill-current" />{venue.overallRating.toFixed(1)}</span>
+                      <div className="flex shrink-0 items-center gap-1"><span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700"><Star className="h-3 w-3 fill-current" />{venue.overallRating.toFixed(1)}</span><button aria-label={venue.isFavorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'} className={`rounded-full p-2 ${venue.isFavorite ? 'bg-red-50 text-red-600' : 'bg-surface-container-low text-on-surface-variant'}`} onClick={(event) => { event.stopPropagation(); void toggleFavorite(venue); }} type="button"><Heart className={`h-4 w-4 ${venue.isFavorite ? 'fill-current' : ''}`} /></button></div>
                     </div>
                     <p className="mt-2 flex items-start gap-2 text-[12px] text-on-surface-variant"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{venue.address}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-medium">

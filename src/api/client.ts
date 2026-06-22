@@ -24,11 +24,23 @@ export class ApiError extends Error {
 const getErrorMessage = (status: number, body?: ApiErrorBody) => {
   const validationMessage = body?.errors ? Object.values(body.errors).flat()[0] : undefined;
 
+  const fallbackMessage = status === 401
+    ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+    : status === 403
+      ? 'Tài khoản không có quyền thực hiện thao tác này.'
+      : status === 404
+        ? 'Không tìm thấy API hoặc dữ liệu được yêu cầu. Hãy khởi động lại backend nếu vừa cập nhật mã nguồn.'
+        : status === 409
+          ? 'Dữ liệu vừa thay đổi. Vui lòng tải lại và thử lại.'
+          : status >= 500
+            ? 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.'
+            : 'Yêu cầu không thành công.';
+
   return validationMessage
     ?? body?.message
     ?? body?.detail
     ?? body?.title
-    ?? (status >= 500 ? 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.' : 'Yêu cầu không thành công.');
+    ?? fallbackMessage;
 };
 
 export const apiRequest = async <T>(

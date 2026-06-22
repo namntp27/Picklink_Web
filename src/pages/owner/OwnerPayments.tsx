@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CalendarDays, CheckCircle2, Clock, Eye, Loader2, ReceiptText, RefreshCw, Search, XCircle } from 'lucide-react';
 import type { BankTransfer } from '../../api/booking';
 import { ApiError } from '../../api/client';
-import { approveOperatorPayment, getOperatorPayments, rejectOperatorPayment } from '../../api/payment';
+import { approveOperatorPayment, getOperatorPayment, getOperatorPayments, rejectOperatorPayment } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
-import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { OwnerShell } from './components/OwnerShell';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -59,7 +59,38 @@ export const OwnerPayments = () => {
     finally { if (showLoading) setLoading(false); }
   };
   useEffect(() => { void load(); }, [token]);
-  useScheduleRealtime(() => { void load(false); });
+  usePaymentRealtime((event) => {
+    if (!token) return;
+    void getOperatorPayment(token, event.paymentId)
+      .then((updated) => {
+        setPayments((current) => {
+          const exists = current.some((item) => item.paymentId === updated.paymentId);
+          return exists
+            ? current.map((item) => item.paymentId === updated.paymentId ? updated : item)
+            : [updated, ...current];
+        });
+        setSelected((current) => current?.paymentId === updated.paymentId ? updated : current);
+      })
+      .catch((requestError) => {
+        if (requestError instanceof ApiError && requestError.status === 404) return;
+        void load(false);
+      });
+  });
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void load(false);
+    };
+    const fallbackTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load(false);
+    }, 15_000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(fallbackTimer);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [token]);
 
   const venues = useMemo(() => [...new Map(payments.map((item) => [item.venueId, item.venueName])).entries()]
     .sort((first, second) => first[1].localeCompare(second[1], 'vi')), [payments]);

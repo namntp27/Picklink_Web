@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Clipboard, Clock, Loader2, MapPin, ReceiptText, ShieldCheck, Upload } from 'lucide-react';
 import { cancelBookingHolding, getBookingHolding, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
@@ -21,10 +21,13 @@ const utcTimestamp = (value: string) => {
 
 export const Checkout = () => {
   const [params] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const bookingId = Number(params.get('bookingId'));
   const { token } = useAuth();
-  const [booking, setBooking] = useState<BookingHolding | null>(null);
+  const navigationBooking = (location.state as { booking?: BookingHolding } | null)?.booking;
+  const initialBooking = navigationBooking?.bookingId === bookingId ? navigationBooking : null;
+  const [booking, setBooking] = useState<BookingHolding | null>(initialBooking);
   const [receipt, setReceipt] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState('');
   const [now, setNow] = useState(Date.now());
@@ -43,7 +46,10 @@ export const Checkout = () => {
     }
   };
 
-  useEffect(() => { void loadBooking(); }, [bookingId, token]);
+  useEffect(() => {
+    if (initialBooking) return;
+    void loadBooking();
+  }, [bookingId, token]);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!receipt) { setReceiptPreview(''); return; }

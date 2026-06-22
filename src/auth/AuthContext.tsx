@@ -25,6 +25,7 @@ type AuthContextValue = {
   register: (input: RegisterInput) => Promise<AuthUser>;
   googleLogin: (idToken: string) => Promise<AuthUser>;
   googleRegister: (idToken: string) => Promise<AuthUser>;
+  refreshUser: () => Promise<void>;
   logout: () => void;
 };
 
@@ -126,6 +127,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const nextSession = await googleRegisterRequest(idToken);
       saveSession(nextSession);
       return nextSession.user;
+    },
+    refreshUser: async () => {
+      if (!session) return;
+      const user = await getCurrentUser(session.token);
+      saveSession({ ...session, user });
     },
     logout: () => saveSession(null),
   }), [isInitializing, saveSession, session]);

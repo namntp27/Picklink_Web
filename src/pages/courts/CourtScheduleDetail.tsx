@@ -93,7 +93,10 @@ export const CourtScheduleDetail = () => {
         date,
         slotStarts: selectedStarts.map((item) => `${item}:00`),
       });
-      navigate(`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(date)}`);
+      navigate(
+        `/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(date)}`,
+        { state: { booking } },
+      );
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể giữ slot. Vui lòng tải lại lịch.');
       await load();

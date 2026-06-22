@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -11,11 +11,13 @@ import {
   Loader2,
   MapPin,
   ReceiptText,
+  RefreshCcw,
   ShieldCheck,
   TicketCheck,
+  Star,
   XCircle,
 } from 'lucide-react';
-import { getBookingHolding, type BookingHolding } from '../../api/booking';
+import { cancelPlayerBooking, getBookingHolding, retryBookingPayment, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -31,6 +33,7 @@ const dateTime = (value: string) => new Intl.DateTimeFormat('vi-VN', {
 const bookingStatusLabels: Record<string, string> = {
   Holding: 'Đang giữ chỗ',
   Confirmed: 'Đã đặt',
+  Completed: 'Hoàn thành',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
 };
@@ -45,6 +48,7 @@ const checkInStatusLabels: Record<string, string> = {
   NotOpen: 'Chưa mở check-in',
   Ready: 'Có thể check-in',
   CheckedIn: 'Đã check-in',
+  NoShow: 'Vắng mặt',
   Missed: 'Quá giờ',
   NotApplicable: 'Không áp dụng',
 };
@@ -56,12 +60,14 @@ const statusClassName = (status: string) => {
 };
 
 export const BookingDetail = () => {
+  const navigate = useNavigate();
   const bookingId = Number(useParams().id);
   const { token } = useAuth();
   const [booking, setBooking] = useState<BookingHolding | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = async (silent = false) => {
     if (!token || !Number.isInteger(bookingId)) {
@@ -91,6 +97,27 @@ export const BookingDetail = () => {
     await navigator.clipboard.writeText(booking.bookingCode);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  const cancel = async () => {
+    if (!token || !booking || !window.confirm(`Hủy booking ${booking.bookingCode}?`)) return;
+    setBusy(true);
+    try { await cancelPlayerBooking(token, booking.bookingId); await load(true); }
+    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.'); }
+    finally { setBusy(false); }
+  };
+
+  const retryPayment = async () => {
+    if (!token || !booking) return;
+    setBusy(true);
+    try {
+      const updatedBooking = await retryBookingPayment(token, booking.bookingId);
+      navigate(
+        `/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(booking.startTime.slice(0, 10))}`,
+        { state: { booking: updatedBooking } },
+      );
+    } catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể thanh toán lại.'); }
+    finally { setBusy(false); }
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-surface-container-low"><div className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /><p className="mt-3 font-bold">Đang tải chi tiết booking...</p></div></div>;
@@ -142,7 +169,9 @@ export const BookingDetail = () => {
         <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
           <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[20px] font-bold"><ReceiptText className="h-5 w-5 text-primary" /> Chi phí</h2><div className="mt-5 space-y-3 text-[14px]"><div className="flex justify-between gap-3"><span className="text-on-surface-variant">Đơn giá</span><strong>{currency.format(booking.hourlyPrice)}/giờ</strong></div><div className="flex justify-between gap-3"><span className="text-on-surface-variant">Thời lượng</span><strong>{booking.durationHours} giờ</strong></div><div className="flex justify-between gap-3"><span className="text-on-surface-variant">Tiền sân</span><strong>{currency.format(booking.courtAmount)}</strong></div><div className="flex justify-between gap-3 border-t border-outline-variant pt-3"><strong>Tổng thanh toán</strong><strong className="text-[23px] text-primary">{currency.format(booking.totalAmount)}</strong></div></div></section>
 
-          <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="text-[20px] font-bold">Thao tác</h2><div className="mt-4 space-y-3">{canContinuePayment && <Link className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-5 w-5" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Tiếp tục thanh toán'}</Link>}<Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><CalendarDays className="h-5 w-5" /> Xem lịch sân</Link></div></section>
+          {booking.checkInCode && <section className="rounded-2xl border border-primary bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[20px] font-bold"><TicketCheck className="h-5 w-5 text-primary" /> Mã check-in</h2><p className="mt-2 text-[12px] text-on-surface-variant">Đưa mã này cho Staff tại sân.</p><div className="mt-3 flex items-center justify-between rounded-lg bg-surface-container-low p-3"><strong className="break-all text-[17px] text-primary">{booking.checkInCode}</strong><button className="rounded-lg p-2 text-primary" onClick={() => void copyCode()} type="button"><Clipboard className="h-5 w-5" /></button></div></section>}
+
+          <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="text-[20px] font-bold">Thao tác</h2><div className="mt-4 space-y-3">{canContinuePayment && !booking.canRetryPayment && <Link className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-5 w-5" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Tiếp tục thanh toán'}</Link>}{booking.canRetryPayment && <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={busy} onClick={() => void retryPayment()} type="button"><RefreshCcw className="h-5 w-5" /> Thanh toán lại</button>}{booking.canReview && <Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 px-4 py-3 text-[14px] font-bold text-amber-700" to={`/reviews/create?bookingId=${booking.bookingId}`}><Star className="h-5 w-5" /> Đánh giá sân</Link>}{booking.canCancel && <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-3 text-[14px] font-bold text-red-700 disabled:opacity-50" disabled={busy} onClick={() => void cancel()} type="button"><XCircle className="h-5 w-5" /> Hủy booking</button>}<Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><CalendarDays className="h-5 w-5" /> Xem lịch sân</Link></div></section>
         </aside>
       </div>
     </main>
