@@ -47,7 +47,6 @@ import { OwnerCourts } from './pages/owner/OwnerCourts';
 import { OwnerVenueDetail } from './pages/owner/OwnerVenueDetail';
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerRevenue } from './pages/owner/OwnerRevenue';
-import { OwnerPayments } from './pages/owner/OwnerPayments';
 import { OwnerSettings } from './pages/owner/OwnerSettings';
 import { OwnerStaff } from './pages/owner/OwnerStaff';
 import { StaffDashboard } from './pages/staff/StaffDashboard';
@@ -114,7 +113,8 @@ function App() {
       <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
         <Route path="/owner" element={<OwnerDashboard />} />
         <Route path="/owner/schedule" element={<OwnerDashboard />} />
-        <Route path="/owner/bookings" element={<OwnerBookings />} />
+        <Route path="/owner/bookings" element={<OwnerBookings kind="regular" />} />
+        <Route path="/owner/match-bookings" element={<OwnerBookings kind="match" />} />
         <Route path="/owner/bookings/:id" element={<OwnerBookingDetail />} />
         <Route path="/owner/courts" element={<OwnerCourts />} />
         <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
@@ -123,9 +123,6 @@ function App() {
         <Route path="/owner/revenue" element={<OwnerRevenue />} />
         <Route path="/owner/settings" element={<OwnerSettings />} />
         <Route path="/owner/staff" element={<OwnerStaff />} />
-      </Route>
-      <Route element={<ProtectedRoute allowedRoles={['owner', 'staff']} />}>
-        <Route path="/owner/payments" element={<OwnerPayments />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['staff']} />}>
         <Route path="/staff" element={<StaffDashboard />} />

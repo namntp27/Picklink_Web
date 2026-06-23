@@ -154,8 +154,9 @@ export const cancelBookingHolding = (token: string, bookingId: number) => apiReq
   method: 'DELETE',
 }, token);
 
-export const cancelPlayerBooking = (token: string, bookingId: number) => apiRequest<void>(`/api/player-bookings/${bookingId}/cancel`, {
+export const cancelPlayerBooking = (token: string, bookingId: number, reason: string) => apiRequest<void>(`/api/player-bookings/${bookingId}/cancel`, {
   method: 'POST',
+  body: JSON.stringify({ reason }),
 }, token);
 
 export const retryBookingPayment = (token: string, bookingId: number) => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}/retry-payment`, {

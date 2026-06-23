@@ -141,6 +141,10 @@ export type OwnerCheckInHistory = {
 
 export type OwnerBookingRecord = {
   bookingId: number;
+  matchId?: number | null;
+  matchType?: string | null;
+  requiredPlayerCount?: number | null;
+  acceptedPlayerCount?: number | null;
   bookingCode: string;
   bookingStatus: string;
   checkInStatus: string;
@@ -320,7 +324,13 @@ export const getOwnerCheckInHistory = (token: string, filters: { venueId?: numbe
   return apiRequest<OwnerCheckInHistory[]>(`/api/owner/staff/check-in-history${query ? `?${query}` : ''}`, {}, token);
 };
 
-export const getOwnerBookings = (token: string, filters: { from?: string; to?: string; status?: string; search?: string } = {}) => {
+export const getOwnerBookings = (token: string, filters: {
+  from?: string;
+  to?: string;
+  status?: string;
+  search?: string;
+  bookingType?: 'regular' | 'match';
+} = {}) => {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
   const query = params.toString();

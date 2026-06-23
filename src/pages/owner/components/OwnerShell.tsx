@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'payments' | 'courts' | 'revenue' | 'staff' | 'settings';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'matchBookings' | 'payments' | 'courts' | 'revenue' | 'staff' | 'settings';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -24,7 +24,7 @@ const ownerNavItems: Array<{
 }> = [
   { id: 'schedule', label: 'Lịch đặt sân', shortLabel: 'Lịch', to: '/owner', icon: CalendarDays },
   { id: 'bookings', label: 'Đơn đặt sân', shortLabel: 'Đơn', to: '/owner/bookings', icon: CreditCard },
-  { id: 'payments', label: 'Xác nhận thanh toán', shortLabel: 'Thanh toán', to: '/owner/payments', icon: Banknote },
+  { id: 'matchBookings', label: 'Đơn ghép trận', shortLabel: 'Ghép trận', to: '/owner/match-bookings', icon: UsersRound },
   { id: 'courts', label: 'Sân & court', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
   { id: 'revenue', label: 'Doanh thu', shortLabel: 'Doanh thu', to: '/owner/revenue', icon: Banknote },
   { id: 'staff', label: 'Nhân viên & CheckIn', shortLabel: 'Staff', to: '/owner/staff', icon: UsersRound },

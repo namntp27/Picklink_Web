@@ -160,7 +160,9 @@ export const MatchDetail = () => {
     startTime: match.startTime.slice(11, 16),
     endTime: match.endTime.slice(11, 16),
     durationHours: (new Date(match.endTime).getTime() - new Date(match.startTime).getTime()) / 3_600_000,
-    totalPrice: match.totalBookingAmount,
+    totalPrice: match.totalBookingAmount > 0
+      ? match.totalBookingAmount
+      : match.amountPerPlayer * match.requiredPlayerCount,
     needed: match.requiredPlayerCount,
     note: match.note || 'Đang chờ người chơi phù hợp tham gia.',
     players: match.participants.filter((participant) => participant.status === 'Accepted').map((participant) => ({
@@ -239,12 +241,14 @@ export const MatchDetail = () => {
 
   const joinedCount = players.filter((player) => player.role !== 'Chỗ trống').length;
   const availableSlots = Math.max(matchDetail.needed - joinedCount, 0);
-  const perPlayerPrice = Math.ceil(matchDetail.totalPrice / matchDetail.needed);
+  const perPlayerPrice = rawMatch?.amountPerPlayer && rawMatch.amountPerPlayer > 0
+    ? rawMatch.amountPerPlayer
+    : Math.ceil(matchDetail.totalPrice / matchDetail.needed);
   const isFull = availableSlots === 0;
   const detailId = id ?? matchDetail.id;
   const isPaymentCountdown = rawMatch?.status === 'PaymentPending' && Boolean(rawMatch.paymentDeadline);
-  const countdownTarget = isPaymentCountdown
-    ? new Date(rawMatch!.paymentDeadline!).getTime()
+  const countdownTarget = rawMatch?.paymentDeadline
+    ? new Date(rawMatch.paymentDeadline).getTime()
     : new Date(rawMatch?.startTime ?? `${matchDetail.date}T${matchDetail.startTime}:00`).getTime();
   const countdownMilliseconds = Number.isFinite(countdownTarget) ? Math.max(0, countdownTarget - currentTime) : 0;
   const countdownSeconds = Math.floor(countdownMilliseconds / 1_000);
@@ -292,7 +296,7 @@ export const MatchDetail = () => {
               {showCountdown && (
                 <div className="mt-5 border-t border-white/20 pt-4">
                   <p className="text-[12px] font-bold uppercase tracking-wide text-white/72">
-                    {isPaymentCountdown ? 'Hạn thanh toán còn' : 'Trận bắt đầu sau'}
+                    {isPaymentCountdown ? 'Hạn thanh toán còn' : 'Thời gian ghép trận còn'}
                   </p>
                   {countdownMilliseconds > 0 ? (
                     <div className="mt-3 grid grid-cols-4 gap-2 text-center">
@@ -310,7 +314,7 @@ export const MatchDetail = () => {
                     </div>
                   ) : (
                     <p className="mt-3 rounded-lg bg-white/12 px-3 py-3 text-center text-[14px] font-bold">
-                      {isPaymentCountdown ? 'Đã hết thời gian thanh toán' : 'Đã đến giờ thi đấu'}
+                      {isPaymentCountdown ? 'Đã hết thời gian thanh toán' : 'Đã hết thời gian ghép trận'}
                     </p>
                   )}
                 </div>
@@ -480,9 +484,13 @@ export const MatchDetail = () => {
               </label>
             )}
 
-            {rawMatch?.isHost ? (
-              <div className="mt-5 rounded-lg bg-primary/10 p-3 text-center text-[13px] font-bold text-primary">Bạn là chủ trận. Hãy duyệt người chơi ở danh sách bên trái.</div>
-            ) : !hasJoined ? (
+            {rawMatch?.isHost && (
+              <div className="mt-5 rounded-lg bg-primary/10 p-3 text-center text-[13px] font-bold text-primary">
+                Bạn là chủ trận. Bạn vẫn cần thanh toán phần của mình khi trận đủ người.
+              </div>
+            )}
+
+            {!rawMatch?.isHost && !hasJoined ? (
               <button
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[15px] font-bold text-white hover:bg-primary/90"
                 disabled={rawMatch?.myParticipantStatus === 'Pending'}
@@ -492,7 +500,7 @@ export const MatchDetail = () => {
                 <UserCheck className="h-5 w-5" />
                 {rawMatch?.myParticipantStatus === 'Pending' ? 'Đang chờ chủ trận duyệt' : 'Tham gia trận'}
               </button>
-            ) : (
+            ) : hasJoined ? (
               <button
                 className={`mt-5 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[15px] font-bold text-white ${
                   hasPaid ? 'bg-[#6f7a61]' : 'bg-primary hover:bg-primary/90'
@@ -504,7 +512,7 @@ export const MatchDetail = () => {
                 <CreditCard className="h-5 w-5" />
                 {hasPaid ? 'Bạn đã thanh toán' : rawMatch?.myPaymentStatus === 'WaitingForConfirmation' ? 'Đang chờ xác nhận biên lai' : rawMatch?.myPaymentStatus === 'Pending' ? 'Gửi biên lai thanh toán' : 'Chờ trận đủ người'}
               </button>
-            )}
+            ) : null}
 
             {!rawMatch?.isHost && (hasJoined || rawMatch?.myParticipantStatus === 'Pending') && !hasPaid && (
               <button

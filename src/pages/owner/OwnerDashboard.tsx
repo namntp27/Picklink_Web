@@ -26,6 +26,17 @@ const timeValue = (dateTime: string) => dateTime.slice(11, 16);
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
 const statusLabel: Record<string, string> = { Holding: 'Giữ chỗ', Pending: 'Chờ xác nhận', Confirmed: 'Đã đặt', Blocked: 'Đã khóa', Cancelled: 'Đã hủy' };
+const paymentStatusLabel: Record<string, string> = {
+  Pending: 'Chờ thanh toán',
+  WaitingForConfirmation: 'Chờ xác nhận thanh toán',
+  Paid: 'Đã thanh toán',
+  Expired: 'Đã hết hạn',
+  Cancelled: 'Đã hủy',
+  Rejected: 'Đã từ chối',
+  Failed: 'Thanh toán lỗi',
+};
+const getPaymentStatusLabel = (status?: string | null) =>
+  status ? paymentStatusLabel[status] ?? status : '—';
 const slotStatusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Available: 'Trống',
   Holding: 'Giữ chỗ',
@@ -185,7 +196,7 @@ export const OwnerDashboard = () => {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm"><div className="border-b border-outline-variant p-5"><h2 className="text-[20px] font-bold">Booking và lịch vận hành</h2></div>{!isLoading && visibleItems.length === 0 && <p className="p-8 text-center text-[13px] font-bold text-on-surface-variant">Chưa có booking, khóa giờ, bảo trì hoặc sự kiện.</p>}<div className="divide-y divide-outline-variant">{visibleItems.map((item) => <div className="grid gap-3 p-4 md:grid-cols-[1fr_150px_140px_1fr_auto] md:items-center" key={item.bookingId}><div><p className="text-[14px] font-bold">{item.title || `${item.venueName} · Sân ${item.courtNumber}`}</p><p className="text-[12px] text-on-surface-variant">{item.venueName} · Sân {item.courtNumber} · {item.customerName ?? (item.entryType ? entryLabel[item.entryType] : 'Chủ sân')}</p></div><p className="text-[13px] font-bold">{item.startTime.slice(0, 10)}<br />{timeValue(item.startTime)}–{timeValue(item.endTime)}</p><span className={`w-fit rounded-full px-3 py-1 text-[11px] font-bold ${item.entryType === 'Maintenance' ? 'bg-red-100 text-red-800' : item.entryType === 'Event' ? 'bg-violet-100 text-violet-800' : item.isOwnerEntry ? 'bg-slate-200 text-slate-700' : item.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.entryType ? entryLabel[item.entryType] : statusLabel[item.status] ?? item.status}</span><p className="text-[13px] font-bold">{item.amount ? money.format(item.amount) : '—'}<span className="ml-2 text-[11px] text-on-surface-variant">{item.paymentStatus}</span></p><div className="flex gap-2">{item.isOwnerEntry ? <button className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold" onClick={() => void unlock(item)} type="button"><Unlock className="h-4 w-4" /> Mở</button> : <>{item.status === 'Pending' && <button className="rounded-lg bg-primary p-2 text-white" onClick={() => void updateStatus(item, 'Confirmed')} title="Xác nhận" type="button"><CheckCircle2 className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" onClick={() => void updateStatus(item, 'Cancelled')} title="Hủy" type="button"><XCircle className="h-4 w-4" /></button></>}</div></div>)}</div></div>
+          <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm"><div className="border-b border-outline-variant p-5"><h2 className="text-[20px] font-bold">Booking và lịch vận hành</h2></div>{!isLoading && visibleItems.length === 0 && <p className="p-8 text-center text-[13px] font-bold text-on-surface-variant">Chưa có booking, khóa giờ, bảo trì hoặc sự kiện.</p>}<div className="divide-y divide-outline-variant">{visibleItems.map((item) => <div className="grid gap-3 p-4 md:grid-cols-[1fr_150px_140px_1fr_auto] md:items-center" key={item.bookingId}><div><p className="text-[14px] font-bold">{item.title || `${item.venueName} · Sân ${item.courtNumber}`}</p><p className="text-[12px] text-on-surface-variant">{item.venueName} · Sân {item.courtNumber} · {item.customerName ?? (item.entryType ? entryLabel[item.entryType] : 'Chủ sân')}</p></div><p className="text-[13px] font-bold">{item.startTime.slice(0, 10)}<br />{timeValue(item.startTime)}–{timeValue(item.endTime)}</p><span className={`w-fit rounded-full px-3 py-1 text-[11px] font-bold ${item.entryType === 'Maintenance' ? 'bg-red-100 text-red-800' : item.entryType === 'Event' ? 'bg-violet-100 text-violet-800' : item.isOwnerEntry ? 'bg-slate-200 text-slate-700' : item.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.entryType ? entryLabel[item.entryType] : statusLabel[item.status] ?? item.status}</span><p className="text-[13px] font-bold">{item.amount ? money.format(item.amount) : '—'}<span className="ml-2 text-[11px] text-on-surface-variant">{getPaymentStatusLabel(item.paymentStatus)}</span></p><div className="flex gap-2">{item.isOwnerEntry ? <button className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold" onClick={() => void unlock(item)} type="button"><Unlock className="h-4 w-4" /> Mở</button> : <>{item.status === 'Pending' && <button className="rounded-lg bg-primary p-2 text-white" onClick={() => void updateStatus(item, 'Confirmed')} title="Xác nhận" type="button"><CheckCircle2 className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" onClick={() => void updateStatus(item, 'Cancelled')} title="Hủy" type="button"><XCircle className="h-4 w-4" /></button></>}</div></div>)}</div></div>
         </div>
 
         <div className="space-y-5">
@@ -226,7 +237,7 @@ export const OwnerDashboard = () => {
               <div className="mt-3 space-y-2 text-[13px]">
                 <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Nội dung</span><strong className="text-right">{selectedSlot.title || selectedSlotItem?.title || slotStatusLabel[selectedSlot.status]}</strong></div>
                 <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Khách hàng</span><strong className="text-right">{selectedSlotItem?.customerName || '—'}</strong></div>
-                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Thanh toán</span><strong className="text-right">{selectedSlotItem?.paymentStatus || '—'}</strong></div>
+                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Thanh toán</span><strong className="text-right">{getPaymentStatusLabel(selectedSlotItem?.paymentStatus)}</strong></div>
                 <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Số tiền</span><strong className="text-right">{selectedSlotItem?.amount ? money.format(selectedSlotItem.amount) : '—'}</strong></div>
               </div>
             </div>

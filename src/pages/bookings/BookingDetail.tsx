@@ -22,6 +22,7 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { CancelBookingDialog } from './components/CancelBookingDialog';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const playDate = (value: string) => new Intl.DateTimeFormat('vi-VN', {
@@ -70,6 +71,7 @@ export const BookingDetail = () => {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const load = async (silent = false) => {
     if (!token || !Number.isInteger(bookingId)) {
@@ -102,10 +104,14 @@ export const BookingDetail = () => {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
-  const cancel = async () => {
-    if (!token || !booking || !window.confirm(`Hủy booking ${booking.bookingCode}?`)) return;
+  const cancel = async (reason: string) => {
+    if (!token || !booking) return;
     setBusy(true);
-    try { await cancelPlayerBooking(token, booking.bookingId); await load(true); }
+    try {
+      await cancelPlayerBooking(token, booking.bookingId, reason);
+      setShowCancelDialog(false);
+      await load(true);
+    }
     catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.'); }
     finally { setBusy(false); }
   };
@@ -174,9 +180,17 @@ export const BookingDetail = () => {
 
           {booking.checkInCode && <section className="rounded-2xl border border-primary bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[20px] font-bold"><TicketCheck className="h-5 w-5 text-primary" /> Mã check-in</h2><p className="mt-2 text-[12px] text-on-surface-variant">Đưa mã này cho Staff tại sân.</p><div className="mt-3 flex items-center justify-between rounded-lg bg-surface-container-low p-3"><strong className="break-all text-[17px] text-primary">{booking.checkInCode}</strong><button className="rounded-lg p-2 text-primary" onClick={() => void copyCode()} type="button"><Clipboard className="h-5 w-5" /></button></div></section>}
 
-          <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="text-[20px] font-bold">Thao tác</h2><div className="mt-4 space-y-3">{canContinuePayment && !booking.canRetryPayment && <Link className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-5 w-5" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Tiếp tục thanh toán'}</Link>}{booking.canRetryPayment && <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={busy} onClick={() => void retryPayment()} type="button"><RefreshCcw className="h-5 w-5" /> Thanh toán lại</button>}{booking.canReview && <Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 px-4 py-3 text-[14px] font-bold text-amber-700" to={`/reviews/create?bookingId=${booking.bookingId}`}><Star className="h-5 w-5" /> Đánh giá sân</Link>}{booking.canCancel && <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-3 text-[14px] font-bold text-red-700 disabled:opacity-50" disabled={busy} onClick={() => void cancel()} type="button"><XCircle className="h-5 w-5" /> Hủy booking</button>}<Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><CalendarDays className="h-5 w-5" /> Xem lịch sân</Link></div></section>
+          <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="text-[20px] font-bold">Thao tác</h2><div className="mt-4 space-y-3">{canContinuePayment && !booking.canRetryPayment && <Link className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-5 w-5" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Tiếp tục thanh toán'}</Link>}{booking.canRetryPayment && <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={busy} onClick={() => void retryPayment()} type="button"><RefreshCcw className="h-5 w-5" /> Thanh toán lại</button>}{booking.canReview && <Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 px-4 py-3 text-[14px] font-bold text-amber-700" to={`/reviews/create?bookingId=${booking.bookingId}`}><Star className="h-5 w-5" /> Đánh giá sân</Link>}{booking.canCancel && <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-3 text-[14px] font-bold text-red-700 disabled:opacity-50" disabled={busy} onClick={() => setShowCancelDialog(true)} type="button"><XCircle className="h-5 w-5" /> Hủy booking</button>}<Link className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><CalendarDays className="h-5 w-5" /> Xem lịch sân</Link></div></section>
         </aside>
       </div>
     </main>
+    {showCancelDialog && (
+      <CancelBookingDialog
+        bookingCode={booking.bookingCode}
+        isBusy={busy}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={cancel}
+      />
+    )}
   </div>;
 };
