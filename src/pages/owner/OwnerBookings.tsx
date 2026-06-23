@@ -35,6 +35,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
+import { OwnerMatchTransactionReviewModal } from './components/OwnerMatchTransactionReviewModal';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
 
 type PaymentFilter = 'all' | BookingPaymentStatus;
@@ -46,6 +47,12 @@ type OwnerBookingListItem = BookingDetail & {
   matchType?: string | null;
   requiredPlayerCount?: number | null;
   acceptedPlayerCount?: number | null;
+  matchPlayers: Array<{
+    playerId: number;
+    playerName: string;
+    isHost: boolean;
+    paymentStatus: string;
+  }>;
 };
 type PrefetchedPayment = {
   promise: Promise<BankTransfer>;
@@ -156,6 +163,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     bookingCode: string;
     prefetched: PrefetchedPayment;
   } | null>(null);
+  const [matchTransactionTarget, setMatchTransactionTarget] = useState<{
+    bookingId: number;
+    bookingCode: string;
+  } | null>(null);
   const paymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedPayment>());
 
   const prefetchPayment = useCallback((paymentId: number) => {
@@ -196,6 +207,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
         matchType: record.matchType,
         requiredPlayerCount: record.requiredPlayerCount,
         acceptedPlayerCount: record.acceptedPlayerCount,
+        matchPlayers: record.matchPlayers ?? [],
       })));
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải booking.'); }
@@ -418,16 +430,22 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                           </p>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-[14px] font-bold">{booking.customerName}</p>
-                          {isMatchBooking && (
-                            <p className="mt-1 text-[12px] font-bold text-primary">
-                              {booking.matchType ?? 'Ghép trận'} · {booking.acceptedPlayerCount ?? 0}/{booking.requiredPlayerCount ?? 0} người
-                            </p>
+                          {isMatchBooking ? (
+                            <div>
+                              <p className="text-[14px] font-bold">{booking.customerName}</p>
+                              <p className="text-[12px] font-bold text-primary">
+                                {booking.matchType ?? 'Ghép trận'} · {booking.acceptedPlayerCount ?? 0}/{booking.requiredPlayerCount ?? 0} người
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-[14px] font-bold">{booking.customerName}</p>
+                              <p className="mt-1 flex items-center gap-1 text-[12px] text-on-surface-variant">
+                                <Phone className="h-3.5 w-3.5" />
+                                {booking.customerPhone}
+                              </p>
+                            </>
                           )}
-                          <p className="mt-1 flex items-center gap-1 text-[12px] text-on-surface-variant">
-                            <Phone className="h-3.5 w-3.5" />
-                            {booking.customerPhone}
-                          </p>
                         </td>
                         <td className="px-5 py-4">
                           <p className="text-[14px] font-bold">{booking.courtName}</p>
@@ -457,6 +475,14 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                               aria-label={`Xem ${booking.code}`}
                               className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low"
                               onClick={() => {
+                                if (isMatchBooking) {
+                                  setError('');
+                                  setMatchTransactionTarget({
+                                    bookingId: Number(booking.id),
+                                    bookingCode: booking.code,
+                                  });
+                                  return;
+                                }
                                 if (!booking.paymentId) {
                                   setError(`Đơn ${booking.code} chưa có giao dịch thanh toán để kiểm tra.`);
                                   return;
@@ -471,15 +497,15 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                                 });
                               }}
                               onFocus={() => {
-                                if (booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               onMouseEnter={() => {
-                                if (booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               onPointerDown={() => {
-                                if (booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
-                              title="Kiểm tra giao dịch"
+                              title={isMatchBooking ? 'Xem biên lai của nhóm' : 'Kiểm tra giao dịch'}
                               type="button"
                             >
                               <Eye className="h-4 w-4" />
@@ -511,6 +537,14 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                   return load(false);
                 }}
                 paymentId={transactionTarget.paymentId}
+              />
+            )}
+            {matchTransactionTarget && (
+              <OwnerMatchTransactionReviewModal
+                bookingCode={matchTransactionTarget.bookingCode}
+                bookingId={matchTransactionTarget.bookingId}
+                onClose={() => setMatchTransactionTarget(null)}
+                onUpdated={() => load(false)}
               />
             )}
     </OwnerShell>

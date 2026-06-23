@@ -36,6 +36,9 @@ export const getOperatorPayments = (token: string, status = 'WaitingForConfirmat
 export const getOperatorPayment = (token: string, paymentId: number) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}`, {}, token);
 
+export const getOperatorBookingPayments = (token: string, bookingId: number) =>
+  apiRequest<BankTransfer[]>(`/api/payments/operator/booking/${bookingId}`, {}, token);
+
 export const approveOperatorPayment = (token: string, paymentId: number) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}/approve`, { method: 'POST' }, token);
 

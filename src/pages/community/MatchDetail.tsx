@@ -142,6 +142,7 @@ export const MatchDetail = () => {
   const [hasJoined, setHasJoined] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [copiedCheckInCode, setCopiedCheckInCode] = useState(false);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
@@ -241,10 +242,25 @@ export const MatchDetail = () => {
 
   const joinedCount = players.filter((player) => player.role !== 'Chỗ trống').length;
   const availableSlots = Math.max(matchDetail.needed - joinedCount, 0);
+  const copyCheckInCode = async () => {
+    if (!rawMatch?.checkInCode) return;
+
+    try {
+      await navigator.clipboard.writeText(rawMatch.checkInCode);
+      setCopiedCheckInCode(true);
+      window.setTimeout(() => setCopiedCheckInCode(false), 1500);
+    } catch {
+      setError('Không thể sao chép mã check-in. Vui lòng sao chép thủ công.');
+    }
+  };
+
   const perPlayerPrice = rawMatch?.amountPerPlayer && rawMatch.amountPerPlayer > 0
     ? rawMatch.amountPerPlayer
     : Math.ceil(matchDetail.totalPrice / matchDetail.needed);
   const isFull = availableSlots === 0;
+  const allPlayersPaid = isFull
+    && matchDetail.players.length === matchDetail.needed
+    && matchDetail.players.every((player) => player.paymentStatus === 'paid');
   const detailId = id ?? matchDetail.id;
   const isPaymentCountdown = rawMatch?.status === 'PaymentPending' && Boolean(rawMatch.paymentDeadline);
   const countdownTarget = rawMatch?.paymentDeadline
@@ -433,7 +449,7 @@ export const MatchDetail = () => {
                 { icon: UserPlus, title: 'Tạo lời mời', text: 'Lời mời được đăng lên danh sách đang chờ.', done: true },
                 { icon: Users, title: 'Ghép đủ người', text: isFull ? 'Trận đã đủ người chơi.' : `Còn ${availableSlots} vị trí trống.`, done: isFull },
                 { icon: CreditCard, title: 'Cùng thanh toán', text: 'Mỗi người thanh toán phần tiền sân của mình.', done: hasPaid },
-                { icon: CheckCircle2, title: 'Xác nhận giữ sân', text: 'Sân được xác nhận sau khi các bên hoàn tất thanh toán.', done: false },
+                { icon: CheckCircle2, title: 'Xác nhận giữ sân', text: 'Sân được xác nhận sau khi các bên hoàn tất thanh toán.', done: allPlayersPaid },
               ].map((step) => (
                 <div className="flex gap-3" key={step.title}>
                   <div
@@ -454,6 +470,25 @@ export const MatchDetail = () => {
         </div>
 
         <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
+          {rawMatch?.checkInCode && (
+            <section className="rounded-xl border border-primary bg-white p-5 shadow-sm">
+              <p className="text-[13px] font-bold uppercase text-on-surface-variant">Mã ghép trận check-in</p>
+              <p className="mt-2 text-[13px] leading-5 text-on-surface-variant">
+                Đưa mã chung này cho Staff tại sân để xác minh và check-in cả nhóm.
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-surface-container-low p-3">
+                <strong className="break-all text-[17px] text-primary">{rawMatch.checkInCode}</strong>
+                <button
+                  className="shrink-0 rounded-lg border border-primary px-3 py-2 text-[12px] font-bold text-primary hover:bg-primary/10"
+                  onClick={() => void copyCheckInCode()}
+                  type="button"
+                >
+                  {copiedCheckInCode ? 'Đã sao chép' : 'Sao chép'}
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="rounded-xl border border-primary bg-white p-5 shadow-sm">
             <p className="text-[13px] font-bold uppercase text-on-surface-variant">Thanh toán sân</p>
             <div className="mt-4 space-y-3 text-[14px]">

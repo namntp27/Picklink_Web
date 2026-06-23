@@ -145,6 +145,12 @@ export type OwnerBookingRecord = {
   matchType?: string | null;
   requiredPlayerCount?: number | null;
   acceptedPlayerCount?: number | null;
+  matchPlayers?: Array<{
+    playerId: number;
+    playerName: string;
+    isHost: boolean;
+    paymentStatus: string;
+  }>;
   bookingCode: string;
   bookingStatus: string;
   checkInStatus: string;

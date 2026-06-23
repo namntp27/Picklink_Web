@@ -47,6 +47,7 @@ export type MatchParticipant = {
 export type MatchDetailResponse = MatchSummary & {
   bookingId: number;
   myPlayerId?: number | null;
+  checkInCode?: string | null;
   paymentDeadline?: string | null;
   myPaymentId?: number | null;
   myQrImageUrl?: string | null;
