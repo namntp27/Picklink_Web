@@ -34,6 +34,7 @@ import { getOperatorPayment } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 import { OwnerMatchTransactionReviewModal } from './components/OwnerMatchTransactionReviewModal';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
@@ -157,6 +158,8 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const [bookingStateFilter, setBookingStateFilter] = useState<BookingStateFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
   const [transactionTarget, setTransactionTarget] = useState<{
     paymentId: number;
@@ -200,7 +203,16 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     if (showLoading) setIsLoading(true);
     setError('');
     try {
-      setBookings((await getOwnerBookings(token, { bookingType: kind })).map((record) => ({
+      const result = await getOwnerBookings(token, {
+        bookingType: kind,
+        from: selectedDate,
+        to: selectedDate,
+        search: searchTerm.trim() || undefined,
+        page,
+        pageSize: 10,
+      });
+      setPagination(result);
+      setBookings(result.items.map((record) => ({
         ...ownerBookingToDetail(record),
         paymentId: record.paymentId,
         matchId: record.matchId,
@@ -212,7 +224,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải booking.'); }
     finally { if (showLoading) setIsLoading(false); }
-  }, [kind, token]);
+  }, [kind, page, searchTerm, selectedDate, token]);
 
   useEffect(() => { void load(); }, [load]);
   useScheduleRealtime(() => { void load(false); });
@@ -254,6 +266,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     const month = String(nextDate.getMonth() + 1).padStart(2, '0');
     const day = String(nextDate.getDate()).padStart(2, '0');
     setSelectedDate(`${year}-${month}-${day}`);
+    setPage(1);
   };
 
   const pendingBookings = bookings.filter((booking) => booking.bookingStatus === 'holding');
@@ -332,7 +345,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       : isMatchBooking ? 'Đơn ghép trận theo ngày' : 'Đơn đặt sân theo ngày'}
                   </h2>
                   <p className="mt-1 text-[13px] text-on-surface-variant">
-                    Có {filteredBookings.length} đơn có thời gian chơi ngày {formatBookingDate(selectedDate)}.
+                    Có {pagination.totalCount} đơn có thời gian chơi ngày {formatBookingDate(selectedDate)}.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
@@ -350,7 +363,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       <input
                         className="h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         max="9999-12-31"
-                        onChange={(event) => setSelectedDate(event.target.value)}
+                        onChange={(event) => {
+                          setSelectedDate(event.target.value);
+                          setPage(1);
+                        }}
                         type="date"
                         value={selectedDate}
                       />
@@ -368,7 +384,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
                     <input
                       className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      onChange={(event) => setSearchTerm(event.target.value)}
+                      onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setPage(1);
+                      }}
                       placeholder="Tìm mã đơn, khách, sân..."
                       type="text"
                       value={searchTerm}
@@ -524,6 +543,9 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="border-t border-outline-variant p-4">
+                <PaginationControls page={pagination} onPageChange={setPage} />
               </div>
             </section>
             {transactionTarget && (

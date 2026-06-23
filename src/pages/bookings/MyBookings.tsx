@@ -22,6 +22,7 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
 import { CancelBookingDialog } from './components/CancelBookingDialog';
 
 type BookingFilter = 'all' | 'upcoming' | 'pending' | 'paid' | 'cancelled';
@@ -71,6 +72,8 @@ export const MyBookings = () => {
   const [activeFilter, setActiveFilter] = useState<BookingFilter>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [cancelTarget, setCancelTarget] = useState<BookingHolding | null>(null);
@@ -79,12 +82,16 @@ export const MyBookings = () => {
     if (!token) return;
     if (showLoading) setLoading(true);
     setError('');
-    try { setBookings(await getMyBookingHistory(token)); }
+    try {
+      const result = await getMyBookingHistory(token, { page, pageSize: 10 });
+      setBookings(result.items);
+      setPagination(result);
+    }
     catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sử đặt sân.'); }
     finally { if (showLoading) setLoading(false); }
   };
 
-  useEffect(() => { void load(); }, [token]);
+  useEffect(() => { void load(); }, [page, token]);
   useScheduleRealtime(() => { void load(false); });
   usePaymentRealtime(() => { void load(false); });
 
@@ -150,6 +157,7 @@ export const MyBookings = () => {
             </article>;
           })}
           {filtered.length === 0 && <div className="rounded-xl border border-outline-variant bg-white p-12 text-center"><CalendarDays className="mx-auto h-10 w-10 text-primary" /><h2 className="mt-3 text-[20px] font-bold">Không có booking phù hợp</h2><p className="mt-2 text-[14px] text-on-surface-variant">Hãy đổi bộ lọc hoặc đặt một sân mới.</p></div>}
+          <PaginationControls page={pagination} onPageChange={setPage} />
         </section>}
       </div>
 

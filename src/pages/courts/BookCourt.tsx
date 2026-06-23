@@ -8,6 +8,7 @@ import { addFavoriteVenue, getBookingVenues, removeFavoriteVenue, type BookingVe
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
@@ -80,6 +81,8 @@ export const BookCourt = () => {
   const [maxPrice, setMaxPrice] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(() => new URLSearchParams(window.location.search).get('favorites') === 'true');
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
   const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(null);
@@ -95,13 +98,15 @@ export const BookCourt = () => {
         minPrice: minPrice ? Number(minPrice) : undefined,
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
         favoritesOnly,
+        page,
+        pageSize: 10,
       }, token)
-        .then((items) => { setVenues(items); setError(''); })
+        .then((result) => { setVenues(result.items); setPagination(result); setError(''); })
         .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.'))
         .finally(() => setIsLoading(false));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [area, favoritesOnly, maxPrice, minPrice, search, token]);
+  }, [area, favoritesOnly, maxPrice, minPrice, page, search, token]);
 
   useVenueRealtime(() => {
     getBookingVenues({
@@ -110,9 +115,12 @@ export const BookCourt = () => {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       favoritesOnly,
+      page,
+      pageSize: 10,
     }, token)
-      .then((items) => {
-        setVenues(items);
+      .then((result) => {
+        setVenues(result.items);
+        setPagination(result);
         setError('');
       })
       .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể đồng bộ danh sách sân.'));
@@ -185,7 +193,7 @@ export const BookCourt = () => {
           <div className="flex w-full flex-col gap-2 sm:flex-row md:max-w-2xl">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-on-surface-variant" />
-              <input className="w-full rounded-xl bg-white py-3.5 pl-12 pr-4 text-[14px] font-medium text-on-surface outline-none" onChange={(event) => setSearch(event.target.value)} placeholder="Tên sân hoặc địa chỉ..." value={search} />
+              <input className="w-full rounded-xl bg-white py-3.5 pl-12 pr-4 text-[14px] font-medium text-on-surface outline-none" onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tên sân hoặc địa chỉ..." value={search} />
             </div>
             <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 text-[13px] font-bold text-primary disabled:opacity-70" disabled={isLocating} onClick={locatePlayer} type="button">
               <Crosshair className="h-4 w-4" /> {isLocating ? 'Đang định vị...' : 'Vị trí của tôi'}
@@ -196,10 +204,10 @@ export const BookCourt = () => {
         {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] font-bold text-red-700">{error}</div>}
 
         <section className="grid gap-3 rounded-xl border border-outline-variant bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
-          <label className="lg:col-span-2"><span className="text-[11px] font-bold uppercase text-on-surface-variant">Khu vực</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" onChange={(event) => setArea(event.target.value)} placeholder="Quận, huyện, thành phố..." value={area} /></label>
-          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá từ</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => setMinPrice(event.target.value)} placeholder="100000" type="number" value={minPrice} /></label>
-          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá đến</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => setMaxPrice(event.target.value)} placeholder="300000" type="number" value={maxPrice} /></label>
-          <button className={`mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg border px-3 text-[13px] font-bold ${favoritesOnly ? 'border-primary bg-primary text-white' : 'border-outline-variant text-on-surface-variant'}`} onClick={() => token ? setFavoritesOnly((value) => !value) : setError('Vui lòng đăng nhập để xem sân yêu thích.')} type="button"><Heart className={`h-4 w-4 ${favoritesOnly ? 'fill-current' : ''}`} /> Sân yêu thích</button>
+          <label className="lg:col-span-2"><span className="text-[11px] font-bold uppercase text-on-surface-variant">Khu vực</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" onChange={(event) => { setArea(event.target.value); setPage(1); }} placeholder="Quận, huyện, thành phố..." value={area} /></label>
+          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá từ</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => { setMinPrice(event.target.value); setPage(1); }} placeholder="100000" type="number" value={minPrice} /></label>
+          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá đến</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }} placeholder="300000" type="number" value={maxPrice} /></label>
+          <button className={`mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg border px-3 text-[13px] font-bold ${favoritesOnly ? 'border-primary bg-primary text-white' : 'border-outline-variant text-on-surface-variant'}`} onClick={() => token ? (setFavoritesOnly((value) => !value), setPage(1)) : setError('Vui lòng đăng nhập để xem sân yêu thích.')} type="button"><Heart className={`h-4 w-4 ${favoritesOnly ? 'fill-current' : ''}`} /> Sân yêu thích</button>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
@@ -238,6 +246,7 @@ export const BookCourt = () => {
                   </article>
                 );
               })}
+              <PaginationControls page={pagination} onPageChange={setPage} />
             </div>
           </div>
 

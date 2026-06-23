@@ -2,6 +2,19 @@ const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? '';
 
 export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, '');
 
+export type PaginatedResponse<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+
+export type PaginationParams = {
+  page?: number;
+  pageSize?: number;
+};
+
 type ApiErrorBody = {
   detail?: string;
   errors?: Record<string, string[]>;

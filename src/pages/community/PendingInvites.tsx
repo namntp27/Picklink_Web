@@ -20,6 +20,7 @@ import { getCourtsByProvince, getWardsByProvince, provinceOptions } from './Oppo
 import { getOpenMatches, joinMatch, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
 
 type MatchFormat = '1vs1' | '2vs2';
 
@@ -138,6 +139,8 @@ export const PendingInvites = () => {
   const [invites, setInvites] = useState<MatchInvite[]>([]);
   const [selectedInvite, setSelectedInvite] = useState<MatchInvite | null>(null);
   const [filters, setFilters] = useState<InviteFilters>(defaultFilters);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
 
   const mapInvite = (match: MatchSummary): MatchInvite => ({
     id: match.matchId,
@@ -160,10 +163,12 @@ export const PendingInvites = () => {
 
   const loadInvites = async () => {
     if (!token) return;
-    setInvites((await getOpenMatches(token)).map(mapInvite));
+    const result = await getOpenMatches(token, { page, pageSize: 10 });
+    setInvites(result.items.map(mapInvite));
+    setPagination(result);
   };
 
-  useEffect(() => { void loadInvites(); }, [token]);
+  useEffect(() => { void loadInvites(); }, [page, token]);
   useMatchRealtime(() => { void loadInvites(); });
 
   const waitingSlots = useMemo(
@@ -223,6 +228,7 @@ export const PendingInvites = () => {
   );
 
   const updateFilter = (field: keyof InviteFilters, value: string) => {
+    setPage(1);
     setFilters((current): InviteFilters => {
       if (field === 'province') {
         return { ...current, province: value, ward: 'all', court: 'all' };
@@ -601,6 +607,7 @@ export const PendingInvites = () => {
                 </button>
               </div>
             )}
+            <PaginationControls page={pagination} onPageChange={setPage} />
           </div>
         </section>
 

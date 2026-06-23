@@ -101,8 +101,8 @@ export const Opponents = () => {
 
   useEffect(() => {
     setIsLoadingMap(true);
-    getBookingVenues({}, token)
-      .then((items) => { setVenues(items); setError(''); })
+    getBookingVenues({ page: 1, pageSize: 10 }, token)
+      .then((result) => { setVenues(result.items); setError(''); })
       .catch(() => setError('Không thể tải danh sách sân.'))
       .finally(() => setIsLoadingMap(false));
   }, [token]);
@@ -133,8 +133,8 @@ export const Opponents = () => {
       .catch(() => setError('Không thể đồng bộ lịch sân mới nhất.'));
   });
   useVenueRealtime(() => {
-    getBookingVenues({}, token)
-      .then(setVenues)
+    getBookingVenues({ page: 1, pageSize: 10 }, token)
+      .then((result) => setVenues(result.items))
       .catch(() => setError('Không thể đồng bộ danh sách sân mới nhất.'));
   });
 

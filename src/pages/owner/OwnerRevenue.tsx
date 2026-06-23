@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
@@ -23,7 +23,7 @@ import {
 import { OwnerShell } from './components/OwnerShell';
 import type { BookingDetail } from '../../data/bookings';
 import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
-import { getOwnerBookings } from '../../api/owner';
+import { getOwnerRevenueReport } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
@@ -171,19 +171,20 @@ export const OwnerRevenue = () => {
   const [activeStatus, setActiveStatus] = useState<TransactionStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [ownerBookings, setOwnerBookings] = useState<BookingDetail[]>([]);
+  const periodDates = useMemo(() => getDateRange(activePeriod), [activePeriod]);
 
-  useEffect(() => {
+  const loadRevenue = useCallback(async () => {
     if (!token) return;
-    getOwnerBookings(token)
-      .then((records) => setOwnerBookings(records.map(ownerBookingToDetail)))
-      .catch(() => setOwnerBookings([]));
-  }, [token]);
-  const reloadRevenue = () => {
-    if (!token) return;
-    void getOwnerBookings(token)
-      .then((records) => setOwnerBookings(records.map(ownerBookingToDetail)))
-      .catch(() => undefined);
-  };
+    const from = periodDates[0];
+    const to = periodDates[periodDates.length - 1];
+    if (!from || !to) return;
+    const report = await getOwnerRevenueReport(token, from, to);
+    setOwnerBookings(report.bookings.map(ownerBookingToDetail));
+  }, [periodDates, token]);
+
+  useEffect(() => { void loadRevenue().catch(() => setOwnerBookings([])); }, [loadRevenue]);
+
+  const reloadRevenue = () => { void loadRevenue().catch(() => undefined); };
   useScheduleRealtime(reloadRevenue);
   usePaymentRealtime(reloadRevenue);
 
@@ -198,7 +199,6 @@ export const OwnerRevenue = () => {
     [ownerBookings],
   );
 
-  const periodDates = useMemo(() => getDateRange(activePeriod), [activePeriod]);
   const periodTransactions = useMemo(
     () => transactions.filter((transaction) => periodDates.includes(transaction.booking.date)),
     [periodDates, transactions],
