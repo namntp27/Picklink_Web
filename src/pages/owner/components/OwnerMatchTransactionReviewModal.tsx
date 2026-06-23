@@ -9,6 +9,7 @@ import {
 } from '../../../api/payment';
 import { useAuth } from '../../../auth/AuthContext';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
+import { preloadReceiptImage } from '../../../utils/receiptImage';
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -35,6 +36,8 @@ const statusClasses: Record<string, string> = {
 type OwnerMatchTransactionReviewModalProps = {
   bookingId: number;
   bookingCode: string;
+  initialPayments?: BankTransfer[];
+  initialPaymentsRequest?: Promise<BankTransfer[]>;
   onClose: () => void;
   onUpdated: () => void | Promise<void>;
 };
@@ -42,35 +45,42 @@ type OwnerMatchTransactionReviewModalProps = {
 export const OwnerMatchTransactionReviewModal = ({
   bookingId,
   bookingCode,
+  initialPayments,
+  initialPaymentsRequest,
   onClose,
   onUpdated,
 }: OwnerMatchTransactionReviewModalProps) => {
   const { token } = useAuth();
-  const [payments, setPayments] = useState<BankTransfer[]>([]);
+  const [payments, setPayments] = useState<BankTransfer[]>(initialPayments ?? []);
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPayments);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceRefresh = false) => {
     if (!token) return;
     setLoading(true);
     setError('');
     try {
-      setPayments(await getOperatorBookingPayments(token, bookingId));
+      const nextPayments = await (!forceRefresh && initialPaymentsRequest
+        ? initialPaymentsRequest
+        : getOperatorBookingPayments(token, bookingId));
+      nextPayments.forEach((payment) => preloadReceiptImage(payment.receiptImageUrl));
+      setPayments(nextPayments);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải biên lai của nhóm.');
     } finally {
       setLoading(false);
     }
-  }, [bookingId, token]);
+  }, [bookingId, initialPaymentsRequest, token]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (initialPayments) initialPayments.forEach((payment) => preloadReceiptImage(payment.receiptImageUrl));
+    else void load();
+  }, [initialPayments, load]);
 
   usePaymentRealtime((event) => {
-    if (event.bookingId === bookingId) void load();
+    if (event.bookingId === bookingId && event.paymentId !== busyId) void load(true);
   });
 
   const approve = async (payment: BankTransfer) => {
@@ -78,9 +88,10 @@ export const OwnerMatchTransactionReviewModal = ({
     setBusyId(payment.paymentId);
     setError('');
     try {
-      await approveOperatorPayment(token, payment.paymentId);
+      const updatedPayment = await approveOperatorPayment(token, payment.paymentId);
+      setPayments((current) => current.map((item) =>
+        item.paymentId === updatedPayment.paymentId ? updatedPayment : item));
       await onUpdated();
-      await load();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.');
     } finally {
@@ -94,10 +105,11 @@ export const OwnerMatchTransactionReviewModal = ({
     setBusyId(payment.paymentId);
     setError('');
     try {
-      await rejectOperatorPayment(token, payment.paymentId, reason);
+      const updatedPayment = await rejectOperatorPayment(token, payment.paymentId, reason);
+      setPayments((current) => current.map((item) =>
+        item.paymentId === updatedPayment.paymentId ? updatedPayment : item));
       setRejectReasons((current) => ({ ...current, [payment.paymentId]: '' }));
       await onUpdated();
-      await load();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.');
     } finally {

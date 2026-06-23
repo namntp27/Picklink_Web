@@ -30,11 +30,13 @@ import {
 } from '../../data/bookings';
 import { getOwnerBookings } from '../../api/owner';
 import type { BankTransfer } from '../../api/booking';
-import { getOperatorPayment } from '../../api/payment';
+import { getOperatorBookingPayments, getOperatorPayment } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
+import { preloadReceiptImage } from '../../utils/receiptImage';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 import { OwnerMatchTransactionReviewModal } from './components/OwnerMatchTransactionReviewModal';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
@@ -58,6 +60,10 @@ type OwnerBookingListItem = BookingDetail & {
 type PrefetchedPayment = {
   promise: Promise<BankTransfer>;
   data?: BankTransfer;
+};
+type PrefetchedMatchPayments = {
+  promise: Promise<BankTransfer[]>;
+  data?: BankTransfer[];
 };
 
 const paymentFilterOptions: Array<{ label: string; value: PaymentFilter }> = [
@@ -169,8 +175,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const [matchTransactionTarget, setMatchTransactionTarget] = useState<{
     bookingId: number;
     bookingCode: string;
+    prefetched?: PrefetchedMatchPayments | null;
   } | null>(null);
   const paymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedPayment>());
+  const matchPaymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedMatchPayments>());
+  const realtimeReloadTimer = useRef<number | null>(null);
 
   const prefetchPayment = useCallback((paymentId: number) => {
     if (!token) return null;
@@ -183,10 +192,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     prefetched.promise = getOperatorPayment(token, paymentId)
       .then((payment) => {
         prefetched.data = payment;
-        if (payment.receiptImageUrl) {
-          const receiptImage = new Image();
-          receiptImage.src = payment.receiptImageUrl;
-        }
+        preloadReceiptImage(payment.receiptImageUrl);
         return payment;
       })
       .catch((reason) => {
@@ -195,6 +201,29 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
       });
     void prefetched.promise.catch(() => undefined);
     paymentPrefetchCache.current.set(paymentId, prefetched);
+    return prefetched;
+  }, [token]);
+
+  const prefetchMatchPayments = useCallback((bookingId: number) => {
+    if (!token) return null;
+    const cached = matchPaymentPrefetchCache.current.get(bookingId);
+    if (cached) return cached;
+
+    const prefetched: PrefetchedMatchPayments = {
+      promise: Promise.resolve([]),
+    };
+    prefetched.promise = getOperatorBookingPayments(token, bookingId)
+      .then((payments) => {
+        prefetched.data = payments;
+        payments.forEach((payment) => preloadReceiptImage(payment.receiptImageUrl));
+        return payments;
+      })
+      .catch((reason) => {
+        matchPaymentPrefetchCache.current.delete(bookingId);
+        throw reason;
+      });
+    void prefetched.promise.catch(() => undefined);
+    matchPaymentPrefetchCache.current.set(bookingId, prefetched);
     return prefetched;
   }, [token]);
 
@@ -226,11 +255,26 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     finally { if (showLoading) setIsLoading(false); }
   }, [kind, page, searchTerm, selectedDate, token]);
 
+  const scheduleRealtimeReload = useCallback(() => {
+    if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
+    realtimeReloadTimer.current = window.setTimeout(() => {
+      realtimeReloadTimer.current = null;
+      void load(false);
+    }, 120);
+  }, [load]);
+
   useEffect(() => { void load(); }, [load]);
-  useScheduleRealtime(() => { void load(false); });
+  useEffect(() => () => {
+    if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
+  }, []);
+  useScheduleRealtime(scheduleRealtimeReload);
+  useMatchRealtime(() => {
+    if (kind === 'match') scheduleRealtimeReload();
+  });
   usePaymentRealtime((event) => {
     paymentPrefetchCache.current.delete(event.paymentId);
-    void load(false);
+    matchPaymentPrefetchCache.current.delete(event.bookingId);
+    scheduleRealtimeReload();
   });
 
   const filteredBookings = useMemo(() => {
@@ -496,9 +540,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                               onClick={() => {
                                 if (isMatchBooking) {
                                   setError('');
+                                  const prefetched = prefetchMatchPayments(Number(booking.id));
                                   setMatchTransactionTarget({
                                     bookingId: Number(booking.id),
                                     bookingCode: booking.code,
+                                    prefetched,
                                   });
                                   return;
                                 }
@@ -516,13 +562,16 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                                 });
                               }}
                               onFocus={() => {
-                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               onMouseEnter={() => {
-                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               onPointerDown={() => {
-                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               title={isMatchBooking ? 'Xem biên lai của nhóm' : 'Kiểm tra giao dịch'}
                               type="button"
@@ -565,6 +614,8 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
               <OwnerMatchTransactionReviewModal
                 bookingCode={matchTransactionTarget.bookingCode}
                 bookingId={matchTransactionTarget.bookingId}
+                initialPayments={matchTransactionTarget.prefetched?.data}
+                initialPaymentsRequest={matchTransactionTarget.prefetched?.promise}
                 onClose={() => setMatchTransactionTarget(null)}
                 onUpdated={() => load(false)}
               />

@@ -14,7 +14,7 @@ const timeText = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-
 const statusText: Record<string, string> = {
   Pending: 'Chờ bạn chuyển khoản', WaitingForConfirmation: 'Đang chờ chủ sân xác nhận', Paid: 'Đã thanh toán', Expired: 'Đã hết hạn', Cancelled: 'Đã hủy',
 };
-const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const utcTimestamp = (value: string) => {
   const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`;
@@ -60,9 +60,9 @@ export const Checkout = () => {
       setError('Biên lai phải là ảnh JPG, PNG hoặc WEBP.');
       return;
     }
-    if (receipt.size > MAX_RECEIPT_BYTES) {
+    if (receipt.size > MAX_RECEIPT_SOURCE_BYTES) {
       setReceipt(null);
-      setError(`Ảnh biên lai vượt quá 5 MB (${(receipt.size / 1024 / 1024).toFixed(1)} MB).`);
+      setError(`Ảnh biên lai gốc vượt quá 12 MB (${(receipt.size / 1024 / 1024).toFixed(1)} MB).`);
       return;
     }
     setError('');
@@ -71,10 +71,10 @@ export const Checkout = () => {
     return () => URL.revokeObjectURL(previewUrl);
   }, [receipt]);
   usePaymentRealtime((event) => {
-    if (event.bookingId === bookingId) void loadBooking(true);
+    if (!isSubmitting && event.bookingId === bookingId) void loadBooking(true);
   });
   useScheduleRealtime((event) => {
-    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void loadBooking(true);
+    if (!isSubmitting && booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void loadBooking(true);
   });
 
   const remainingSeconds = useMemo(() => booking?.holdExpiresAt
@@ -97,7 +97,15 @@ export const Checkout = () => {
     if (!transfer?.qrImageUrl) { setError('Sân chưa cấu hình tài khoản nhận chuyển khoản.'); return; }
     if (!receipt) { setError('Vui lòng chọn ảnh biên lai trước khi xác nhận đã chuyển khoản.'); return; }
     setIsSubmitting(true); setError('');
-    try { await submitBankTransfer(token, bookingId, receipt); await loadBooking(); setReceipt(null); }
+    try {
+      const updatedPayment = await submitBankTransfer(token, bookingId, receipt);
+      setBooking((current) => current ? {
+        ...current,
+        paymentStatus: updatedPayment.paymentStatus,
+        bankTransfer: updatedPayment,
+      } : current);
+      setReceipt(null);
+    }
     catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi xác nhận chuyển khoản.'); }
     finally { setIsSubmitting(false); }
   };
@@ -147,9 +155,9 @@ export const Checkout = () => {
               ['Ngân hàng nhận', transfer.bankName], ['Tên chủ tài khoản', transfer.bankAccountName], ['Số tài khoản', transfer.bankAccountNumber], ['Số tiền', currency.format(booking.totalAmount)],
             ].map(([label, value]) => <div className="rounded-xl bg-surface-container-low p-4" key={label}><p className="text-[11px] font-bold uppercase text-on-surface-variant">{label}</p><p className="mt-1 break-words text-[15px] font-bold">{value}</p></div>)}</div>
             <div className="rounded-xl border-2 border-primary bg-primary/5 p-4"><p className="text-[12px] font-bold uppercase text-primary">Nội dung chuyển khoản bắt buộc</p><div className="mt-2 flex items-center justify-between gap-3"><code className="text-[20px] font-bold">{transfer.transferContent}</code><button className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white" onClick={() => void copyContent()} type="button">{copied ? <CheckCircle2 className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}{copied ? 'Đã sao chép' : 'Sao chép'}</button></div></div>
-            <label className="block cursor-pointer rounded-xl border-2 border-dashed border-outline-variant p-5 text-center hover:border-primary hover:bg-primary/5"><Upload className="mx-auto h-7 w-7 text-primary" /><span className="mt-2 block text-[14px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span><span className="mt-1 block text-[12px] text-on-surface-variant">JPG, PNG hoặc WEBP · tối đa 5 MB</span><input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" /></label>
+            <label className="block cursor-pointer rounded-xl border-2 border-dashed border-outline-variant p-5 text-center hover:border-primary hover:bg-primary/5"><Upload className="mx-auto h-7 w-7 text-primary" /><span className="mt-2 block text-[14px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span><span className="mt-1 block text-[12px] text-on-surface-variant">JPG, PNG hoặc WEBP · tự nén trước khi gửi</span><input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" /></label>
             {receiptPreview && <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3"><p className="mb-2 text-center text-[12px] font-bold text-primary">Ảnh biên lai đã chọn</p><img alt="Xem trước biên lai" className="mx-auto max-h-64 rounded-lg border bg-white object-contain" src={receiptPreview} /></div>}
-            <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-[17px] font-bold text-white disabled:cursor-wait disabled:opacity-60" disabled={isSubmitting} onClick={() => void submit()} type="button">{isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}{isSubmitting ? 'Đang gửi biên lai...' : 'Tôi đã chuyển khoản'}</button>
+            <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-[17px] font-bold text-white disabled:cursor-wait disabled:opacity-60" disabled={isSubmitting} onClick={() => void submit()} type="button">{isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}{isSubmitting ? 'Đang tối ưu và gửi biên lai...' : 'Tôi đã chuyển khoản'}</button>
           </> : <div className="py-12 text-center"><AlertCircle className="mx-auto h-14 w-14 text-amber-600" /><h1 className="mt-4 text-[24px] font-bold">Sân chưa cấu hình tài khoản nhận tiền</h1><p className="mt-2 text-on-surface-variant">Vui lòng liên hệ chủ sân hoặc chọn khung giờ khác.</p></div>}
       </section>
 

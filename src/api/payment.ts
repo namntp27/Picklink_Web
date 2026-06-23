@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type { PaginatedResponse, PaginationParams } from './client';
 import type { BankTransfer } from './booking';
+import { optimizeReceiptImage } from '../utils/receiptImage';
 
 export type OwnerBankAccount = {
   ownerBankAccountId: number;
@@ -13,9 +14,9 @@ export type OwnerBankAccount = {
 
 export type OwnerBankAccountInput = Omit<OwnerBankAccount, 'ownerBankAccountId' | 'isActive'>;
 
-export const submitBankTransfer = (token: string, bookingId: number, receipt: File) => {
+export const submitBankTransfer = async (token: string, bookingId: number, receipt: File) => {
   const formData = new FormData();
-  formData.append('receipt', receipt);
+  formData.append('receipt', await optimizeReceiptImage(receipt));
   return apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}/submit`, {
     method: 'POST',
     body: formData,
