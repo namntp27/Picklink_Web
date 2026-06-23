@@ -258,7 +258,7 @@ export const sectionConfigs: Record<AdminDataSectionId, AdminConfig> = {
     stats: [
       { label: 'Booking hôm nay', value: '1.286', helper: '876 đã check-in', icon: CalendarCheck },
       { label: 'Doanh thu giữ chỗ', value: '486,2tr', helper: 'Tăng 14% so với hôm qua', icon: Banknote },
-      { label: 'Chờ thanh toán', value: '74', helper: 'Tự hủy sau 15 phút', icon: CreditCard },
+      { label: 'Chờ thanh toán', value: '74', helper: 'Tự hủy sau 5 phút', icon: CreditCard },
       { label: 'Tranh chấp', value: '6', helper: 'Cần admin can thiệp', icon: AlertTriangle },
     ],
     columns: ['Mã đơn', 'Người đặt', 'Sân', 'Thời gian', 'Thanh toán'],
@@ -593,7 +593,7 @@ export const settingsGroups: SettingGroup[] = [
       {
         label: 'Thời gian giữ chỗ chưa thanh toán',
         helper: 'Áp dụng cho booking online trước khi tự hủy.',
-        value: '15 phút',
+        value: '5 phút',
         enabled: true,
       },
       {
