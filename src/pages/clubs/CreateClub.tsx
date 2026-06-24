@@ -1,10 +1,46 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, PlusCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, Loader2, PlusCircle } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import { createGroup } from '../../api/community';
 
 export const CreateClub = () => {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [descriptionCount, setDescriptionCount] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token || submitting) return;
+
+    const formData = new FormData(e.currentTarget);
+    const groupName = (formData.get('club-name') as string)?.trim();
+    const description = (formData.get('description') as string)?.trim() || undefined;
+    const groupType = (formData.get('group-type') as string) || 'Public';
+
+    if (!groupName) {
+      setError('Vui lòng nhập tên câu lạc bộ.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const group = await createGroup(token, {
+        groupName,
+        description,
+        groupType,
+      });
+      navigate(`/clubs/${group.groupId}/dashboard`);
+    } catch (err: any) {
+      setError(err?.message ?? 'Không thể tạo câu lạc bộ. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="bg-[#f0f3ff] text-[#151c27] flex flex-col font-body-md w-full flex-1">
@@ -29,7 +65,14 @@ export const CreateClub = () => {
           <div className="bg-white rounded-xl shadow-lg border border-[#c2c9b3] p-8 md:p-10 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-2 h-full bg-[#84c33e]"></div>
             
-            <form action="#" className="space-y-8" method="POST" onSubmit={(e) => { e.preventDefault(); navigate('/clubs/1/dashboard'); }}>
+            <form action="#" className="space-y-8" method="POST" onSubmit={handleSubmit}>
+              {/* Error message */}
+              {error && (
+                <div className="rounded-lg border border-[#ba1a1a]/20 bg-[#ba1a1a]/5 p-4">
+                  <p className="text-[14px] font-medium text-[#ba1a1a]">{error}</p>
+                </div>
+              )}
+
               {/* Section: General Info */}
               <div className="space-y-4">
                 <h2 className="text-[24px] text-[#3d6a00] font-bold border-b border-[#dce2f3] pb-2">Thông Tin Cơ Bản</h2>
@@ -47,15 +90,31 @@ export const CreateClub = () => {
                     />
                   </div>
                   
+                  {/* Group Type */}
+                  <div>
+                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="group-type">Loại nhóm <span className="text-[#ba1a1a]">*</span></label>
+                    <div className="relative">
+                      <select 
+                        className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] appearance-none focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow" 
+                        id="group-type" 
+                        name="group-type"
+                        defaultValue="Public"
+                      >
+                        <option value="Public">Công khai</option>
+                        <option value="Private">Riêng tư</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-3.5 text-[#555f6f] pointer-events-none w-5 h-5" />
+                    </div>
+                  </div>
+
                   {/* Location Select */}
                   <div>
-                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="city">Khu vực <span className="text-[#ba1a1a]">*</span></label>
+                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="city">Khu vực</label>
                     <div className="relative">
                       <select 
                         className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] appearance-none focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow" 
                         id="city" 
                         name="city" 
-                        required
                         defaultValue=""
                       >
                         <option disabled value="">Chọn Tỉnh/Thành phố</option>
@@ -65,18 +124,6 @@ export const CreateClub = () => {
                       </select>
                       <ChevronDown className="absolute right-3 top-3.5 text-[#555f6f] pointer-events-none w-5 h-5" />
                     </div>
-                  </div>
-                  
-                  {/* Detailed Address */}
-                  <div>
-                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="address">Địa chỉ cụ thể</label>
-                    <input 
-                      className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow" 
-                      id="address" 
-                      name="address" 
-                      placeholder="Số nhà, Tên đường..." 
-                      type="text"
-                    />
                   </div>
                 </div>
                 
@@ -102,15 +149,21 @@ export const CreateClub = () => {
                   type="button"
                   onClick={() => navigate('/clubs')}
                   className="px-6 py-3 text-[14px] font-bold text-[#151c27] bg-white border border-[#c2c9b3] rounded-md hover:bg-[#f0f3ff] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#c2c9b3]"
+                  disabled={submitting}
                 >
                   Hủy bỏ
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-3 text-[14px] font-bold text-white bg-[#84c33e] rounded-md hover:bg-[#3d6a00] hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:ring-offset-2 flex items-center justify-center gap-2"
+                  className="px-8 py-3 text-[14px] font-bold text-white bg-[#84c33e] rounded-md hover:bg-[#3d6a00] hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:ring-offset-2 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={submitting}
                 >
-                  <PlusCircle className="w-5 h-5" />
-                  Tạo Câu Lạc Bộ
+                  {submitting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <PlusCircle className="w-5 h-5" />
+                  )}
+                  {submitting ? 'Đang tạo...' : 'Tạo Câu Lạc Bộ'}
                 </button>
               </div>
             </form>
