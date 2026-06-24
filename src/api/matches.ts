@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
 
 export type MatchFormat = '1vs1' | '2vs2';
 export type MatchStatus = 'Waiting' | 'Full' | 'PaymentPending' | 'Confirmed' | 'Completed' | 'Cancelled';
@@ -67,8 +67,18 @@ export type MatchPlayerReview = {
   createdAt: string;
 };
 
-export const getOpenMatches = (token?: string) => apiRequest<MatchSummary[]>('/api/Match/open', {}, token);
-export const getMyMatches = (token: string) => apiRequest<MatchSummary[]>('/api/Match/mine', {}, token);
+const paginationQuery = (pagination: PaginationParams = {}) => {
+  const params = new URLSearchParams();
+  if (pagination.page) params.set('page', String(pagination.page));
+  if (pagination.pageSize) params.set('pageSize', String(pagination.pageSize));
+  const query = params.toString();
+  return query ? `?${query}` : '';
+};
+
+export const getOpenMatches = (token?: string, pagination: PaginationParams = {}) =>
+  apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/open${paginationQuery(pagination)}`, {}, token);
+export const getMyMatches = (token: string, pagination: PaginationParams = {}) =>
+  apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/mine${paginationQuery(pagination)}`, {}, token);
 export const getMatchDetail = (token: string, matchId: number) => apiRequest<MatchDetailResponse>(`/api/Match/${matchId}`, {}, token);
 export const createMatch = (token: string, input: { courtId: number; matchType: MatchFormat; matchSkillLevel: number; startTime: string; endTime: string; note?: string }) => apiRequest<MatchDetailResponse>('/api/Match', { method: 'POST', body: JSON.stringify(input) }, token);
 export const joinMatch = (token: string, matchId: number) => apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/join`, { method: 'POST' }, token);

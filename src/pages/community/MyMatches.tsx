@@ -19,6 +19,7 @@ import {
 import { cancelMatch, getMyMatches, reopenMatch, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
 
 type MatchStatus = 'waiting' | 'payment' | 'confirmed' | 'cancelled';
 type MatchRole = 'host' | 'participant';
@@ -183,6 +184,8 @@ export const MyMatches = () => {
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [matches, setMatches] = useState<MyMatch[]>([]);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
 
   const mapStatus = (status: MatchSummary['status']): MatchStatus => {
     if (status === 'Waiting' || status === 'Full') return 'waiting';
@@ -214,14 +217,16 @@ export const MyMatches = () => {
   const loadMatches = async () => {
     if (!token) return;
     try {
-      setMatches((await getMyMatches(token)).map(mapMatch));
+      const result = await getMyMatches(token, { page, pageSize: 10 });
+      setMatches(result.items.map(mapMatch));
+      setPagination(result);
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách trận.');
     }
   };
 
-  useEffect(() => { void loadMatches(); }, [token]);
+  useEffect(() => { void loadMatches(); }, [page, token]);
   useMatchRealtime(() => { void loadMatches(); });
 
   const filteredMatches = useMemo(
@@ -315,7 +320,10 @@ export const MyMatches = () => {
                       : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'
                   }`}
                   key={filter.value}
-                  onClick={() => setActiveFilter(filter.value)}
+                  onClick={() => {
+                    setActiveFilter(filter.value);
+                    setPage(1);
+                  }}
                   type="button"
                 >
                   {filter.label} ({statusCounts[filter.value]})
@@ -456,6 +464,7 @@ export const MyMatches = () => {
                 </Link>
               </div>
             )}
+            <PaginationControls page={pagination} onPageChange={setPage} />
           </section>
         </div>
 

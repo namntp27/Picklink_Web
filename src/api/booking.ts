@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
 
 export type BookingVenue = {
   venueId: number;
@@ -116,7 +116,7 @@ export type BookingHolding = {
   statusHistory: BookingHistory[];
 };
 
-export type VenueFilters = {
+export type VenueFilters = PaginationParams & {
   search?: string;
   area?: string;
   minPrice?: number;
@@ -131,8 +131,10 @@ export const getBookingVenues = (filters: VenueFilters = {}, token?: string | nu
   if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
   if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
   if (filters.favoritesOnly) params.set('favoritesOnly', 'true');
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
   const query = params.toString();
-  return apiRequest<BookingVenue[]>(`/api/player-bookings/venues${query ? `?${query}` : ''}`, {}, token ?? undefined);
+  return apiRequest<PaginatedResponse<BookingVenue>>(`/api/player-bookings/venues${query ? `?${query}` : ''}`, {}, token ?? undefined);
 };
 
 export const addFavoriteVenue = (token: string, venueId: number) => apiRequest<void>(`/api/player-bookings/favorites/${venueId}`, { method: 'PUT' }, token);
@@ -148,7 +150,13 @@ export const createBookingHolding = (token: string, input: { courtId: number; da
 
 export const getBookingHolding = (token: string, bookingId: number) => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}`, {}, token);
 
-export const getMyBookingHistory = (token: string) => apiRequest<BookingHolding[]>('/api/player-bookings/mine', {}, token);
+export const getMyBookingHistory = (token: string, pagination: PaginationParams = {}) => {
+  const params = new URLSearchParams();
+  if (pagination.page) params.set('page', String(pagination.page));
+  if (pagination.pageSize) params.set('pageSize', String(pagination.pageSize));
+  const query = params.toString();
+  return apiRequest<PaginatedResponse<BookingHolding>>(`/api/player-bookings/mine${query ? `?${query}` : ''}`, {}, token);
+};
 
 export const cancelBookingHolding = (token: string, bookingId: number) => apiRequest<void>(`/api/player-bookings/${bookingId}/hold`, {
   method: 'DELETE',

@@ -30,10 +30,13 @@ import {
 } from '../../data/bookings';
 import { getOwnerBookings } from '../../api/owner';
 import type { BankTransfer } from '../../api/booking';
-import { getOperatorPayment } from '../../api/payment';
+import { getOperatorBookingPayments, getOperatorPayment } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
+import { preloadReceiptImage } from '../../utils/receiptImage';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 import { OwnerMatchTransactionReviewModal } from './components/OwnerMatchTransactionReviewModal';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
@@ -57,6 +60,10 @@ type OwnerBookingListItem = BookingDetail & {
 type PrefetchedPayment = {
   promise: Promise<BankTransfer>;
   data?: BankTransfer;
+};
+type PrefetchedMatchPayments = {
+  promise: Promise<BankTransfer[]>;
+  data?: BankTransfer[];
 };
 
 const paymentFilterOptions: Array<{ label: string; value: PaymentFilter }> = [
@@ -157,6 +164,8 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const [bookingStateFilter, setBookingStateFilter] = useState<BookingStateFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
   const [transactionTarget, setTransactionTarget] = useState<{
     paymentId: number;
@@ -166,8 +175,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const [matchTransactionTarget, setMatchTransactionTarget] = useState<{
     bookingId: number;
     bookingCode: string;
+    prefetched?: PrefetchedMatchPayments | null;
   } | null>(null);
   const paymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedPayment>());
+  const matchPaymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedMatchPayments>());
+  const realtimeReloadTimer = useRef<number | null>(null);
 
   const prefetchPayment = useCallback((paymentId: number) => {
     if (!token) return null;
@@ -180,10 +192,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     prefetched.promise = getOperatorPayment(token, paymentId)
       .then((payment) => {
         prefetched.data = payment;
-        if (payment.receiptImageUrl) {
-          const receiptImage = new Image();
-          receiptImage.src = payment.receiptImageUrl;
-        }
+        preloadReceiptImage(payment.receiptImageUrl);
         return payment;
       })
       .catch((reason) => {
@@ -195,12 +204,44 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     return prefetched;
   }, [token]);
 
+  const prefetchMatchPayments = useCallback((bookingId: number) => {
+    if (!token) return null;
+    const cached = matchPaymentPrefetchCache.current.get(bookingId);
+    if (cached) return cached;
+
+    const prefetched: PrefetchedMatchPayments = {
+      promise: Promise.resolve([]),
+    };
+    prefetched.promise = getOperatorBookingPayments(token, bookingId)
+      .then((payments) => {
+        prefetched.data = payments;
+        payments.forEach((payment) => preloadReceiptImage(payment.receiptImageUrl));
+        return payments;
+      })
+      .catch((reason) => {
+        matchPaymentPrefetchCache.current.delete(bookingId);
+        throw reason;
+      });
+    void prefetched.promise.catch(() => undefined);
+    matchPaymentPrefetchCache.current.set(bookingId, prefetched);
+    return prefetched;
+  }, [token]);
+
   const load = useCallback(async (showLoading = true) => {
     if (!token) return;
     if (showLoading) setIsLoading(true);
     setError('');
     try {
-      setBookings((await getOwnerBookings(token, { bookingType: kind })).map((record) => ({
+      const result = await getOwnerBookings(token, {
+        bookingType: kind,
+        from: selectedDate,
+        to: selectedDate,
+        search: searchTerm.trim() || undefined,
+        page,
+        pageSize: 10,
+      });
+      setPagination(result);
+      setBookings(result.items.map((record) => ({
         ...ownerBookingToDetail(record),
         paymentId: record.paymentId,
         matchId: record.matchId,
@@ -212,13 +253,28 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải booking.'); }
     finally { if (showLoading) setIsLoading(false); }
-  }, [kind, token]);
+  }, [kind, page, searchTerm, selectedDate, token]);
+
+  const scheduleRealtimeReload = useCallback(() => {
+    if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
+    realtimeReloadTimer.current = window.setTimeout(() => {
+      realtimeReloadTimer.current = null;
+      void load(false);
+    }, 120);
+  }, [load]);
 
   useEffect(() => { void load(); }, [load]);
-  useScheduleRealtime(() => { void load(false); });
+  useEffect(() => () => {
+    if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
+  }, []);
+  useScheduleRealtime(scheduleRealtimeReload);
+  useMatchRealtime(() => {
+    if (kind === 'match') scheduleRealtimeReload();
+  });
   usePaymentRealtime((event) => {
     paymentPrefetchCache.current.delete(event.paymentId);
-    void load(false);
+    matchPaymentPrefetchCache.current.delete(event.bookingId);
+    scheduleRealtimeReload();
   });
 
   const filteredBookings = useMemo(() => {
@@ -254,6 +310,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     const month = String(nextDate.getMonth() + 1).padStart(2, '0');
     const day = String(nextDate.getDate()).padStart(2, '0');
     setSelectedDate(`${year}-${month}-${day}`);
+    setPage(1);
   };
 
   const pendingBookings = bookings.filter((booking) => booking.bookingStatus === 'holding');
@@ -332,7 +389,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       : isMatchBooking ? 'Đơn ghép trận theo ngày' : 'Đơn đặt sân theo ngày'}
                   </h2>
                   <p className="mt-1 text-[13px] text-on-surface-variant">
-                    Có {filteredBookings.length} đơn có thời gian chơi ngày {formatBookingDate(selectedDate)}.
+                    Có {pagination.totalCount} đơn có thời gian chơi ngày {formatBookingDate(selectedDate)}.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
@@ -350,7 +407,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       <input
                         className="h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         max="9999-12-31"
-                        onChange={(event) => setSelectedDate(event.target.value)}
+                        onChange={(event) => {
+                          setSelectedDate(event.target.value);
+                          setPage(1);
+                        }}
                         type="date"
                         value={selectedDate}
                       />
@@ -368,7 +428,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
                     <input
                       className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      onChange={(event) => setSearchTerm(event.target.value)}
+                      onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setPage(1);
+                      }}
                       placeholder="Tìm mã đơn, khách, sân..."
                       type="text"
                       value={searchTerm}
@@ -477,9 +540,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                               onClick={() => {
                                 if (isMatchBooking) {
                                   setError('');
+                                  const prefetched = prefetchMatchPayments(Number(booking.id));
                                   setMatchTransactionTarget({
                                     bookingId: Number(booking.id),
                                     bookingCode: booking.code,
+                                    prefetched,
                                   });
                                   return;
                                 }
@@ -497,13 +562,16 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                                 });
                               }}
                               onFocus={() => {
-                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               onMouseEnter={() => {
-                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               onPointerDown={() => {
-                                if (!isMatchBooking && booking.paymentId) prefetchPayment(booking.paymentId);
+                                if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
                               }}
                               title={isMatchBooking ? 'Xem biên lai của nhóm' : 'Kiểm tra giao dịch'}
                               type="button"
@@ -525,6 +593,9 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                   </tbody>
                 </table>
               </div>
+              <div className="border-t border-outline-variant p-4">
+                <PaginationControls page={pagination} onPageChange={setPage} />
+              </div>
             </section>
             {transactionTarget && (
               <OwnerTransactionReviewModal
@@ -543,6 +614,8 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
               <OwnerMatchTransactionReviewModal
                 bookingCode={matchTransactionTarget.bookingCode}
                 bookingId={matchTransactionTarget.bookingId}
+                initialPayments={matchTransactionTarget.prefetched?.data}
+                initialPaymentsRequest={matchTransactionTarget.prefetched?.promise}
                 onClose={() => setMatchTransactionTarget(null)}
                 onUpdated={() => load(false)}
               />

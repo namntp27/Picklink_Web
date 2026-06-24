@@ -7,6 +7,8 @@ import { approveOperatorPayment, getOperatorPayment, getOperatorPayments, reject
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { PaginationControls } from '../../components/PaginationControls';
+import { preloadReceiptImage } from '../../utils/receiptImage';
 import { OwnerShell } from './components/OwnerShell';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -42,17 +44,23 @@ export const OwnerPayments = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
 
   const load = async (showLoading = true) => {
     if (!token) return;
     if (showLoading) setLoading(true);
     setError('');
-    try { setPayments(await getOperatorPayments(token, 'WaitingForConfirmation')); }
+    try {
+      const result = await getOperatorPayments(token, 'WaitingForConfirmation', { page, pageSize: 10 });
+      setPayments(result.items);
+      setPagination(result);
+    }
     catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách thanh toán.'); }
     finally { if (showLoading) setLoading(false); }
   };
-  useEffect(() => { void load(); }, [token]);
+  useEffect(() => { void load(); }, [page, token]);
   usePaymentRealtime((event) => {
     if (!token) return;
     void getOperatorPayment(token, event.paymentId)
@@ -100,8 +108,13 @@ export const OwnerPayments = () => {
         const rightTime = right.submittedAt ? new Date(right.submittedAt).getTime() : 0;
         return rightTime - leftTime || right.paymentId - left.paymentId;
       })
-      .slice(0, 10);
   }, [payments]);
+
+  const openPayment = (payment: BankTransfer) => {
+    preloadReceiptImage(payment.receiptImageUrl);
+    setSelected(payment);
+    setRejectReason('');
+  };
 
   const approve = async (payment: BankTransfer) => {
     if (!token) return;
@@ -131,9 +144,12 @@ export const OwnerPayments = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-5"><div><h2 className="text-[20px] font-bold">Cần xử lý ngay</h2><p className="mt-1 text-[13px] text-on-surface-variant">Số 1 là biên lai Player gửi gần nhất. Tối đa 10 yêu cầu.</p></div><span className="rounded-full bg-amber-100 px-4 py-2 text-[13px] font-bold text-amber-800">{pendingPayments.length} biên lai chờ</span></div>
 
       {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : <div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left"><thead className="bg-surface-container-low text-[12px] uppercase text-on-surface-variant"><tr><th className="w-16 px-5 py-4 text-center">STT</th><th className="px-5 py-4">Booking</th><th className="px-5 py-4">Người chuyển</th><th className="px-5 py-4">Sân</th><th className="px-5 py-4">Giờ chơi</th><th className="px-5 py-4">Số tiền</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-outline-variant">
-        {pendingPayments.map((item, index) => <tr key={item.paymentId}><td className="px-5 py-4 text-center text-[14px] font-bold text-primary">{index + 1}</td><td className="px-5 py-4"><strong className="text-primary">{item.bookingCode}</strong><p className="mt-1 text-[12px] text-on-surface-variant">{item.submittedAt ? `Gửi lúc ${dateTime(item.submittedAt)}` : 'Chưa gửi biên lai'}</p></td><td className="px-5 py-4 text-[14px] font-bold">{item.playerName}</td><td className="px-5 py-4"><strong>{item.venueName}</strong><p className="mt-1 text-[12px] text-on-surface-variant">Sân {item.courtNumber}</p></td><td className="px-5 py-4"><strong className="whitespace-nowrap">{playTime(item.startTime)}–{playTime(item.endTime)}</strong><p className="mt-1 whitespace-nowrap text-[12px] text-on-surface-variant">{playDate(item.startTime)}</p></td><td className="px-5 py-4 font-bold">{currency.format(item.amount)}</td><td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-3 py-1 text-[12px] font-bold ${paymentStatusClassName(item.paymentStatus)}`}>{paymentStatusLabels[item.paymentStatus] ?? item.paymentStatus}</span></td><td className="px-5 py-4 text-right"><button className="inline-flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-[13px] font-bold text-primary hover:bg-primary/5" onClick={() => { setSelected(item); setRejectReason(''); }} type="button"><Eye className="h-4 w-4" /> Xem biên lai</button></td></tr>)}
+        {pendingPayments.map((item, index) => <tr key={item.paymentId}><td className="px-5 py-4 text-center text-[14px] font-bold text-primary">{index + 1}</td><td className="px-5 py-4"><strong className="text-primary">{item.bookingCode}</strong><p className="mt-1 text-[12px] text-on-surface-variant">{item.submittedAt ? `Gửi lúc ${dateTime(item.submittedAt)}` : 'Chưa gửi biên lai'}</p></td><td className="px-5 py-4 text-[14px] font-bold">{item.playerName}</td><td className="px-5 py-4"><strong>{item.venueName}</strong><p className="mt-1 text-[12px] text-on-surface-variant">Sân {item.courtNumber}</p></td><td className="px-5 py-4"><strong className="whitespace-nowrap">{playTime(item.startTime)}–{playTime(item.endTime)}</strong><p className="mt-1 whitespace-nowrap text-[12px] text-on-surface-variant">{playDate(item.startTime)}</p></td><td className="px-5 py-4 font-bold">{currency.format(item.amount)}</td><td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-3 py-1 text-[12px] font-bold ${paymentStatusClassName(item.paymentStatus)}`}>{paymentStatusLabels[item.paymentStatus] ?? item.paymentStatus}</span></td><td className="px-5 py-4 text-right"><button className="inline-flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-[13px] font-bold text-primary hover:bg-primary/5" onClick={() => openPayment(item)} onFocus={() => preloadReceiptImage(item.receiptImageUrl)} onMouseEnter={() => preloadReceiptImage(item.receiptImageUrl)} onPointerDown={() => preloadReceiptImage(item.receiptImageUrl)} type="button"><Eye className="h-4 w-4" /> Xem biên lai</button></td></tr>)}
         {pendingPayments.length === 0 && <tr><td className="px-5 py-14 text-center text-on-surface-variant" colSpan={8}><CheckCircle2 className="mx-auto mb-3 h-9 w-9 text-emerald-600" /><p className="font-bold">Đã xử lý hết biên lai chờ xác nhận.</p><p className="mt-1 text-[13px]">Các đơn và lịch sử thanh toán vẫn được theo dõi tại trang Đơn đặt sân.</p></td></tr>}
       </tbody></table></div>}
+      <div className="border-t border-outline-variant p-4">
+        <PaginationControls page={pagination} onPageChange={setPage} />
+      </div>
     </section>
 
     {selected && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">

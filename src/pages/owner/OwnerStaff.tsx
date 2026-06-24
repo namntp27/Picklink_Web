@@ -14,6 +14,7 @@ import {
   type StaffPermission,
 } from '../../api/owner';
 import { OwnerShell } from './components/OwnerShell';
+import { PaginationControls } from '../../components/PaginationControls';
 
 const permissions: Array<{ value: StaffPermission; label: string }> = [
   { value: 'ViewBookings', label: 'Xem booking' },
@@ -42,6 +43,8 @@ export const OwnerStaff = () => {
   const [selectedPermissions, setSelectedPermissions] = useState<StaffPermission[]>(permissions.map((item) => item.value));
   const [historyVenueId, setHistoryVenueId] = useState(0);
   const [historyDate, setHistoryDate] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPagination, setHistoryPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
@@ -55,18 +58,24 @@ export const OwnerStaff = () => {
       const [staffResult, venueResult, historyResult] = await Promise.all([
         getOwnerStaff(token),
         getOwnerVenues(token),
-        getOwnerCheckInHistory(token, { venueId: historyVenueId || undefined, date: historyDate || undefined }),
+        getOwnerCheckInHistory(token, {
+          venueId: historyVenueId || undefined,
+          date: historyDate || undefined,
+          page: historyPage,
+          pageSize: 10,
+        }),
       ]);
       setStaff(staffResult);
       setVenues(venueResult);
-      setHistory(historyResult);
+      setHistory(historyResult.items);
+      setHistoryPagination(historyResult);
       if (!venueId && venueResult[0]) setVenueId(venueResult[0].venueId);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải dữ liệu nhân viên.');
     } finally {
       setIsLoading(false);
     }
-  }, [historyDate, historyVenueId, token, venueId]);
+  }, [historyDate, historyPage, historyVenueId, token, venueId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -182,8 +191,9 @@ export const OwnerStaff = () => {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 lg:flex-row lg:items-end lg:justify-between"><div><h2 className="flex items-center gap-2 text-[19px] font-bold"><History className="h-5 w-5 text-primary" /> Lịch sử vận hành của Staff</h2><p className="mt-1 text-[13px] text-on-surface-variant">Mã, thanh toán, check-in và no-show đều lưu người thực hiện cùng thời gian.</p></div><div className="grid gap-2 sm:grid-cols-2"><select className={inputClass} onChange={(event) => setHistoryVenueId(Number(event.target.value))} value={historyVenueId}><option value={0}>Tất cả cụm sân</option>{venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select><input className={inputClass} onChange={(event) => setHistoryDate(event.target.value)} type="date" value={historyDate} /></div></div>
+        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 lg:flex-row lg:items-end lg:justify-between"><div><h2 className="flex items-center gap-2 text-[19px] font-bold"><History className="h-5 w-5 text-primary" /> Lịch sử vận hành của Staff</h2><p className="mt-1 text-[13px] text-on-surface-variant">Mã, thanh toán, check-in và no-show đều lưu người thực hiện cùng thời gian.</p></div><div className="grid gap-2 sm:grid-cols-2"><select className={inputClass} onChange={(event) => { setHistoryVenueId(Number(event.target.value)); setHistoryPage(1); }} value={historyVenueId}><option value={0}>Tất cả cụm sân</option>{venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select><input className={inputClass} onChange={(event) => { setHistoryDate(event.target.value); setHistoryPage(1); }} type="date" value={historyDate} /></div></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead className="bg-surface-container-low text-[11px] uppercase text-on-surface-variant"><tr><th className="px-5 py-3">Booking</th><th className="px-5 py-3">Lịch sân</th><th className="px-5 py-3">Xác minh mã</th><th className="px-5 py-3">Thanh toán</th><th className="px-5 py-3">Kết quả</th></tr></thead><tbody className="divide-y divide-outline-variant">{history.map((item) => <tr key={item.bookingId}><td className="px-5 py-4"><p className="font-bold text-primary">{item.bookingCode}</p><p className="text-[12px] text-on-surface-variant">{item.playerName}</p></td><td className="px-5 py-4 text-[13px]"><p className="font-bold">{item.venueName} · Sân {item.courtNumber}</p><p className="text-on-surface-variant">{dateTime(item.startTime)}</p></td><td className="px-5 py-4 text-[12px]"><p className="font-bold">{item.codeVerifiedBy || '—'}</p><p className="text-on-surface-variant">{dateTime(item.codeVerifiedAt)}</p></td><td className="px-5 py-4 text-[12px]"><p className="font-bold">{item.paymentConfirmedBy || '—'}</p><p className="text-on-surface-variant">{dateTime(item.paymentConfirmedAt)}</p></td><td className="px-5 py-4 text-[12px]"><span className={`rounded-full px-2.5 py-1 font-bold ${item.checkInStatus === 'CheckedIn' ? 'bg-green-100 text-green-700' : item.checkInStatus === 'NoShow' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{item.checkInStatus}</span><p className="mt-2 font-bold">{item.checkedInBy || item.noShowBy || '—'}</p><p className="text-on-surface-variant">{dateTime(item.checkedInAt || item.noShowAt)}</p></td></tr>)}</tbody></table>{!history.length && !isLoading && <p className="p-8 text-center text-[13px] text-on-surface-variant"><Clock3 className="mx-auto mb-2 h-5 w-5" />Chưa có lịch sử phù hợp.</p>}</div>
+        {historyPagination.totalPages > 1 && <div className="border-t border-outline-variant p-4"><PaginationControls page={historyPagination} onPageChange={setHistoryPage} /></div>}
       </section>
     </OwnerShell>
   );

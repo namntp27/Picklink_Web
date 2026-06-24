@@ -142,6 +142,7 @@ export const MatchDetail = () => {
   const [hasJoined, setHasJoined] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [copiedCheckInCode, setCopiedCheckInCode] = useState(false);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -197,7 +198,7 @@ export const MatchDetail = () => {
       navigate('/opponents?expired=1', { replace: true });
       return;
     }
-    void loadMatch();
+    if (!isSubmittingPayment) void loadMatch();
   });
 
   useEffect(() => {
@@ -235,9 +236,30 @@ export const MatchDetail = () => {
 
   const handlePayment = async () => {
     if (!token || !rawMatch || !receipt) { setError('Vui lòng chọn ảnh biên lai.'); return; }
-    await submitBankTransfer(token, rawMatch.bookingId, receipt);
-    setReceipt(null);
-    await loadMatch();
+    setIsSubmittingPayment(true);
+    setError('');
+    try {
+      const updatedPayment = await submitBankTransfer(token, rawMatch.bookingId, receipt);
+      setRawMatch((current) => {
+        if (!current) return current;
+        const nextMatch: MatchDetailResponse = {
+          ...current,
+          myPaymentStatus: updatedPayment.paymentStatus,
+          participants: current.participants.map((participant) =>
+            participant.playerId === current.myPlayerId
+              ? { ...participant, paymentStatus: updatedPayment.paymentStatus }
+              : participant),
+        };
+        setMatchDetail(mapDetail(nextMatch));
+        return nextMatch;
+      });
+      setHasPaid(updatedPayment.paymentStatus === 'Paid');
+      setReceipt(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể gửi biên lai thanh toán.');
+    } finally {
+      setIsSubmittingPayment(false);
+    }
   };
 
   const joinedCount = players.filter((player) => player.role !== 'Chỗ trống').length;
@@ -540,12 +562,12 @@ export const MatchDetail = () => {
                 className={`mt-5 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[15px] font-bold text-white ${
                   hasPaid ? 'bg-[#6f7a61]' : 'bg-primary hover:bg-primary/90'
                 }`}
-                disabled={hasPaid || rawMatch?.myPaymentStatus === 'WaitingForConfirmation' || rawMatch?.myPaymentStatus !== 'Pending'}
+                disabled={isSubmittingPayment || hasPaid || rawMatch?.myPaymentStatus === 'WaitingForConfirmation' || rawMatch?.myPaymentStatus !== 'Pending'}
                 onClick={() => void handlePayment()}
                 type="button"
               >
                 <CreditCard className="h-5 w-5" />
-                {hasPaid ? 'Bạn đã thanh toán' : rawMatch?.myPaymentStatus === 'WaitingForConfirmation' ? 'Đang chờ xác nhận biên lai' : rawMatch?.myPaymentStatus === 'Pending' ? 'Gửi biên lai thanh toán' : 'Chờ trận đủ người'}
+                {isSubmittingPayment ? 'Đang gửi biên lai...' : hasPaid ? 'Bạn đã thanh toán' : rawMatch?.myPaymentStatus === 'WaitingForConfirmation' ? 'Đang chờ xác nhận biên lai' : rawMatch?.myPaymentStatus === 'Pending' ? 'Gửi biên lai thanh toán' : 'Chờ trận đủ người'}
               </button>
             ) : null}
 

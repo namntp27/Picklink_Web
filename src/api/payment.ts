@@ -1,5 +1,7 @@
 import { apiRequest } from './client';
+import type { PaginatedResponse, PaginationParams } from './client';
 import type { BankTransfer } from './booking';
+import { optimizeReceiptImage } from '../utils/receiptImage';
 
 export type OwnerBankAccount = {
   ownerBankAccountId: number;
@@ -12,9 +14,9 @@ export type OwnerBankAccount = {
 
 export type OwnerBankAccountInput = Omit<OwnerBankAccount, 'ownerBankAccountId' | 'isActive'>;
 
-export const submitBankTransfer = (token: string, bookingId: number, receipt: File) => {
+export const submitBankTransfer = async (token: string, bookingId: number, receipt: File) => {
   const formData = new FormData();
-  formData.append('receipt', receipt);
+  formData.append('receipt', await optimizeReceiptImage(receipt));
   return apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}/submit`, {
     method: 'POST',
     body: formData,
@@ -30,8 +32,12 @@ export const saveOwnerBankAccount = (token: string, input: OwnerBankAccountInput
     body: JSON.stringify(input),
   }, token);
 
-export const getOperatorPayments = (token: string, status = 'WaitingForConfirmation') =>
-  apiRequest<BankTransfer[]>(`/api/payments/operator?status=${encodeURIComponent(status)}`, {}, token);
+export const getOperatorPayments = (token: string, status = 'WaitingForConfirmation', pagination: PaginationParams = {}) => {
+  const params = new URLSearchParams({ status });
+  if (pagination.page) params.set('page', String(pagination.page));
+  if (pagination.pageSize) params.set('pageSize', String(pagination.pageSize));
+  return apiRequest<PaginatedResponse<BankTransfer>>(`/api/payments/operator?${params.toString()}`, {}, token);
+};
 
 export const getOperatorPayment = (token: string, paymentId: number) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}`, {}, token);

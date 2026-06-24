@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
 import type { StaffPermission } from './owner';
 
 export type StaffAssignment = {
@@ -56,7 +56,20 @@ export type StaffNotification = {
 };
 
 export const getStaffAssignments = (token: string) => apiRequest<StaffAssignment[]>('/api/staff/assignments', {}, token);
-export const getTodayStaffBookings = (token: string, date?: string) => apiRequest<StaffBooking[]>(`/api/staff/bookings/today${date ? `?date=${encodeURIComponent(date)}` : ''}`, {}, token);
+export const getTodayStaffBookings = (
+  token: string,
+  date?: string,
+  pagination: PaginationParams = {},
+  bookingType?: 'Court' | 'Match',
+) => {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  if (bookingType) params.set('bookingType', bookingType);
+  if (pagination.page) params.set('page', String(pagination.page));
+  if (pagination.pageSize) params.set('pageSize', String(pagination.pageSize));
+  const query = params.toString();
+  return apiRequest<PaginatedResponse<StaffBooking>>(`/api/staff/bookings/today${query ? `?${query}` : ''}`, {}, token);
+};
 export const searchStaffBooking = (token: string, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/search?code=${encodeURIComponent(code)}`, {}, token);
 export const getStaffBooking = (token: string, bookingId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}`, {}, token);
 export const verifyStaffBookingCode = (token: string, bookingId: number, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/verify-code`, { method: 'POST', body: JSON.stringify({ code }) }, token);

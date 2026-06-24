@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
 
 export type OwnerCourt = {
   courtId: number;
@@ -322,12 +322,14 @@ export const updateOwnerStaff = (token: string, staffId: number, input: { role?:
   body: JSON.stringify(input),
 }, token);
 
-export const getOwnerCheckInHistory = (token: string, filters: { venueId?: number; date?: string } = {}) => {
+export const getOwnerCheckInHistory = (token: string, filters: { venueId?: number; date?: string } & PaginationParams = {}) => {
   const params = new URLSearchParams();
   if (filters.venueId) params.set('venueId', String(filters.venueId));
   if (filters.date) params.set('date', filters.date);
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
   const query = params.toString();
-  return apiRequest<OwnerCheckInHistory[]>(`/api/owner/staff/check-in-history${query ? `?${query}` : ''}`, {}, token);
+  return apiRequest<PaginatedResponse<OwnerCheckInHistory>>(`/api/owner/staff/check-in-history${query ? `?${query}` : ''}`, {}, token);
 };
 
 export const getOwnerBookings = (token: string, filters: {
@@ -336,11 +338,11 @@ export const getOwnerBookings = (token: string, filters: {
   status?: string;
   search?: string;
   bookingType?: 'regular' | 'match';
-} = {}) => {
+} & PaginationParams = {}) => {
   const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
   const query = params.toString();
-  return apiRequest<OwnerBookingRecord[]>(`/api/owner/bookings${query ? `?${query}` : ''}`, {}, token);
+  return apiRequest<PaginatedResponse<OwnerBookingRecord>>(`/api/owner/bookings${query ? `?${query}` : ''}`, {}, token);
 };
 
 export const getOwnerBooking = (token: string, bookingId: number) => apiRequest<OwnerBookingRecord>(`/api/owner/bookings/${bookingId}`, {}, token);

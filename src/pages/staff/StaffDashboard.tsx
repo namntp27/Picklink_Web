@@ -31,6 +31,7 @@ import {
   type StaffNotification,
 } from '../../api/staff';
 import type { StaffPermission } from '../../api/owner';
+import { PaginationControls } from '../../components/PaginationControls';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const time = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -104,6 +105,8 @@ export const StaffDashboard = () => {
   const { token, user, logout } = useAuth();
   const [assignments, setAssignments] = useState<StaffAssignment[]>([]);
   const [bookings, setBookings] = useState<StaffBooking[]>([]);
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const [bookingPagination, setBookingPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [notifications, setNotifications] = useState<StaffNotification[]>([]);
   const [selected, setSelected] = useState<StaffBooking | null>(null);
   const [searchCode, setSearchCode] = useState('');
@@ -133,16 +136,24 @@ export const StaffDashboard = () => {
     setIsLoading(true); setError('');
     try {
       const [assignmentResult, bookingResult, notificationResult] = await Promise.all([
-        getStaffAssignments(token), getTodayStaffBookings(token, date), getStaffNotifications(token),
+        getStaffAssignments(token),
+        getTodayStaffBookings(
+          token,
+          date,
+          { page: bookingsPage, pageSize: 10 },
+          bookingTypeFilter === 'all' ? undefined : bookingTypeFilter,
+        ),
+        getStaffNotifications(token),
       ]);
       setAssignments(assignmentResult);
-      setBookings(bookingResult);
+      setBookings(bookingResult.items);
+      setBookingPagination(bookingResult);
       setNotifications(notificationResult);
-      setSelected((current) => current ? bookingResult.find((item) => item.bookingId === current.bookingId) ?? current : null);
+      setSelected((current) => current ? bookingResult.items.find((item) => item.bookingId === current.bookingId) ?? current : null);
     } catch (reason) {
       setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể tải ca vận hành.');
     } finally { setIsLoading(false); }
-  }, [date, token]);
+  }, [bookingTypeFilter, bookingsPage, date, token]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -226,7 +237,7 @@ export const StaffDashboard = () => {
       <main className="mx-auto max-w-[1440px] space-y-6 p-4 md:p-8">
         <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div><p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary"><ShieldCheck className="h-4 w-4" /> Ca trực hôm nay</p><h1 className="mt-3 text-[32px] font-bold">Quản lý vào sân</h1><p className="mt-2 text-[14px] text-on-surface-variant">Chỉ hiển thị các đơn thuộc cụm sân và quyền được chủ sân phân công.</p></div>
-          <label><span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Ngày vận hành</span><input className="h-11 rounded-lg border border-outline-variant bg-white px-3 text-[14px]" onChange={(event) => setDate(event.target.value)} type="date" value={date} /></label>
+          <label><span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Ngày vận hành</span><input className="h-11 rounded-lg border border-outline-variant bg-white px-3 text-[14px]" onChange={(event) => { setDate(event.target.value); setBookingsPage(1); }} type="date" value={date} /></label>
         </section>
 
         <form className="rounded-xl border border-primary/30 bg-white p-4 shadow-sm" onSubmit={searchAndVerify}>
@@ -260,7 +271,7 @@ export const StaffDashboard = () => {
                       : 'border-outline-variant bg-white text-on-surface hover:bg-surface-container-low'
                   }`}
                   key={item.value}
-                  onClick={() => setBookingTypeFilter(item.value)}
+                  onClick={() => { setBookingTypeFilter(item.value); setBookingsPage(1); }}
                   type="button"
                 >
                   {item.label}
@@ -276,6 +287,7 @@ export const StaffDashboard = () => {
                 <span className="text-[13px] font-bold">Chi tiết →</span>
               </button>
             ))}</div>}
+            {bookingPagination.totalPages > 1 && <div className="border-t border-outline-variant p-4"><PaginationControls page={bookingPagination} onPageChange={setBookingsPage} /></div>}
           </div>
 
           <aside className="scroll-mt-20 space-y-4 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1" ref={detailPanelRef}>
