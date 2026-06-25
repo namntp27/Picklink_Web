@@ -161,6 +161,15 @@ export const approveMember = (token: string, groupId: number, memberUserId: numb
 export const removeMember = (token: string, groupId: number, memberUserId: number) =>
   apiRequest<void>(`/api/Community/groups/${groupId}/members/${memberUserId}`, { method: 'DELETE' }, token);
 
+export const declineMember = (token: string, groupId: number, memberUserId: number) =>
+  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/decline`, { method: 'POST' }, token);
+
+export const banMember = (token: string, groupId: number, memberUserId: number) =>
+  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/ban`, { method: 'POST' }, token);
+
+export const unbanMember = (token: string, groupId: number, memberUserId: number) =>
+  apiRequest<void>(`/api/Community/groups/${groupId}/members/${memberUserId}/unban`, { method: 'POST' }, token);
+
 // Group images
 export const addGroupImage = (token: string, groupId: number, imageUrl: string, caption?: string) =>
   apiRequest<GroupImage>(`/api/Community/groups/${groupId}/images`, {

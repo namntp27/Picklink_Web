@@ -21,6 +21,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import {
   type CommunityGroup,
@@ -92,6 +93,7 @@ export const ClubDetail = () => {
       return;
     }
     if (!club) return;
+    if (club.myStatus === 'Banned') return;
 
     setActionLoading(true);
     try {
@@ -102,6 +104,7 @@ export const ClubDetail = () => {
         const freshMembers = await getGroupMembers(token, groupId);
         setMembers(freshMembers);
       } else {
+        // Handles null (no membership), 'Declined' (re-request)
         const updated = await joinGroup(token, groupId);
         setClub(updated);
         // Refresh members
@@ -275,6 +278,27 @@ export const ClubDetail = () => {
                   )}
                   Đang chờ duyệt (Hủy)
                 </button>
+              ) : club.myStatus === 'Declined' ? (
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#fff8e6] border border-[#7a5600]/40 px-6 py-3 text-[15px] font-bold text-[#7a5600] transition-transform hover:scale-[0.98] disabled:opacity-60"
+                  onClick={handleJoinLeave}
+                  disabled={actionLoading}
+                  type="button"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Clock className="h-5 w-5 text-[#7a5600]" />
+                  )}
+                  Đã yêu cầu · Gửi lại yêu cầu
+                </button>
+              ) : club.myStatus === 'Banned' ? (
+                <span
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ffdad6] px-6 py-3 text-[15px] font-bold text-[#ba1a1a]"
+                >
+                  <XCircle className="h-5 w-5" />
+                  Bị cấm khỏi CLB
+                </span>
               ) : (
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-6 py-3 text-[15px] font-bold text-on-primary-container shadow-lg transition-transform hover:scale-[0.98] disabled:opacity-60"

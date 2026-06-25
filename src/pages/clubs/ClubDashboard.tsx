@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import {
   Bell,
   CalendarDays,
@@ -38,6 +38,9 @@ import {
   sendGroupMessage,
   approveMember,
   removeMember,
+  declineMember,
+  banMember,
+  unbanMember,
   type CommunityGroup,
   type CommunityMember,
   type CommunityMessage,
@@ -65,7 +68,7 @@ type ClubMember = {
   level: string;
   role: MemberRole;
   joinedAt: string;
-  status: 'Đang hoạt động' | 'Tạm khóa';
+  status: 'Đang hoạt động' | 'Tạm khóa' | 'Từ chối' | 'Bị cấm';
   permissions: string[];
 };
 
@@ -338,6 +341,19 @@ export const ClubDashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { token } = useAuth();
+  const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
+
+  useEffect(() => {
+    if (setShowFooter) {
+      setShowFooter(false);
+    }
+    return () => {
+      if (setShowFooter) {
+        setShowFooter(true);
+      }
+    };
+  }, [setShowFooter]);
+
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [members, setMembers] = useState<ClubMember[]>([]);
@@ -397,14 +413,18 @@ export const ClubDashboard = () => {
         }));
       setRequests(pending);
 
-      // Map accepted members (Accepted)
-      const accepted = data
-        .filter((m) => m.status === 'Accepted')
+      // Map all non-pending members (Accepted, Declined, Banned)
+      const allMembers = data
+        .filter((m) => m.status !== 'Pending')
         .map((m) => {
           let uiRole: MemberRole = 'Thành viên';
           if (m.role === 'Owner') uiRole = 'Chủ nhiệm';
           else if (m.role === 'Admin') uiRole = 'Quản trị viên';
           else if (m.role === 'Moderator') uiRole = 'Quản trị viên';
+
+          let uiStatus: ClubMember['status'] = 'Đang hoạt động';
+          if (m.status === 'Declined') uiStatus = 'Từ chối';
+          else if (m.status === 'Banned') uiStatus = 'Bị cấm';
 
           return {
             id: m.userId,
@@ -413,11 +433,11 @@ export const ClubDashboard = () => {
             level: '3.5',
             role: uiRole,
             joinedAt: new Date(m.joinedAt).toLocaleDateString('vi-VN'),
-            status: 'Đang hoạt động' as const,
+            status: uiStatus,
             permissions: permissionByRole[uiRole] || permissionByRole['Thành viên'],
           };
         });
-      setMembers(accepted);
+      setMembers(allMembers);
     } catch (err) {
       console.error('Failed to load members', err);
     }
@@ -539,7 +559,7 @@ export const ClubDashboard = () => {
   const rejectRequest = async (requestId: number) => {
     if (isNumericGroupId && token) {
       try {
-        await removeMember(token, groupId, requestId);
+        await declineMember(token, groupId, requestId);
         loadMembers();
       } catch (err: any) {
         alert(err.message || 'Không thể từ chối thành viên.');
@@ -565,13 +585,28 @@ export const ClubDashboard = () => {
   };
 
   const toggleMemberStatus = async (memberId: number) => {
+    const targetMember = members.find((m) => m.id === memberId);
+    if (!targetMember) return;
+
     if (isNumericGroupId && token) {
-      if (!confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi câu lạc bộ?')) return;
-      try {
-        await removeMember(token, groupId, memberId);
-        loadMembers();
-      } catch (err: any) {
-        alert(err.message || 'Không thể xóa thành viên.');
+      if (targetMember.status === 'Bị cấm') {
+        // Unban
+        if (!confirm('Bạn có chắc chắn muốn bỏ cấm thành viên này?')) return;
+        try {
+          await unbanMember(token, groupId, memberId);
+          loadMembers();
+        } catch (err: any) {
+          alert(err.message || 'Không thể bỏ cấm thành viên.');
+        }
+      } else {
+        // Ban
+        if (!confirm('Bạn có chắc chắn muốn cấm thành viên này khỏi câu lạc bộ?')) return;
+        try {
+          await banMember(token, groupId, memberId);
+          loadMembers();
+        } catch (err: any) {
+          alert(err.message || 'Không thể cấm thành viên.');
+        }
       }
     } else {
       setMembers((currentMembers) =>
@@ -579,7 +614,7 @@ export const ClubDashboard = () => {
           member.id === memberId
             ? {
                 ...member,
-                status: member.status === 'Đang hoạt động' ? 'Tạm khóa' : 'Đang hoạt động',
+                status: member.status === 'Đang hoạt động' ? 'Bị cấm' : 'Đang hoạt động',
               }
             : member,
         ),
@@ -916,6 +951,10 @@ export const ClubDashboard = () => {
                       className={`rounded-full px-3 py-1 text-[12px] font-bold ${
                         member.status === 'Đang hoạt động'
                           ? 'bg-[#eaf7df] text-primary'
+                          : member.status === 'Từ chối'
+                          ? 'bg-[#fff4d8] text-[#7a5600]'
+                          : member.status === 'Bị cấm'
+                          ? 'bg-[#ffdad6] text-[#ba1a1a]'
                           : 'bg-[#ffdad6] text-[#ba1a1a]'
                       }`}
                     >
@@ -923,13 +962,19 @@ export const ClubDashboard = () => {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <button
-                      className="rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold hover:bg-surface-container-low"
-                      onClick={() => toggleMemberStatus(member.id)}
-                      type="button"
-                    >
-                      {member.status === 'Đang hoạt động' ? 'Tạm khóa' : 'Mở khóa'}
-                    </button>
+                    {member.role !== 'Chủ nhiệm' && (
+                      <button
+                        className={`rounded-lg border px-3 py-2 text-[12px] font-bold ${
+                          member.status === 'Bị cấm'
+                            ? 'border-primary text-primary hover:bg-primary/5'
+                            : 'border-[#ba1a1a] text-[#ba1a1a] hover:bg-[#ffdad6]/50'
+                        }`}
+                        onClick={() => toggleMemberStatus(member.id)}
+                        type="button"
+                      >
+                        {member.status === 'Bị cấm' ? 'Bỏ cấm' : 'Cấm'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

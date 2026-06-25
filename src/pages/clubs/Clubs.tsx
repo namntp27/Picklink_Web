@@ -241,6 +241,8 @@ export const Clubs = () => {
                 const IconComponent = cardIcons[index % cardIcons.length];
                 const isMember = club.myStatus === 'Accepted';
                 const isPending = club.myStatus === 'Pending';
+                const isDeclined = club.myStatus === 'Declined';
+                const isBanned = club.myStatus === 'Banned';
                 const isJoining = joiningId === club.groupId;
 
                 return (
@@ -303,6 +305,19 @@ export const Clubs = () => {
                       ) : isPending ? (
                         <span className="flex-1 bg-[#fff8e6] text-[#7a5600] font-label-md text-label-md py-2 rounded-lg text-center cursor-default">
                           Đang chờ duyệt
+                        </span>
+                      ) : isDeclined ? (
+                        <button
+                          className="flex-1 bg-[#fff8e6] text-[#7a5600] border border-[#7a5600]/40 font-label-md text-label-md py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+                          disabled={isJoining}
+                          onClick={() => handleJoin(club.groupId)}
+                        >
+                          {isJoining && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Đã yêu cầu · Gửi lại
+                        </button>
+                      ) : isBanned ? (
+                        <span className="flex-1 bg-[#ffdad6] text-[#ba1a1a] font-label-md text-label-md py-2 rounded-lg text-center cursor-default">
+                          Bị cấm
                         </span>
                       ) : (
                         <button
