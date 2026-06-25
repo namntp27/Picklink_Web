@@ -2,6 +2,13 @@ import { apiRequest } from './client';
 
 // ────────────────────────────── Response types ──────────────────────────────
 
+export type GroupImage = {
+  groupImageId: number;
+  imageUrl: string;
+  caption: string | null;
+  sortOrder: number;
+};
+
 export type CommunityGroup = {
   groupId: number;
   groupName: string;
@@ -16,6 +23,10 @@ export type CommunityGroup = {
   myStatus: string | null;
   postCount: number;
   messageCount: number;
+  rules: string | null;
+  overallRating: number;
+  ratingCount: number;
+  images: GroupImage[];
 };
 
 export type CommunityMember = {
@@ -86,6 +97,9 @@ export type UpdateGroupInput = {
   description?: string;
   groupType?: string;
   coverImageUrl?: string;
+  rules?: string;
+  overallRating?: number;
+  ratingCount?: number;
 };
 
 export type SendMessageInput = {
@@ -102,13 +116,13 @@ export type CreatePostInput = {
 // ────────────────────────────── API functions ───────────────────────────────
 
 // Groups
-export const getGroups = (token: string, query?: string) => {
+export const getGroups = (token?: string | null, query?: string) => {
   const params = query ? `?query=${encodeURIComponent(query)}` : '';
-  return apiRequest<CommunityGroup[]>(`/api/Community/groups${params}`, {}, token);
+  return apiRequest<CommunityGroup[]>(`/api/Community/groups${params}`, {}, token || undefined);
 };
 
-export const getGroup = (token: string, groupId: number) =>
-  apiRequest<CommunityGroup>(`/api/Community/groups/${groupId}`, {}, token);
+export const getGroup = (groupId: number, token?: string | null) =>
+  apiRequest<CommunityGroup>(`/api/Community/groups/${groupId}`, {}, token || undefined);
 
 export const createGroup = (token: string, input: CreateGroupInput) =>
   apiRequest<CommunityGroup>('/api/Community/groups', { method: 'POST', body: JSON.stringify(input) }, token);
@@ -146,3 +160,13 @@ export const approveMember = (token: string, groupId: number, memberUserId: numb
 
 export const removeMember = (token: string, groupId: number, memberUserId: number) =>
   apiRequest<void>(`/api/Community/groups/${groupId}/members/${memberUserId}`, { method: 'DELETE' }, token);
+
+// Group images
+export const addGroupImage = (token: string, groupId: number, imageUrl: string, caption?: string) =>
+  apiRequest<GroupImage>(`/api/Community/groups/${groupId}/images`, {
+    method: 'POST',
+    body: JSON.stringify({ imageUrl, caption: caption ?? null }),
+  }, token);
+
+export const removeGroupImage = (token: string, groupId: number, imageId: number) =>
+  apiRequest<void>(`/api/Community/groups/${groupId}/images/${imageId}`, { method: 'DELETE' }, token);

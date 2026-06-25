@@ -12,6 +12,13 @@ import {
   Smile,
   Users,
   Video,
+  X,
+  Camera,
+  Check,
+  Trash2,
+  LogOut,
+  Globe,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import {
@@ -19,9 +26,18 @@ import {
   getGroupMessages,
   getGroupMembers,
   sendGroupMessage,
+  updateGroup,
+  approveMember,
+  removeMember,
+  leaveGroup,
+  addGroupImage,
+  removeGroupImage,
   type CommunityGroup,
   type CommunityMessage,
+  type CommunityMember,
+  type GroupImage,
 } from '../../api/community';
+import { uploadToCloudinary } from '../../api/cloudinary';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -74,8 +90,26 @@ export const ClubsChat = () => {
   const [draftMessage, setDraftMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // Settings Panel state
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsMembers, setSettingsMembers] = useState<CommunityMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  // Form states for editing
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editRules, setEditRules] = useState('');
+  const [editRating, setEditRating] = useState('');
+  const [introImages, setIntroImages] = useState<GroupImage[]>([]);
+  const [uploadingIntro, setUploadingIntro] = useState(false);
 
   const selectedGroup = groups.find((g) => g.groupId === selectedGroupId) ?? null;
+  const isManager = !!(selectedGroup && ['Owner', 'Admin', 'Moderator'].includes(selectedGroup.myRole || ''));
 
   // ─── Load groups ────────────────────────────────────────────────────────
 
@@ -161,6 +195,186 @@ export const ClubsChat = () => {
       clearInterval(interval);
     };
   }, [token, selectedGroupId]);
+
+  // ─── Settings Panel / Cloudinary functions ──────────────────────────────
+
+  const loadSettingsMembers = useCallback(async () => {
+    if (!token || selectedGroupId === null) return;
+    setMembersLoading(true);
+    try {
+      const data = await getGroupMembers(token, selectedGroupId);
+      setSettingsMembers(data);
+    } catch (err) {
+      console.error('Failed to load group members', err);
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [token, selectedGroupId]);
+
+  useEffect(() => {
+    if (showSettings && selectedGroupId !== null) {
+      loadSettingsMembers();
+    }
+  }, [showSettings, selectedGroupId, loadSettingsMembers]);
+
+  useEffect(() => {
+    if (selectedGroup) {
+      setEditName(selectedGroup.groupName);
+      setEditDesc(selectedGroup.description || '');
+      setEditRules(selectedGroup.rules || '');
+      setEditRating(selectedGroup.overallRating > 0 ? String(selectedGroup.overallRating) : '');
+      setIntroImages(selectedGroup.images ?? []);
+    }
+  }, [selectedGroupId, selectedGroup]);
+
+  const handleUpdateGroup = async (fields: {
+    groupName?: string;
+    description?: string;
+    groupType?: string;
+    coverImageUrl?: string;
+    rules?: string;
+    overallRating?: number;
+    ratingCount?: number;
+  }) => {
+    if (!token || selectedGroupId === null || updatingGroup || !selectedGroup) return;
+    setUpdatingGroup(true);
+
+    const mergedFields = {
+      groupName: fields.groupName !== undefined ? fields.groupName : selectedGroup.groupName,
+      description: fields.description !== undefined ? fields.description : (selectedGroup.description || ''),
+      groupType: fields.groupType !== undefined ? fields.groupType : selectedGroup.groupType,
+      coverImageUrl: fields.coverImageUrl !== undefined ? fields.coverImageUrl : (selectedGroup.coverImageUrl || ''),
+      rules: fields.rules !== undefined ? fields.rules : (selectedGroup.rules || ''),
+      overallRating: fields.overallRating !== undefined ? fields.overallRating : selectedGroup.overallRating,
+      ratingCount: fields.ratingCount !== undefined ? fields.ratingCount : selectedGroup.ratingCount,
+    };
+
+    try {
+      const updated = await updateGroup(token, selectedGroupId, mergedFields);
+      setGroups((prev) =>
+        prev.map((g) => (g.groupId === selectedGroupId ? { ...g, ...updated } : g))
+      );
+      if (fields.rules !== undefined) setEditRules(updated.rules || '');
+    } catch (err: any) {
+      alert(err.message || 'Không thể cập nhật thông tin nhóm.');
+    } finally {
+      setUpdatingGroup(false);
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token || selectedGroupId === null) return;
+
+    try {
+      setUploadProgress(0);
+      const { url } = await uploadToCloudinary(token, file, (progress) => {
+        setUploadProgress(progress);
+      });
+      setUploadProgress(null);
+      await handleUpdateGroup({ coverImageUrl: url });
+    } catch (err: any) {
+      setUploadProgress(null);
+      alert(err.message || 'Không thể tải ảnh lên.');
+    }
+  };
+
+  const handleIntroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token || selectedGroupId === null || uploadingIntro) return;
+    setUploadingIntro(true);
+    try {
+      const { url } = await uploadToCloudinary(token, file, () => {});
+      const newImg = await addGroupImage(token, selectedGroupId, url);
+      setIntroImages((prev) => [...prev, newImg]);
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.groupId === selectedGroupId
+            ? { ...g, images: [...(g.images ?? []), newImg] }
+            : g
+        )
+      );
+    } catch (err: any) {
+      alert(err.message || 'Không thể tải ảnh lên.');
+    } finally {
+      setUploadingIntro(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveIntroImage = async (imageId: number) => {
+    if (!token || selectedGroupId === null) return;
+    if (!confirm('Xóa ảnh giới thiệu này?')) return;
+    try {
+      await removeGroupImage(token, selectedGroupId, imageId);
+      setIntroImages((prev) => prev.filter((img) => img.groupImageId !== imageId));
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.groupId === selectedGroupId
+            ? { ...g, images: (g.images ?? []).filter((img) => img.groupImageId !== imageId) }
+            : g
+        )
+      );
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa ảnh.');
+    }
+  };
+
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token || selectedGroupId === null || uploadingMedia) return;
+
+    setUploadingMedia(true);
+    try {
+      const { url } = await uploadToCloudinary(token, file);
+      const newMsg = await sendGroupMessage(token, selectedGroupId, {
+        mediaUrl: url,
+        content: `Đã gửi một ${file.type.startsWith('video/') ? 'video' : 'hình ảnh'}`
+      });
+      setMessages((prev) => [...prev, newMsg]);
+    } catch (err: any) {
+      alert(err.message || 'Không thể tải lên tệp tin.');
+    } finally {
+      setUploadingMedia(false);
+      if (mediaInputRef.current) mediaInputRef.current.value = '';
+    }
+  };
+
+  const handleApproveMember = async (memberUserId: number) => {
+    if (!token || selectedGroupId === null) return;
+    try {
+      await approveMember(token, selectedGroupId, memberUserId);
+      loadSettingsMembers();
+      setMemberCount((prev) => prev + 1);
+    } catch (err: any) {
+      alert(err.message || 'Không thể phê duyệt thành viên.');
+    }
+  };
+
+  const handleRemoveMember = async (memberUserId: number) => {
+    if (!token || selectedGroupId === null) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?')) return;
+    try {
+      await removeMember(token, selectedGroupId, memberUserId);
+      loadSettingsMembers();
+      setMemberCount((prev) => Math.max(0, prev - 1));
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa thành viên.');
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!token || selectedGroupId === null) return;
+    if (!confirm('Bạn có chắc chắn muốn rời nhóm này?')) return;
+    try {
+      await leaveGroup(token, selectedGroupId);
+      setShowSettings(false);
+      setSelectedGroupId(null);
+      loadGroups();
+    } catch (err: any) {
+      alert(err.message || 'Không thể rời nhóm.');
+    }
+  };
 
   // ─── Auto-scroll to bottom ──────────────────────────────────────────────
 
@@ -349,7 +563,12 @@ export const ClubsChat = () => {
                   </button>
                   <button
                     aria-label="Thông tin nhóm"
-                    className="rounded-full p-2 transition-colors hover:bg-surface-container-low"
+                    className={`rounded-full p-2 transition-colors ${
+                      showSettings
+                        ? 'bg-primary/10 text-primary'
+                        : 'hover:bg-surface-container-low'
+                    }`}
+                    onClick={() => setShowSettings(!showSettings)}
                     type="button"
                   >
                     <Info className="h-5 w-5" />
@@ -451,6 +670,13 @@ export const ClubsChat = () => {
               {/* Composer */}
               <div className="shrink-0 border-t border-outline-variant bg-white p-3 md:p-4">
                 <div className="mx-auto flex max-w-4xl items-end gap-2">
+                  <input
+                    type="file"
+                    ref={mediaInputRef}
+                    onChange={handleMediaUpload}
+                    accept="image/*,video/*"
+                    className="hidden"
+                  />
                   <button
                     aria-label="Thêm nội dung"
                     className="shrink-0 rounded-full p-3 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary"
@@ -460,10 +686,16 @@ export const ClubsChat = () => {
                   </button>
                   <button
                     aria-label="Gửi hình ảnh"
-                    className="shrink-0 rounded-full p-3 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary"
+                    className="shrink-0 rounded-full p-3 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary disabled:opacity-50"
+                    onClick={() => mediaInputRef.current?.click()}
+                    disabled={uploadingMedia}
                     type="button"
                   >
-                    <ImageIcon className="h-5 w-5" />
+                    {uploadingMedia ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-5 w-5" />
+                    )}
                   </button>
                   <div className="relative flex-1 rounded-xl border border-outline-variant bg-surface-container-low focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
                     <textarea
@@ -508,6 +740,385 @@ export const ClubsChat = () => {
             </div>
           )}
         </main>
+
+        {showSettings && selectedGroup && (
+          <aside className="custom-scrollbar flex h-[50vh] md:h-full w-full flex-col border-t border-outline-variant bg-white md:w-80 md:border-t-0 md:border-l shrink-0 overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-outline-variant p-4">
+              <h3 className="text-[16px] font-bold text-on-surface">Thông tin nhóm</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="rounded-full p-1.5 hover:bg-surface-container-low text-on-surface-variant"
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="relative h-40 bg-surface-container-low shrink-0">
+              {selectedGroup.coverImageUrl ? (
+                <img
+                  src={selectedGroup.coverImageUrl}
+                  alt="Cover"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary font-bold text-2xl">
+                  {getGroupInitial(selectedGroup.groupName)}
+                </div>
+              )}
+              
+              {isManager && (
+                <label className="absolute bottom-2 right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80">
+                  <Camera className="h-4 w-4" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleCoverUpload}
+                    disabled={updatingGroup || uploadProgress !== null}
+                  />
+                </label>
+              )}
+
+              {uploadProgress !== null && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <span className="mt-2 text-xs font-semibold">{uploadProgress}%</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 p-4 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">Tên nhóm</label>
+                  {isManager ? (
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="flex-1 rounded-lg border border-outline-variant px-3 py-1.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                      />
+                      {editName !== selectedGroup.groupName && (
+                        <button
+                          onClick={() => handleUpdateGroup({ groupName: editName })}
+                          disabled={updatingGroup}
+                          className="rounded-lg bg-primary p-2 text-white hover:bg-primary/95 transition-colors"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-[14px] font-semibold text-on-surface">{selectedGroup.groupName}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">Mô tả</label>
+                  {isManager ? (
+                    <div className="mt-1 space-y-2">
+                      <textarea
+                        value={editDesc}
+                        onChange={(e) => setEditDesc(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-lg border border-outline-variant px-3 py-1.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
+                        placeholder="Thêm mô tả về nhóm..."
+                      />
+                      {editDesc !== (selectedGroup.description || '') && (
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleUpdateGroup({ description: editDesc })}
+                            disabled={updatingGroup}
+                            className="rounded-lg bg-primary px-3 py-1 text-[12px] font-bold text-white hover:bg-primary/95 transition-colors"
+                          >
+                            Lưu mô tả
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-[13px] text-on-surface-variant leading-relaxed">
+                      {selectedGroup.description || 'Không có mô tả.'}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Chế độ nhóm</label>
+                  {isManager ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleUpdateGroup({ groupType: 'Public' })}
+                        className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
+                          selectedGroup.groupType === 'Public'
+                            ? 'bg-primary-container text-on-primary-container border-primary'
+                            : 'border-outline-variant hover:bg-surface-container-low text-on-surface-variant'
+                        }`}
+                      >
+                        <Globe className="h-4 w-4" />
+                        Công khai
+                      </button>
+                      <button
+                        onClick={() => handleUpdateGroup({ groupType: 'Private' })}
+                        className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
+                          selectedGroup.groupType === 'Private'
+                            ? 'bg-primary-container text-on-primary-container border-primary'
+                            : 'border-outline-variant hover:bg-surface-container-low text-on-surface-variant'
+                        }`}
+                      >
+                        <Lock className="h-4 w-4" />
+                        Riêng tư
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mt-1 text-[13px] font-medium text-on-surface">
+                      {selectedGroup.groupType === 'Public' ? (
+                        <>
+                          <Globe className="h-4 w-4 text-on-surface-variant" />
+                          <span>Công khai</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="h-4 w-4 text-on-surface-variant" />
+                          <span>Riêng tư</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Rules */}
+              <div className="border-t border-outline-variant pt-4">
+                <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">
+                  Quy định nhanh
+                </label>
+                {isManager ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editRules}
+                      onChange={(e) => setEditRules(e.target.value)}
+                      rows={4}
+                      className="w-full rounded-lg border border-outline-variant px-3 py-1.5 text-[13px] focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
+                      placeholder="Nhập quy định của câu lạc bộ..."
+                    />
+                    {editRules !== (selectedGroup.rules || '') && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => handleUpdateGroup({ rules: editRules })}
+                          disabled={updatingGroup}
+                          className="rounded-lg bg-primary px-3 py-1 text-[12px] font-bold text-white hover:bg-primary/95 transition-colors disabled:opacity-50"
+                        >
+                          Lưu quy định
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[13px] text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                    {selectedGroup.rules || 'Chưa có quy định.'}
+                  </p>
+                )}
+              </div>
+
+              {/* Rating */}
+              <div className="border-t border-outline-variant pt-4">
+                <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-2">
+                  Đánh giá
+                </label>
+                {isManager ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-1.5 flex-1">
+                      <span className="text-amber-500 text-[16px]">★</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        value={editRating}
+                        onChange={(e) => setEditRating(e.target.value)}
+                        className="w-16 bg-transparent text-[14px] font-bold outline-none text-on-surface"
+                        placeholder="0.0"
+                      />
+                      <span className="text-[12px] text-on-surface-variant">/5</span>
+                    </div>
+                    {editRating !== (selectedGroup.overallRating > 0 ? String(selectedGroup.overallRating) : '') && (
+                      <button
+                        onClick={() => {
+                          const val = parseFloat(editRating);
+                          if (!isNaN(val)) handleUpdateGroup({ overallRating: val });
+                        }}
+                        disabled={updatingGroup}
+                        className="rounded-lg bg-primary p-2 text-white hover:bg-primary/95 transition-colors disabled:opacity-50"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[13px] font-bold text-amber-700">
+                      <span>★</span>
+                      {selectedGroup.overallRating > 0 ? selectedGroup.overallRating.toFixed(1) : '—'}
+                    </span>
+                    {selectedGroup.ratingCount > 0 && (
+                      <span className="text-[12px] text-on-surface-variant">{selectedGroup.ratingCount} đánh giá</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Intro Images */}
+              <div className="border-t border-outline-variant pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">
+                    Ảnh giới thiệu ({introImages.length})
+                  </label>
+                  {isManager && (
+                    <label className="flex items-center gap-1 cursor-pointer rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors">
+                      {uploadingIntro ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      )}
+                      Thêm ảnh
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleIntroImageUpload}
+                        disabled={uploadingIntro}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {introImages.length === 0 ? (
+                  <p className="text-[12px] text-on-surface-variant">Chưa có ảnh giới thiệu.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {introImages.map((img) => (
+                      <div key={img.groupImageId} className="group relative aspect-video overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low">
+                        <img
+                          src={img.imageUrl}
+                          alt={img.caption || 'Ảnh giới thiệu'}
+                          className="h-full w-full object-cover"
+                        />
+                        {isManager && (
+                          <button
+                            onClick={() => handleRemoveIntroImage(img.groupImageId)}
+                            className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-[#ba1a1a] group-hover:flex items-center justify-center"
+                            title="Xóa ảnh"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                        {img.caption && (
+                          <p className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-2 py-0.5 text-[10px] text-white">
+                            {img.caption}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Members List */}
+              <div className="border-t border-outline-variant pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-[14px] font-bold text-on-surface flex items-center gap-1.5">
+                    <Users className="h-4 w-4" />
+                    <span>Thành viên ({settingsMembers.length})</span>
+                  </h4>
+                </div>
+
+                {membersLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                    {settingsMembers.map((member) => (
+                      <div key={member.userId} className="flex items-center justify-between gap-2 text-[13px]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {member.profileImageUrl ? (
+                            <img
+                              src={member.profileImageUrl}
+                              alt={member.username}
+                              className="h-8 w-8 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                              {member.username[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-on-surface truncate">{member.username}</p>
+                            <p className="text-[10px] text-on-surface-variant">
+                              {member.role === 'Owner'
+                                ? 'Trưởng nhóm'
+                                : member.role === 'Admin'
+                                ? 'Quản trị viên'
+                                : member.role === 'Moderator'
+                                ? 'Kiểm duyệt viên'
+                                : member.status === 'Pending'
+                                ? 'Đang chờ duyệt'
+                                : 'Thành viên'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1 shrink-0">
+                          {isManager && member.status === 'Pending' && (
+                            <>
+                              <button
+                                onClick={() => handleApproveMember(member.userId)}
+                                className="rounded bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                Duyệt
+                              </button>
+                              <button
+                                onClick={() => handleRemoveMember(member.userId)}
+                                className="rounded bg-error-container/10 px-2 py-1 text-[11px] font-bold text-error hover:bg-[#ba1a1a]/10 transition-colors"
+                              >
+                                Từ chối
+                              </button>
+                            </>
+                          )}
+                          {isManager && member.status === 'Accepted' && member.role !== 'Owner' && member.userId !== selectedGroup.ownerPlayerId && (
+                            <button
+                              onClick={() => handleRemoveMember(member.userId)}
+                              className="rounded p-1 hover:bg-[#ba1a1a]/10 text-on-surface-variant hover:text-[#ba1a1a] transition-colors"
+                              title="Xóa khỏi nhóm"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Danger zone */}
+              {selectedGroup.myRole !== 'Owner' && (
+                <div className="border-t border-outline-variant pt-4">
+                  <button
+                    onClick={handleLeaveGroup}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-[#ba1a1a]/20 hover:bg-[#ba1a1a]/5 text-[#ba1a1a] text-[13px] font-bold transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Rời nhóm
+                  </button>
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );

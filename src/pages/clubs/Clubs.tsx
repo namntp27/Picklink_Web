@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { ClubsChat } from './ClubsChat';
 import {
   Search,
@@ -40,6 +40,18 @@ export const Clubs = () => {
   const navigate = useNavigate();
   const { token, isAuthenticated } = useAuth();
   const [showGroups, setShowGroups] = useState(false);
+  const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
+
+  useEffect(() => {
+    if (setShowFooter) {
+      setShowFooter(!showGroups);
+    }
+    return () => {
+      if (setShowFooter) {
+        setShowFooter(true);
+      }
+    };
+  }, [showGroups, setShowFooter]);
 
   // API state
   const [clubs, setClubs] = useState<CommunityGroup[]>([]);
@@ -50,10 +62,6 @@ export const Clubs = () => {
 
   const loadClubs = useCallback(
     async (query?: string) => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
       setLoading(true);
       setError(null);
       try {
@@ -157,12 +165,14 @@ export const Clubs = () => {
               >
                 Dành cho bạn
               </button>
-              <button 
-                onClick={() => setShowGroups(true)}
-                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white font-label-md text-label-md px-6 py-3 rounded-lg flex items-center gap-2 transition-all backdrop-blur-sm"
-              >
-                Nhóm của bạn
-              </button>
+              {isAuthenticated && (
+                <button 
+                  onClick={() => setShowGroups(true)}
+                  className="bg-white/10 hover:bg-white/20 border border-white/30 text-white font-label-md text-label-md px-6 py-3 rounded-lg flex items-center gap-2 transition-all backdrop-blur-sm"
+                >
+                  Nhóm của bạn
+                </button>
+              )}
             </div>
           </div>
         </section>

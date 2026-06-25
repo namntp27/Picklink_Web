@@ -22,6 +22,7 @@ import {
   Video,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { useOutletContext } from 'react-router-dom';
 import {
   getGroups,
   getGroupMessages,
@@ -237,6 +238,18 @@ const groupToConversation = (group: CommunityGroup): Conversation => ({
 
 export const Messages = () => {
   const { token } = useAuth();
+  const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
+
+  useEffect(() => {
+    if (setShowFooter) {
+      setShowFooter(false);
+    }
+    return () => {
+      if (setShowFooter) {
+        setShowFooter(true);
+      }
+    };
+  }, [setShowFooter]);
 
   // Conversations from API
   const [clubConversations, setClubConversations] = useState<Conversation[]>([]);

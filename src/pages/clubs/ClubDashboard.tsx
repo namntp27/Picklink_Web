@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Bell,
@@ -30,6 +30,18 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import {
+  getGroup,
+  getGroupMembers,
+  getGroupMessages,
+  sendGroupMessage,
+  approveMember,
+  removeMember,
+  type CommunityGroup,
+  type CommunityMember,
+  type CommunityMessage,
+} from '../../api/community';
 
 type DashboardTab = 'overview' | 'members' | 'events' | 'posts' | 'chat';
 type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Huấn luyện viên' | 'Thành viên';
@@ -305,15 +317,33 @@ const getRoleClassName = (role: MemberRole) => {
   return 'bg-surface-container-low text-on-surface-variant';
 };
 
+const renderAvatar = (avatar: string, sizeClass = "h-10 w-10") => {
+  if (avatar && (avatar.startsWith('http') || avatar.includes('/') || avatar.includes('.'))) {
+    return (
+      <img
+        src={avatar}
+        alt="Avatar"
+        className={`${sizeClass} rounded-full object-cover shrink-0`}
+      />
+    );
+  }
+  return (
+    <div className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-white`}>
+      {avatar || '?'}
+    </div>
+  );
+};
+
 export const ClubDashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
-  const [requests, setRequests] = useState(initialRequests);
-  const [members, setMembers] = useState(initialMembers);
+  const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const [members, setMembers] = useState<ClubMember[]>([]);
   const [events, setEvents] = useState(initialEvents);
   const [posts, setPosts] = useState(initialPosts);
-  const [chatMessages, setChatMessages] = useState(initialChatMessages);
+  const [chatMessages, setChatMessages] = useState<ClubChatMessage[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [eventForm, setEventForm] = useState<EventForm>({
@@ -325,7 +355,109 @@ export const ClubDashboard = () => {
     capacity: '24',
   });
 
-  const clubCode = id?.replace(/-/g, ' ') || 'hanoi elite';
+  const [groupInfo, setGroupInfo] = useState<CommunityGroup | null>(null);
+  const [loadingGroup, setLoadingGroup] = useState(true);
+
+  const groupId = Number(id);
+  const isNumericGroupId = !isNaN(groupId) && groupId > 0;
+
+  // Load group details
+  const loadGroupInfo = useCallback(async () => {
+    if (!token || !isNumericGroupId) {
+      setLoadingGroup(false);
+      return;
+    }
+    try {
+      const data = await getGroup(groupId, token);
+      setGroupInfo(data);
+    } catch (err) {
+      console.error('Failed to load group details', err);
+    } finally {
+      setLoadingGroup(false);
+    }
+  }, [token, groupId, isNumericGroupId]);
+
+  // Load members from API
+  const loadMembers = useCallback(async () => {
+    if (!token || !isNumericGroupId) return;
+    try {
+      const data = await getGroupMembers(token, groupId);
+      
+      // Map requests (Pending)
+      const pending = data
+        .filter((m) => m.status === 'Pending')
+        .map((m) => ({
+          id: m.userId,
+          name: m.username,
+          avatar: m.profileImageUrl || (m.username[0]?.toUpperCase() ?? '?'),
+          level: '3.5',
+          area: 'Hà Nội',
+          requestedAt: new Date(m.joinedAt).toLocaleDateString('vi-VN'),
+          note: 'Yêu cầu tham gia câu lạc bộ qua hệ thống Picklink.',
+        }));
+      setRequests(pending);
+
+      // Map accepted members (Accepted)
+      const accepted = data
+        .filter((m) => m.status === 'Accepted')
+        .map((m) => {
+          let uiRole: MemberRole = 'Thành viên';
+          if (m.role === 'Owner') uiRole = 'Chủ nhiệm';
+          else if (m.role === 'Admin') uiRole = 'Quản trị viên';
+          else if (m.role === 'Moderator') uiRole = 'Quản trị viên';
+
+          return {
+            id: m.userId,
+            name: m.username,
+            avatar: m.profileImageUrl || (m.username[0]?.toUpperCase() ?? '?'),
+            level: '3.5',
+            role: uiRole,
+            joinedAt: new Date(m.joinedAt).toLocaleDateString('vi-VN'),
+            status: 'Đang hoạt động' as const,
+            permissions: permissionByRole[uiRole] || permissionByRole['Thành viên'],
+          };
+        });
+      setMembers(accepted);
+    } catch (err) {
+      console.error('Failed to load members', err);
+    }
+  }, [token, groupId, isNumericGroupId]);
+
+  // Load chat messages from API
+  const loadChatMessages = useCallback(async () => {
+    if (!token || !isNumericGroupId) return;
+    try {
+      const data = await getGroupMessages(token, groupId);
+      const mapped = data.map((m) => ({
+        id: m.messageId,
+        author: m.isMine ? 'Bạn' : m.senderName,
+        avatar: m.senderAvatarUrl || (m.senderName[0]?.toUpperCase() ?? '?'),
+        text: m.content || (m.mediaUrl ? 'Đã gửi một tệp đính kèm.' : ''),
+        time: new Date(m.sentAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        mine: m.isMine,
+      }));
+      setChatMessages(mapped);
+    } catch (err) {
+      console.error('Failed to load chat messages', err);
+    }
+  }, [token, groupId, isNumericGroupId]);
+
+  useEffect(() => {
+    loadGroupInfo();
+    loadMembers();
+    loadChatMessages();
+  }, [token, groupId, loadGroupInfo, loadMembers, loadChatMessages]);
+
+  // Poll for chat messages when on chat tab
+  useEffect(() => {
+    if (activeTab !== 'chat' || !isNumericGroupId) return;
+    const interval = setInterval(() => {
+      loadChatMessages();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [activeTab, isNumericGroupId, loadChatMessages]);
+
+  const clubCode = groupInfo ? groupInfo.groupName : (id?.replace(/-/g, ' ') || 'hanoi elite');
   const pendingPosts = posts.filter((post) => post.status === 'Chờ duyệt').length;
   const openEvents = events.filter((event) => event.status !== 'Đã khóa').length;
   const filteredMembers = members.filter((member) => {
@@ -370,32 +502,52 @@ export const ClubDashboard = () => {
       {
         label: 'Tin nhắn hôm nay',
         value: chatMessages.length.toString(),
-        helper: '45 thành viên đang trực tuyến',
+        helper: 'Đang kết nối API Picklink',
         icon: MessageCircle,
       },
     ],
     [chatMessages.length, events.length, members.length, openEvents, pendingPosts, posts.length, requests.length],
   );
 
-  const approveRequest = (request: JoinRequest) => {
-    setRequests((currentRequests) => currentRequests.filter((item) => item.id !== request.id));
-    setMembers((currentMembers) => [
-      ...currentMembers,
-      {
-        id: Date.now(),
-        name: request.name,
-        avatar: request.avatar,
-        level: request.level,
-        role: 'Thành viên',
-        joinedAt: '18/06/2026',
-        status: 'Đang hoạt động',
-        permissions: permissionByRole['Thành viên'],
-      },
-    ]);
+  const approveRequest = async (request: JoinRequest) => {
+    if (isNumericGroupId && token) {
+      try {
+        await approveMember(token, groupId, request.id);
+        loadMembers();
+      } catch (err: any) {
+        alert(err.message || 'Không thể phê duyệt thành viên.');
+      }
+    } else {
+      // Mock fallback
+      setRequests((currentRequests) => currentRequests.filter((item) => item.id !== request.id));
+      setMembers((currentMembers) => [
+        ...currentMembers,
+        {
+          id: Date.now(),
+          name: request.name,
+          avatar: request.avatar,
+          level: request.level,
+          role: 'Thành viên',
+          joinedAt: '18/06/2026',
+          status: 'Đang hoạt động',
+          permissions: permissionByRole['Thành viên'],
+        },
+      ]);
+    }
   };
 
-  const rejectRequest = (requestId: number) => {
-    setRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
+  const rejectRequest = async (requestId: number) => {
+    if (isNumericGroupId && token) {
+      try {
+        await removeMember(token, groupId, requestId);
+        loadMembers();
+      } catch (err: any) {
+        alert(err.message || 'Không thể từ chối thành viên.');
+      }
+    } else {
+      // Mock fallback
+      setRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
+    }
   };
 
   const updateMemberRole = (memberId: number, role: MemberRole) => {
@@ -412,17 +564,27 @@ export const ClubDashboard = () => {
     );
   };
 
-  const toggleMemberStatus = (memberId: number) => {
-    setMembers((currentMembers) =>
-      currentMembers.map((member) =>
-        member.id === memberId
-          ? {
-              ...member,
-              status: member.status === 'Đang hoạt động' ? 'Tạm khóa' : 'Đang hoạt động',
-            }
-          : member,
-      ),
-    );
+  const toggleMemberStatus = async (memberId: number) => {
+    if (isNumericGroupId && token) {
+      if (!confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi câu lạc bộ?')) return;
+      try {
+        await removeMember(token, groupId, memberId);
+        loadMembers();
+      } catch (err: any) {
+        alert(err.message || 'Không thể xóa thành viên.');
+      }
+    } else {
+      setMembers((currentMembers) =>
+        currentMembers.map((member) =>
+          member.id === memberId
+            ? {
+                ...member,
+                status: member.status === 'Đang hoạt động' ? 'Tạm khóa' : 'Đang hoạt động',
+              }
+            : member,
+        ),
+      );
+    }
   };
 
   const createEvent = (event: React.FormEvent<HTMLFormElement>) => {
@@ -462,25 +624,43 @@ export const ClubDashboard = () => {
     setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId));
   };
 
-  const sendChatMessage = () => {
+  const sendChatMessage = async () => {
     const text = chatDraft.trim();
+    if (!text) return;
 
-    if (!text) {
-      return;
+    if (isNumericGroupId && token) {
+      try {
+        const newMsg = await sendGroupMessage(token, groupId, { content: text });
+        setChatMessages((currentMessages) => [
+          ...currentMessages,
+          {
+            id: newMsg.messageId,
+            author: 'Bạn',
+            avatar: newMsg.senderAvatarUrl || (newMsg.senderName[0]?.toUpperCase() ?? '?'),
+            text: newMsg.content || '',
+            time: new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date()),
+            mine: true,
+          },
+        ]);
+        setChatDraft('');
+      } catch (err: any) {
+        alert(err.message || 'Không thể gửi tin nhắn.');
+      }
+    } else {
+      // Mock fallback
+      setChatMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          id: Date.now(),
+          author: 'Bạn',
+          avatar: 'B',
+          text,
+          time: getCurrentTime(),
+          mine: true,
+        },
+      ]);
+      setChatDraft('');
     }
-
-    setChatMessages((currentMessages) => [
-      ...currentMessages,
-      {
-        id: Date.now(),
-        author: 'Bạn',
-        avatar: 'B',
-        text,
-        time: getCurrentTime(),
-        mine: true,
-      },
-    ]);
-    setChatDraft('');
   };
 
   const renderOverview = () => (
@@ -603,9 +783,7 @@ export const ClubDashboard = () => {
               <article className="p-5" key={request.id}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex min-w-0 gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-[14px] font-bold text-white">
-                      {request.avatar}
-                    </div>
+                    {renderAvatar(request.avatar, "h-12 w-12")}
                     <div className="min-w-0">
                       <h3 className="truncate text-[16px] font-bold">{request.name}</h3>
                       <p className="mt-1 text-[13px] font-medium text-on-surface-variant">
@@ -702,9 +880,7 @@ export const ClubDashboard = () => {
                 <tr className="hover:bg-[#f9f9ff]" key={member.id}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-white">
-                        {member.avatar}
-                      </div>
+                      {renderAvatar(member.avatar, "h-10 w-10")}
                       <div>
                         <p className="font-bold">{member.name}</p>
                         <p className="text-[12px] font-medium text-on-surface-variant">
@@ -1037,9 +1213,7 @@ export const ClubDashboard = () => {
           {chatMessages.map((message) => (
             <div className={`flex ${message.mine ? 'justify-end' : 'justify-start'}`} key={message.id}>
               <div className={`flex max-w-[78%] gap-3 md:max-w-[620px] ${message.mine ? 'flex-row-reverse' : ''}`}>
-                <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-white">
-                  {message.avatar}
-                </div>
+                {renderAvatar(message.avatar, "h-9 w-9 mt-1")}
                 <div className={message.mine ? 'text-right' : ''}>
                   <div className={`mb-1 flex items-center gap-2 ${message.mine ? 'justify-end' : ''}`}>
                     <span className="text-[12px] font-bold text-on-surface-variant">{message.author}</span>
@@ -1094,8 +1268,8 @@ export const ClubDashboard = () => {
           <div className="mt-4 space-y-3">
             {members.slice(0, 4).map((member) => (
               <div className="flex items-center gap-3" key={member.id}>
-                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-white">
-                  {member.avatar}
+                <div className="relative shrink-0">
+                  {renderAvatar(member.avatar, "h-10 w-10")}
                   <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-[#2f9e44]" />
                 </div>
                 <div className="min-w-0">
@@ -1141,8 +1315,8 @@ export const ClubDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] text-on-surface">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[280px] flex-col border-r border-outline-variant bg-white lg:flex">
+    <div className="min-h-screen bg-[#f9f9ff] text-on-surface pt-[72px]">
+      <aside className="fixed top-[72px] bottom-0 left-0 z-30 hidden w-[280px] flex-col border-r border-outline-variant bg-white lg:flex">
         <div className="border-b border-outline-variant p-6">
           <Link className="text-[24px] font-bold text-primary" to="/">
             Picklink
@@ -1196,7 +1370,7 @@ export const ClubDashboard = () => {
       </aside>
 
       <main className="lg:pl-[280px]">
-        <header className="sticky top-0 z-20 border-b border-outline-variant bg-white/95 px-4 py-4 backdrop-blur md:px-8">
+        <header className="sticky top-[72px] z-20 border-b border-outline-variant bg-white/95 px-4 py-4 backdrop-blur md:px-8">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-on-surface-variant">
@@ -1204,7 +1378,7 @@ export const ClubDashboard = () => {
                   CLB
                 </Link>
                 <ChevronRight className="h-4 w-4" />
-                <span className="text-on-surface">Hanoi Elite Pickleball Club</span>
+                <span className="text-on-surface">{groupInfo ? groupInfo.groupName : 'Hanoi Elite Pickleball Club'}</span>
               </div>
               <h1 className="mt-2 text-[26px] font-bold leading-tight md:text-[32px]">
                 Quản lý CLB
