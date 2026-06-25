@@ -9,14 +9,13 @@ import {
   Eye,
   MapPin,
   PlusCircle,
-  RotateCcw,
   ShieldCheck,
   Trophy,
   UserPlus,
   Users,
   XCircle,
 } from 'lucide-react';
-import { cancelMatch, getMyMatches, reopenMatch, type MatchSummary } from '../../api/matches';
+import { cancelMatch, getMyMatches, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -268,12 +267,6 @@ export const MyMatches = () => {
     await loadMatches();
   };
 
-  const handleReopen = async (matchId: number) => {
-    if (!token) return;
-    await reopenMatch(token, matchId);
-    await loadMatches();
-  };
-
   return (
     <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
       <section className="bg-primary text-white">
@@ -394,16 +387,6 @@ export const MyMatches = () => {
                         </button>
                       )}
 
-                      {match.status === 'cancelled' && match.role === 'host' && (
-                        <button
-                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90 xl:w-auto"
-                          onClick={() => void handleReopen(match.id)}
-                          type="button"
-                        >
-                          <RotateCcw className="h-5 w-5" />
-                          Tạo lại
-                        </button>
-                      )}
                     </div>
                   </div>
 

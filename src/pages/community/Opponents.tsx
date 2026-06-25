@@ -13,6 +13,47 @@ import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 
 type MatchFormat = '1vs1' | '2vs2';
 type LocatedVenue = BookingVenue & { latitude: number; longitude: number };
+type PlayerLocation = { latitude: number; longitude: number };
+
+const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
+const PLAYER_LOCATION_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const readCachedPlayerLocation = (): PlayerLocation | null => {
+  try {
+    const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
+    if (!rawValue) return null;
+    const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
+    const isValid = Number.isFinite(cached.latitude)
+      && cached.latitude >= -90
+      && cached.latitude <= 90
+      && Number.isFinite(cached.longitude)
+      && cached.longitude >= -180
+      && cached.longitude <= 180
+      && Date.now() - cached.cachedAt <= PLAYER_LOCATION_CACHE_TTL_MS;
+    if (!isValid) {
+      window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
+      return null;
+    }
+    return { latitude: cached.latitude, longitude: cached.longitude };
+  } catch {
+    return null;
+  }
+};
+
+const cachePlayerLocation = (location: PlayerLocation) => {
+  try {
+    window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({ ...location, cachedAt: Date.now() }));
+  } catch {
+    // Location still works when storage is unavailable.
+  }
+};
+
+const locationErrorMessage = (error: GeolocationPositionError) => {
+  if (error.code === error.PERMISSION_DENIED) return 'Quyền vị trí đang bị chặn. Hãy cho phép Vị trí trong cài đặt trình duyệt rồi thử lại.';
+  if (error.code === error.POSITION_UNAVAILABLE) return 'Thiết bị chưa cung cấp được vị trí. Hãy bật Location services và Wi-Fi rồi thử lại.';
+  if (error.code === error.TIMEOUT) return 'Định vị quá thời gian. Hãy bật Location services hoặc thử lại ở nơi có tín hiệu tốt hơn.';
+  return 'Không thể xác định vị trí hiện tại.';
+};
 
 export const provinceOptions = ['Hà Nội', 'Hồ Chí Minh', 'Việt Nam'];
 const pendingCourtOptions = [
@@ -57,13 +98,21 @@ const playerIcon = divIcon({
   iconSize: [22, 22],
 });
 
-const MapViewport = ({ venues, selectedVenue }: { venues: LocatedVenue[]; selectedVenue?: LocatedVenue }) => {
+const MapViewport = ({ venues, playerLocation, selectedVenue }: {
+  venues: LocatedVenue[];
+  playerLocation: PlayerLocation | null;
+  selectedVenue?: LocatedVenue;
+}) => {
   const map = useMap();
   useEffect(() => {
+    if (playerLocation) {
+      map.flyTo([playerLocation.latitude, playerLocation.longitude], Math.max(map.getZoom(), 16), { duration: 0.7 });
+      return;
+    }
     const points: LatLngTuple[] = venues.map((venue) => [venue.latitude, venue.longitude]);
     if (points.length > 1) map.fitBounds(points as LatLngBoundsExpression, { padding: [42, 42], maxZoom: 15 });
     else if (points.length === 1) map.setView(points[0], 15);
-  }, [map, venues]);
+  }, [map, playerLocation, venues]);
   useEffect(() => {
     if (selectedVenue) map.flyTo([selectedVenue.latitude, selectedVenue.longitude], Math.max(map.getZoom(), 15), { duration: 0.7 });
   }, [map, selectedVenue]);
@@ -95,7 +144,7 @@ export const Opponents = () => {
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
   const [error, setError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [playerLocation, setPlayerLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(() => readCachedPlayerLocation());
   const [isLocating, setIsLocating] = useState(false);
   const mapRef = useRef<LeafletMap | null>(null);
 
@@ -187,6 +236,12 @@ export const Opponents = () => {
   };
 
   const locatePlayer = () => {
+    const cachedLocation = readCachedPlayerLocation();
+    if (cachedLocation) {
+      setPlayerLocation({ ...cachedLocation });
+      mapRef.current?.flyTo([cachedLocation.latitude, cachedLocation.longitude], 16, { duration: 0.5 });
+      setError('');
+    }
     if (!navigator.geolocation) {
       setError('Trình duyệt không hỗ trợ định vị.');
       return;
@@ -200,17 +255,16 @@ export const Opponents = () => {
       ({ coords }) => {
         const location = { latitude: coords.latitude, longitude: coords.longitude };
         setPlayerLocation(location);
+        cachePlayerLocation(location);
         mapRef.current?.flyTo([location.latitude, location.longitude], 16, { duration: 0.8 });
         setError('');
         setIsLocating(false);
       },
       (locationError) => {
-        setError(locationError.code === locationError.PERMISSION_DENIED
-          ? 'Bạn chưa cấp quyền truy cập vị trí.'
-          : 'Không thể xác định vị trí hiện tại.');
+        setError(cachedLocation ? '' : locationErrorMessage(locationError));
         setIsLocating(false);
       },
-      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 20_000 },
+      { enableHighAccuracy: false, maximumAge: 5 * 60_000, timeout: 5_000 },
     );
   };
 
@@ -269,7 +323,7 @@ export const Opponents = () => {
         </section></aside>
 
         <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm"><div className="border-b border-outline-variant p-5"><h2 className="text-[22px] font-bold">Bản đồ sân Pickleball</h2><p className="mt-1 text-[13px] text-on-surface-variant">Chọn marker để đưa cụm sân vào form tạo lời mời.</p></div><div className="relative h-[760px] bg-surface-container">
-          <MapContainer center={hanoiCenter} className="h-full w-full" ref={mapRef} scrollWheelZoom zoom={12}><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /><MapViewport selectedVenue={selectedMappedVenue} venues={mappedVenues} />{playerLocation && <Marker icon={playerIcon} position={[playerLocation.latitude, playerLocation.longitude]}><Popup><strong>Vị trí của bạn</strong></Popup></Marker>}{mappedVenues.map((venue) => <Marker eventHandlers={{ click: () => chooseVenue(venue.venueId) }} icon={venueIcon(selectedVenueId === venue.venueId)} key={venue.venueId} position={[venue.latitude, venue.longitude]}><Popup minWidth={220}><div className="space-y-1.5"><strong className="text-[14px]">{venue.venueName}</strong><p className="m-0 text-[12px] text-gray-600">{venue.address}</p><p className="m-0 text-[12px] font-bold text-primary">{currency.format(venue.fromPrice)}/giờ</p><button className="text-[12px] font-bold text-primary underline" onClick={() => chooseVenue(venue.venueId)} type="button">Chọn cụm sân này</button></div></Popup></Marker>)}</MapContainer>
+          <MapContainer center={hanoiCenter} className="h-full w-full" ref={mapRef} scrollWheelZoom zoom={12}><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /><MapViewport playerLocation={playerLocation} selectedVenue={selectedMappedVenue} venues={mappedVenues} />{playerLocation && <Marker icon={playerIcon} position={[playerLocation.latitude, playerLocation.longitude]}><Popup><strong>Vị trí của bạn</strong></Popup></Marker>}{mappedVenues.map((venue) => <Marker eventHandlers={{ click: () => chooseVenue(venue.venueId) }} icon={venueIcon(selectedVenueId === venue.venueId)} key={venue.venueId} position={[venue.latitude, venue.longitude]}><Popup minWidth={220}><div className="space-y-1.5"><strong className="text-[14px]">{venue.venueName}</strong><p className="m-0 text-[12px] text-gray-600">{venue.address}</p><p className="m-0 text-[12px] font-bold text-primary">{currency.format(venue.fromPrice)}/giờ</p><button className="text-[12px] font-bold text-primary underline" onClick={() => chooseVenue(venue.venueId)} type="button">Chọn cụm sân này</button></div></Popup></Marker>)}</MapContainer>
           <button aria-label="Đi đến vị trí của tôi" className="absolute left-[10px] top-[82px] z-[500] flex h-[34px] w-[34px] items-center justify-center rounded-md border-2 border-white bg-white text-blue-600 shadow-[0_1px_5px_rgba(0,0,0,0.45)] transition hover:bg-blue-50 disabled:opacity-60" disabled={isLocating} onClick={locatePlayer} title="Vị trí của tôi" type="button"><Crosshair className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} /></button>
           {isLoadingMap && <div className="pointer-events-none absolute left-1/2 top-5 z-[500] -translate-x-1/2 rounded-xl bg-white/95 px-4 py-3 text-[12px] font-bold shadow-lg">Đang tải vị trí sân...</div>}{!isLoadingMap && mappedVenues.length === 0 && <div className="pointer-events-none absolute left-1/2 top-5 z-[500] -translate-x-1/2 rounded-xl bg-white/95 px-4 py-3 text-[12px] font-bold shadow-lg">Chưa có sân nào được cập nhật tọa độ.</div>}
         </div></section>

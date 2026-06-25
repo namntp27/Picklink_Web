@@ -42,6 +42,8 @@ export type MatchParticipant = {
   requestedAt: string;
   respondedAt?: string | null;
   paymentStatus?: string | null;
+  checkInStatus: string;
+  checkedInAt?: string | null;
 };
 
 export type MatchDetailResponse = MatchSummary & {
@@ -52,6 +54,7 @@ export type MatchDetailResponse = MatchSummary & {
   myPaymentId?: number | null;
   myQrImageUrl?: string | null;
   myTransferContent?: string | null;
+  myPaymentRejectionReason?: string | null;
   participants: MatchParticipant[];
 };
 
