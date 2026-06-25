@@ -9,7 +9,8 @@ export const Header = () => {
   const { logout, user } = useAuth();
   const location = useLocation();
   const dashboardPath = user ? getDefaultPathForRole(user.role) : '/';
-  const dashboardLabel = user?.role === 'admin' ? 'Admin' : user?.role === 'owner' ? 'Chủ sân' : 'Hồ sơ';
+  const dashboardLabel = user?.role === 'admin' ? 'Admin' : user?.role === 'owner' ? 'Chủ sân' : 'Nhân viên';
+  const isPlayer = user?.role === 'player';
 
   const navItems = [
     { path: '/', label: 'Trang chủ' },
@@ -68,17 +69,6 @@ export const Header = () => {
       </div>
       <div className="hidden items-center gap-4 md:flex">
         <Link
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
-            location.pathname.startsWith('/profile')
-              ? 'bg-white text-primary'
-              : 'text-on-primary/90 hover:bg-white/10'
-          }`}
-          to="/profile"
-        >
-          <UserRound className="h-5 w-5" />
-          Hồ sơ
-        </Link>
-        <Link
           className={`rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
             location.pathname.startsWith('/my-bookings')
               ? 'bg-white text-primary'
@@ -115,9 +105,24 @@ export const Header = () => {
         </Link>
         {user ? (
           <>
-            <Link to={dashboardPath} className="bg-surface-container-lowest text-primary font-bold px-6 py-2 rounded-lg text-label-md shadow-sm hover:scale-95 transition-transform">
-              {dashboardLabel}
-            </Link>
+            {isPlayer ? (
+              <Link
+                aria-label="Chỉnh sửa hồ sơ"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white shadow-sm transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary ${location.pathname.startsWith('/profile') ? 'border-[#eab526]' : 'border-white/80'}`}
+                title="Chỉnh sửa hồ sơ"
+                to="/profile"
+              >
+                {user.avatar ? (
+                  <img alt={`Ảnh đại diện của ${user.name}`} className="h-full w-full object-cover" src={user.avatar} />
+                ) : (
+                  <UserRound className="h-6 w-6 text-primary" />
+                )}
+              </Link>
+            ) : (
+              <Link to={dashboardPath} className="bg-surface-container-lowest text-primary font-bold px-6 py-2 rounded-lg text-label-md shadow-sm hover:scale-95 transition-transform">
+                {dashboardLabel}
+              </Link>
+            )}
             <button
               className="text-on-primary/90 font-label-md text-label-md px-4 py-2 hover:opacity-80 transition-opacity"
               onClick={logout}
@@ -137,15 +142,31 @@ export const Header = () => {
           </>
         )}
       </div>
-      <button
-        aria-expanded={isMobileMenuOpen}
-        aria-label={isMobileMenuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
-        className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/20 text-on-primary transition-colors hover:bg-white/10 md:hidden"
-        onClick={() => setIsMobileMenuOpen((isOpen) => !isOpen)}
-        type="button"
-      >
-        {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
+      <div className="flex items-center gap-2 md:hidden">
+        {isPlayer && user && (
+          <Link
+            aria-label="Chỉnh sửa hồ sơ"
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 bg-white ${location.pathname.startsWith('/profile') ? 'border-[#eab526]' : 'border-white/80'}`}
+            title="Chỉnh sửa hồ sơ"
+            to="/profile"
+          >
+            {user.avatar ? (
+              <img alt={`Ảnh đại diện của ${user.name}`} className="h-full w-full object-cover" src={user.avatar} />
+            ) : (
+              <UserRound className="h-5 w-5 text-primary" />
+            )}
+          </Link>
+        )}
+        <button
+          aria-expanded={isMobileMenuOpen}
+          aria-label={isMobileMenuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/20 text-on-primary transition-colors hover:bg-white/10"
+          onClick={() => setIsMobileMenuOpen((isOpen) => !isOpen)}
+          type="button"
+        >
+          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </div>
 
       {isMobileMenuOpen && (
         <div className="absolute left-0 right-0 top-full border-t border-white/15 bg-primary/98 px-4 py-4 shadow-xl backdrop-blur-md md:hidden">
@@ -161,22 +182,21 @@ export const Header = () => {
             <Link to="/my-bookings" className={getMobileNavLinkClass('/my-bookings')}>
               Lịch sử đặt sân
             </Link>
-            <Link to="/profile" className={getMobileNavLinkClass('/profile')}>
-              Hồ sơ cá nhân
-            </Link>
             <Link to="/notifications" className={`${getMobileNavLinkClass('/notifications')} flex items-center justify-between`}>
               <span>Thông báo</span>
               <span className="rounded-full bg-[#eab526] px-2 py-0.5 text-[12px] font-bold text-white">3</span>
             </Link>
           </nav>
           {user ? (
-            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
-              <Link
-                to={dashboardPath}
-                className="rounded-lg bg-surface-container-lowest px-4 py-3 text-center text-[15px] font-bold text-primary"
-              >
-                {dashboardLabel}
-              </Link>
+            <div className={`mt-4 grid gap-3 border-t border-white/15 pt-4 ${isPlayer ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {!isPlayer && (
+                <Link
+                  to={dashboardPath}
+                  className="rounded-lg bg-surface-container-lowest px-4 py-3 text-center text-[15px] font-bold text-primary"
+                >
+                  {dashboardLabel}
+                </Link>
+              )}
               <button
                 className="rounded-lg border border-white/25 px-4 py-3 text-center text-[15px] font-bold text-on-primary hover:bg-white/10"
                 onClick={logout}

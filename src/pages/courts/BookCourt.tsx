@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, Clock, Crosshair, Heart, LocateFixed, MapPin, Navigation, Search, Star } from 'lucide-react';
+import { Building2, Clock, Heart, LocateFixed, MapPin, Navigation, Search, Star } from 'lucide-react';
 import { divIcon, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link } from 'react-router-dom';
@@ -15,6 +15,39 @@ const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 
 type PlayerLocation = { latitude: number; longitude: number };
 type LocatedVenue = BookingVenue & { latitude: number; longitude: number };
+
+const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
+const PLAYER_LOCATION_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const readCachedPlayerLocation = (): PlayerLocation | null => {
+  try {
+    const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
+    if (!rawValue) return null;
+    const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
+    const isValid = Number.isFinite(cached.latitude)
+      && cached.latitude >= -90
+      && cached.latitude <= 90
+      && Number.isFinite(cached.longitude)
+      && cached.longitude >= -180
+      && cached.longitude <= 180
+      && Date.now() - cached.cachedAt <= PLAYER_LOCATION_CACHE_TTL_MS;
+    if (!isValid) {
+      window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
+      return null;
+    }
+    return { latitude: cached.latitude, longitude: cached.longitude };
+  } catch {
+    return null;
+  }
+};
+
+const cachePlayerLocation = (location: PlayerLocation) => {
+  try {
+    window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({ ...location, cachedAt: Date.now() }));
+  } catch {
+    // Location still works when storage is unavailable.
+  }
+};
 
 const venueIcon = (selected: boolean) => divIcon({
   className: '',
@@ -59,8 +92,15 @@ const MapViewport = ({ venues, playerLocation, selectedVenue }: {
   const map = useMap();
 
   useEffect(() => {
+    if (playerLocation) {
+      map.flyTo(
+        [playerLocation.latitude, playerLocation.longitude],
+        Math.max(map.getZoom(), 16),
+        { duration: 0.7 },
+      );
+      return;
+    }
     const points: LatLngTuple[] = venues.map((venue) => [venue.latitude, venue.longitude]);
-    if (playerLocation) points.push([playerLocation.latitude, playerLocation.longitude]);
     if (points.length > 1) map.fitBounds(points as LatLngBoundsExpression, { padding: [42, 42], maxZoom: 15 });
     else if (points.length === 1) map.setView(points[0], 14);
   }, [map, playerLocation, venues]);
@@ -85,9 +125,11 @@ export const BookCourt = () => {
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
-  const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(null);
+  const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(() => readCachedPlayerLocation());
   const [isLocating, setIsLocating] = useState(false);
-  const [locationStatus, setLocationStatus] = useState('Bấm “Vị trí của tôi” để xem các sân gần bạn.');
+  const [locationStatus, setLocationStatus] = useState(() => readCachedPlayerLocation()
+    ? 'Đang dùng vị trí gần nhất và làm mới trong nền.'
+    : 'Bấm “Vị trí của tôi” để xem các sân gần bạn.');
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -140,7 +182,12 @@ export const BookCourt = () => {
   const mappedVenues = useMemo(() => visibleVenues.filter(isLocatedVenue), [visibleVenues]);
   const selectedVenue = mappedVenues.find((venue) => venue.venueId === selectedVenueId);
 
-  const locatePlayer = () => {
+  const locatePlayer = (refreshSilently = false) => {
+    const cachedLocation = readCachedPlayerLocation();
+    if (cachedLocation) {
+      setPlayerLocation({ ...cachedLocation });
+      if (!refreshSilently) setLocationStatus('Đang hiển thị vị trí gần nhất và cập nhật lại...');
+    }
     if (!navigator.geolocation) {
       setLocationStatus('Trình duyệt không hỗ trợ định vị.');
       return;
@@ -150,20 +197,33 @@ export const BookCourt = () => {
       return;
     }
     setIsLocating(true);
-    setLocationStatus('Đang xác định vị trí của bạn...');
+    if (!cachedLocation && !refreshSilently) setLocationStatus('Đang xác định vị trí của bạn...');
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        setPlayerLocation({ latitude: coords.latitude, longitude: coords.longitude });
+        const nextLocation = { latitude: coords.latitude, longitude: coords.longitude };
+        setPlayerLocation(nextLocation);
+        cachePlayerLocation(nextLocation);
         setLocationStatus('Danh sách đã được xếp theo khoảng cách gần nhất.');
         setIsLocating(false);
       },
       (locationError) => {
-        setLocationStatus(locationErrorMessage(locationError));
+        setLocationStatus(cachedLocation
+          ? 'Đang dùng vị trí gần nhất. Chưa thể cập nhật vị trí mới.'
+          : locationErrorMessage(locationError));
         setIsLocating(false);
       },
-      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 20_000 },
+      { enableHighAccuracy: false, maximumAge: 5 * 60_000, timeout: 5_000 },
     );
   };
+
+  useEffect(() => {
+    let isActive = true;
+    if (!navigator.permissions || !navigator.geolocation || !window.isSecureContext) return undefined;
+    void navigator.permissions.query({ name: 'geolocation' }).then((permission) => {
+      if (isActive && permission.state === 'granted') locatePlayer(true);
+    }).catch(() => undefined);
+    return () => { isActive = false; };
+  }, []);
 
   const toggleFavorite = async (venue: BookingVenue) => {
     if (!token) {
@@ -190,14 +250,11 @@ export const BookCourt = () => {
             <h1 className="mt-1 text-[30px] font-bold md:text-[36px]">Tìm sân quanh bạn</h1>
             <p className="mt-1 text-[14px] text-white/80">Chọn cụm sân trong danh sách hoặc trực tiếp trên bản đồ.</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:flex-row md:max-w-2xl">
+          <div className="w-full md:max-w-2xl">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-on-surface-variant" />
               <input className="w-full rounded-xl bg-white py-3.5 pl-12 pr-4 text-[14px] font-medium text-on-surface outline-none" onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tên sân hoặc địa chỉ..." value={search} />
             </div>
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 text-[13px] font-bold text-primary disabled:opacity-70" disabled={isLocating} onClick={locatePlayer} type="button">
-              <Crosshair className="h-4 w-4" /> {isLocating ? 'Đang định vị...' : 'Vị trí của tôi'}
-            </button>
           </div>
         </section>
 
@@ -268,6 +325,16 @@ export const BookCourt = () => {
                 </Marker>
               ))}
             </MapContainer>
+            <button
+              aria-label="Đi đến vị trí của tôi"
+              className="absolute left-[10px] top-[82px] z-[500] flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-white text-blue-600 shadow-[0_2px_8px_rgba(0,0,0,0.4)] transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+              disabled={isLocating}
+              onClick={() => locatePlayer()}
+              title={isLocating ? 'Đang xác định vị trí' : 'Vị trí của tôi'}
+              type="button"
+            >
+              <LocateFixed className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} />
+            </button>
             {!isLoading && mappedVenues.length === 0 && <div className="pointer-events-none absolute left-1/2 top-5 z-[500] -translate-x-1/2 rounded-xl bg-white/95 px-4 py-3 text-center text-[12px] font-bold shadow-lg">Chưa có cụm sân nào trong kết quả được cập nhật tọa độ.</div>}
           </div>
         </section>

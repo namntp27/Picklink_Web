@@ -107,6 +107,7 @@ export type BookingHolding = {
   totalAmount: number;
   paymentStatus: string;
   checkInStatus: 'NotOpen' | 'Ready' | 'CheckedIn' | 'NoShow' | 'Missed' | 'NotApplicable';
+  checkedInAt?: string | null;
   checkInCode?: string | null;
   canCancel: boolean;
   canRetryPayment: boolean;

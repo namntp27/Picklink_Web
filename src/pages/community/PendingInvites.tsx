@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
   CalendarClock,
-  CheckCircle2,
   Clock,
   CreditCard,
   Eye,
@@ -17,7 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { getCourtsByProvince, getWardsByProvince, provinceOptions } from './Opponents';
-import { getOpenMatches, joinMatch, type MatchSummary } from '../../api/matches';
+import { getOpenMatches, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -137,7 +136,6 @@ const formatMatchDate = (date: string) =>
 export const PendingInvites = () => {
   const { token } = useAuth();
   const [invites, setInvites] = useState<MatchInvite[]>([]);
-  const [selectedInvite, setSelectedInvite] = useState<MatchInvite | null>(null);
   const [filters, setFilters] = useState<InviteFilters>(defaultFilters);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
@@ -240,13 +238,6 @@ export const PendingInvites = () => {
 
       return { ...current, [field]: value } as InviteFilters;
     });
-  };
-
-  const handleJoinInvite = async (invite: MatchInvite) => {
-    if (!token) return;
-    await joinMatch(token, invite.id);
-    setSelectedInvite(invite);
-    await loadInvites();
   };
 
   return (
@@ -432,40 +423,6 @@ export const PendingInvites = () => {
           </p>
         </section>
 
-        {selectedInvite && (
-          <section className="rounded-xl border border-primary bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-primary-container px-3 py-1 text-[12px] font-bold text-on-primary-container">
-                  <ShieldCheck className="h-4 w-4" />
-                  Đã có người đồng ý tham gia
-                </span>
-                <h2 className="mt-3 text-[22px] font-bold text-on-surface">Bước tiếp theo: cả hai cùng thanh toán tiền sân</h2>
-                <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">
-                  Trận tại {selectedInvite.court} lúc {selectedInvite.startTime} - {selectedInvite.endTime},{' '}
-                  {formatMatchDate(selectedInvite.date)} đã được ghép. Hệ thống giữ chỗ sau khi hai bên thanh toán phần của mình.
-                </p>
-              </div>
-              <div className="rounded-lg bg-surface-container-low p-4 lg:w-72">
-                <div className="flex items-center justify-between text-[14px]">
-                  <span className="font-bold text-on-surface-variant">Tổng tiền sân</span>
-                  <span className="font-bold">{formatCurrency(selectedInvite.price)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[14px]">
-                  <span className="font-bold text-on-surface-variant">Mỗi người</span>
-                  <span className="text-[20px] font-bold text-primary">
-                    {formatCurrency(Math.ceil(selectedInvite.price / selectedInvite.needed))}
-                  </span>
-                </div>
-                <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" type="button">
-                  <CreditCard className="h-5 w-5" />
-                  Thanh toán phần của tôi
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
-
         <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -523,7 +480,7 @@ export const PendingInvites = () => {
                         <Eye className="h-5 w-5" />
                         Xem chi tiết
                       </Link>
-                      {isMyInvite ? (
+                      {isMyInvite && (
                         <Link
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-surface-container-low px-5 py-3 text-[14px] font-bold text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary lg:w-auto"
                           to={`/matches/${invite.id}`}
@@ -531,20 +488,6 @@ export const PendingInvites = () => {
                           <ShieldCheck className="h-5 w-5" />
                           Quản lý
                         </Link>
-                      ) : (
-                        <button
-                          className={`flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-[14px] font-bold transition-colors lg:w-auto ${
-                            availableSlots === 0
-                              ? 'cursor-not-allowed bg-surface-container-low text-on-surface-variant'
-                              : 'bg-primary text-white hover:bg-primary/90'
-                          }`}
-                          disabled={availableSlots === 0}
-                          onClick={() => void handleJoinInvite(invite)}
-                          type="button"
-                        >
-                          {availableSlots === 0 ? <CheckCircle2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                          {availableSlots === 0 ? 'Đã đủ người' : 'Tham gia'}
-                        </button>
                       )}
                     </div>
                   </div>

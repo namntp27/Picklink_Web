@@ -32,6 +32,7 @@ type Player = {
   level: string;
   role: 'Chủ trận' | 'Người tham gia' | 'Chỗ trống';
   paymentStatus: PaymentStatus;
+  checkInStatus: 'pending' | 'checked_in' | 'absent';
 };
 
 type MatchDetailData = {
@@ -81,6 +82,7 @@ const fallbackMatchDetail: MatchDetailData = {
       level: '3.5',
       role: 'Chủ trận',
       paymentStatus: 'pending',
+      checkInStatus: 'pending',
     },
     {
       id: 2,
@@ -89,6 +91,7 @@ const fallbackMatchDetail: MatchDetailData = {
       level: '3.0',
       role: 'Người tham gia',
       paymentStatus: 'pending',
+      checkInStatus: 'pending',
     },
   ],
 };
@@ -174,6 +177,9 @@ export const MatchDetail = () => {
       level: participant.skillLevel.toFixed(1),
       role: participant.isHost ? 'Chủ trận' : 'Người tham gia',
       paymentStatus: participant.paymentStatus === 'Paid' ? 'paid' : 'pending',
+      checkInStatus: participant.checkInStatus === 'Present'
+        ? 'checked_in'
+        : participant.checkInStatus === 'Absent' ? 'absent' : 'pending',
     })),
   });
 
@@ -217,6 +223,7 @@ export const MatchDetail = () => {
       level: '-',
       role: 'Chỗ trống',
       paymentStatus: 'not_joined',
+      checkInStatus: 'pending',
     }));
 
     return [...joinedPlayers, ...placeholders];
@@ -245,6 +252,7 @@ export const MatchDetail = () => {
         const nextMatch: MatchDetailResponse = {
           ...current,
           myPaymentStatus: updatedPayment.paymentStatus,
+          myPaymentRejectionReason: null,
           participants: current.participants.map((participant) =>
             participant.playerId === current.myPlayerId
               ? { ...participant, paymentStatus: updatedPayment.paymentStatus }
@@ -456,9 +464,19 @@ export const MatchDetail = () => {
                       </p>
                     </div>
                   </div>
-                  <span className={`mt-4 inline-flex rounded-full px-3 py-1 text-[12px] font-bold ${getPaymentClassName(player.paymentStatus)}`}>
-                    {getPaymentLabel(player.paymentStatus)}
-                  </span>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className={`inline-flex rounded-full px-3 py-1 text-[12px] font-bold ${getPaymentClassName(player.paymentStatus)}`}>
+                      {getPaymentLabel(player.paymentStatus)}
+                    </span>
+                    {player.checkInStatus === 'checked_in' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[12px] font-bold text-emerald-700">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Đã check-in
+                      </span>
+                    )}
+                    {player.checkInStatus === 'absent' && (
+                      <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-[12px] font-bold text-red-700">Vắng mặt</span>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>
@@ -470,7 +488,7 @@ export const MatchDetail = () => {
               {[
                 { icon: UserPlus, title: 'Tạo lời mời', text: 'Lời mời được đăng lên danh sách đang chờ.', done: true },
                 { icon: Users, title: 'Ghép đủ người', text: isFull ? 'Trận đã đủ người chơi.' : `Còn ${availableSlots} vị trí trống.`, done: isFull },
-                { icon: CreditCard, title: 'Cùng thanh toán', text: 'Mỗi người thanh toán phần tiền sân của mình.', done: hasPaid },
+                { icon: CreditCard, title: allPlayersPaid ? 'Đã thanh toán' : 'Cùng thanh toán', text: allPlayersPaid ? 'Tất cả người chơi đã thanh toán.' : 'Mỗi người thanh toán phần tiền sân của mình.', done: allPlayersPaid },
                 { icon: CheckCircle2, title: 'Xác nhận giữ sân', text: 'Sân được xác nhận sau khi các bên hoàn tất thanh toán.', done: allPlayersPaid },
               ].map((step) => (
                 <div className="flex gap-3" key={step.title}>
@@ -527,6 +545,17 @@ export const MatchDetail = () => {
                 <span className="text-[24px] font-bold text-primary">{formatCurrency(perPlayerPrice)}</span>
               </div>
             </div>
+
+            {rawMatch?.myPaymentStatus === 'Pending' && rawMatch.myPaymentRejectionReason && (
+              <div className="mt-5 flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700" role="alert">
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <div>
+                  <p className="text-[14px] font-bold">Biên lai đã bị từ chối</p>
+                  <p className="mt-1 text-[13px] leading-5">{rawMatch.myPaymentRejectionReason}</p>
+                  <p className="mt-1 text-[12px] font-medium">Vui lòng kiểm tra số tiền và gửi lại biên lai mới.</p>
+                </div>
+              </div>
+            )}
 
             {rawMatch?.myQrImageUrl && rawMatch.myPaymentStatus === 'Pending' && (
               <img alt="QR thanh toán" className="mx-auto mt-5 w-full max-w-[260px] rounded-xl border border-outline-variant" src={rawMatch.myQrImageUrl} />
