@@ -35,7 +35,10 @@ export class ApiError extends Error {
 }
 
 const getErrorMessage = (status: number, body?: ApiErrorBody) => {
-  const validationMessage = body?.errors ? Object.values(body.errors).flat()[0] : undefined;
+  const validationMessages = body?.errors ? Object.entries(body.errors).flatMap(([field, messages]) =>
+    field === 'request' ? [] : messages) : [];
+  const validationMessage = validationMessages[0]
+    ?? (body?.errors ? Object.values(body.errors).flat()[0] : undefined);
 
   const fallbackMessage = status === 401
     ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
