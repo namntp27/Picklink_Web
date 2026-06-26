@@ -16,6 +16,14 @@ const currency = new Intl.NumberFormat('vi-VN', {
   currency: 'VND',
   maximumFractionDigits: 0,
 });
+const playDateTime = (value: string) => new Intl.DateTimeFormat('vi-VN', {
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(new Date(value));
 
 const statusLabels: Record<string, string> = {
   Pending: 'Chờ gửi biên lai',
@@ -164,6 +172,25 @@ export const OwnerMatchTransactionReviewModal = ({
             <Loader2 className="h-9 w-9 animate-spin text-primary" />
           </div>
         ) : (
+          <>
+          {payments[0] && (
+            <div className="mt-5 grid gap-3 rounded-xl bg-surface-container-low p-4 sm:grid-cols-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase text-on-surface-variant">Cụm sân</p>
+                <p className="mt-1 text-[14px] font-bold">{payments[0].venueName}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase text-on-surface-variant">Sân con</p>
+                <p className="mt-1 text-[14px] font-bold">Sân {payments[0].courtNumber}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase text-on-surface-variant">Lịch chơi</p>
+                <p className="mt-1 text-[14px] font-bold">
+                  {playDateTime(payments[0].startTime)} – {payments[0].endTime.slice(11, 16)}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="mt-6 grid gap-5 lg:grid-cols-2">
             {payments.map((payment) => {
               const isBusy = busyId === payment.paymentId;
@@ -237,6 +264,7 @@ export const OwnerMatchTransactionReviewModal = ({
               );
             })}
           </div>
+          </>
         )}
       </section>
     </div>

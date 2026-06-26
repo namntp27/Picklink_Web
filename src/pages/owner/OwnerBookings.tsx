@@ -102,6 +102,14 @@ const formatPlayDate = (value: string) =>
     year: 'numeric',
   }).format(new Date(`${value}T00:00:00`));
 
+const localDateFromTimestamp = (value: string) => {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const getBookingStatusLabel = (booking: BookingDetail) => {
   if (booking.bookingStatus === 'cancelled') {
     return 'Đã hủy';
@@ -282,7 +290,9 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
 
     return bookings
       .filter((booking) => {
-        const matchesSelectedDate = booking.date === selectedDate;
+        const matchesSelectedDate = isMatchBooking
+          ? localDateFromTimestamp(booking.createdAt) === selectedDate
+          : booking.date === selectedDate;
         const matchesKeyword =
           !keyword ||
           booking.code.toLowerCase().includes(keyword) ||
@@ -301,7 +311,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
         return matchesSelectedDate && matchesKeyword && matchesPayment && matchesBookingState;
       })
       .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
-  }, [bookingStateFilter, bookings, paymentFilter, searchTerm, selectedDate]);
+  }, [bookingStateFilter, bookings, isMatchBooking, paymentFilter, searchTerm, selectedDate]);
 
   const changeSelectedDate = (dayOffset: number) => {
     const nextDate = new Date(`${selectedDate}T00:00:00`);
@@ -385,11 +395,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                 <div>
                   <h2 className="text-[20px] font-bold">
                     {selectedDate === today
-                      ? isMatchBooking ? 'Đơn ghép trận hôm nay' : 'Đơn đặt sân hôm nay'
-                      : isMatchBooking ? 'Đơn ghép trận theo ngày' : 'Đơn đặt sân theo ngày'}
+                      ? isMatchBooking ? 'Đơn ghép trận được tạo hôm nay' : 'Đơn đặt sân hôm nay'
+                      : isMatchBooking ? 'Đơn ghép trận theo ngày tạo' : 'Đơn đặt sân theo ngày'}
                   </h2>
                   <p className="mt-1 text-[13px] text-on-surface-variant">
-                    Có {pagination.totalCount} đơn có thời gian chơi ngày {formatBookingDate(selectedDate)}.
+                    Có {pagination.totalCount} {isMatchBooking ? 'đơn ghép trận được tạo' : 'đơn có thời gian chơi'} ngày {formatBookingDate(selectedDate)}.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
@@ -403,7 +413,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       <ChevronLeft className="h-5 w-5" />
                     </button>
                     <label className="relative min-w-0 flex-1 sm:w-[180px]">
-                      <span className="sr-only">Chọn ngày đặt sân</span>
+                      <span className="sr-only">{isMatchBooking ? 'Chọn ngày tạo đơn ghép trận' : 'Chọn ngày đặt sân'}</span>
                       <input
                         className="h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         max="9999-12-31"
