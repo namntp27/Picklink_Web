@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CalendarRange,
   Check,
+  CheckCircle2,
   Clock,
   CreditCard,
   MapPin,
@@ -77,7 +78,7 @@ export const MatchDetail = () => {
   const [receipt, setReceipt] = useState<File | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const loadMatch = async () => {
     if (!token || !Number.isInteger(matchId)) return;
@@ -106,7 +107,7 @@ export const MatchDetail = () => {
   useMatchRealtime((event) => {
     if (event.matchId !== matchId) return;
     if (event.action === 'Expired') {
-      navigate('/opponents?expired=1', { replace: true });
+      navigate('/opponents/create?expired=1', { replace: true });
       return;
     }
     if (event.action === 'MessageSent') {
@@ -117,7 +118,8 @@ export const MatchDetail = () => {
   });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const container = messagesContainerRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -226,7 +228,7 @@ export const MatchDetail = () => {
     <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
       <section className="bg-primary text-white">
         <div className="mx-auto max-w-[1200px] px-4 py-9 md:px-margin-desktop">
-          <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/85" to="/opponents/pending">
+          <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/85" to="/opponents">
             <ArrowLeft className="h-4 w-4" /> Danh sách lời mời
           </Link>
           <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -236,8 +238,15 @@ export const MatchDetail = () => {
               <p className="mt-2 text-[14px] font-bold text-white/75">Chủ phòng: {match.hostName}</p>
               <p className="mt-3 max-w-3xl text-[16px] leading-7 text-white/85">{match.note || 'Chủ phòng chưa thêm mô tả.'}</p>
             </div>
-            <div className="rounded-xl border border-white/20 bg-white/10 p-5">
-              <p className="text-[12px] font-bold uppercase text-white/70">Trạng thái</p>
+            <div className="w-full rounded-xl border border-white/20 bg-white/10 p-5 lg:w-[340px]">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[12px] font-bold uppercase text-white/70">Trạng thái</p>
+              {match.checkInCode && isApprovedMember && (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-2.5 py-1 font-mono text-[11px] font-black tracking-wide text-emerald-700" title="Mã đơn ghép trận dùng để check-in">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {match.checkInCode}
+                  </span>
+              )}
+              </div>
               <p className="mt-2 text-[20px] font-bold">{statusLabels[match.status]}</p>
               <p className="mt-2 text-[14px]">{approved.length}/{match.requiredPlayerCount} thành viên chính thức</p>
             </div>
@@ -289,6 +298,11 @@ export const MatchDetail = () => {
                 <article className="flex items-center gap-3 rounded-lg border border-outline-variant p-4" key={participant.participantId}>
                   <div className="grid h-11 w-11 place-items-center rounded-full bg-primary text-[13px] font-bold text-white">{participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}</div>
                   <div className="min-w-0 flex-1"><p className="truncate text-[14px] font-bold">{participant.playerName}</p><p className="text-[12px] text-on-surface-variant">{participant.isHost ? 'Chủ phòng' : 'Thành viên'} · Level {participant.skillLevel.toFixed(1)}</p></div>
+                  {participant.paymentStatus === 'Paid' && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Đã thanh toán
+                    </span>
+                  )}
                   {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
                     <button className="text-red-600" disabled={isBusy} onClick={() => token && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-5 w-5" /></button>
                   )}
@@ -371,7 +385,7 @@ export const MatchDetail = () => {
               </p>
             ) : (
               <>
-                <div className="mt-4 max-h-72 space-y-3 overflow-y-auto rounded-lg bg-surface-container-low p-3">
+                <div ref={messagesContainerRef} className="mt-4 max-h-[36rem] space-y-3 overflow-y-auto overscroll-contain rounded-lg bg-surface-container-low p-3">
                   {messages.map((item) => (
                     <div className={`max-w-[88%] rounded-lg px-3 py-2 text-[13px] ${item.isMine ? 'ml-auto bg-primary text-white' : 'bg-white'}`} key={item.messageId}>
                       {!item.isMine && <p className="mb-1 text-[11px] font-bold text-primary">{item.senderName}</p>}
@@ -379,7 +393,6 @@ export const MatchDetail = () => {
                     </div>
                   ))}
                   {messages.length === 0 && <p className="py-6 text-center text-[12px] text-on-surface-variant">Chưa có tin nhắn. Hãy bắt đầu thống nhất sân và lịch chơi.</p>}
-                  <div ref={messagesEndRef} />
                 </div>
                 <form className="mt-3 flex gap-2" onSubmit={sendMessage}>
                   <input className="h-11 min-w-0 flex-1 rounded-lg border border-outline-variant px-3 text-[13px]" maxLength={1000} onChange={(event) => setMessage(event.target.value)} placeholder="Nhập tin nhắn..." value={message} />

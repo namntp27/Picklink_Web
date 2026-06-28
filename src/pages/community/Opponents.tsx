@@ -255,7 +255,7 @@ export const Opponents = () => {
             cả nhóm sẽ chọn lịch chính xác sau khi đủ người.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents/pending">
+            <Link className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents">
               <ListChecks className="h-5 w-5" /> Xem danh sách lời mời
             </Link>
             <Link className="inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-3 text-[14px] font-bold" to="/my-matches">

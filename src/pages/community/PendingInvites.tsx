@@ -66,7 +66,7 @@ export const PendingInvites = () => {
     <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
       <section className="bg-primary text-white">
         <div className="mx-auto max-w-[1200px] px-4 py-9 md:px-margin-desktop">
-          <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/85" to="/opponents">
+          <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/85" to="/opponents/create">
             <ArrowLeft className="h-4 w-4" /> Quay lại tạo lời mời
           </Link>
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end">
@@ -77,7 +77,7 @@ export const PendingInvites = () => {
                 Tìm phòng phù hợp với khu vực, khoảng ngày và trình độ của bạn. Yêu cầu tham gia cần được chủ phòng duyệt.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents"><UserPlus className="h-5 w-5" /> Tạo lời mời</Link>
+                <Link className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents/create"><UserPlus className="h-5 w-5" /> Tạo lời mời</Link>
                 <Link className="inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-3 text-[14px] font-bold" to="/my-matches"><Trophy className="h-5 w-5" /> Phòng của tôi</Link>
               </div>
             </div>

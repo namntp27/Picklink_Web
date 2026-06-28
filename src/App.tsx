@@ -76,8 +76,9 @@ function App() {
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="tournaments/:id" element={<TournamentDetail />} />
         <Route element={<ProtectedRoute allowedRoles={['player']} />}>
-          <Route path="opponents" element={<Opponents />} />
+          <Route path="opponents" element={<PendingInvites />} />
           <Route path="opponents/pending" element={<PendingInvites />} />
+          <Route path="opponents/create" element={<Opponents />} />
           <Route path="matches/:id" element={<MatchDetail />} />
           <Route path="my-matches" element={<MyMatches />} />
           <Route path="my-bookings" element={<MyBookings />} />

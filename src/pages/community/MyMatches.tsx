@@ -82,7 +82,7 @@ export const MyMatches = () => {
             <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-[13px] font-bold"><Trophy className="h-4 w-4" /> Phòng ghép trận cá nhân</span>
             <h1 className="mt-4 text-[34px] font-bold md:text-[44px]">Phòng của tôi</h1>
             <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/85">Theo dõi lời mời bạn tạo hoặc đã được duyệt tham gia, từ lúc tuyển người đến khi hoàn thành booking.</p>
-            <Link className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents"><PlusCircle className="h-5 w-5" /> Tạo lời mời mới</Link>
+            <Link className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents/create"><PlusCircle className="h-5 w-5" /> Tạo lời mời mới</Link>
           </div>
           <div className="rounded-xl border border-white/20 bg-white/10 p-5"><p className="text-[13px] font-bold uppercase text-white/70">Cần xử lý</p><p className="mt-2 text-[34px] font-bold">{attentionCount}</p><p className="text-[13px] text-white/75">phòng chờ đặt sân hoặc thanh toán</p></div>
         </div>
