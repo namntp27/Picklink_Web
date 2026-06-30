@@ -1,80 +1,66 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
   CalendarDays,
-  ChevronRight,
   Filter,
   MapPin,
-  PlusCircle,
   Search,
   ShieldCheck,
   Trophy,
   Users,
 } from 'lucide-react';
-import type { TournamentDetail, TournamentStatus } from '../../data/tournaments';
-import { formatTournamentCurrency, formatTournamentDate, tournaments } from '../../data/tournaments';
+import {
+  formatTournamentCurrency,
+  formatTournamentDate,
+  getTournamentStatusLabel,
+  listTournaments,
+  type TournamentStatus,
+  type TournamentSummary,
+} from '../../api/tournaments';
 
-type StatusFilter = 'all' | TournamentStatus;
+type StatusFilter = 'all' | Extract<TournamentStatus, 'open' | 'closed' | 'inProgress' | 'completed'>;
 
 const statusOptions: Array<{ label: string; value: StatusFilter }> = [
   { label: 'Tất cả trạng thái', value: 'all' },
   { label: 'Đang mở đăng ký', value: 'open' },
-  { label: 'Sắp diễn ra', value: 'upcoming' },
   { label: 'Đã khóa đăng ký', value: 'closed' },
-  { label: 'Đã kết thúc', value: 'finished' },
+  { label: 'Đang thi đấu', value: 'inProgress' },
+  { label: 'Đã kết thúc', value: 'completed' },
 ];
 
-const getStatusLabel = (status: TournamentStatus) => {
-  if (status === 'open') {
-    return 'Đang mở ĐK';
-  }
-
-  if (status === 'upcoming') {
-    return 'Sắp diễn ra';
-  }
-
-  if (status === 'closed') {
-    return 'Đã khóa ĐK';
-  }
-
-  return 'Đã kết thúc';
-};
-
 const getStatusClassName = (status: TournamentStatus) => {
-  if (status === 'open') {
-    return 'bg-primary text-white';
-  }
-
-  if (status === 'upcoming') {
-    return 'bg-[#fff4d8] text-[#7a5600]';
-  }
-
-  if (status === 'closed') {
-    return 'bg-[#eef0ef] text-[#57615b]';
-  }
-
-  return 'bg-[#ffdad6] text-[#ba1a1a]';
+  if (status === 'open') return 'bg-primary text-white';
+  if (status === 'inProgress') return 'bg-[#d9e7ff] text-[#00458f]';
+  if (status === 'closed') return 'bg-[#fff4d8] text-[#7a5600]';
+  return 'bg-[#eef0ef] text-[#57615b]';
 };
 
-const TournamentCard = ({ tournament }: { tournament: TournamentDetail }) => {
-  const progress = Math.round((tournament.registered / tournament.capacity) * 100);
-  const canRegister = tournament.status === 'open';
+const TournamentCard = ({ tournament }: { tournament: TournamentSummary }) => {
+  const progress = tournament.capacity
+    ? Math.round((tournament.registeredCount / tournament.capacity) * 100)
+    : 0;
 
   return (
     <article className="flex overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl">
       <div className="flex min-w-0 flex-1 flex-col">
-        <Link className="relative block h-52 overflow-hidden" to={`/tournaments/${tournament.id}`}>
-          <img alt={tournament.title} className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" src={tournament.image} />
+        <Link className="relative block h-52 overflow-hidden" to={`/tournaments/${tournament.slug}`}>
+          <img
+            alt={tournament.name}
+            className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+            src={tournament.imageUrl || 'https://images.unsplash.com/photo-1626245465352-87ff55a6d0ab?q=80&w=1200&auto=format&fit=crop'}
+          />
           <span className={`absolute right-4 top-4 rounded-full px-3 py-1 text-[12px] font-bold ${getStatusClassName(tournament.status)}`}>
-            {getStatusLabel(tournament.status)}
+            {getTournamentStatusLabel(tournament.status)}
           </span>
         </Link>
         <div className="flex flex-1 flex-col p-5">
-          <Link to={`/tournaments/${tournament.id}`}>
-            <h2 className="text-[21px] font-bold leading-7 text-on-surface hover:text-primary">{tournament.title}</h2>
+          <Link to={`/tournaments/${tournament.slug}`}>
+            <h2 className="text-[21px] font-bold leading-7 text-on-surface hover:text-primary">{tournament.name}</h2>
           </Link>
-          <p className="mt-2 line-clamp-2 text-[14px] leading-6 text-on-surface-variant">{tournament.description}</p>
+          <p className="mt-2 line-clamp-2 text-[14px] leading-6 text-on-surface-variant">
+            {tournament.description || 'Thông tin chi tiết sẽ được ban tổ chức cập nhật.'}
+          </p>
 
           <div className="mt-4 space-y-2">
             <p className="flex items-center gap-2 text-[14px] font-medium text-on-surface-variant">
@@ -83,11 +69,11 @@ const TournamentCard = ({ tournament }: { tournament: TournamentDetail }) => {
             </p>
             <p className="flex items-center gap-2 text-[14px] font-medium text-on-surface-variant">
               <MapPin className="h-4 w-4 text-primary" />
-              {tournament.venue}, {tournament.city}
+              {tournament.venueName}, {tournament.city}
             </p>
             <p className="flex items-center gap-2 text-[14px] font-medium text-on-surface-variant">
               <Users className="h-4 w-4 text-primary" />
-              {tournament.registered}/{tournament.capacity} đội đã đăng ký
+              {tournament.registeredCount}/{tournament.capacity} đội đã đăng ký
             </p>
             <p className="flex items-center gap-2 text-[14px] font-bold text-primary">
               <Banknote className="h-4 w-4" />
@@ -106,18 +92,19 @@ const TournamentCard = ({ tournament }: { tournament: TournamentDetail }) => {
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-2">
-            <Link className="inline-flex items-center justify-center rounded-lg border border-outline-variant px-3 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low" to={`/tournaments/${tournament.id}`}>
+            <Link className="inline-flex items-center justify-center rounded-lg border border-outline-variant px-3 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low" to={`/tournaments/${tournament.slug}`}>
               Xem chi tiết
             </Link>
-            {canRegister ? (
-              <Link className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-3 text-[14px] font-bold text-white hover:bg-primary/90" to={`/tournaments/${tournament.id}`}>
-                Đăng ký
-              </Link>
-            ) : (
-              <Link className="inline-flex items-center justify-center rounded-lg bg-surface-container-low px-3 py-3 text-[14px] font-bold text-on-surface-variant" to={`/tournaments/${tournament.id}`}>
-                Theo dõi
-              </Link>
-            )}
+            <Link
+              className={`inline-flex items-center justify-center rounded-lg px-3 py-3 text-[14px] font-bold ${
+                tournament.status === 'open'
+                  ? 'bg-primary text-white hover:bg-primary/90'
+                  : 'bg-surface-container-low text-on-surface-variant'
+              }`}
+              to={`/tournaments/${tournament.slug}`}
+            >
+              {tournament.status === 'open' ? 'Đăng ký' : 'Theo dõi'}
+            </Link>
           </div>
         </div>
       </div>
@@ -126,26 +113,47 @@ const TournamentCard = ({ tournament }: { tournament: TournamentDetail }) => {
 };
 
 export const Tournaments = () => {
+  const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [cityFilter, setCityFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const cities = ['all', ...Array.from(new Set(tournaments.map((tournament) => tournament.city)))];
+  useEffect(() => {
+    let active = true;
+    listTournaments({ pageSize: 100 })
+      .then((response) => {
+        if (active) setTournaments(response.items);
+      })
+      .catch((reason: Error) => {
+        if (active) setError(reason.message);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const cities = useMemo(
+    () => ['all', ...Array.from(new Set(tournaments.map((tournament) => tournament.city)))],
+    [tournaments],
+  );
   const filteredTournaments = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-
     return tournaments.filter((tournament) => {
       const matchesKeyword =
         !keyword ||
-        tournament.title.toLowerCase().includes(keyword) ||
-        tournament.venue.toLowerCase().includes(keyword) ||
+        tournament.name.toLowerCase().includes(keyword) ||
+        tournament.venueName.toLowerCase().includes(keyword) ||
         tournament.city.toLowerCase().includes(keyword);
       const matchesStatus = statusFilter === 'all' || tournament.status === statusFilter;
       const matchesCity = cityFilter === 'all' || tournament.city === cityFilter;
-
       return matchesKeyword && matchesStatus && matchesCity;
     });
-  }, [cityFilter, searchTerm, statusFilter]);
+  }, [cityFilter, searchTerm, statusFilter, tournaments]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-on-background">
@@ -162,18 +170,12 @@ export const Tournaments = () => {
             </p>
             <h1 className="mt-5 text-[38px] font-bold leading-tight md:text-[56px]">Giải đấu Pickleball</h1>
             <p className="mt-4 max-w-2xl text-[17px] leading-7 text-white/88">
-              Khám phá giải đấu đang mở đăng ký, xem điều lệ, danh sách đội, lịch thi đấu và theo dõi các giải bạn đã tham gia.
+              Xem điều lệ, đăng ký đúng hạng mục, thanh toán lệ phí và theo dõi kết quả trên một luồng thống nhất.
             </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-[15px] font-bold text-primary shadow-lg hover:bg-white/92" to="/my-tournaments">
-                <ShieldCheck className="h-5 w-5" />
-                Giải của tôi
-              </Link>
-              <button className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3 text-[15px] font-bold text-white backdrop-blur hover:bg-white/20" type="button">
-                <PlusCircle className="h-5 w-5" />
-                Tổ chức giải đấu
-              </button>
-            </div>
+            <Link className="mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-[15px] font-bold text-primary shadow-lg hover:bg-white/92" to="/my-tournaments">
+              <ShieldCheck className="h-5 w-5" />
+              Giải của tôi
+            </Link>
           </div>
         </div>
       </section>
@@ -185,40 +187,19 @@ export const Tournaments = () => {
               <span className="text-[12px] font-bold uppercase text-on-surface-variant">Tìm kiếm</span>
               <div className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
-                <input
-                  className="h-11 w-full rounded-lg border border-outline-variant bg-white pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 md:w-[260px]"
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Tên giải, sân, khu vực..."
-                  value={searchTerm}
-                />
+                <input className="h-11 w-full rounded-lg border border-outline-variant bg-white pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 md:w-[260px]" onChange={(event) => setSearchTerm(event.target.value)} placeholder="Tên giải, sân, khu vực..." value={searchTerm} />
               </div>
             </label>
             <label className="block">
               <span className="text-[12px] font-bold uppercase text-on-surface-variant">Khu vực</span>
-              <select
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary md:w-[180px]"
-                onChange={(event) => setCityFilter(event.target.value)}
-                value={cityFilter}
-              >
-                {cities.map((city) => (
-                  <option key={city} value={city}>
-                    {city === 'all' ? 'Tất cả khu vực' : city}
-                  </option>
-                ))}
+              <select className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary md:w-[180px]" onChange={(event) => setCityFilter(event.target.value)} value={cityFilter}>
+                {cities.map((city) => <option key={city} value={city}>{city === 'all' ? 'Tất cả khu vực' : city}</option>)}
               </select>
             </label>
             <label className="block">
               <span className="text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</span>
-              <select
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary md:w-[190px]"
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                value={statusFilter}
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+              <select className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary md:w-[190px]" onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} value={statusFilter}>
+                {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
           </div>
@@ -230,36 +211,22 @@ export const Tournaments = () => {
       </section>
 
       <main className="mx-auto w-full max-w-container-max-width flex-1 px-gutter py-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {filteredTournaments.map((tournament) => (
-            <TournamentCard key={tournament.id} tournament={tournament} />
-          ))}
-        </div>
+        {error && <div className="mb-5 rounded-lg border border-error/30 bg-error-container p-4 text-sm text-on-error-container">{error}</div>}
+        {isLoading ? (
+          <div className="rounded-xl border border-outline-variant bg-white p-10 text-center text-on-surface-variant">Đang tải danh sách giải đấu...</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredTournaments.map((tournament) => <TournamentCard key={tournament.tournamentId} tournament={tournament} />)}
+          </div>
+        )}
 
-        {filteredTournaments.length === 0 && (
+        {!isLoading && filteredTournaments.length === 0 && (
           <div className="rounded-xl border border-outline-variant bg-white p-10 text-center shadow-sm">
             <Trophy className="mx-auto h-12 w-12 text-primary" />
             <h2 className="mt-4 text-[22px] font-bold">Không tìm thấy giải đấu</h2>
             <p className="mt-2 text-[14px] text-on-surface-variant">Thử đổi bộ lọc hoặc tìm bằng từ khóa khác.</p>
           </div>
         )}
-
-        <div className="mt-8 flex justify-center gap-2">
-          {[1, 2, 3].map((page) => (
-            <button
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border border-outline text-[14px] font-bold ${
-                page === 1 ? 'bg-white text-primary' : 'text-on-surface hover:bg-surface-container-low'
-              }`}
-              key={page}
-              type="button"
-            >
-              {page}
-            </button>
-          ))}
-          <button className="flex h-10 w-10 items-center justify-center rounded-lg border border-outline text-on-surface hover:bg-surface-container-low" type="button">
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
       </main>
     </div>
   );
