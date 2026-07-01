@@ -362,14 +362,20 @@ export const MatchDetail = () => {
             <section className="rounded-xl border border-primary bg-white p-5 shadow-sm">
               <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán booking</h3>
               <p className="mt-2 text-[14px]">Phần của bạn: <strong className="text-primary">{currency.format(match.amountPerPlayer)}</strong></p>
+              {match.myPaymentStatus === 'Pending' && match.myPaymentRejectionReason && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
+                  <p className="flex items-center gap-2 font-bold"><AlertCircle className="h-4 w-4" /> Biên lai đã bị từ chối</p>
+                  <p className="mt-1 leading-5">Lý do: {match.myPaymentRejectionReason}</p>
+                </div>
+              )}
               {match.myQrImageUrl && match.myPaymentStatus === 'Pending' && <img alt="QR thanh toán" className="mx-auto mt-4 w-full max-w-[250px] rounded-lg border" src={match.myQrImageUrl} />}
               {match.myTransferContent && <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px]">Nội dung: <strong>{match.myTransferContent}</strong></p>}
               {match.myPaymentStatus === 'Pending' && (
                 <>
                   <label className="mt-3 block cursor-pointer rounded-lg border border-dashed border-primary p-3 text-center text-[13px] font-bold text-primary">
-                    {receipt?.name || 'Chọn ảnh biên lai'}<input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                    {receipt?.name || (match.myPaymentRejectionReason ? 'Chọn ảnh biên lai mới' : 'Chọn ảnh biên lai')}<input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
                   </label>
-                  <button className="mt-3 w-full rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={!receipt || isBusy} onClick={() => void pay()} type="button">Gửi biên lai</button>
+                  <button className="mt-3 w-full rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={!receipt || isBusy} onClick={() => void pay()} type="button">{match.myPaymentRejectionReason ? 'Gửi lại biên lai' : 'Gửi biên lai'}</button>
                 </>
               )}
               {match.myPaymentStatus === 'WaitingForConfirmation' && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ sân xác nhận biên lai</p>}

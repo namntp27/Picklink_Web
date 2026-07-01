@@ -8,11 +8,45 @@ import { createMatch, searchMatchVenues, type MatchFormat, type MatchPreferredVe
 import { useAuth } from '../../auth/AuthContext';
 
 type PlayerLocation = { latitude: number; longitude: number };
+type ReverseGeocodeAddress = Record<string, string | undefined>;
+type ReverseGeocodeResponse = { address?: ReverseGeocodeAddress };
 
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 const today = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+};
+
+const administrativePrefixes = /^(thành phố|tỉnh|tp\.?|phường|xã|thị trấn|quận|huyện|thị xã)\s+/i;
+const normalizeAreaName = (value: string) => value.trim().replace(administrativePrefixes, '').trim();
+const pickAddressPart = (address: ReverseGeocodeAddress | undefined, keys: string[]) => {
+  if (!address) return '';
+  for (const key of keys) {
+    const value = address[key]?.trim();
+    if (value) return normalizeAreaName(value);
+  }
+  return '';
+};
+
+const reversePlayerArea = async (location: PlayerLocation) => {
+  const params = new URLSearchParams({
+    format: 'jsonv2',
+    lat: String(location.latitude),
+    lon: String(location.longitude),
+    zoom: '18',
+    addressdetails: '1',
+  });
+  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+    headers: { 'Accept-Language': 'vi' },
+  });
+  if (!response.ok) throw new Error('Reverse geocoding failed.');
+
+  const result = await response.json() as ReverseGeocodeResponse;
+  const address = result.address;
+  return {
+    province: pickAddressPart(address, ['city', 'state', 'province', 'town', 'municipality']),
+    ward: pickAddressPart(address, ['ward', 'suburb', 'quarter', 'neighbourhood', 'village', 'hamlet', 'municipality', 'city_district', 'county']),
+  };
 };
 
 const markerIcon = (selected: boolean) => divIcon({
@@ -80,6 +114,7 @@ export const Opponents = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationAreaStatus, setLocationAreaStatus] = useState('');
   const [error, setError] = useState('');
   const venueRequestId = useRef(0);
 
@@ -134,16 +169,33 @@ export const Opponents = () => {
       return;
     }
     setIsLocating(true);
+    setLocationAreaStatus('Đang lấy vị trí hiện tại...');
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
+      async ({ coords }) => {
         const playerLocation = { latitude: coords.latitude, longitude: coords.longitude };
         setLocation(playerLocation);
         setError('');
-        setIsLocating(false);
+        setLocationAreaStatus('Đã lấy tọa độ, đang xác định thành phố và xã/phường...');
         void loadVenuesInRadius(playerLocation, nextRadiusKm);
+
+        try {
+          const area = await reversePlayerArea(playerLocation);
+          if (area.province) setProvince(area.province);
+          if (area.ward) setWard(area.ward);
+
+          const areaLabel = [area.ward, area.province].filter(Boolean).join(', ');
+          setLocationAreaStatus(areaLabel
+            ? `Đã xác định: ${areaLabel}`
+            : 'Đã lấy tọa độ nhưng chưa xác định được thành phố và xã/phường.');
+        } catch {
+          setLocationAreaStatus('Đã lấy tọa độ nhưng chưa xác định được thành phố và xã/phường. Bạn có thể nhập thủ công.');
+        } finally {
+          setIsLocating(false);
+        }
       },
       () => {
         setError('Không thể lấy vị trí hiện tại. Bạn vẫn có thể tìm sân theo địa chỉ.');
+        setLocationAreaStatus('');
         setIsLocating(false);
       },
       { enableHighAccuracy: false, timeout: 8_000, maximumAge: 300_000 },
@@ -300,6 +352,7 @@ export const Opponents = () => {
               <Crosshair className="h-4 w-4" /> {isLocating ? 'Đang định vị' : location ? 'Đã định vị' : 'Vị trí'}
             </button>
           </div>
+          {locationAreaStatus && <p className="text-[12px] font-medium text-on-surface-variant">{locationAreaStatus}</p>}
 
           <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-surface-container-low px-4 py-3 text-[14px] font-bold text-primary" disabled={isSearching} onClick={() => void searchVenues()} type="button">
             <Search className="h-5 w-5" /> {isSearching ? 'Đang tìm sân...' : 'Tìm cụm sân trong khu vực'}
