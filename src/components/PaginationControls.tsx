@@ -1,5 +1,7 @@
+import { motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PaginatedResponse } from '../api/client';
+import { Button } from './ui/Button';
 
 type PaginationControlsProps = {
   page: Pick<PaginatedResponse<unknown>, 'page' | 'pageSize' | 'totalCount' | 'totalPages'>;
@@ -7,37 +9,54 @@ type PaginationControlsProps = {
 };
 
 export const PaginationControls = ({ page, onPageChange }: PaginationControlsProps) => {
+  const shouldReduceMotion = useReducedMotion();
+
   if (page.totalPages <= 1 && page.totalCount <= page.pageSize) return null;
+
   const firstItem = page.totalCount === 0 ? 0 : (page.page - 1) * page.pageSize + 1;
   const lastItem = Math.min(page.page * page.pageSize, page.totalCount);
+
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-outline-variant bg-white px-4 py-3 text-[13px] font-bold text-on-surface-variant sm:flex-row sm:items-center sm:justify-between">
-      <span>
+    <nav
+      aria-label="Phân trang"
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-[#D8DED1] bg-[#F7F8F3] px-4 py-3 text-[13px] font-semibold text-[#60665C] sm:flex-row sm:items-center sm:justify-between"
+    >
+      <span className="whitespace-nowrap" aria-live="polite">
         {firstItem}-{lastItem} / {page.totalCount}
       </span>
-      <div className="flex items-center gap-2">
-        <button
+      <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-end">
+        <Button
           aria-label="Trang trước"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-outline-variant text-on-surface disabled:cursor-not-allowed disabled:opacity-45"
           disabled={page.page <= 1}
           onClick={() => onPageChange(page.page - 1)}
+          size="icon"
           type="button"
+          variant="outline"
         >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="min-w-24 text-center">
+          <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+        </Button>
+        <motion.span
+          animate={{ opacity: 1, y: 0 }}
+          aria-atomic="true"
+          aria-live="polite"
+          className="min-w-24 whitespace-nowrap text-center text-[13px] font-bold text-[#171A16]"
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 3 }}
+          key={page.page}
+          transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+        >
           Trang {page.page}/{Math.max(page.totalPages, 1)}
-        </span>
-        <button
+        </motion.span>
+        <Button
           aria-label="Trang sau"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-outline-variant text-on-surface disabled:cursor-not-allowed disabled:opacity-45"
           disabled={page.page >= page.totalPages}
           onClick={() => onPageChange(page.page + 1)}
+          size="icon"
           type="button"
+          variant="outline"
         >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+          <ChevronRight aria-hidden="true" className="h-4 w-4" />
+        </Button>
       </div>
-    </div>
+    </nav>
   );
 };
