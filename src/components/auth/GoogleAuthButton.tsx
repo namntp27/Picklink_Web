@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { LoaderCircle } from 'lucide-react';
 
 type GoogleCredentialResponse = {
   credential: string;
@@ -71,6 +73,8 @@ export const GoogleAuthButton = ({ mode, onCredential, onError }: GoogleAuthButt
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const onCredentialRef = useRef(onCredential);
   const onErrorRef = useRef(onError);
+  const shouldReduceMotion = useReducedMotion();
+  const [isLoadingScript, setIsLoadingScript] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 
@@ -79,8 +83,10 @@ export const GoogleAuthButton = ({ mode, onCredential, onError }: GoogleAuthButt
 
   useEffect(() => {
     let isActive = true;
+    setIsLoadingScript(true);
 
     if (!clientId) {
+      setIsLoadingScript(false);
       onErrorRef.current('VITE_GOOGLE_CLIENT_ID chưa được cấu hình.');
       return undefined;
     }
@@ -118,9 +124,13 @@ export const GoogleAuthButton = ({ mode, onCredential, onError }: GoogleAuthButt
           logo_alignment: 'left',
           width: Math.min(buttonRef.current.clientWidth || 320, 400),
         });
+        setIsLoadingScript(false);
       })
       .catch(() => {
-        if (isActive) onErrorRef.current('Không thể tải đăng nhập Google. Vui lòng kiểm tra kết nối mạng.');
+        if (isActive) {
+          setIsLoadingScript(false);
+          onErrorRef.current('Không thể tải đăng nhập Google. Vui lòng kiểm tra kết nối mạng.');
+        }
       });
 
     return () => {
@@ -129,9 +139,35 @@ export const GoogleAuthButton = ({ mode, onCredential, onError }: GoogleAuthButt
   }, [clientId, mode]);
 
   return (
-    <div className="w-full">
-      <div className={isProcessing ? 'pointer-events-none opacity-60' : ''} ref={buttonRef} />
-      {isProcessing && <p className="mt-2 text-center text-[12px] font-medium text-secondary">Đang xác thực Google...</p>}
+    <div
+      aria-busy={isLoadingScript || isProcessing}
+      className="relative flex min-h-12 w-full min-w-0 items-center justify-center overflow-hidden rounded-lg"
+    >
+      <div
+        aria-hidden={isProcessing}
+        className={`flex min-h-12 w-full min-w-0 items-center justify-center transition-opacity duration-200 ${
+          isProcessing ? 'pointer-events-none opacity-0' : 'opacity-100'
+        }`}
+        ref={buttonRef}
+      />
+      <AnimatePresence initial={false}>
+        {(isLoadingScript || isProcessing) && (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute inset-0 flex min-h-12 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-4 text-[14px] font-semibold text-on-surface-variant"
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -2 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+            role="status"
+            transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            <LoaderCircle
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0 animate-spin text-primary motion-reduce:animate-none"
+            />
+            <span>{isProcessing ? 'Đang xác thực Google...' : 'Đang tải Google...'}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

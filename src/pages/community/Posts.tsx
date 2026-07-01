@@ -1,206 +1,168 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Bookmark,
-  Home,
   Image as ImageIcon,
   MapPin,
   MessageCircle,
   MoreHorizontal,
   Plus,
   Send,
-  Settings,
   Share2,
   ThumbsUp,
-  TrendingUp,
   UserPlus,
   UserRound,
   Users,
+  Loader2,
 } from 'lucide-react';
-import type { CommunityPost } from '../../data/communityPosts';
-import { activeCommunityPlayers, communityPosts, trendingTopics } from '../../data/communityPosts';
+import { communityPosts } from '../../data/communityPosts';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
+import { getGlobalPost, getGlobalPosts, reactToPost, removeReaction } from '../../api/community';
+import { CommunityFeedShell, CommunityPage } from './CommunityUI';
 
-const CommunitySidebar = ({
-  isAuthenticated,
-  name,
-  avatarUrl,
-  subtitle,
-}: {
-  isAuthenticated: boolean;
-  name: string;
-  avatarUrl?: string;
-  subtitle: string;
-}) => (
-  <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[280px] shrink-0 overflow-y-auto p-4 md:block">
-    {isAuthenticated ? (
-      <div className="mb-8 flex items-center gap-3 p-2">
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white shadow-sm flex items-center justify-center bg-primary/10 text-primary">
-          {avatarUrl ? (
-            <img alt={name} className="h-full w-full object-cover" src={avatarUrl} />
-          ) : (
-            <UserRound className="h-6 w-6" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <h3 className="truncate text-[16px] font-bold text-primary" title={name}>{name}</h3>
-          <p className="truncate text-[13px] font-medium text-[#555f6f]">{subtitle}</p>
-        </div>
-      </div>
-    ) : (
-      <div className="mb-8 rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-        <h3 className="text-[15px] font-bold text-primary mb-2">Tham gia Picklink</h3>
-        <p className="text-[13px] text-[#555f6f] leading-5 mb-4">
-          Giao lưu, đặt sân và kết bạn cùng cộng đồng Pickleball!
-        </p>
-        <Link
-          to="/login"
-          className="block w-full text-center rounded-lg bg-primary py-2 text-[13px] font-bold text-white hover:bg-primary/90 transition-colors"
-        >
-          Đăng nhập ngay
-        </Link>
-      </div>
-    )}
+interface DisplayPost {
+  id: string;
+  authorName: string;
+  avatar: string;
+  level: string;
+  location: string;
+  createdAt: string;
+  title: string;
+  content: string;
+  image?: string;
+  tags: string[];
+  lookingFor?: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  liked: boolean;
+  saved: boolean;
+  matchId?: number | null;
+}
 
-    <nav className="space-y-2">
-      {[
-        { label: 'Bảng tin', icon: Home, to: '/posts', active: true },
-        { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
-        { label: 'Câu lạc bộ', icon: Users, to: '/clubs' },
-        ...(isAuthenticated
-          ? [
-              { label: 'Bài viết đã lưu', icon: Bookmark, to: '/posts/saved' },
-              { label: 'Cài đặt', icon: Settings, to: '/profile' },
-            ]
-          : []),
-      ].map((item) => (
-        <Link
-          className={`flex items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold transition-colors ${
-            item.active ? 'bg-primary text-white shadow-sm' : 'text-[#555f6f] hover:bg-[#e7eefe] hover:text-primary'
-          }`}
-          key={item.label}
-          to={item.to}
-        >
-          <item.icon className="h-5 w-5" />
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  </aside>
-);
+const parsePostContent = (rawContent: string | null) => {
+  if (!rawContent) {
+    return { title: '', body: '' };
+  }
+  try {
+    const parsed = JSON.parse(rawContent);
+    if (parsed && typeof parsed === 'object' && 'body' in parsed) {
+      return {
+        title: parsed.title || '',
+        body: parsed.body || '',
+        location: parsed.location,
+        mode: parsed.mode,
+        lookingFor: parsed.lookingFor,
+        slots: parsed.slots,
+        levelRange: parsed.levelRange,
+        playTime: parsed.playTime,
+        matchId: parsed.matchId,
+        tags: parsed.tags
+      };
+    }
+  } catch {
+    // Ignore, falls through to plaintext
+  }
+  return { title: '', body: rawContent };
+};
 
-const CommunityRightSidebar = () => (
-  <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[300px] shrink-0 overflow-y-auto p-4 lg:block">
-    <section className="mb-4 rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-[16px] font-bold">Chủ đề nổi bật</h3>
-      <div className="space-y-4">
-        {trendingTopics.map((topic) => (
-          <button className="block w-full text-left" key={topic.title} type="button">
-            <p className="mb-0.5 text-[12px] text-[#555f6f]">{topic.category}</p>
-            <h4 className="text-[14px] font-bold transition-colors hover:text-primary">{topic.title}</h4>
-            <p className="text-[12px] text-[#555f6f]">{topic.posts}</p>
-          </button>
-        ))}
-      </div>
-    </section>
-
-    <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-[16px] font-bold">Người chơi tích cực</h3>
-      <div className="space-y-4">
-        {activeCommunityPlayers.map((player) => (
-          <div className="flex items-center justify-between gap-3" key={player.name}>
-            <div className="flex min-w-0 items-center gap-3">
-              <img alt={player.name} className="h-10 w-10 rounded-lg object-cover" src={player.avatar} />
-              <div className="min-w-0">
-                <h4 className="truncate text-[14px] font-bold">{player.name}</h4>
-                <p className="text-[12px] text-[#555f6f]">Trình độ {player.level}</p>
-              </div>
+const PostCard = ({ post, onLikeToggle }: { post: DisplayPost; onLikeToggle: (postId: string) => void }) => (
+  <article className="community-card overflow-hidden">
+    <div className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <Link className="flex min-w-0 gap-3" to={`/posts/${post.id}`}>
+          <img alt={post.authorName} className="community-avatar" src={post.avatar} />
+          <div className="min-w-0">
+            <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
+              <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>
+              <span>{post.createdAt}</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin aria-hidden="true" className="h-3 w-3" />
+                {post.location}
+              </span>
             </div>
-            <button className="shrink-0 rounded-lg bg-[#e7eefe] px-3 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-container" type="button">
-              Kết bạn
-            </button>
           </div>
-        ))}
+        </Link>
+        <button
+          aria-label="Tùy chọn bài viết"
+          className="community-icon-button"
+          title="Tùy chọn bài viết"
+          type="button"
+        >
+          <MoreHorizontal aria-hidden="true" className="h-[18px] w-[18px]" />
+        </button>
       </div>
-    </section>
-  </aside>
-);
 
-const PostCard = ({ post }: { post: CommunityPost }) => (
-  <article className="mb-4 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <Link className="flex min-w-0 gap-3" to={`/posts/${post.id}`}>
-        <img alt={post.authorName} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={post.avatar} />
-        <div className="min-w-0">
-          <h4 className="truncate text-[15px] font-bold">{post.authorName}</h4>
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#555f6f]">
-            <span className="rounded-sm bg-[#e7eefe] px-1.5 py-0.5 font-bold text-[#3d6a00]">Trình độ {post.level}</span>
-            <span>{post.createdAt}</span>
-            <span>{post.location}</span>
-          </div>
-        </div>
+      <Link className="mt-4 block" to={`/posts/${post.id}`}>
+        <h3 className="text-[17px] font-extrabold leading-6 tracking-[-0.015em] text-[#0b2228] transition-colors hover:text-[#477313]">
+          {post.title}
+        </h3>
+        <p className="mt-2 text-[13px] leading-6 text-[#526158]">{post.content}</p>
       </Link>
-      <button className="rounded-lg p-1.5 text-[#555f6f] hover:bg-[#f0f3ff]" type="button" aria-label="Tùy chọn bài viết">
-        <MoreHorizontal className="h-5 w-5" />
-      </button>
-    </div>
-
-    <Link className="block" to={`/posts/${post.id}`}>
-      <h3 className="mb-2 text-[18px] font-bold leading-6 text-on-surface">{post.title}</h3>
-      <p className="mb-4 text-[15px] leading-6 text-[#151c27]">{post.content}</p>
 
       {post.lookingFor && (
-        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/8 p-3">
-          <p className="flex items-center gap-2 text-[13px] font-bold text-primary">
-            <Users className="h-4 w-4" />
-            {post.lookingFor}
-          </p>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+          <span className="flex items-start gap-2">
+            <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{post.lookingFor}</span>
+          </span>
+          {post.matchId && (
+            <Link
+              to={`/matches/${post.matchId}`}
+              className="inline-flex h-8 items-center rounded-lg bg-[#477313] hover:bg-[#3b5d0f] px-3 py-1 text-[11px] font-black text-white transition-colors shrink-0"
+            >
+              Tham gia ngay
+            </Link>
+          )}
         </div>
       )}
 
-      {post.image && <img alt={post.title} className="mb-3 h-[300px] w-full rounded-lg object-cover" src={post.image} />}
-    </Link>
-
-    <div className="mb-3 flex flex-wrap gap-2">
-      {post.tags.map((tag) => (
-        <span className="rounded-full bg-[#f0f3ff] px-3 py-1 text-[12px] font-bold text-[#555f6f]" key={tag}>
-          #{tag}
-        </span>
-      ))}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {post.tags.map((tag) => (
+          <span className="community-badge text-[#526158]" key={tag}>
+            #{tag}
+          </span>
+        ))}
+      </div>
     </div>
 
-    <div className="mb-3 flex items-center justify-between px-2 text-[13px] text-[#555f6f]">
-      <span className="flex items-center gap-1 font-medium">
-        <ThumbsUp className="h-4 w-4 text-primary" fill={post.liked ? 'currentColor' : 'none'} />
-        {post.likes}
-      </span>
-      <span>
-        {post.comments} bình luận · {post.shares} chia sẻ
-      </span>
-    </div>
-
-    <div className="grid grid-cols-3 gap-2 border-t border-outline-variant/40 pt-3">
-      <button
-        className={`flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold transition-colors ${
-          post.liked ? 'bg-[#e7eefe] text-primary' : 'text-[#555f6f] hover:bg-[#f0f3ff]'
-        }`}
-        type="button"
-      >
-        <ThumbsUp className="h-5 w-5" fill={post.liked ? 'currentColor' : 'none'} />
-        <span className="hidden sm:inline">Thích</span>
-      </button>
-      <Link
-        className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]"
-        to={`/posts/${post.id}`}
-      >
-        <MessageCircle className="h-5 w-5" />
-        <span className="hidden sm:inline">Bình luận</span>
+    {post.image && (
+      <Link className="block overflow-hidden bg-[#dfeadc]" to={`/posts/${post.id}`}>
+        <img
+          alt={post.title}
+          className="max-h-[420px] w-full object-cover transition-transform duration-300 ease-out hover:scale-[1.015] motion-reduce:transform-none"
+          src={post.image}
+        />
       </Link>
-      <button className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" type="button">
-        <Share2 className="h-5 w-5" />
-        <span className="hidden sm:inline">Chia sẻ</span>
-      </button>
+    )}
+
+    <div className="px-4 pb-3 pt-3 sm:px-5">
+      <div className="flex items-center justify-between gap-3 text-[11px] font-semibold text-[#718077]">
+        <span className="inline-flex items-center gap-1.5">
+          <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
+          {post.likes} lượt thích
+        </span>
+        <span>{post.comments} bình luận · {post.shares} chia sẻ</span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
+        <button
+          className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
+          type="button"
+          onClick={() => onLikeToggle(post.id)}
+        >
+          <ThumbsUp aria-hidden="true" className="h-[17px] w-[17px]" fill={post.liked ? 'currentColor' : 'none'} />
+          <span className="hidden sm:inline">Thích</span>
+        </button>
+        <Link className="community-button-quiet !min-h-9 !px-2" to={`/posts/${post.id}`}>
+          <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
+          <span className="hidden sm:inline">Bình luận</span>
+        </Link>
+        <button className="community-button-quiet !min-h-9 !px-2" type="button">
+          <Share2 aria-hidden="true" className="h-[17px] w-[17px]" />
+          <span className="hidden sm:inline">Chia sẻ</span>
+        </button>
+      </div>
     </div>
   </article>
 );
@@ -208,6 +170,75 @@ const PostCard = ({ post }: { post: CommunityPost }) => (
 export const Posts = () => {
   const { user, token, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [posts, setPosts] = useState<DisplayPost[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadPosts = async () => {
+    setLoading(true);
+    try {
+      const res = await getGlobalPosts(token);
+      const mapped = res.map((post): DisplayPost => {
+        const parsed = parsePostContent(post.content);
+        
+        let formattedDate = 'Vừa xong';
+        try {
+          formattedDate = new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          }).format(new Date(post.createdAt));
+        } catch {
+          // Ignore date format error
+        }
+
+        return {
+          id: String(post.postId),
+          authorName: post.authorName || 'Thành viên Picklink',
+          avatar: post.authorAvatarUrl || 'https://i.pravatar.cc/150?u=' + post.authorId,
+          level: '3.5',
+          location: parsed.location || 'Hà Nội',
+          createdAt: formattedDate,
+          title: parsed.title || 'Bài viết mới',
+          content: parsed.body,
+          image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
+          tags: parsed.tags || [],
+          lookingFor: parsed.lookingFor && parsed.slots
+            ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
+            : undefined,
+          likes: post.likeCount || 0,
+          comments: post.commentCount || 0,
+          shares: 0,
+          liked: post.likedByMe || false,
+          saved: false,
+          matchId: parsed.matchId
+        };
+      });
+
+      // Map mock posts to same type and append them below
+      const mockMapped: DisplayPost[] = communityPosts.map((p) => ({
+        ...p,
+        id: `mock-${p.id}`,
+        matchId: null
+      }));
+
+      setPosts([...mapped, ...mockMapped]);
+    } catch (err) {
+      console.error('Failed to load posts from API, fallback to mock:', err);
+      const mockMapped: DisplayPost[] = communityPosts.map((p) => ({
+        ...p,
+        id: `mock-${p.id}`,
+        matchId: null
+      }));
+      setPosts(mockMapped);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPosts();
+  }, [token]);
 
   useEffect(() => {
     if (token && user?.role === 'player') {
@@ -217,101 +248,145 @@ export const Posts = () => {
     }
   }, [token, user]);
 
+  const handleLikeToggle = async (postId: string) => {
+    if (!token) return;
+    
+    // Ignore like toggles on static mock posts
+    if (postId.startsWith('mock-')) return;
+    
+    const postNumId = Number(postId);
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const originalLiked = post.liked;
+    const originalLikes = post.likes;
+
+    // Optimistically update local UI state
+    setPosts((prevPosts) =>
+      prevPosts.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              liked: !originalLiked,
+              likes: originalLiked ? Math.max(0, originalLikes - 1) : originalLikes + 1,
+            }
+          : p
+      )
+    );
+
+    try {
+      if (originalLiked) {
+        await removeReaction(token, postNumId);
+      } else {
+        await reactToPost(token, postNumId);
+      }
+      
+      // Silently sync state with server
+      const backendPost = await getGlobalPost(postNumId, token);
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                liked: backendPost.likedByMe,
+                likes: backendPost.likeCount,
+              }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error('Failed to react to post:', err);
+      // Revert on error
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                liked: originalLiked,
+                likes: originalLikes,
+              }
+            : p
+        )
+      );
+    }
+  };
+
   const name = user?.name || '';
   const avatarUrl = user?.avatar || profile?.profileImageUrl;
 
-  let subtitle = '';
-  if (user) {
-    if (user.role === 'player') {
-      const levelStr = profile?.skillLevel != null ? profile.skillLevel.toFixed(1) : 'Chưa cập nhật';
-      subtitle = `Trình độ ${levelStr}`;
-    } else if (user.role === 'owner') {
-      subtitle = 'Chủ sân';
-    } else if (user.role === 'admin') {
-      subtitle = 'Quản trị viên';
-    } else if (user.role === 'staff') {
-      subtitle = 'Nhân viên';
-    }
-  }
-
   return (
-    <div className="w-full bg-[#f9f9ff] min-h-screen pt-[72px] font-body-md text-[#151c27]">
-      <div className="mx-auto flex max-w-container-max-width justify-center px-4 md:px-6">
-        <CommunitySidebar
-          isAuthenticated={isAuthenticated}
-          name={name}
-          avatarUrl={avatarUrl}
-          subtitle={subtitle}
-        />
-
-        <main className="min-w-0 flex-1 p-4 lg:max-w-[620px]">
-          {isAuthenticated ? (
-            <section className="mb-6 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-              <div className="mb-4 flex gap-3">
-                {avatarUrl ? (
-                  <img alt={name} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={avatarUrl} />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <UserRound className="h-5 w-5" />
-                  </div>
-                )}
-                <Link
-                  className="flex min-h-11 w-full items-center rounded-lg bg-[#f0f3ff] px-4 text-[14px] font-medium text-[#555f6f] hover:ring-2 hover:ring-primary/20"
-                  to="/posts/create"
-                >
-                  Bạn đang nghĩ gì về trận đấu hôm nay?
-                </Link>
-              </div>
-              <div className="flex items-center justify-between border-t border-outline-variant/40 pt-3 flex-wrap gap-2">
-                <div className="flex gap-2">
-                  <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create?attach=image" aria-label="Thêm ảnh">
-                    <ImageIcon className="h-5 w-5" />
-                  </Link>
-                  <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create?focus=location" aria-label="Gắn địa điểm">
-                    <MapPin className="h-5 w-5" />
-                  </Link>
-                  <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create?mode=find_players" aria-label="Tìm người chơi">
-                    <UserPlus className="h-5 w-5" />
-                  </Link>
+    <CommunityPage>
+      <CommunityFeedShell activePath="/posts">
+        {isAuthenticated && (
+          <section className="community-panel overflow-hidden">
+            <div className="flex gap-3 p-4">
+              {avatarUrl ? (
+                <img
+                  alt={name}
+                  className="community-avatar"
+                  src={avatarUrl}
+                />
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                  <UserRound className="h-4 w-4" />
                 </div>
-                <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts/create">
-                  <Plus className="h-4 w-4" />
-                  Tạo bài viết
+              )}
+              <Link
+                className="flex min-h-10 min-w-0 flex-1 items-center rounded-[10px] border border-[#d8e4d4] bg-[#f4f8f2] px-3 text-[13px] font-semibold text-[#718077] transition-[border-color,background-color,box-shadow] duration-200 hover:border-[#afc5a8] hover:bg-white hover:shadow-[0_0_0_3px_rgba(71,115,19,0.08)]"
+                to="/posts/create"
+              >
+                Bạn muốn chia sẻ gì với cộng đồng?
+              </Link>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-[#e0e9dc] px-3 py-2">
+              <div className="flex gap-1">
+                <Link aria-label="Thêm ảnh" className="community-icon-button" title="Thêm ảnh" to="/posts/create?attach=image">
+                  <ImageIcon aria-hidden="true" className="h-[18px] w-[18px]" />
+                </Link>
+                <Link aria-label="Gắn địa điểm" className="community-icon-button" title="Gắn địa điểm" to="/posts/create?focus=location">
+                  <MapPin aria-hidden="true" className="h-[18px] w-[18px]" />
+                </Link>
+                <Link aria-label="Tìm người chơi" className="community-icon-button" title="Tìm người chơi" to="/posts/create?mode=find_players">
+                  <UserPlus aria-hidden="true" className="h-[18px] w-[18px]" />
                 </Link>
               </div>
-            </section>
-          ) : (
-            <section className="mb-6 rounded-lg border border-outline-variant bg-white p-6 text-center shadow-sm">
-              <h3 className="text-[18px] font-bold mb-2">Bạn muốn chia sẻ trạng thái?</h3>
-              <p className="text-[14px] text-[#555f6f] mb-4">
-                Đăng nhập để chia sẻ những khoảnh khắc Pickleball tuyệt vời của bạn với cộng đồng.
-              </p>
-              <Link
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-[14px] font-bold text-white hover:bg-primary/90"
-                to="/login"
-              >
-                Đăng nhập ngay
+              <Link className="community-button !min-h-9 !px-3" to="/posts/create">
+                <Plus aria-hidden="true" className="h-4 w-4" />
+                Tạo bài
               </Link>
-            </section>
-          )}
-
-          <section>
-            {communityPosts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+            </div>
           </section>
-        </main>
+        )}
 
-        <CommunityRightSidebar />
+        <div className="mb-3 mt-5 flex items-center justify-between gap-3 px-1">
+          <div>
+            <h1 className="text-[19px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Bảng tin hôm nay</h1>
+            <p className="mt-1 text-[12px] font-semibold text-[#718077]">Hoạt động mới từ người chơi quanh bạn</p>
+          </div>
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-[#477313]" />
+          ) : (
+            <span className="community-badge">{posts.length} bài mới</span>
+          )}
+        </div>
 
-        <Link
-          className="fixed bottom-5 right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white shadow-lg hover:bg-primary/90 md:hidden"
-          to="/posts/create"
-          aria-label="Tạo bài viết"
-        >
-          <Send className="h-5 w-5" />
-        </Link>
-      </div>
-    </div>
+        <section className="grid gap-4">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} onLikeToggle={handleLikeToggle} />
+          ))}
+        </section>
+
+        {isAuthenticated && (
+          <Link
+            aria-label="Tạo bài viết"
+            className="community-button fixed bottom-5 right-4 z-30 h-12 w-12 !rounded-xl !p-0 shadow-[0_14px_30px_rgba(8,29,36,0.2)] md:hidden"
+            title="Tạo bài viết"
+            to="/posts/create"
+          >
+            <Send aria-hidden="true" className="h-5 w-5" />
+          </Link>
+        )}
+      </CommunityFeedShell>
+    </CommunityPage>
   );
 };

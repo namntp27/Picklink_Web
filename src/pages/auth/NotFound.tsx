@@ -1,25 +1,36 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, SearchX } from 'lucide-react';
+import {
+  AuthCardHeader,
+  AuthShell,
+  authPrimaryButtonClass,
+} from './AuthShell';
 
-export const NotFound = () => (
-  <div className="flex min-h-screen items-center justify-center bg-[#f9f9ff] px-4 text-on-surface">
-    <section className="w-full max-w-lg rounded-lg border border-outline-variant bg-white p-6 text-center shadow-sm">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <SearchX className="h-7 w-7" />
+export const NotFound = () => {
+  return (
+    <AuthShell
+      subtitle="Đường dẫn có thể đã đổi, hoặc bạn đang mở một trang không còn tồn tại trong Picklink."
+      title="Không tìm thấy trang."
+    >
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef8e6] text-primary">
+        <SearchX aria-hidden="true" className="h-7 w-7" />
       </div>
-      <p className="mt-5 text-[13px] font-bold uppercase text-primary">404</p>
-      <h1 className="mt-2 text-[28px] font-bold leading-tight">Không tìm thấy trang</h1>
-      <p className="mt-3 text-[15px] leading-6 text-on-surface-variant">
-        Đường dẫn này không tồn tại hoặc đã được chuyển sang vị trí khác.
-      </p>
+
+      <div className="mt-5 text-center">
+        <p className="mb-2 font-mono text-[13px] font-black text-primary">404</p>
+        <AuthCardHeader
+          subtitle="Đường dẫn này không tồn tại hoặc đã được chuyển sang vị trí khác."
+          title="Không tìm thấy trang"
+        />
+      </div>
+
       <Link
-        className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
+        className={`mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-[14px] font-black transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${authPrimaryButtonClass}`}
         to="/"
       >
-        <ArrowLeft className="h-5 w-5" />
+        <ArrowLeft aria-hidden="true" className="h-5 w-5" />
         Về trang chủ
       </Link>
-    </section>
-  </div>
-);
+    </AuthShell>
+  );
+};

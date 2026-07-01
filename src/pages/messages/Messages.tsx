@@ -883,7 +883,7 @@ export const Messages = () => {
               <div
                 className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-4 md:p-6"
                 style={{
-                  backgroundImage: 'radial-gradient(#dce2f3 1px, transparent 1px)',
+                  backgroundImage: 'radial-gradient(#DDE5D5 1px, transparent 1px)',
                   backgroundSize: '18px 18px',
                 }}
               >

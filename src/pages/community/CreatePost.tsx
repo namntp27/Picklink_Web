@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft,
   CalendarDays,
   CheckCircle2,
   Eye,
@@ -12,6 +11,7 @@ import {
   Lock,
   MapPin,
   MessageCircle,
+  PlusCircle,
   Send,
   ThumbsUp,
   UserRound,
@@ -21,8 +21,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
+import { getMyMatches, type MatchSummary } from '../../api/matches';
 import { OpenStreetMapLocationPicker } from '../owner/components/OpenStreetMapLocationPicker';
 import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../api/cloudinary';
+import { currentCommunityUser } from '../../data/communityPosts';
+import { CommunityHero, CommunityPage } from './CommunityUI';
+import { Dropdown } from '../../components/ui/Dropdown';
+import { createGlobalPost } from '../../api/community';
 
 type Visibility = 'public' | 'club' | 'friends';
 type PostMode = 'discussion' | 'find_players' | 'review' | 'training';
@@ -40,8 +45,22 @@ const visibilityOptions: Array<{ label: string; value: Visibility; icon: typeof 
   { label: 'Bạn bè', value: 'friends', icon: Lock },
 ];
 
+const FieldLabel = ({
+  children,
+  icon: Icon,
+}: {
+  children: React.ReactNode;
+  icon?: React.ElementType;
+}) => (
+  <span className="mb-1.5 flex items-center gap-2 text-[12px] font-extrabold text-[#526158]">
+    {Icon && <Icon aria-hidden="true" className="h-4 w-4 text-[#477313]" />}
+    {children}
+  </span>
+);
+
 export const CreatePost = () => {
   const { user, token } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [searchParams] = useSearchParams();
 
@@ -78,6 +97,75 @@ export const CreatePost = () => {
   const [levelRange, setLevelRange] = useState('3.0 - 4.0');
   const [playTime, setPlayTime] = useState('18:00 - 20:00 hôm nay');
   const [published, setPublished] = useState(false);
+
+  const [hostedMatches, setHostedMatches] = useState<MatchSummary[]>([]);
+  const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+
+  useEffect(() => {
+    if (lookingFor && token) {
+      setLoadingMatches(true);
+      getMyMatches(token, { page: 1, pageSize: 50 })
+        .then((res) => {
+          const hosted = res.items.filter((m) => m.isHost && (m.status === 'Recruiting' || m.status === 'ReadyToBook'));
+          setHostedMatches(hosted);
+          if (hosted.length > 0) {
+            const first = hosted[0];
+            setSelectedMatchId(first.matchId);
+            
+            const needed = first.requiredPlayerCount - first.acceptedPlayerCount;
+            setSlots(String(needed > 0 ? needed : 0));
+            setLevelRange(`${first.minSkillLevel.toFixed(1)} - ${first.maxSkillLevel.toFixed(1)}`);
+            
+            const dateStr = new Intl.DateTimeFormat('vi-VN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            }).format(new Date(`${first.availableDateFrom}T00:00:00`));
+            
+            const timeStr = first.startTime 
+              ? `${first.startTime.slice(11, 16)} - ${first.endTime?.slice(11, 16)}`
+              : `${first.preferredTimeStart} - ${first.preferredTimeEnd}`;
+
+            setPlayTime(`${dateStr} từ ${timeStr}`);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load hosted matches:', err);
+        })
+        .finally(() => {
+          setLoadingMatches(false);
+        });
+    }
+  }, [lookingFor, token]);
+
+  const handleMatchSelect = (matchIdVal: string) => {
+    const matchIdNum = Number(matchIdVal);
+    setSelectedMatchId(matchIdNum);
+    const found = hostedMatches.find((m) => m.matchId === matchIdNum);
+    if (found) {
+      const needed = found.requiredPlayerCount - found.acceptedPlayerCount;
+      setSlots(String(needed > 0 ? needed : 0));
+      setLevelRange(`${found.minSkillLevel.toFixed(1)} - ${found.maxSkillLevel.toFixed(1)}`);
+      
+      const dateStr = new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(`${found.availableDateFrom}T00:00:00`));
+      
+      const timeStr = found.startTime 
+        ? `${found.startTime.slice(11, 16)} - ${found.endTime?.slice(11, 16)}`
+        : `${found.preferredTimeStart} - ${found.preferredTimeEnd}`;
+
+      setPlayTime(`${dateStr} từ ${timeStr}`);
+    }
+  };
+
+  const matchOptions = useMemo(() => hostedMatches.map((m) => ({
+    value: String(m.matchId),
+    label: `${m.title} (${m.matchType})`,
+  })), [hostedMatches]);
 
   // Focus effect based on search query params
   useEffect(() => {
@@ -168,126 +256,142 @@ export const CreatePost = () => {
   }
 
   const tags = useMemo(
-    () =>
-      tagDraft
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .slice(0, 5),
+    () => tagDraft
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 5),
     [tagDraft],
   );
   const selectedVisibility = visibilityOptions.find((option) => option.value === visibility) ?? visibilityOptions[0];
   const VisibilityIcon = selectedVisibility.icon;
   const canPublish = title.trim().length > 0 && content.trim().length >= 10;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canPublish || !token) return;
 
-    if (!canPublish) {
-      return;
+    setSubmitting(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        body: content.trim(),
+        location: location.trim(),
+        mode,
+        lookingFor,
+        slots,
+        levelRange,
+        playTime,
+        matchId: selectedMatchId,
+        tags
+      };
+
+      const serializedContent = JSON.stringify(payload);
+      const mediaUrls = imageUrl ? [imageUrl] : [];
+
+      await createGlobalPost(token, {
+        content: serializedContent,
+        mediaUrls
+      });
+
+      // Redirect back to news feed
+      navigate('/posts');
+    } catch (err: any) {
+      alert(err.message || 'Không thể tạo bài viết.');
+    } finally {
+      setSubmitting(false);
     }
-
-    setPublished(true);
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-[#151c27]">
-      <form className="mx-auto grid max-w-[1180px] grid-cols-1 gap-6 px-4 py-6 pb-24 lg:grid-cols-[minmax(0,1fr)_360px]" onSubmit={handleSubmit}>
-        <main className="min-w-0 space-y-6">
-          <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/posts">
-                <ArrowLeft className="h-4 w-4" />
-                Quay lại bảng tin
-              </Link>
-              <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[40px]">Tạo bài viết cộng đồng</h1>
-              <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[#555f6f]">
-                Chia sẻ trận đấu, tìm người chơi, review sân hoặc đăng kinh nghiệm tập luyện với cộng đồng Picklink.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-[#555f6f] hover:bg-white" to="/posts">
-                <X className="h-5 w-5" />
-                Hủy
-              </Link>
-              <button
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90 disabled:bg-outline-variant disabled:text-[#555f6f]"
-                disabled={!canPublish}
-                type="submit"
-              >
-                <Send className="h-5 w-5" />
-                Đăng bài
-              </button>
-            </div>
-          </section>
+    <CommunityPage>
+      <CommunityHero
+        actions={(
+          <>
+            <Link className="community-button-secondary" to="/posts">
+              <X aria-hidden="true" className="h-4 w-4" />
+              Hủy
+            </Link>
+            <button className="community-button" disabled={!canPublish || submitting} form="create-community-post" type="submit">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+              Đăng bài
+            </button>
+          </>
+        )}
+        backLink={{ label: 'Quay lại bảng tin', to: '/posts' }}
+        description="Chia sẻ trận đấu, tìm người chơi, review sân hoặc đăng kinh nghiệm tập luyện."
+        icon={MessageCircle}
+        label="Cộng đồng Picklink"
+        title="Tạo bài viết"
+      />
 
+      <form
+        className="community-container grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]"
+        id="create-community-post"
+        onSubmit={handleSubmit}
+      >
+        <main className="min-w-0 space-y-5">
           {published && (
-            <section className="rounded-lg border border-primary bg-[#eaf7df] p-4 text-primary">
+            <section className="rounded-xl border border-[#b9d4ae] bg-[#eaf6e5] p-4 text-[#365c16]">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="text-[15px] font-bold">Bài viết đã sẵn sàng trong bản nháp giao diện.</p>
-                  <Link className="mt-1 inline-flex text-[13px] font-bold underline" to="/posts">
-                    Về bảng tin
-                  </Link>
+                  <p className="text-[13px] font-extrabold">Bài viết đã sẵn sàng trong bản nháp giao diện.</p>
+                  <Link className="mt-1 inline-flex text-[12px] font-bold underline" to="/posts">Về bảng tin</Link>
                 </div>
               </div>
             </section>
           )}
 
-          <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-3">
+          <section className="community-panel p-4 sm:p-5">
+            <div className="flex items-center gap-3 border-b border-[#e0e9dc] pb-4">
               {avatarUrl ? (
-                <img alt={name} className="h-12 w-12 rounded-lg object-cover" src={avatarUrl} />
+                <img alt={name} className="community-avatar community-avatar--lg" src={avatarUrl} />
               ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
                   <UserRound className="h-6 w-6" />
                 </div>
               )}
-              <div>
-                <h2 className="text-[18px] font-bold">{name}</h2>
-                <p className="flex items-center gap-2 text-[13px] text-[#555f6f]">
-                  <VisibilityIcon className="h-4 w-4" />
+              <div className="min-w-0">
+                <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{name}</h2>
+                <p className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-[#718077]">
+                  <VisibilityIcon aria-hidden="true" className="h-3.5 w-3.5" />
                   {selectedVisibility.label} · {user?.role === 'player' ? `Trình độ ${level}` : level}
                 </p>
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="text-[13px] font-bold text-[#555f6f]">Chủ đề bài viết</span>
-                <select
-                  className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary"
-                  onChange={(event) => setMode(event.target.value as PostMode)}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col">
+                <FieldLabel>Chủ đề bài viết</FieldLabel>
+                <Dropdown<PostMode>
+                  options={modeOptions}
                   value={mode}
-                >
-                  {modeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-[13px] font-bold text-[#555f6f]">Hiển thị</span>
-                <select
-                  className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary"
-                  onChange={(event) => setVisibility(event.target.value as Visibility)}
+                  onChange={setMode}
+                  triggerClassName="w-full justify-between !h-11 text-[13px] font-semibold text-[#0b2228] border-[#cfe0c8] bg-[#f4f8f2] hover:bg-white"
+                  dropdownClassName="w-full"
+                  align="left"
+                />
+              </div>
+              <div className="flex flex-col">
+                <FieldLabel>Hiển thị</FieldLabel>
+                <Dropdown<Visibility>
+                  options={visibilityOptions}
                   value={visibility}
-                >
-                  {visibilityOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  onChange={setVisibility}
+                  triggerClassName="w-full justify-between !h-11 text-[13px] font-semibold text-[#0b2228] border-[#cfe0c8] bg-[#f4f8f2] hover:bg-white"
+                  dropdownClassName="w-full"
+                  align="left"
+                />
+              </div>
             </div>
 
-            <label className="mt-5 block">
-              <span className="text-[13px] font-bold text-[#555f6f]">Tiêu đề</span>
+            <label className="mt-4 block">
+              <FieldLabel>Tiêu đề</FieldLabel>
               <input
-                className="mt-2 h-12 w-full rounded-lg border border-outline-variant bg-[#f0f3ff] px-4 text-[15px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="community-control !h-11 text-[14px] font-bold"
                 maxLength={90}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ví dụ: Tìm đồng đội đánh đôi tối nay ở Cầu Giấy"
@@ -295,31 +399,30 @@ export const CreatePost = () => {
               />
             </label>
 
-            <label className="mt-5 block">
-              <span className="text-[13px] font-bold text-[#555f6f]">Nội dung</span>
+            <label className="mt-4 block">
+              <FieldLabel>Nội dung</FieldLabel>
               <textarea
-                className="mt-2 min-h-[180px] w-full resize-none rounded-lg border border-outline-variant bg-[#f0f3ff] p-4 text-[15px] leading-7 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="community-control min-h-[160px]"
                 maxLength={1200}
                 onChange={(event) => setContent(event.target.value)}
                 placeholder="Chia sẻ nội dung bài viết..."
                 value={content}
               />
             </label>
-
-            <div className="mt-2 flex items-center justify-between text-[12px] text-[#555f6f]">
+            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-[#718077]">
               <span>{content.length}/1200 ký tự</span>
-              <span>{title.length}/90 ký tự tiêu đề</span>
+              <span>{title.length}/90 tiêu đề</span>
             </div>
           </section>
 
-          <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-            <h2 className="text-[20px] font-bold">Thông tin gắn kèm</h2>
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2 mt-2">
-                <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f] mb-2">
-                  <MapPin className="h-4 w-4" />
-                  Địa điểm
-                </span>
+          <section className="community-panel p-4 sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Thông tin gắn kèm</h2>
+              <p className="mt-1 text-[12px] leading-5 text-[#718077]">Giúp bài viết dễ được tìm thấy và đặt đúng bối cảnh.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <FieldLabel icon={MapPin}>Địa điểm</FieldLabel>
                 <div ref={locationInputRef} tabIndex={-1} className="outline-none">
                   <OpenStreetMapLocationPicker
                     value={locationObj}
@@ -330,213 +433,225 @@ export const CreatePost = () => {
                   />
                 </div>
               </div>
-              <label className="block">
-                <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f]">
-                  <CalendarDays className="h-4 w-4" />
-                  Sân / lịch liên quan
-                </span>
-                <input
-                  className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) => setCourt(event.target.value)}
-                  value={court}
-                />
+              <label>
+                <FieldLabel icon={CalendarDays}>Sân / lịch liên quan</FieldLabel>
+                <input className="community-control" onChange={(event) => setCourt(event.target.value)} value={court} />
               </label>
-            </div>
-
-            <label className="mt-5 block">
-              <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f]">
-                <Hash className="h-4 w-4" />
-                Thẻ chủ đề
-              </span>
-              <input
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                onChange={(event) => setTagDraft(event.target.value)}
-                value={tagDraft}
-              />
-            </label>
-
-            <div className="mt-5 block">
-              <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f] mb-2">
-                <ImageIcon className="h-4 w-4" />
-                Ảnh bài viết
-              </span>
+              <label>
+                <FieldLabel icon={Hash}>Thẻ chủ đề</FieldLabel>
+                <input className="community-control" onChange={(event) => setTagDraft(event.target.value)} value={tagDraft} />
+              </label>
               
-              {imageUrl ? (
-                <div className="relative rounded-lg border border-outline-variant overflow-hidden bg-[#f8f9fa] p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img src={imageUrl} alt="Uploaded" className="h-16 w-24 object-cover rounded-md border border-outline-variant" />
-                    <span className="text-[13px] text-on-surface-variant truncate max-w-xs">{imageUrl}</span>
+              <div className="sm:col-span-2 mt-2">
+                <FieldLabel icon={ImageIcon}>Ảnh bài viết</FieldLabel>
+                
+                {imageUrl ? (
+                  <div className="relative rounded-lg border border-outline-variant overflow-hidden bg-[#f8f9fa] p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img src={imageUrl} alt="Uploaded" className="h-16 w-24 object-cover rounded-md border border-outline-variant" />
+                      <span className="text-[13px] text-on-surface-variant truncate max-w-xs">{imageUrl}</span>
+                    </div>
+                    <button
+                      onClick={handleDeleteImage}
+                      disabled={isDeletingImage}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] font-bold text-[13px] rounded-lg transition-colors disabled:opacity-60"
+                      type="button"
+                    >
+                      {isDeletingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                      <span>Xóa ảnh</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={handleDeleteImage}
-                    disabled={isDeletingImage}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] font-bold text-[13px] rounded-lg transition-colors disabled:opacity-60"
-                    type="button"
-                  >
-                    {isDeletingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                    <span>Xóa ảnh</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-outline-variant rounded-lg p-6 hover:bg-surface-container-low hover:border-primary transition-all cursor-pointer relative">
-                    <ImageIcon className="h-8 w-8 text-[#555f6f] mb-2" />
-                    <span className="text-[13px] font-bold text-[#555f6f]">{uploadingImage ? 'Đang tải ảnh...' : 'Chọn ảnh tải lên'}</span>
+                ) : (
+                  <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-outline-variant rounded-lg p-6 hover:bg-surface-container-low hover:border-primary transition-all cursor-pointer relative">
+                      <ImageIcon className="h-8 w-8 text-[#555f6f] mb-2" />
+                      <span className="text-[13px] font-bold text-[#555f6f]">{uploadingImage ? 'Đang tải ảnh...' : 'Chọn ảnh tải lên'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </label>
+                    
+                    <div className="flex items-center justify-center font-bold text-[13px] text-outline">hoặc</div>
+
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      ref={imageInputRef}
+                      className="flex-[1.5] h-12 rounded-lg border border-outline-variant px-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      onChange={(event) => setImageUrl(event.target.value)}
+                      placeholder="Dán URL ảnh trực tiếp..."
+                      value={imageUrl}
                     />
-                  </label>
-                  
-                  <div className="flex items-center justify-center font-bold text-[13px] text-outline">hoặc</div>
+                  </div>
+                )}
 
-                  <input
-                    ref={imageInputRef}
-                    className="flex-[1.5] h-12 rounded-lg border border-outline-variant px-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                    onChange={(event) => setImageUrl(event.target.value)}
-                    placeholder="Dán URL ảnh trực tiếp..."
-                    value={imageUrl}
-                  />
-                </div>
-              )}
-
-              {uploadingImage && uploadProgress !== null && (
-                <div className="mt-2 w-full bg-[#f0f3ff] rounded-full h-2">
-                  <div className="bg-primary h-2 rounded-full transition-all duration-150" style={{ width: `${uploadProgress}%` }}></div>
-                </div>
-              )}
+                {uploadingImage && uploadProgress !== null && (
+                  <div className="mt-2 w-full bg-[#f0f3ff] rounded-full h-2">
+                    <div className="bg-primary h-2 rounded-full transition-all duration-150" style={{ width: `${uploadProgress}%` }}></div>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
-          <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-            <label className="flex items-center justify-between gap-4">
+          <section className="community-panel p-4 sm:p-5">
+            <label className="flex cursor-pointer items-start justify-between gap-4">
               <span>
-                <span className="flex items-center gap-2 text-[20px] font-bold">
-                  <Users className="h-5 w-5 text-primary" />
+                <span className="flex items-center gap-2 text-[17px] font-extrabold text-[#0b2228]">
+                  <Users aria-hidden="true" className="h-5 w-5 text-[#477313]" />
                   Tìm người chơi
                 </span>
-                <span className="mt-1 block text-[13px] text-[#555f6f]">Bật khi bài viết cần ghép người tham gia trận.</span>
+                <span className="mt-1 block text-[12px] leading-5 text-[#718077]">Bật khi bài viết cần ghép thêm người tham gia trận.</span>
               </span>
-              <input checked={lookingFor} className="h-5 w-5 accent-primary" onChange={(event) => setLookingFor(event.target.checked)} type="checkbox" />
+              <span className="relative mt-1 inline-flex shrink-0">
+                <input
+                  checked={lookingFor}
+                  className="peer h-5 w-9 cursor-pointer appearance-none rounded-full bg-[#d5dfd1] transition-colors checked:bg-[#477313]"
+                  onChange={(event) => setLookingFor(event.target.checked)}
+                  type="checkbox"
+                />
+                <span className="pointer-events-none absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
+              </span>
             </label>
 
             {lookingFor && (
-              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <label className="block">
-                  <span className="text-[13px] font-bold text-[#555f6f]">Số slot</span>
-                  <input
-                    className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) => setSlots(event.target.value)}
-                    type="number"
-                    value={slots}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[13px] font-bold text-[#555f6f]">Trình độ</span>
-                  <input
-                    className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) => setLevelRange(event.target.value)}
-                    value={levelRange}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[13px] font-bold text-[#555f6f]">Thời gian</span>
-                  <input
-                    className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) => setPlayTime(event.target.value)}
-                    value={playTime}
-                  />
-                </label>
+              <div className="mt-4 border-t border-[#e0e9dc] pt-4">
+                {loadingMatches ? (
+                  <div className="flex items-center gap-2 text-[13px] font-semibold text-[#718077] py-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#477313]" />
+                    <span>Đang tải danh sách phòng ghép trận của bạn...</span>
+                  </div>
+                ) : hostedMatches.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-col">
+                      <FieldLabel>Chọn phòng ghép trận đã tạo</FieldLabel>
+                      <Dropdown<string>
+                        options={matchOptions}
+                        value={selectedMatchId ? String(selectedMatchId) : ''}
+                        onChange={handleMatchSelect}
+                        triggerClassName="w-full justify-between !h-11 text-[13px] font-semibold text-[#0b2228] border-[#cfe0c8] bg-[#f4f8f2] hover:bg-white"
+                        dropdownClassName="w-full"
+                        align="left"
+                      />
+                    </div>
+
+                    <div className="grid gap-4 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] p-3 text-[12px] sm:grid-cols-3">
+                      <div>
+                        <span className="block font-bold text-[#718077]">Số slot cần tìm</span>
+                        <strong className="mt-1 block text-[14px] text-[#0b2228]">{slots} người</strong>
+                      </div>
+                      <div>
+                        <span className="block font-bold text-[#718077]">Trình độ yêu cầu</span>
+                        <strong className="mt-1 block text-[14px] text-[#0b2228]">{levelRange}</strong>
+                      </div>
+                      <div>
+                        <span className="block font-bold text-[#718077]">Thời gian chơi</span>
+                        <strong className="mt-1 block text-[14px] text-[#0b2228]">{playTime}</strong>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-center">
+                    <p className="text-[13px] font-bold text-amber-800 leading-5">
+                      Bạn chưa làm chủ phòng ghép trận nào đang tuyển người.
+                    </p>
+                    <p className="mt-1 text-[12px] text-amber-700">
+                      Tạo phòng ghép trận trước để liên kết và đăng tuyển thành viên trên bảng tin cộng đồng.
+                    </p>
+                    <Link
+                      to="/opponents"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#0b2228] px-4 py-2 text-[12px] font-black text-white hover:bg-[#0b2228]/95"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      Đi tới tạo phòng ghép
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </section>
         </main>
 
-        <aside className="space-y-6 lg:sticky lg:top-[88px] lg:self-start">
-          <section className="rounded-lg border border-primary bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-[20px] font-bold">
-              <Eye className="h-5 w-5 text-primary" />
+        <aside className="grid gap-4 lg:sticky lg:top-20">
+          <section className="community-panel p-4">
+            <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-[#0b2228]">
+              <Eye aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
               Xem trước
             </h2>
-            <article className="mt-5 rounded-lg border border-outline-variant p-4">
-              <div className="flex gap-3">
-                {avatarUrl ? (
-                  <img alt={name} className="h-10 w-10 rounded-lg object-cover" src={avatarUrl} />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <UserRound className="h-5 w-5" />
+            <article className="mt-4 overflow-hidden rounded-xl border border-[#d8e4d4] bg-white">
+              <div className="p-3">
+                <div className="flex gap-3">
+                  {avatarUrl ? (
+                    <img alt={name} className="community-avatar" src={avatarUrl} />
+                  ) : (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                      <UserRound className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-extrabold">{name || currentCommunityUser.name}</p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
+                      <span className="inline-flex items-center gap-1">
+                        <VisibilityIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                        {selectedVisibility.label}
+                      </span>
+                      {location && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" />
+                          {location}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <h3 className="mt-3 text-[15px] font-extrabold leading-5 text-[#0b2228]">{title || 'Tiêu đề bài viết'}</h3>
+                <p className="mt-2 text-[12px] leading-5 text-[#66756b]">{content || 'Nội dung bài viết sẽ hiển thị tại đây.'}</p>
+
+                {lookingFor && (
+                  <div className="mt-3 rounded-xl bg-[#edf5e9] p-3 text-[11px] font-extrabold text-[#477313]">
+                    Cần {slots || '0'} slot · Trình {levelRange || '-'} · {playTime || '-'}
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold">{name}</p>
-                  <p className="flex items-center gap-1 text-[12px] text-[#555f6f]">
-                    <VisibilityIcon className="h-3.5 w-3.5" />
-                    {selectedVisibility.label}
-                  </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {tags.map((tag) => <span className="community-badge !min-h-5 !px-2 !py-1" key={tag}>#{tag}</span>)}
                 </div>
               </div>
-              <h3 className="mt-4 text-[18px] font-bold leading-6">{title || 'Tiêu đề bài viết'}</h3>
-              <p className="mt-2 text-[14px] leading-6 text-[#555f6f]">{content || 'Nội dung bài viết sẽ hiển thị tại đây.'}</p>
-
-              {lookingFor && (
-                <div className="mt-4 rounded-lg bg-primary/10 p-3 text-[13px] font-bold text-primary">
-                  Cần {slots || '0'} slot · Trình {levelRange || '-'} · {playTime || '-'}
-                </div>
-              )}
 
               {imageUrl ? (
-                <img alt="Ảnh xem trước" className="mt-4 h-44 w-full rounded-lg object-cover" src={imageUrl} />
+                <img alt="Ảnh xem trước" className="h-40 w-full bg-[#dfeadc] object-cover" src={imageUrl} />
               ) : (
-                <div className="mt-4 flex h-44 w-full items-center justify-center rounded-lg bg-[#f0f3ff] text-[#555f6f]">
-                  <ImageIcon className="h-8 w-8" />
+                <div className="grid h-32 place-items-center bg-[#edf5e9] text-[#81907f]">
+                  <ImageIcon aria-hidden="true" className="h-7 w-7" />
                 </div>
               )}
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <span className="rounded-full bg-[#f0f3ff] px-3 py-1 text-[12px] font-bold text-[#555f6f]" key={tag}>
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-outline-variant pt-3">
-                <span className="flex items-center justify-center gap-1 rounded-lg py-2 text-[12px] font-bold text-[#555f6f]">
-                  <ThumbsUp className="h-4 w-4" />
-                  Thích
-                </span>
-                <span className="flex items-center justify-center gap-1 rounded-lg py-2 text-[12px] font-bold text-[#555f6f]">
-                  <MessageCircle className="h-4 w-4" />
-                  Bình luận
-                </span>
-                <span className="flex items-center justify-center gap-1 rounded-lg py-2 text-[12px] font-bold text-[#555f6f]">
-                  <Send className="h-4 w-4" />
-                  Gửi
-                </span>
+              <div className="grid grid-cols-3 gap-1 border-t border-[#e0e9dc] p-2">
+                <span className="community-button-quiet !min-h-8 !px-1 text-[11px]"><ThumbsUp className="h-3.5 w-3.5" />Thích</span>
+                <span className="community-button-quiet !min-h-8 !px-1 text-[11px]"><MessageCircle className="h-3.5 w-3.5" />Bình luận</span>
+                <span className="community-button-quiet !min-h-8 !px-1 text-[11px]"><Send className="h-3.5 w-3.5" />Gửi</span>
               </div>
             </article>
           </section>
 
-          <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-            <h2 className="text-[20px] font-bold">Trạng thái bài viết</h2>
-            <div className="mt-4 space-y-3">
+          <section className="community-panel p-4">
+            <h2 className="text-[15px] font-extrabold text-[#0b2228]">Kiểm tra trước khi đăng</h2>
+            <div className="mt-3 grid gap-2">
               {[
                 { label: 'Có tiêu đề', done: title.trim().length > 0 },
                 { label: 'Nội dung đủ dài', done: content.trim().length >= 10 },
                 { label: 'Có thẻ chủ đề', done: tags.length > 0 },
               ].map((item) => (
-                <div className="flex items-center justify-between gap-3 rounded-lg bg-[#f0f3ff] p-3" key={item.label}>
-                  <span className="text-[13px] font-bold text-[#555f6f]">{item.label}</span>
-                  <CheckCircle2 className={`h-5 w-5 ${item.done ? 'text-primary' : 'text-outline-variant'}`} />
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-[#f0f6ed] p-3" key={item.label}>
+                  <span className="text-[12px] font-bold text-[#526158]">{item.label}</span>
+                  <CheckCircle2 className={`h-[18px] w-[18px] ${item.done ? 'text-[#477313]' : 'text-[#b8c5b4]'}`} />
                 </div>
               ))}
             </div>
           </section>
         </aside>
       </form>
-    </div>
+    </CommunityPage>
   );
 };

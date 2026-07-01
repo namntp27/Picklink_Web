@@ -42,7 +42,7 @@ export const OwnerShell = ({
   contentClassName?: string;
   innerClassName?: string;
 }) => (
-  <div className="min-h-screen bg-[#f9f9ff] text-on-surface">
+  <div className="min-h-screen bg-[#FAFBF8] text-on-surface">
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between bg-primary px-4 text-white shadow-md md:px-margin-desktop">
       <div className="flex items-center gap-4">
         <Link className="text-[24px] font-bold tracking-tight" to="/">

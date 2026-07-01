@@ -43,7 +43,7 @@ export const CreateClub = () => {
   };
 
   return (
-    <div className="bg-[#f0f3ff] text-[#151c27] flex flex-col font-body-md w-full flex-1">
+    <div className="bg-background text-on-surface flex flex-col font-body-md w-full flex-1">
       {/* Main Content Area */}
       <main className="flex-grow flex flex-col relative w-full">
         {/* Hero Background Header */}
@@ -63,7 +63,7 @@ export const CreateClub = () => {
 
           {/* Form Card */}
           <div className="bg-white rounded-xl shadow-lg border border-[#c2c9b3] p-8 md:p-10 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-2 h-full bg-[#84c33e]"></div>
+            <div className="absolute top-0 left-0 w-2 h-full bg-primary-container"></div>
             
             <form action="#" className="space-y-8" method="POST" onSubmit={handleSubmit}>
               {/* Error message */}
@@ -75,13 +75,13 @@ export const CreateClub = () => {
 
               {/* Section: General Info */}
               <div className="space-y-4">
-                <h2 className="text-[24px] text-[#3d6a00] font-bold border-b border-[#dce2f3] pb-2">Thông Tin Cơ Bản</h2>
+                <h2 className="text-[24px] text-primary font-bold border-b border-outline-variant pb-2">Thông Tin Cơ Bản</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Club Name */}
                   <div className="col-span-1 md:col-span-2">
                     <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="club-name">Tên Câu Lạc Bộ <span className="text-[#ba1a1a]">*</span></label>
                     <input 
-                      className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow" 
+                      className="w-full bg-surface-container border border-outline-variant rounded-md px-4 py-3 text-[16px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow"
                       id="club-name" 
                       name="club-name" 
                       placeholder="VD: Sài Gòn Pickleball Club" 
@@ -95,7 +95,7 @@ export const CreateClub = () => {
                     <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="group-type">Loại nhóm <span className="text-[#ba1a1a]">*</span></label>
                     <div className="relative">
                       <select 
-                        className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] appearance-none focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow" 
+                        className="w-full bg-surface-container border border-outline-variant rounded-md px-4 py-3 text-[16px] text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow"
                         id="group-type" 
                         name="group-type"
                         defaultValue="Public"
@@ -112,7 +112,7 @@ export const CreateClub = () => {
                     <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="city">Khu vực</label>
                     <div className="relative">
                       <select 
-                        className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] appearance-none focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow" 
+                        className="w-full bg-surface-container border border-outline-variant rounded-md px-4 py-3 text-[16px] text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow"
                         id="city" 
                         name="city" 
                         defaultValue=""
@@ -131,7 +131,7 @@ export const CreateClub = () => {
                 <div>
                   <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="description">Giới thiệu CLB</label>
                   <textarea 
-                    className="w-full bg-[#f9f9ff] border border-[#c2c9b3] rounded-md px-4 py-3 text-[16px] text-[#151c27] focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:border-[#84c33e] transition-shadow resize-y" 
+                    className="w-full bg-surface-container border border-outline-variant rounded-md px-4 py-3 text-[16px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow resize-y"
                     id="description" 
                     name="description" 
                     placeholder="Viết vài dòng giới thiệu về quy mô, văn hóa hoặc định hướng của câu lạc bộ..." 
@@ -144,18 +144,18 @@ export const CreateClub = () => {
               </div>
 
               {/* Form Actions */}
-              <div className="pt-6 border-t border-[#dce2f3] flex items-center justify-end space-x-4">
+              <div className="pt-6 border-t border-outline-variant flex items-center justify-end space-x-4">
                 <button 
                   type="button"
                   onClick={() => navigate('/clubs')}
-                  className="px-6 py-3 text-[14px] font-bold text-[#151c27] bg-white border border-[#c2c9b3] rounded-md hover:bg-[#f0f3ff] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#c2c9b3]"
+                  className="px-6 py-3 text-[14px] font-bold text-on-surface bg-white border border-outline-variant rounded-md hover:bg-surface-container shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-outline-variant"
                   disabled={submitting}
                 >
                   Hủy bỏ
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-3 text-[14px] font-bold text-white bg-[#84c33e] rounded-md hover:bg-[#3d6a00] hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-[#84c33e] focus:ring-offset-2 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="px-8 py-3 text-[14px] font-bold text-on-primary-container bg-primary-container rounded-md hover:bg-primary-fixed-dim hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-offset-2 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={submitting}
                 >
                   {submitting ? (

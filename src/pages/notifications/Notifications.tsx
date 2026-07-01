@@ -148,7 +148,7 @@ const notificationTypeConfig: Record<
   },
   club: {
     icon: Users,
-    className: 'bg-[#eaf7df] text-primary',
+    className: 'bg-[#F6F8F3] text-primary',
   },
   tournament: {
     icon: Trophy,
@@ -274,7 +274,7 @@ export const Notifications = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
+    <div className="min-h-screen bg-[#FAFBF8] pt-[72px] text-on-surface">
       <section className="bg-primary text-white">
         <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-margin-desktop md:py-10">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px] lg:items-end">
@@ -454,7 +454,7 @@ export const Notifications = () => {
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg bg-[#eaf7df] p-4 text-[14px] font-bold text-primary">Không có việc khẩn cấp.</div>
+                <div className="rounded-lg bg-[#F6F8F3] p-4 text-[14px] font-bold text-primary">Không có việc khẩn cấp.</div>
               )}
             </div>
           </section>

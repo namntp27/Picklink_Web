@@ -197,3 +197,34 @@ export const addGroupImage = (token: string, groupId: number, imageUrl: string, 
 
 export const removeGroupImage = (token: string, groupId: number, imageId: number) =>
   apiRequest<void>(`/api/Community/groups/${groupId}/images/${imageId}`, { method: 'DELETE' }, token);
+
+// Global feed posts
+export const getGlobalPosts = (token?: string | null) =>
+  apiRequest<CommunityPost[]>('/api/Community/posts', {}, token || undefined);
+
+export const createGlobalPost = (token: string, input: { content: string; mediaUrls?: string[] }) =>
+  apiRequest<CommunityPost>('/api/Community/posts', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }, token);
+
+export const reactToPost = (token: string, postId: number, reactionType = 'Like') =>
+  apiRequest<CommunityPost>(`/api/Community/posts/${postId}/reaction`, {
+    method: 'POST',
+    body: JSON.stringify({ reactionType }),
+  }, token);
+
+export const removeReaction = (token: string, postId: number) =>
+  apiRequest<CommunityPost>(`/api/Community/posts/${postId}/reaction`, { method: 'DELETE' }, token);
+
+export const getGlobalPost = (postId: number, token?: string | null) =>
+  apiRequest<CommunityPost>(`/api/Community/posts/${postId}`, {}, token || undefined);
+
+export const getPostComments = (postId: number, token: string) =>
+  apiRequest<CommunityComment[]>(`/api/Community/posts/${postId}/comments`, {}, token);
+
+export const createComment = (token: string, postId: number, content: string, parentCommentId?: number | null) =>
+  apiRequest<CommunityComment>(`/api/Community/posts/${postId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content, parentCommentId: parentCommentId ?? null }),
+  }, token);

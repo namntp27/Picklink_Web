@@ -17,10 +17,10 @@ import { ClubMembers } from './pages/clubs/ClubMembers';
 import { Clubs } from './pages/clubs/Clubs';
 import { CreateClub } from './pages/clubs/CreateClub';
 import { CreatePost } from './pages/community/CreatePost';
-import { MatchDetail } from './pages/community/MatchDetail';
-import { MyMatches } from './pages/community/MyMatches';
-import { Opponents } from './pages/community/Opponents';
-import { PendingInvites } from './pages/community/PendingInvites';
+import { MatchDetail } from './pages/matches/MatchDetail';
+import { MyMatches } from './pages/matches/MyMatches';
+import { Opponents } from './pages/matches/Opponents';
+import { PendingInvites } from './pages/matches/PendingInvites';
 import { SavedPosts, TrendingPosts } from './pages/community/PostCollections';
 import { PostDetail } from './pages/community/PostDetail';
 import { Posts } from './pages/community/Posts';
@@ -76,8 +76,9 @@ function App() {
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="tournaments/:id" element={<TournamentDetail />} />
         <Route element={<ProtectedRoute allowedRoles={['player']} />}>
-          <Route path="opponents" element={<Opponents />} />
+          <Route path="opponents" element={<PendingInvites />} />
           <Route path="opponents/pending" element={<PendingInvites />} />
+          <Route path="opponents/create" element={<Opponents />} />
           <Route path="matches/:id" element={<MatchDetail />} />
           <Route path="my-matches" element={<MyMatches />} />
           <Route path="my-bookings" element={<MyBookings />} />
