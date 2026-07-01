@@ -1,0 +1,215 @@
+import type { ReactNode } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import {
+  Bookmark,
+  Flame,
+  Home,
+  Settings,
+  TrendingUp,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  activeCommunityPlayers,
+  currentCommunityUser,
+  trendingTopics,
+} from '../../data/communityPosts';
+import './community.css';
+
+type CommunityPageProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+type CommunityHeroProps = {
+  actions?: ReactNode;
+  backLink?: { label: string; to: string };
+  description: string;
+  icon: LucideIcon;
+  label: string;
+  stats?: ReactNode;
+  title: string;
+};
+
+const feedLinks: Array<{ label: string; icon: LucideIcon; to: string }> = [
+  { label: 'Bảng tin', icon: Home, to: '/posts' },
+  { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
+  { label: 'Câu lạc bộ', icon: Users, to: '/clubs' },
+  { label: 'Đã lưu', icon: Bookmark, to: '/posts/saved' },
+  { label: 'Cài đặt', icon: Settings, to: '/profile' },
+];
+
+export const CommunityPage = ({ children, className = '' }: CommunityPageProps) => {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className={`community-root ${className}`}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+      transition={{
+        duration: shouldReduceMotion ? 0.01 : 0.24,
+        ease: [0.2, 0.8, 0.2, 1],
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+export const CommunityHero = ({
+  actions,
+  backLink,
+  description,
+  icon: Icon,
+  label,
+  stats,
+  title,
+}: CommunityHeroProps) => (
+  <section className="community-hero">
+    <div className="community-hero__inner">
+      <div className="min-w-0">
+        {backLink && (
+          <Link className="community-back-link" to={backLink.to}>
+            <span aria-hidden="true">←</span>
+            {backLink.label}
+          </Link>
+        )}
+        <p className="community-kicker">
+          <Icon aria-hidden="true" className="h-4 w-4" />
+          {label}
+        </p>
+        <h1 className="community-hero__title">{title}</h1>
+        <p className="community-hero__description">{description}</p>
+        {actions && <div className="community-hero__actions">{actions}</div>}
+      </div>
+      {stats && <div className="community-hero__stats">{stats}</div>}
+    </div>
+  </section>
+);
+
+export const CommunityFeedNav = ({ activePath }: { activePath: string }) => (
+  <aside className="community-feed-nav">
+    <div className="community-profile-chip">
+      <img
+        alt={currentCommunityUser.name}
+        className="community-avatar community-avatar--lg"
+        src={currentCommunityUser.avatar}
+      />
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-extrabold text-[#0b2228]">
+          {currentCommunityUser.name}
+        </p>
+        <p className="mt-0.5 text-[12px] font-semibold text-[#66756b]">
+          Trình độ {currentCommunityUser.level}
+        </p>
+      </div>
+    </div>
+
+    <nav aria-label="Điều hướng cộng đồng" className="community-feed-nav__links">
+      {feedLinks.map((item) => {
+        const Icon = item.icon;
+        const isActive = activePath === item.to;
+
+        return (
+          <Link
+            aria-current={isActive ? 'page' : undefined}
+            className={`community-feed-nav__link ${isActive ? 'is-active' : ''}`}
+            key={item.to}
+            to={item.to}
+          >
+            <Icon aria-hidden="true" className="h-[18px] w-[18px]" />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  </aside>
+);
+
+export const CommunityInsights = () => (
+  <aside className="community-insights">
+    <section className="community-panel p-4">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-extrabold text-[#0b2228]">Đang được quan tâm</h2>
+        <Flame aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
+      </div>
+      <div className="grid gap-1">
+        {trendingTopics.map((topic, index) => (
+          <button className="community-topic" key={topic.title} type="button">
+            <span className="community-topic__rank">{String(index + 1).padStart(2, '0')}</span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold text-[#718077]">{topic.category}</span>
+              <span className="mt-0.5 block text-[13px] font-extrabold leading-5 text-[#0b2228]">
+                {topic.title}
+              </span>
+              <span className="mt-0.5 block text-[11px] font-semibold text-[#718077]">{topic.posts}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+
+    <section className="community-panel p-4">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-extrabold text-[#0b2228]">Người chơi nổi bật</h2>
+        <Users aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
+      </div>
+      <div className="grid gap-3">
+        {activeCommunityPlayers.map((player) => (
+          <div className="flex items-center gap-3" key={player.name}>
+            <img alt={player.name} className="community-avatar" src={player.avatar} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-extrabold text-[#0b2228]">{player.name}</p>
+              <p className="text-[11px] font-semibold text-[#718077]">Trình độ {player.level}</p>
+            </div>
+            <button
+              aria-label={`Theo dõi ${player.name}`}
+              className="community-icon-button h-8 w-8"
+              title={`Theo dõi ${player.name}`}
+              type="button"
+            >
+              <span className="text-base leading-none">+</span>
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  </aside>
+);
+
+export const CommunityFeedShell = ({
+  activePath,
+  children,
+}: {
+  activePath: string;
+  children: ReactNode;
+}) => (
+  <div className="community-feed-shell">
+    <CommunityFeedNav activePath={activePath} />
+    <main className="community-feed-main">{children}</main>
+    <CommunityInsights />
+  </div>
+);
+
+export const CommunityEmptyState = ({
+  action,
+  description,
+  icon: Icon,
+  title,
+}: {
+  action?: ReactNode;
+  description: string;
+  icon: LucideIcon;
+  title: string;
+}) => (
+  <div className="community-empty">
+    <span className="community-empty__icon">
+      <Icon aria-hidden="true" className="h-6 w-6" />
+    </span>
+    <h2>{title}</h2>
+    <p>{description}</p>
+    {action}
+  </div>
+);

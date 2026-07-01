@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import { createMatch, searchMatchVenues, type MatchFormat, type MatchPreferredVenue } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
+import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 
 type PlayerLocation = { latitude: number; longitude: number };
 type ReverseGeocodeAddress = Record<string, string | undefined>;
@@ -291,78 +292,88 @@ export const Opponents = () => {
     }
   };
 
-  const inputClass = 'h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+  const inputClass = 'community-control';
   const roomExpired = searchParams.get('expired') === '1';
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
-      <section className="bg-primary text-white">
-        <div className="mx-auto max-w-[1200px] px-4 py-10 md:px-margin-desktop">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-[13px] font-bold">
-            <Sparkles className="h-4 w-4" /> Ghép người trước, đặt sân sau
-          </span>
-          <h1 className="mt-4 text-[34px] font-bold md:text-[44px]">Tạo lời mời ghép trận</h1>
-          <p className="mt-3 max-w-3xl text-[16px] leading-7 text-white/85">
-            Khai báo khu vực và khoảng thời gian bạn có thể chơi. Hệ thống chưa giữ sân;
-            cả nhóm sẽ chọn lịch chính xác sau khi đủ người.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/opponents">
-              <ListChecks className="h-5 w-5" /> Xem danh sách lời mời
+    <CommunityPage>
+      <CommunityHero
+        actions={(
+          <>
+            <Link className="community-button" to="/opponents">
+              <ListChecks aria-hidden="true" className="h-4 w-4" />
+              Danh sách lời mời
             </Link>
-            <Link className="inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-3 text-[14px] font-bold" to="/my-matches">
-              <Trophy className="h-5 w-5" /> Phòng của tôi
+            <Link className="community-button-secondary" to="/my-matches">
+              <Trophy aria-hidden="true" className="h-4 w-4" />
+              Phòng của tôi
             </Link>
+          </>
+        )}
+        description="Chọn khu vực và khoảng thời gian. Cả nhóm sẽ chốt sân sau khi đủ người."
+        icon={Sparkles}
+        label="Ghép người trước, đặt sân sau"
+        stats={(
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="font-mono text-[24px] font-extrabold text-[#e2ff57]">{selectedVenueIds.length}</p>
+              <p className="mt-1 text-[11px] font-semibold text-white/65">cụm sân đã chọn</p>
+            </div>
+            <div>
+              <p className="font-mono text-[24px] font-extrabold text-[#e2ff57]">{neededPlayers}</p>
+              <p className="mt-1 text-[11px] font-semibold text-white/65">người cần tìm</p>
+            </div>
           </div>
-        </div>
-      </section>
+        )}
+        title="Tạo lời mời ghép trận"
+      />
 
       {roomExpired && (
-        <div className="mx-auto mt-6 max-w-[1200px] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800">
+        <div className="mx-auto mt-5 max-w-[1216px] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-bold text-amber-800">
           Lời mời đã hết khoảng ngày có thể chơi và được chuyển sang trạng thái Hết hạn.
         </div>
       )}
 
-      <main className="mx-auto grid max-w-[1200px] gap-6 px-4 py-8 md:px-margin-desktop lg:grid-cols-[470px_minmax(0,1fr)]">
-        <form className="space-y-5 rounded-xl border border-outline-variant bg-white p-5 shadow-sm" onSubmit={submit}>
+      <main className="community-container grid items-start gap-5 xl:grid-cols-[430px_minmax(0,1fr)]">
+        <form className="community-panel space-y-4 p-4 sm:p-5" onSubmit={submit}>
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-lg bg-primary text-white"><PlusCircle className="h-6 w-6" /></div>
-            <div><h2 className="text-[21px] font-bold">Thông tin lời mời</h2><p className="text-[13px] text-on-surface-variant">Không khóa sân ở bước này</p></div>
+            <div className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#0b2228] text-[#e2ff57]"><PlusCircle className="h-5 w-5" /></div>
+            <div><h2 className="text-[17px] font-extrabold text-[#0b2228]">Thông tin lời mời</h2><p className="text-[11px] font-semibold text-[#718077]">Không khóa sân ở bước này</p></div>
           </div>
-          {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] font-bold text-red-700">{error}</div>}
 
           <label className="block">
-            <span className="mb-1 block text-[13px] font-bold">Tiêu đề lời mời</span>
+            <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tiêu đề lời mời</span>
             <input className={inputClass} maxLength={200} onChange={(event) => setTitle(event.target.value)} placeholder="Ví dụ: Tìm đội đánh đôi buổi tối" value={title} />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label><span className="mb-1 block text-[13px] font-bold">Tỉnh/thành phố</span><input className={inputClass} maxLength={100} onChange={(event) => setProvince(event.target.value)} placeholder="Hà Nội" value={province} /></label>
-            <label><span className="mb-1 block text-[13px] font-bold">Xã/phường</span><input className={inputClass} maxLength={150} onChange={(event) => setWard(event.target.value)} placeholder="Cầu Giấy" value={ward} /></label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tỉnh/thành phố</span><input className={inputClass} maxLength={100} onChange={(event) => setProvince(event.target.value)} placeholder="Hà Nội" value={province} /></label>
+            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Xã/phường</span><input className={inputClass} maxLength={150} onChange={(event) => setWard(event.target.value)} placeholder="Cầu Giấy" value={ward} /></label>
           </div>
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <label>
-              <span className="mb-1 block text-[13px] font-bold">Bán kính tìm sân</span>
+              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Bán kính tìm sân</span>
               <select className={inputClass} onChange={(event) => changeRadius(Number(event.target.value))} value={radiusKm}>
                 {[2, 3, 5, 10, 20, 30].map((value) => <option key={value} value={value}>{value} km</option>)}
               </select>
             </label>
-            <button className="mt-6 inline-flex h-11 items-center gap-2 rounded-lg border border-primary px-3 text-[13px] font-bold text-primary" disabled={isLocating} onClick={() => locate()} type="button">
+            <button className="community-button-secondary mt-[22px] !h-10" disabled={isLocating} onClick={() => locate()} type="button">
               <Crosshair className="h-4 w-4" /> {isLocating ? 'Đang định vị' : location ? 'Đã định vị' : 'Vị trí'}
             </button>
           </div>
-          {locationAreaStatus && <p className="text-[12px] font-medium text-on-surface-variant">{locationAreaStatus}</p>}
+          {locationAreaStatus && <p className="text-[11px] font-semibold leading-5 text-[#718077]">{locationAreaStatus}</p>}
 
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-surface-container-low px-4 py-3 text-[14px] font-bold text-primary" disabled={isSearching} onClick={() => void searchVenues()} type="button">
+          <button className="community-button-secondary w-full" disabled={isSearching} onClick={() => void searchVenues()} type="button">
             <Search className="h-5 w-5" /> {isSearching ? 'Đang tìm sân...' : 'Tìm cụm sân trong khu vực'}
           </button>
 
           <div>
-            <p className="mb-2 text-[13px] font-bold">Cụm sân mong muốn ({selectedVenueIds.length} đã chọn)</p>
-            <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-outline-variant p-2">
+            <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Cụm sân mong muốn ({selectedVenueIds.length} đã chọn)</p>
+            <div className="community-scroll max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[#d8e4d4] p-2">
               {venues.map((venue) => (
-                <label className={`flex cursor-pointer gap-3 rounded-lg p-3 ${selectedVenueIds.includes(venue.venueId) ? 'bg-primary/10' : 'hover:bg-surface-container-low'}`} key={venue.venueId}>
+                <label className={`flex cursor-pointer gap-3 rounded-[10px] p-2.5 transition-colors ${selectedVenueIds.includes(venue.venueId) ? 'bg-[#edf5e9]' : 'hover:bg-[#f4f8f2]'}`} key={venue.venueId}>
                   <input checked={selectedVenueIds.includes(venue.venueId)} className="mt-1 accent-primary" onChange={() => toggleVenue(venue.venueId)} type="checkbox" />
                   <span>
                     <strong className="block text-[14px]">{venue.venueName}</strong>
@@ -375,9 +386,9 @@ export const Opponents = () => {
             </div>
           </div>
 
-          <div className="rounded-lg border border-primary/20 bg-[#f3f9eb] p-4">
-            <p className="mb-3 flex items-center gap-2 text-[14px] font-bold"><CalendarRange className="h-5 w-5 text-primary" /> Khoảng có thể chơi</p>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-[#cfe0c8] bg-[#f0f6ed] p-3.5">
+            <p className="mb-3 flex items-center gap-2 text-[13px] font-extrabold"><CalendarRange className="h-4 w-4 text-[#477313]" /> Khoảng có thể chơi</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label><span className="mb-1 block text-[12px] font-bold">Từ ngày</span><input className={inputClass} min={today()} onChange={(event) => { setDateFrom(event.target.value); if (event.target.value > dateTo) setDateTo(event.target.value); }} type="date" value={dateFrom} /></label>
               <label><span className="mb-1 block text-[12px] font-bold">Đến ngày</span><input className={inputClass} min={dateFrom} onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} /></label>
               <label><span className="mb-1 block text-[12px] font-bold">Giờ bắt đầu</span><input className={inputClass} onChange={(event) => setTimeFrom(event.target.value)} type="time" value={timeFrom} /></label>
@@ -385,39 +396,39 @@ export const Opponents = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label><span className="mb-1 block text-[13px] font-bold">Trình độ tối thiểu</span><select className={inputClass} onChange={(event) => setMinSkill(Number(event.target.value))} value={minSkill}>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}</select></label>
             <label><span className="mb-1 block text-[13px] font-bold">Trình độ tối đa</span><select className={inputClass} onChange={(event) => setMaxSkill(Number(event.target.value))} value={maxSkill}>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}</select></label>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <p className="mb-2 text-[13px] font-bold">Hình thức</p>
               <div className="grid grid-cols-2 gap-2">
                 {(['1vs1', '2vs2'] as const).map((value) => (
-                  <button className={`rounded-lg border px-3 py-3 text-[14px] font-bold ${format === value ? 'border-primary bg-primary text-white' : 'border-outline-variant'}`} key={value} onClick={() => changeFormat(value)} type="button">{value}</button>
+                  <button className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`} key={value} onClick={() => changeFormat(value)} type="button">{value}</button>
                 ))}
               </div>
             </div>
-            <label><span className="mb-2 block text-[13px] font-bold">Số người cần tìm</span><select className={`${inputClass} h-[46px]`} onChange={(event) => setNeededPlayers(Number(event.target.value))} value={neededPlayers}>{neededOptions.map((value) => <option key={value} value={value}>{value} người</option>)}</select></label>
+            <label><span className="mb-2 block text-[12px] font-extrabold text-[#526158]">Số người cần tìm</span><select className={inputClass} onChange={(event) => setNeededPlayers(Number(event.target.value))} value={neededPlayers}>{neededOptions.map((value) => <option key={value} value={value}>{value} người</option>)}</select></label>
           </div>
 
           <label className="block">
             <span className="mb-1 block text-[13px] font-bold">Mô tả hoặc yêu cầu bổ sung</span>
-            <textarea className="min-h-24 w-full resize-none rounded-lg border border-outline-variant p-3 text-[14px] outline-none focus:border-primary" maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Phong cách chơi, yêu cầu đúng giờ..." value={note} />
+            <textarea className="community-control min-h-24" maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Phong cách chơi, yêu cầu đúng giờ..." value={note} />
           </label>
 
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[15px] font-bold text-white disabled:opacity-50" disabled={isCreating} type="submit">
+          <button className="community-button w-full" disabled={isCreating} type="submit">
             <PlusCircle className="h-5 w-5" /> {isCreating ? 'Đang đăng...' : 'Đăng lời mời'}
           </button>
         </form>
 
-        <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
-          <div className="border-b border-outline-variant p-5">
-            <h2 className="text-[22px] font-bold">Các cụm sân phù hợp</h2>
-            <p className="mt-1 text-[13px] text-on-surface-variant">Bản đồ chỉ để chọn danh sách mong muốn; chưa có sân hoặc khung giờ nào được giữ.</p>
+        <section className="community-panel overflow-hidden xl:sticky xl:top-20">
+          <div className="border-b border-[#d8e4d4] p-4">
+            <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Các cụm sân phù hợp</h2>
+            <p className="mt-1 text-[11px] font-semibold leading-5 text-[#718077]">Bản đồ dùng để chọn danh sách mong muốn. Chưa có sân hoặc khung giờ nào được giữ.</p>
           </div>
-          <div className="h-[760px] bg-surface-container">
+          <div className="h-[420px] bg-[#e7eee4] sm:h-[520px] xl:h-[calc(100dvh-190px)] xl:min-h-[540px] xl:max-h-[720px]">
             <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport location={location} radiusKm={radiusKm} venues={venues} />
@@ -443,12 +454,12 @@ export const Opponents = () => {
               ))}
             </MapContainer>
           </div>
-          <div className="flex items-start gap-3 border-t border-outline-variant p-4 text-[13px] text-on-surface-variant">
-            <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div className="flex items-start gap-3 border-t border-[#d8e4d4] p-3.5 text-[11px] font-semibold leading-5 text-[#66756b]">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
             Khi đủ thành viên, chủ phòng sẽ chọn một sân con, ngày và giờ chính xác trong phạm vi đã khai báo.
           </div>
         </section>
       </main>
-    </div>
+    </CommunityPage>
   );
 };

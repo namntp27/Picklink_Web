@@ -1,224 +1,168 @@
 import { Link } from 'react-router-dom';
 import {
-  Bookmark,
-  Home,
   Image as ImageIcon,
   MapPin,
   MessageCircle,
   MoreHorizontal,
   Plus,
   Send,
-  Settings,
   Share2,
   ThumbsUp,
-  TrendingUp,
   UserPlus,
   Users,
 } from 'lucide-react';
 import type { CommunityPost } from '../../data/communityPosts';
-import { activeCommunityPlayers, communityPosts, currentCommunityUser, trendingTopics } from '../../data/communityPosts';
-
-const CommunitySidebar = () => (
-  <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[280px] shrink-0 overflow-y-auto p-4 md:block">
-    <div className="mb-8 flex items-center gap-3 p-2">
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white shadow-sm">
-        <img alt={currentCommunityUser.name} className="h-full w-full object-cover" src={currentCommunityUser.avatar} />
-      </div>
-      <div>
-        <h3 className="text-[16px] font-bold text-primary">{currentCommunityUser.name}</h3>
-        <p className="text-[13px] font-medium text-[#555f6f]">Trình độ {currentCommunityUser.level}</p>
-      </div>
-    </div>
-
-    <nav className="space-y-2">
-      {[
-        { label: 'Bảng tin', icon: Home, to: '/posts', active: true },
-        { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
-        { label: 'Câu lạc bộ', icon: Users, to: '/clubs' },
-        { label: 'Bài viết đã lưu', icon: Bookmark, to: '/posts/saved' },
-        { label: 'Cài đặt', icon: Settings, to: '/profile' },
-      ].map((item) => (
-        <Link
-          className={`flex items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold transition-colors ${
-            item.active ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'
-          }`}
-          key={item.label}
-          to={item.to}
-        >
-          <item.icon className="h-5 w-5" />
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  </aside>
-);
-
-const CommunityRightSidebar = () => (
-  <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[300px] shrink-0 overflow-y-auto p-4 lg:block">
-    <section className="mb-4 rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-[16px] font-bold">Chủ đề nổi bật</h3>
-      <div className="space-y-4">
-        {trendingTopics.map((topic) => (
-          <button className="block w-full text-left" key={topic.title} type="button">
-            <p className="mb-0.5 text-[12px] text-[#555f6f]">{topic.category}</p>
-            <h4 className="text-[14px] font-bold transition-colors hover:text-primary">{topic.title}</h4>
-            <p className="text-[12px] text-[#555f6f]">{topic.posts}</p>
-          </button>
-        ))}
-      </div>
-    </section>
-
-    <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-[16px] font-bold">Người chơi tích cực</h3>
-      <div className="space-y-4">
-        {activeCommunityPlayers.map((player) => (
-          <div className="flex items-center justify-between gap-3" key={player.name}>
-            <div className="flex min-w-0 items-center gap-3">
-              <img alt={player.name} className="h-10 w-10 rounded-lg object-cover" src={player.avatar} />
-              <div className="min-w-0">
-                <h4 className="truncate text-[14px] font-bold">{player.name}</h4>
-                <p className="text-[12px] text-[#555f6f]">Trình độ {player.level}</p>
-              </div>
-            </div>
-            <button className="shrink-0 rounded-lg bg-surface-container px-3 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-container" type="button">
-              Kết bạn
-            </button>
-          </div>
-        ))}
-      </div>
-    </section>
-  </aside>
-);
+import { communityPosts, currentCommunityUser } from '../../data/communityPosts';
+import { CommunityFeedShell, CommunityPage } from './CommunityUI';
 
 const PostCard = ({ post }: { post: CommunityPost }) => (
-  <article className="mb-4 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <Link className="flex min-w-0 gap-3" to={`/posts/${post.id}`}>
-        <img alt={post.authorName} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={post.avatar} />
-        <div className="min-w-0">
-          <h4 className="truncate text-[15px] font-bold">{post.authorName}</h4>
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#555f6f]">
-            <span className="rounded-sm bg-surface-container px-1.5 py-0.5 font-bold text-primary">Trình độ {post.level}</span>
-            <span>{post.createdAt}</span>
-            <span>{post.location}</span>
+  <article className="community-card overflow-hidden">
+    <div className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <Link className="flex min-w-0 gap-3" to={`/posts/${post.id}`}>
+          <img alt={post.authorName} className="community-avatar" src={post.avatar} />
+          <div className="min-w-0">
+            <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
+              <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>
+              <span>{post.createdAt}</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin aria-hidden="true" className="h-3 w-3" />
+                {post.location}
+              </span>
+            </div>
           </div>
-        </div>
-      </Link>
-      <button className="rounded-lg p-1.5 text-[#555f6f] hover:bg-[#f0f3ff]" type="button" aria-label="Tùy chọn bài viết">
-        <MoreHorizontal className="h-5 w-5" />
-      </button>
-    </div>
+        </Link>
+        <button
+          aria-label="Tùy chọn bài viết"
+          className="community-icon-button"
+          title="Tùy chọn bài viết"
+          type="button"
+        >
+          <MoreHorizontal aria-hidden="true" className="h-[18px] w-[18px]" />
+        </button>
+      </div>
 
-    <Link className="block" to={`/posts/${post.id}`}>
-      <h3 className="mb-2 text-[18px] font-bold leading-6 text-on-surface">{post.title}</h3>
-      <p className="mb-4 text-[15px] leading-6 text-[#151c27]">{post.content}</p>
+      <Link className="mt-4 block" to={`/posts/${post.id}`}>
+        <h3 className="text-[17px] font-extrabold leading-6 tracking-[-0.015em] text-[#0b2228] transition-colors hover:text-[#477313]">
+          {post.title}
+        </h3>
+        <p className="mt-2 text-[13px] leading-6 text-[#526158]">{post.content}</p>
+      </Link>
 
       {post.lookingFor && (
-        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/8 p-3">
-          <p className="flex items-center gap-2 text-[13px] font-bold text-primary">
-            <Users className="h-4 w-4" />
-            {post.lookingFor}
-          </p>
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+          <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{post.lookingFor}</span>
         </div>
       )}
 
-      {post.image && <img alt={post.title} className="mb-3 h-[300px] w-full rounded-lg object-cover" src={post.image} />}
-    </Link>
-
-    <div className="mb-3 flex flex-wrap gap-2">
-      {post.tags.map((tag) => (
-        <span className="rounded-full bg-[#f0f3ff] px-3 py-1 text-[12px] font-bold text-[#555f6f]" key={tag}>
-          #{tag}
-        </span>
-      ))}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {post.tags.map((tag) => (
+          <span className="community-badge text-[#526158]" key={tag}>
+            #{tag}
+          </span>
+        ))}
+      </div>
     </div>
 
-    <div className="mb-3 flex items-center justify-between px-2 text-[13px] text-[#555f6f]">
-      <span className="flex items-center gap-1 font-medium">
-        <ThumbsUp className="h-4 w-4 text-primary" fill={post.liked ? 'currentColor' : 'none'} />
-        {post.likes}
-      </span>
-      <span>
-        {post.comments} bình luận · {post.shares} chia sẻ
-      </span>
-    </div>
-
-    <div className="grid grid-cols-3 gap-2 border-t border-outline-variant/40 pt-3">
-      <button
-        className={`flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold transition-colors ${
-          post.liked ? 'bg-surface-container text-primary' : 'text-on-surface-variant hover:bg-surface-container'
-        }`}
-        type="button"
-      >
-        <ThumbsUp className="h-5 w-5" fill={post.liked ? 'currentColor' : 'none'} />
-        Thích
-      </button>
-      <Link
-        className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]"
-        to={`/posts/${post.id}`}
-      >
-        <MessageCircle className="h-5 w-5" />
-        Bình luận
+    {post.image && (
+      <Link className="block overflow-hidden bg-[#dfeadc]" to={`/posts/${post.id}`}>
+        <img
+          alt={post.title}
+          className="max-h-[420px] w-full object-cover transition-transform duration-300 ease-out hover:scale-[1.015] motion-reduce:transform-none"
+          src={post.image}
+        />
       </Link>
-      <button className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" type="button">
-        <Share2 className="h-5 w-5" />
-        Chia sẻ
-      </button>
+    )}
+
+    <div className="px-4 pb-3 pt-3 sm:px-5">
+      <div className="flex items-center justify-between gap-3 text-[11px] font-semibold text-[#718077]">
+        <span className="inline-flex items-center gap-1.5">
+          <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
+          {post.likes} lượt thích
+        </span>
+        <span>{post.comments} bình luận · {post.shares} chia sẻ</span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
+        <button
+          className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
+          type="button"
+        >
+          <ThumbsUp aria-hidden="true" className="h-[17px] w-[17px]" fill={post.liked ? 'currentColor' : 'none'} />
+          <span className="hidden sm:inline">Thích</span>
+        </button>
+        <Link className="community-button-quiet !min-h-9 !px-2" to={`/posts/${post.id}`}>
+          <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
+          <span className="hidden sm:inline">Bình luận</span>
+        </Link>
+        <button className="community-button-quiet !min-h-9 !px-2" type="button">
+          <Share2 aria-hidden="true" className="h-[17px] w-[17px]" />
+          <span className="hidden sm:inline">Chia sẻ</span>
+        </button>
+      </div>
     </div>
   </article>
 );
 
-export const Posts = () => {
-  return (
-    <div className="mx-auto flex min-h-screen max-w-[1200px] bg-background pt-[72px] font-body-md text-on-surface">
-      <CommunitySidebar />
-
-      <main className="min-w-0 flex-1 p-4 lg:max-w-[620px]">
-        <section className="mb-6 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-          <div className="mb-4 flex gap-3">
-            <img alt={currentCommunityUser.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={currentCommunityUser.avatar} />
-            <Link
-              className="flex min-h-11 w-full items-center rounded-lg bg-[#f0f3ff] px-4 text-[14px] font-medium text-[#555f6f] hover:ring-2 hover:ring-primary/20"
-              to="/posts/create"
-            >
-              Bạn đang nghĩ gì về trận đấu hôm nay?
+export const Posts = () => (
+  <CommunityPage>
+    <CommunityFeedShell activePath="/posts">
+      <section className="community-panel overflow-hidden">
+        <div className="flex gap-3 p-4">
+          <img
+            alt={currentCommunityUser.name}
+            className="community-avatar"
+            src={currentCommunityUser.avatar}
+          />
+          <Link
+            className="flex min-h-10 min-w-0 flex-1 items-center rounded-[10px] border border-[#d8e4d4] bg-[#f4f8f2] px-3 text-[13px] font-semibold text-[#718077] transition-[border-color,background-color,box-shadow] duration-200 hover:border-[#afc5a8] hover:bg-white hover:shadow-[0_0_0_3px_rgba(71,115,19,0.08)]"
+            to="/posts/create"
+          >
+            Bạn muốn chia sẻ gì với cộng đồng?
+          </Link>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-[#e0e9dc] px-3 py-2">
+          <div className="flex gap-1">
+            <Link aria-label="Thêm ảnh" className="community-icon-button" title="Thêm ảnh" to="/posts/create">
+              <ImageIcon aria-hidden="true" className="h-[18px] w-[18px]" />
+            </Link>
+            <Link aria-label="Gắn địa điểm" className="community-icon-button" title="Gắn địa điểm" to="/posts/create">
+              <MapPin aria-hidden="true" className="h-[18px] w-[18px]" />
+            </Link>
+            <Link aria-label="Tìm người chơi" className="community-icon-button" title="Tìm người chơi" to="/posts/create">
+              <UserPlus aria-hidden="true" className="h-[18px] w-[18px]" />
             </Link>
           </div>
-          <div className="flex items-center justify-between border-t border-outline-variant/40 pt-3">
-            <div className="flex gap-2">
-              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Thêm ảnh">
-                <ImageIcon className="h-5 w-5" />
-              </Link>
-              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Gắn địa điểm">
-                <MapPin className="h-5 w-5" />
-              </Link>
-              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Tìm người chơi">
-                <UserPlus className="h-5 w-5" />
-              </Link>
-            </div>
-            <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts/create">
-              <Plus className="h-4 w-4" />
-              Tạo bài viết
-            </Link>
-          </div>
-        </section>
+          <Link className="community-button !min-h-9 !px-3" to="/posts/create">
+            <Plus aria-hidden="true" className="h-4 w-4" />
+            Tạo bài
+          </Link>
+        </div>
+      </section>
 
-        <section>
-          {communityPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </section>
-      </main>
+      <div className="mb-3 mt-5 flex items-center justify-between gap-3 px-1">
+        <div>
+          <h1 className="text-[19px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Bảng tin hôm nay</h1>
+          <p className="mt-1 text-[12px] font-semibold text-[#718077]">Hoạt động mới từ người chơi quanh bạn</p>
+        </div>
+        <span className="community-badge">{communityPosts.length} bài mới</span>
+      </div>
 
-      <CommunityRightSidebar />
+      <section className="grid gap-4">
+        {communityPosts.map((post) => (
+          <PostCard key={post.id} post={post} />
+        ))}
+      </section>
 
       <Link
-        className="fixed bottom-5 right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white shadow-lg hover:bg-primary/90 md:hidden"
-        to="/posts/create"
         aria-label="Tạo bài viết"
+        className="community-button fixed bottom-5 right-4 z-30 h-12 w-12 !rounded-xl !p-0 shadow-[0_14px_30px_rgba(8,29,36,0.2)] md:hidden"
+        title="Tạo bài viết"
+        to="/posts/create"
       >
-        <Send className="h-5 w-5" />
+        <Send aria-hidden="true" className="h-5 w-5" />
       </Link>
-    </div>
-  );
-};
+    </CommunityFeedShell>
+  </CommunityPage>
+);
