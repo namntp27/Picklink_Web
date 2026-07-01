@@ -40,7 +40,7 @@ const CommunitySidebar = () => (
       ].map((item) => (
         <Link
           className={`flex items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold transition-colors ${
-            item.active ? 'bg-primary text-white shadow-sm' : 'text-[#555f6f] hover:bg-[#e7eefe] hover:text-primary'
+            item.active ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'
           }`}
           key={item.label}
           to={item.to}
@@ -80,7 +80,7 @@ const CommunityRightSidebar = () => (
                 <p className="text-[12px] text-[#555f6f]">Trình độ {player.level}</p>
               </div>
             </div>
-            <button className="shrink-0 rounded-lg bg-[#e7eefe] px-3 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-container" type="button">
+            <button className="shrink-0 rounded-lg bg-surface-container px-3 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-container" type="button">
               Kết bạn
             </button>
           </div>
@@ -98,7 +98,7 @@ const PostCard = ({ post }: { post: CommunityPost }) => (
         <div className="min-w-0">
           <h4 className="truncate text-[15px] font-bold">{post.authorName}</h4>
           <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#555f6f]">
-            <span className="rounded-sm bg-[#e7eefe] px-1.5 py-0.5 font-bold text-[#3d6a00]">Trình độ {post.level}</span>
+            <span className="rounded-sm bg-surface-container px-1.5 py-0.5 font-bold text-primary">Trình độ {post.level}</span>
             <span>{post.createdAt}</span>
             <span>{post.location}</span>
           </div>
@@ -146,7 +146,7 @@ const PostCard = ({ post }: { post: CommunityPost }) => (
     <div className="grid grid-cols-3 gap-2 border-t border-outline-variant/40 pt-3">
       <button
         className={`flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold transition-colors ${
-          post.liked ? 'bg-[#e7eefe] text-primary' : 'text-[#555f6f] hover:bg-[#f0f3ff]'
+          post.liked ? 'bg-surface-container text-primary' : 'text-on-surface-variant hover:bg-surface-container'
         }`}
         type="button"
       >
@@ -170,7 +170,7 @@ const PostCard = ({ post }: { post: CommunityPost }) => (
 
 export const Posts = () => {
   return (
-    <div className="mx-auto flex min-h-screen max-w-[1200px] bg-[#f9f9ff] pt-[72px] font-body-md text-[#151c27]">
+    <div className="mx-auto flex min-h-screen max-w-[1200px] bg-background pt-[72px] font-body-md text-on-surface">
       <CommunitySidebar />
 
       <main className="min-w-0 flex-1 p-4 lg:max-w-[620px]">

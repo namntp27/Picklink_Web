@@ -132,7 +132,7 @@ const getBookingStatusClassName = (booking: BookingDetail) => {
   }
 
   if (booking.bookingStatus === 'confirmed') {
-    return 'bg-[#eaf7df] text-primary';
+    return 'bg-[#F6F8F3] text-primary';
   }
 
   return 'bg-[#fff4d8] text-[#7a5600]';
@@ -152,7 +152,7 @@ const getPaymentLabel = (paymentStatus: BookingDetail['paymentStatus']) => {
 
 const getPaymentClassName = (paymentStatus: BookingDetail['paymentStatus']) => {
   if (paymentStatus === 'paid') {
-    return 'bg-[#eaf7df] text-primary';
+    return 'bg-[#F6F8F3] text-primary';
   }
 
   if (paymentStatus === 'failed') {
@@ -494,7 +494,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                   </thead>
                   <tbody className="divide-y divide-outline-variant">
                     {filteredBookings.map((booking, index) => (
-                      <tr className="hover:bg-[#f9f9ff]" key={booking.id}>
+                      <tr className="hover:bg-[#FAFBF8]" key={booking.id}>
                         <td className="px-5 py-4 text-center text-[14px] font-bold text-primary">{index + 1}</td>
                         <td className="px-5 py-4">
                           <p className="text-[14px] font-bold text-primary">{booking.code}</p>

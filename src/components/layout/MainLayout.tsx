@@ -7,7 +7,7 @@ export const MainLayout = () => {
   const [showFooter, setShowFooter] = useState(true);
 
   return (
-    <div className="flex min-h-dvh min-w-0 flex-col overflow-x-clip bg-[#F7F8F3] font-sans text-[#171A16]">
+    <div className="flex min-h-dvh min-w-0 flex-col overflow-x-clip bg-background font-sans text-on-background">
       <Header />
       <main className="flex min-w-0 flex-1 flex-col">
         <Outlet context={{ setShowFooter }} />

@@ -210,7 +210,7 @@ export const OwnerSettings = () => {
 
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {savedMessage && (
-                  <span className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#eaf7df] px-4 py-3 text-[14px] font-bold text-primary">
+                  <span className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F6F8F3] px-4 py-3 text-[14px] font-bold text-primary">
                     <CheckCircle2 className="h-5 w-5" />
                     {savedMessage}
                   </span>

@@ -1,9 +1,11 @@
-import React, { FormEvent, KeyboardEvent, useMemo, useRef, useState } from 'react';
+import { type FormEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Circle,
   Eye,
   EyeOff,
   KeyRound,
@@ -15,6 +17,8 @@ import {
 } from 'lucide-react';
 import { forgotPasswordRequest, resetPasswordRequest, verifyPasswordResetCodeRequest } from '../../api/auth';
 import { ApiError } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 type RecoveryStep = 'request' | 'otp' | 'reset' | 'success';
 
@@ -33,6 +37,7 @@ export const ForgotPassword = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
 
   const completedOtp = useMemo(() => otp.join(''), [otp]);
   const maskedAccount = account;
@@ -155,11 +160,13 @@ export const ForgotPassword = () => {
     return (
       <div className="flex min-w-0 items-center gap-2">
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${
-            isDone || isActive ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant'
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-bold transition-colors ${
+            isDone || isActive
+              ? 'bg-primary-container text-on-primary'
+              : 'bg-surface-container text-on-surface-variant'
           }`}
         >
-          {isDone ? <CheckCircle2 className="h-4 w-4" /> : order}
+          {isDone ? <CheckCircle2 aria-hidden="true" className="h-4 w-4" /> : order}
         </span>
         <span className={`truncate text-[13px] font-bold ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
           {label}
@@ -168,246 +175,285 @@ export const ForgotPassword = () => {
     );
   };
 
+  const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 12 };
+
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-surface font-body-md text-on-surface">
-      <header className="sticky top-0 z-50 w-full bg-primary shadow-md">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-4">
-          <Link className="text-[24px] font-bold tracking-tight text-on-primary md:text-headline-md" to="/">
-            Picklink
-          </Link>
+    <div className="flex min-h-dvh w-full min-w-0 flex-col overflow-x-clip bg-background font-sans text-on-background">
+      <header className="sticky top-0 z-30 border-b border-outline-variant/50 bg-surface-container-lowest">
+        <div className="mx-auto flex min-h-16 w-full max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6">
           <Link
-            className="inline-flex items-center gap-2 rounded-lg border border-white/25 px-4 py-2 text-[14px] font-bold text-on-primary hover:bg-white/10"
+            aria-label="Picklink - Trang chủ"
+            className="group inline-flex min-h-11 items-center gap-2 rounded-md focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70"
+            to="/"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded bg-primary-container">
+              <Circle aria-hidden="true" className="h-4 w-4 fill-on-primary text-on-primary" />
+            </span>
+            <span className="text-[clamp(1.25rem,2vw,1.6rem)] font-extrabold tracking-[-0.035em] text-primary [text-shadow:0_0_10px_rgba(152,217,81,0.32)] transition-[text-shadow] duration-200 group-hover:[text-shadow:0_0_12px_rgba(152,217,81,0.42)]">
+              Picklink
+            </span>
+          </Link>
+
+          <Link
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-2 text-[14px] font-semibold text-on-surface transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px hover:border-primary-container hover:bg-surface-container-low hover:text-primary focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]"
             to="/login"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
             Đăng nhập
           </Link>
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center p-4 md:p-8">
-        <div className="grid w-full max-w-5xl overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-lg md:grid-cols-[0.9fr_1.1fr]">
-          <section className="hidden bg-primary text-white md:block">
-            <div className="relative flex h-full min-h-[620px] flex-col justify-between overflow-hidden p-10">
-              <img
-                alt="Sân pickleball"
-                className="absolute inset-0 h-full w-full object-cover opacity-35"
-                src="https://lh3.googleusercontent.com/aida/AP1WRLuHojmGm53CGpc2o6-TfB0PIib9gqEC3SRPFHPbo_reytERm7_aIGtc5Dtnr45rRcraJ_k1gPRj1KXmXQsOR1aIB5rtu-VvS3hZPcVAS4Rh1Qvy7AG-Bb-X0sDYouMIybe8KZAVNFfZbweZrkrUuhzpq3Ocuj3EfnO1AIpJ6zKtSYl4WBca7y71iYvCj1eMFIZvz3C0eyG758ONjHtQCpkKgiRdN0EDn2kQSPUNaa7LkjFz-8VxqxwfegA"
-              />
-              <div className="absolute inset-0 bg-primary/70" />
-              <div className="relative">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/14 px-4 py-2 text-[13px] font-bold">
-                  <ShieldCheck className="h-4 w-4" />
-                  Khôi phục tài khoản
-                </span>
-                <h1 className="mt-5 text-[36px] font-bold leading-tight">Lấy lại quyền truy cập Picklink</h1>
-                <p className="mt-4 text-[16px] leading-7 text-white/86">
-                  Xác thực OTP giúp bảo vệ lịch đặt sân, trận đấu và thông tin thanh toán của bạn.
-                </p>
-              </div>
-              <div className="relative rounded-lg border border-white/20 bg-white/12 p-5">
-                <p className="text-[14px] font-bold text-white/80">Bảo mật tài khoản</p>
-                <p className="mt-2 text-[14px] leading-6">Mã đặt lại mật khẩu chỉ có hiệu lực trong 15 phút và được gửi tới email đã đăng ký.</p>
-              </div>
+      <main className="grid min-w-0 flex-1 grid-cols-1 lg:grid-cols-[0.95fr_1.05fr]">
+        <motion.section
+          animate={{ opacity: 1, y: 0 }}
+          className="hero-gradient relative flex min-h-[260px] min-w-0 items-center justify-center overflow-hidden px-4 py-10 text-on-primary sm:px-6 md:min-h-[360px] lg:min-h-[680px] lg:px-12 lg:py-16"
+          initial={revealInitial}
+          transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+        >
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute inset-x-0 top-1/2 h-px bg-on-primary" />
+              <div className="absolute inset-y-0 left-1/4 w-px bg-on-primary/65" />
+              <div className="absolute inset-y-0 right-1/4 w-px bg-on-primary/65" />
+              <div className="absolute left-[12%] right-[12%] top-[18%] h-px bg-on-primary/55" />
+              <div className="absolute bottom-[18%] left-[12%] right-[12%] h-px bg-on-primary/55" />
             </div>
-          </section>
+            <div className="absolute inset-x-0 top-1/2 h-12 -translate-y-1/2 border-y border-on-primary/20 bg-on-primary/10 backdrop-blur-sm" />
+            <div className="absolute left-[58%] top-[44%] h-6 w-6 rounded-full bg-primary-fixed shadow-[0_0_18px_rgba(152,217,81,0.42)]" />
+            <div className="absolute inset-0 bg-black/50" />
+          </div>
 
-          <section className="flex flex-col justify-center bg-surface-bright p-6 md:p-10 lg:p-14">
-            <div className="mx-auto w-full max-w-md">
-              <div className="mb-7">
-                <h2 className="text-[30px] font-bold tracking-tight text-on-surface">Quên mật khẩu</h2>
-                <p className="mt-2 text-[14px] font-medium leading-6 text-on-surface-variant">
-                  Nhập tài khoản, xác thực OTP và tạo mật khẩu mới.
-                </p>
+          <div className="relative z-10 w-full max-w-lg text-center lg:text-left">
+            <span className="inline-flex items-center gap-2 rounded-full border border-on-primary/20 bg-on-primary/12 px-4 py-2 text-[13px] font-bold text-on-primary">
+              <ShieldCheck aria-hidden="true" className="h-4 w-4 text-primary-fixed" />
+              Khôi phục tài khoản
+            </span>
+            <h1 className="mt-5 text-[clamp(2rem,4vw,3rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
+              Lấy lại{' '}
+              <span className="inline-block text-[1.12em] text-primary-fixed [text-shadow:0_0_8px_rgba(152,217,81,0.55),0_0_18px_rgba(152,217,81,0.28)]">
+                quyền truy cập
+              </span>{' '}
+              Picklink
+            </h1>
+            <p className="mx-auto mt-5 max-w-[58ch] text-[15px] font-medium leading-7 text-on-primary/88 lg:mx-0 lg:text-[17px]">
+              Xác thực OTP giúp bảo vệ lịch đặt sân, trận đấu và thông tin thanh toán của bạn.
+            </p>
+          </div>
+        </motion.section>
+
+        <section className="flex min-w-0 items-center justify-center bg-surface-container-lowest px-4 py-10 sm:px-6 md:px-10 md:py-14 lg:px-16">
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md"
+            initial={revealInitial}
+            transition={{
+              delay: shouldReduceMotion ? 0 : 0.06,
+              duration: shouldReduceMotion ? 0.01 : 0.35,
+              ease: [0.2, 0.8, 0.2, 1],
+            }}
+          >
+            <div className="mb-7 text-center lg:text-left">
+              <h2 className="text-[clamp(1.75rem,3vw,2.25rem)] font-extrabold leading-[1.15] tracking-[-0.025em] text-form-heading [text-shadow:0_0_7px_rgba(152,217,81,0.32),0_0_16px_rgba(152,217,81,0.18)]">
+                Quên mật khẩu
+              </h2>
+              <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">
+                Nhập tài khoản, xác thực OTP và tạo mật khẩu mới.
+              </p>
+            </div>
+
+            <div className="mb-7 grid grid-cols-1 gap-3 rounded-xl border border-outline-variant bg-surface-container-low p-3 sm:grid-cols-3">
+              {renderStepBadge('request', 'Tài khoản', 1)}
+              {renderStepBadge('otp', 'OTP', 2)}
+              {renderStepBadge('reset', 'Mật khẩu', 3)}
+            </div>
+
+            {message && (
+              <div
+                className="mb-5 rounded-lg border border-primary-container/35 bg-surface-container-low px-4 py-3 text-[13px] font-semibold leading-5 text-primary"
+                role="status"
+              >
+                {message}
               </div>
+            )}
 
-              <div className="mb-7 grid grid-cols-3 gap-3">
-                {renderStepBadge('request', 'Tài khoản', 1)}
-                {renderStepBadge('otp', 'OTP', 2)}
-                {renderStepBadge('reset', 'Mật khẩu', 3)}
-              </div>
-
-              {message && (
-                <div className="mb-5 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-[13px] font-bold text-primary">
-                  {message}
+            {step === 'request' && (
+              <form className="flex flex-col gap-5" onSubmit={handleRequestOtp}>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[14px] font-semibold text-on-surface" htmlFor="account">
+                    Email đã đăng ký
+                  </label>
+                  <Input
+                    autoComplete="email"
+                    icon={<Mail className="h-5 w-5" />}
+                    id="account"
+                    onChange={(event) => {
+                      setAccount(event.target.value);
+                      setMessage('');
+                    }}
+                    placeholder="email@example.com"
+                    required
+                    type="email"
+                    value={account}
+                  />
                 </div>
-              )}
 
-              {step === 'request' && (
-                <form className="space-y-5" onSubmit={handleRequestOtp}>
-                  <div>
-                    <label className="mb-1.5 block text-[14px] font-bold text-on-surface" htmlFor="account">
-                      Email đã đăng ký
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary/60" />
+                <Button aria-busy={isSubmitting} className="w-full" disabled={isSubmitting} type="submit">
+                  <ArrowRight aria-hidden="true" className="h-5 w-5" />
+                  {isSubmitting ? 'Đang gửi...' : 'Gửi mã xác thực'}
+                </Button>
+              </form>
+            )}
+
+            {step === 'otp' && (
+              <form className="flex flex-col gap-5" onSubmit={handleVerifyOtp}>
+                <div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2 text-[14px] font-semibold text-on-surface">
+                    <Smartphone aria-hidden="true" className="h-5 w-5 text-primary" />
+                    <span className="min-w-0 break-words">Mã xác thực gửi tới {maskedAccount}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                    {otp.map((value, index) => (
                       <input
-                        className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-4 text-[14px] font-medium text-on-surface outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                        id="account"
-                        onChange={(event) => {
-                          setAccount(event.target.value);
-                          setMessage('');
+                        aria-label={`OTP số ${index + 1}`}
+                        className="h-12 min-w-0 rounded-lg border border-outline-variant bg-surface-container text-center text-[20px] font-bold text-on-surface outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:border-outline focus:border-primary-container focus:bg-surface-container focus:ring-1 focus:ring-primary-container/30"
+                        inputMode="numeric"
+                        key={index}
+                        maxLength={1}
+                        onChange={(event) => handleOtpChange(index, event.target.value)}
+                        onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                        ref={(element) => {
+                          otpRefs.current[index] = element;
                         }}
-                        placeholder="email@example.com"
-                        required
-                        type="email"
-                        value={account}
+                        value={value}
                       />
-                    </div>
+                    ))}
                   </div>
+                </div>
 
-                  <button
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[16px] font-bold text-on-primary transition-colors hover:bg-primary"
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    aria-busy={isSubmitting}
+                    className="flex-1"
                     disabled={isSubmitting}
-                    type="submit"
+                    onClick={handleResendOtp}
+                    type="button"
+                    variant="outline"
                   >
-                    {isSubmitting ? 'Đang gửi...' : 'Gửi mã xác thực'}
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
-                </form>
-              )}
+                    <RotateCcw aria-hidden="true" className="h-5 w-5" />
+                    Gửi lại OTP
+                  </Button>
+                  <Button aria-busy={isSubmitting} className="flex-1" disabled={isSubmitting} type="submit">
+                    <ArrowRight aria-hidden="true" className="h-5 w-5" />
+                    {isSubmitting ? 'Đang xác thực...' : 'Xác thực'}
+                  </Button>
+                </div>
+              </form>
+            )}
 
-              {step === 'otp' && (
-                <form className="space-y-5" onSubmit={handleVerifyOtp}>
-                  <div>
-                    <div className="mb-3 flex items-center gap-2 text-[14px] font-bold text-on-surface">
-                      <Smartphone className="h-5 w-5 text-primary" />
-                      Mã xác thực gửi tới {maskedAccount}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-                      {otp.map((value, index) => (
-                        <input
-                          aria-label={`OTP số ${index + 1}`}
-                          className="h-12 rounded-lg border border-outline-variant bg-surface-container-lowest text-center text-[20px] font-bold text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
-                          inputMode="numeric"
-                          key={index}
-                          maxLength={1}
-                          onChange={(event) => handleOtpChange(index, event.target.value)}
-                          onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                          ref={(element) => {
-                            otpRefs.current[index] = element;
-                          }}
-                          value={value}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3 sm:flex-row">
+            {step === 'reset' && (
+              <form className="flex flex-col gap-5" onSubmit={handleResetPassword}>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[14px] font-semibold text-on-surface" htmlFor="newPassword">
+                    Mật khẩu mới
+                  </label>
+                  <div className="relative">
+                    <Input
+                      autoComplete="new-password"
+                      className="pr-12"
+                      icon={<Lock className="h-5 w-5" />}
+                      id="newPassword"
+                      minLength={8}
+                      onChange={(event) => {
+                        setNewPassword(event.target.value);
+                        setMessage('');
+                      }}
+                      placeholder="Tạo mật khẩu mới"
+                      required
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                    />
                     <button
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface transition-colors hover:bg-surface-container-low"
-                      disabled={isSubmitting}
-                      onClick={handleResendOtp}
+                      aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-outline transition-[color,background-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:bg-surface-container-low hover:text-on-surface focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-[calc(-50%+1px)] active:scale-[0.99]"
+                      onClick={() => setShowNewPassword((isVisible) => !isVisible)}
                       type="button"
                     >
-                      <RotateCcw className="h-5 w-5" />
-                      Gửi lại OTP
-                    </button>
-                    <button
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white transition-colors hover:bg-primary/90"
-                      disabled={isSubmitting}
-                      type="submit"
-                    >
-                      {isSubmitting ? 'Đang xác thực...' : 'Xác thực'}
-                      <ArrowRight className="h-5 w-5" />
+                      {showNewPassword ? (
+                        <EyeOff aria-hidden="true" className="h-5 w-5" />
+                      ) : (
+                        <Eye aria-hidden="true" className="h-5 w-5" />
+                      )}
                     </button>
                   </div>
-                </form>
-              )}
-
-              {step === 'reset' && (
-                <form className="space-y-5" onSubmit={handleResetPassword}>
-                  <div>
-                    <label className="mb-1.5 block text-[14px] font-bold text-on-surface" htmlFor="newPassword">
-                      Mật khẩu mới
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary/60" />
-                      <input
-                        className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-10 text-[14px] font-medium text-on-surface outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                        id="newPassword"
-                        onChange={(event) => {
-                          setNewPassword(event.target.value);
-                          setMessage('');
-                        }}
-                        placeholder="Tạo mật khẩu mới"
-                        required
-                        minLength={8}
-                        type={showNewPassword ? 'text' : 'password'}
-                        value={newPassword}
-                      />
-                      <button
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary/60 hover:text-primary"
-                        onClick={() => setShowNewPassword((isVisible) => !isVisible)}
-                        type="button"
-                      >
-                        {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                    <p className="mt-1.5 text-[11px] leading-4 text-on-surface-variant">
-                      Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-[14px] font-bold text-on-surface" htmlFor="confirmPassword">
-                      Nhập lại mật khẩu
-                    </label>
-                    <div className="relative">
-                      <KeyRound className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary/60" />
-                      <input
-                        className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-10 pr-10 text-[14px] font-medium text-on-surface outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                        id="confirmPassword"
-                        onChange={(event) => {
-                          setConfirmPassword(event.target.value);
-                          setMessage('');
-                        }}
-                        placeholder="Nhập lại mật khẩu mới"
-                        required
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={confirmPassword}
-                      />
-                      <button
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary/60 hover:text-primary"
-                        onClick={() => setShowConfirmPassword((isVisible) => !isVisible)}
-                        type="button"
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-primary-container px-4 py-3.5 text-[16px] font-bold text-on-primary transition-colors hover:bg-primary"
-                    disabled={isSubmitting}
-                    type="submit"
-                  >
-                    {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
-                </form>
-              )}
-
-              {step === 'success' && (
-                <div className="rounded-xl border border-primary/20 bg-primary/10 p-6 text-center">
-                  <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
-                  <h3 className="mt-4 text-[22px] font-bold text-on-surface">Mật khẩu đã được cập nhật</h3>
-                  <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">
-                    Bạn có thể đăng nhập lại bằng mật khẩu mới.
+                  <p className="text-[12px] leading-5 text-on-surface-variant">
+                    Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
                   </p>
-                  <button
-                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white transition-colors hover:bg-primary/90"
-                    onClick={() => navigate('/login')}
-                    type="button"
-                  >
-                    Về trang đăng nhập
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
                 </div>
-              )}
-            </div>
-          </section>
-        </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[14px] font-semibold text-on-surface" htmlFor="confirmPassword">
+                    Nhập lại mật khẩu
+                  </label>
+                  <div className="relative">
+                    <Input
+                      autoComplete="new-password"
+                      className="pr-12"
+                      icon={<KeyRound className="h-5 w-5" />}
+                      id="confirmPassword"
+                      onChange={(event) => {
+                        setConfirmPassword(event.target.value);
+                        setMessage('');
+                      }}
+                      placeholder="Nhập lại mật khẩu mới"
+                      required
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                    />
+                    <button
+                      aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-outline transition-[color,background-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:bg-surface-container-low hover:text-on-surface focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-[calc(-50%+1px)] active:scale-[0.99]"
+                      onClick={() => setShowConfirmPassword((isVisible) => !isVisible)}
+                      type="button"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff aria-hidden="true" className="h-5 w-5" />
+                      ) : (
+                        <Eye aria-hidden="true" className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Button aria-busy={isSubmitting} className="w-full" disabled={isSubmitting} type="submit">
+                  <ArrowRight aria-hidden="true" className="h-5 w-5" />
+                  {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+                </Button>
+              </form>
+            )}
+
+            {step === 'success' && (
+              <motion.div
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-primary-container/35 bg-surface-container-low p-6 text-center"
+                initial={revealInitial}
+                transition={{ duration: shouldReduceMotion ? 0.01 : 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
+                <h3 className="mt-4 text-[22px] font-extrabold leading-tight text-on-surface">
+                  Mật khẩu đã được cập nhật
+                </h3>
+                <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">
+                  Bạn có thể đăng nhập lại bằng mật khẩu mới.
+                </p>
+                <Button className="mt-5 w-full" onClick={() => navigate('/login')} type="button">
+                  <ArrowRight aria-hidden="true" className="h-5 w-5" />
+                  Về trang đăng nhập
+                </Button>
+              </motion.div>
+            )}
+          </motion.div>
+        </section>
       </main>
     </div>
   );

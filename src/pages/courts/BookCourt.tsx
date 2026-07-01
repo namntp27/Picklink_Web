@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, Clock, Heart, LocateFixed, MapPin, Navigation, Search, Star } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { AlertCircle, Building2, Clock, Heart, LocateFixed, MapPin, Navigation, Search, Star } from 'lucide-react';
 import { divIcon, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link } from 'react-router-dom';
@@ -9,6 +10,8 @@ import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
@@ -51,7 +54,7 @@ const cachePlayerLocation = (location: PlayerLocation) => {
 
 const venueIcon = (selected: boolean) => divIcon({
   className: '',
-  html: `<div style="width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border-radius:50% 50% 50% 0;background:${selected ? '#173f00' : '#438500'};border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,.35);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:9px;height:9px;border-radius:50%;background:white"></div></div>`,
+  html: `<div style="width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border-radius:50% 50% 50% 0;background:${selected ? '#477313' : '#98D951'};border:3px solid white;box-shadow:0 3px 12px rgba(22,26,18,.22);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:9px;height:9px;border-radius:50%;background:${selected ? '#98D951' : '#17310A'}"></div></div>`,
   iconAnchor: selected ? [19, 38] : [16, 32],
   popupAnchor: [0, selected ? -38 : -32],
   iconSize: selected ? [38, 38] : [32, 32],
@@ -59,7 +62,7 @@ const venueIcon = (selected: boolean) => divIcon({
 
 const playerIcon = divIcon({
   className: '',
-  html: '<div style="width:22px;height:22px;border-radius:50%;background:#2563eb;border:4px solid white;box-shadow:0 0 0 3px rgba(37,99,235,.25),0 3px 12px rgba(0,0,0,.3)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:#477313;border:4px solid white;box-shadow:0 0 0 3px rgba(152,217,81,.28),0 3px 12px rgba(22,26,18,.22)"></div>',
   iconAnchor: [11, 11],
   iconSize: [22, 22],
 });
@@ -130,6 +133,7 @@ export const BookCourt = () => {
   const [locationStatus, setLocationStatus] = useState(() => readCachedPlayerLocation()
     ? 'Đang dùng vị trí gần nhất và làm mới trong nền.'
     : 'Bấm “Vị trí của tôi” để xem các sân gần bạn.');
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -241,73 +245,164 @@ export const BookCourt = () => {
     }
   };
 
+  const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 12 };
+
   return (
-    <div className="min-h-screen bg-surface-container-low px-4 py-6 md:px-8">
-      <div className="mx-auto max-w-[1440px] space-y-5">
-        <section className="flex flex-col gap-4 rounded-2xl bg-primary p-5 text-white shadow-lg md:flex-row md:items-center md:justify-between md:p-7">
+    <div className="min-h-dvh overflow-x-clip bg-background text-on-surface">
+      <section className="hero-gradient relative overflow-hidden px-4 pb-10 pt-[104px] text-on-primary sm:px-6 md:pb-12 md:pt-[120px]">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 opacity-15">
+            <div className="absolute inset-x-0 top-1/2 h-px bg-on-primary" />
+            <div className="absolute inset-y-0 left-1/4 w-px bg-on-primary" />
+            <div className="absolute inset-y-0 right-1/4 w-px bg-on-primary" />
+          </div>
+        </div>
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 mx-auto grid max-w-[1280px] gap-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:items-end"
+          initial={revealInitial}
+          transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+        >
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-white/70">Đặt sân Picklink</p>
-            <h1 className="mt-1 text-[30px] font-bold md:text-[36px]">Tìm sân quanh bạn</h1>
-            <p className="mt-1 text-[14px] text-white/80">Chọn cụm sân trong danh sách hoặc trực tiếp trên bản đồ.</p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-on-primary/20 bg-on-primary/12 px-4 py-2 text-[13px] font-bold">
+              <Building2 className="h-4 w-4 text-primary-fixed" />
+              Đặt sân Picklink
+            </p>
+            <h1 className="mt-5 text-[clamp(2rem,4vw,3.2rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
+              Tìm sân{' '}
+              <span className="inline-block text-[1.12em] text-primary-fixed [text-shadow:0_0_8px_rgba(152,217,81,0.55),0_0_18px_rgba(152,217,81,0.28)]">
+                quanh bạn
+              </span>
+            </h1>
+            <p className="mt-4 max-w-[65ch] text-[15px] font-medium leading-7 text-on-primary/88 md:text-[17px]">
+              Chọn cụm sân trong danh sách hoặc trực tiếp trên bản đồ.
+            </p>
           </div>
-          <div className="w-full md:max-w-2xl">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-on-surface-variant" />
-              <input className="w-full rounded-xl bg-white py-3.5 pl-12 pr-4 text-[14px] font-medium text-on-surface outline-none" onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tên sân hoặc địa chỉ..." value={search} />
-            </div>
+          <div className="rounded-xl border border-on-primary/15 bg-surface-container-lowest p-4 text-on-surface shadow-[0_18px_42px_rgba(25,29,20,0.18)]">
+            <Input
+              icon={<Search className="h-5 w-5" />}
+              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              placeholder="Tên sân hoặc địa chỉ..."
+              value={search}
+            />
           </div>
-        </section>
+        </motion.div>
+      </section>
 
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] font-bold text-red-700">{error}</div>}
+      <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-8 sm:px-6 md:py-10">
+        {error && (
+          <div className="flex gap-2 rounded-lg border border-error/25 bg-error-container p-4 text-[14px] font-bold text-error" role="alert">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <span className="min-w-0 break-words">{error}</span>
+          </div>
+        )}
 
-        <section className="grid gap-3 rounded-xl border border-outline-variant bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
-          <label className="lg:col-span-2"><span className="text-[11px] font-bold uppercase text-on-surface-variant">Khu vực</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" onChange={(event) => { setArea(event.target.value); setPage(1); }} placeholder="Quận, huyện, thành phố..." value={area} /></label>
-          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá từ</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => { setMinPrice(event.target.value); setPage(1); }} placeholder="100000" type="number" value={minPrice} /></label>
-          <label><span className="text-[11px] font-bold uppercase text-on-surface-variant">Giá đến</span><input className="mt-1 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary" min="0" onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }} placeholder="300000" type="number" value={maxPrice} /></label>
-          <button className={`mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg border px-3 text-[13px] font-bold ${favoritesOnly ? 'border-primary bg-primary text-white' : 'border-outline-variant text-on-surface-variant'}`} onClick={() => token ? (setFavoritesOnly((value) => !value), setPage(1)) : setError('Vui lòng đăng nhập để xem sân yêu thích.')} type="button"><Heart className={`h-4 w-4 ${favoritesOnly ? 'fill-current' : ''}`} /> Sân yêu thích</button>
+        <section className="grid gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-[0_10px_24px_rgba(25,29,20,0.05)] sm:grid-cols-2 lg:grid-cols-5">
+          <label className="lg:col-span-2">
+            <span className="text-[13px] font-semibold text-on-surface-variant">Khu vực</span>
+            <Input className="mt-1" onChange={(event) => { setArea(event.target.value); setPage(1); }} placeholder="Quận, huyện, thành phố..." value={area} />
+          </label>
+          <label>
+            <span className="text-[13px] font-semibold text-on-surface-variant">Giá từ</span>
+            <Input className="mt-1" min="0" onChange={(event) => { setMinPrice(event.target.value); setPage(1); }} placeholder="100000" type="number" value={minPrice} />
+          </label>
+          <label>
+            <span className="text-[13px] font-semibold text-on-surface-variant">Giá đến</span>
+            <Input className="mt-1" min="0" onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }} placeholder="300000" type="number" value={maxPrice} />
+          </label>
+          <Button
+            className="mt-auto"
+            onClick={() => token ? (setFavoritesOnly((value) => !value), setPage(1)) : setError('Vui lòng đăng nhập để xem sân yêu thích.')}
+            type="button"
+            variant={favoritesOnly ? 'default' : 'outline'}
+          >
+            <Heart className={`h-4 w-4 ${favoritesOnly ? 'fill-current' : ''}`} />
+            Sân yêu thích
+          </Button>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[minmax(320px,1fr)_minmax(0,2fr)]">
-          <div className="flex min-h-[620px] flex-col overflow-hidden rounded-2xl border border-outline-variant bg-white shadow-sm lg:h-[calc(100vh-230px)]">
+          <div className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-[0_12px_30px_rgba(25,29,20,0.06)] lg:h-[calc(100dvh-250px)]">
             <div className="border-b border-outline-variant px-4 py-3.5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-bold">{visibleVenues.length} cụm sân</h2>
-                {playerLocation && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700"><LocateFixed className="h-3.5 w-3.5" /> Gần nhất</span>}
+                <h2 className="font-extrabold">{visibleVenues.length} cụm sân</h2>
+                {playerLocation && <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-[11px] font-bold text-secondary"><LocateFixed className="h-3.5 w-3.5" /> Gần nhất</span>}
               </div>
-              <p className="mt-1 text-[11px] text-on-surface-variant">{locationStatus}</p>
-              {!isLoading && visibleVenues.length > mappedVenues.length && <p className="mt-1 text-[11px] font-medium text-amber-700">{visibleVenues.length - mappedVenues.length} sân chưa được chủ sân cập nhật tọa độ.</p>}
+              <p className="mt-1 text-[12px] leading-5 text-on-surface-variant">{locationStatus}</p>
+              {!isLoading && visibleVenues.length > mappedVenues.length && (
+                <p className="mt-1 text-[12px] font-medium text-on-surface-variant">{visibleVenues.length - mappedVenues.length} sân chưa được chủ sân cập nhật tọa độ.</p>
+              )}
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto p-3">
-              {isLoading && <div className="p-10 text-center text-[13px] font-bold text-on-surface-variant">Đang tải danh sách sân...</div>}
-              {!isLoading && visibleVenues.length === 0 && <div className="p-10 text-center"><Building2 className="mx-auto h-10 w-10 text-primary/50" /><p className="mt-3 text-[13px] font-bold">Không tìm thấy cụm sân đang mở.</p></div>}
-              {visibleVenues.map((venue) => {
+            <div className="flex-1 overflow-y-auto">
+              {isLoading && (
+                <div className="space-y-3 p-4" aria-label="Đang tải danh sách sân">
+                  {[0, 1, 2].map((item) => (
+                    <div className="animate-pulse rounded-lg border border-outline-variant bg-surface-container-low p-4 motion-reduce:animate-none" key={item}>
+                      <div className="h-4 w-2/3 rounded bg-surface-container-high" />
+                      <div className="mt-3 h-3 w-full rounded bg-surface-container-high" />
+                      <div className="mt-2 h-3 w-1/2 rounded bg-surface-container-high" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!isLoading && visibleVenues.length === 0 && (
+                <div className="p-10 text-center">
+                  <Building2 className="mx-auto h-10 w-10 text-primary/50" />
+                  <p className="mt-3 text-[13px] font-bold">Không tìm thấy cụm sân đang mở.</p>
+                </div>
+              )}
+              {!isLoading && visibleVenues.map((venue) => {
                 const distance = playerLocation && isLocatedVenue(venue) ? distanceInKm(playerLocation, venue) : null;
                 const selected = selectedVenueId === venue.venueId;
                 return (
-                  <article className={`cursor-pointer rounded-xl border p-4 transition ${selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-outline-variant hover:border-primary/50 hover:bg-surface-container-low'}`} key={venue.venueId} onClick={() => setSelectedVenueId(venue.venueId)}>
+                  <motion.article
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`cursor-pointer border-b border-outline-variant px-4 py-4 transition-[background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px ${selected ? 'bg-surface-container-low shadow-[inset_3px_0_0_#98D951]' : 'bg-surface-container-lowest hover:bg-surface-container-low'}`}
+                    initial={revealInitial}
+                    key={venue.venueId}
+                    onClick={() => setSelectedVenueId(venue.venueId)}
+                    transition={{ duration: shouldReduceMotion ? 0.01 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+                  >
                     <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-[16px] font-bold leading-snug">{venue.venueName}</h3>
-                      <div className="flex shrink-0 items-center gap-1"><span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700"><Star className="h-3 w-3 fill-current" />{venue.overallRating.toFixed(1)}</span><button aria-label={venue.isFavorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'} className={`rounded-full p-2 ${venue.isFavorite ? 'bg-red-50 text-red-600' : 'bg-surface-container-low text-on-surface-variant'}`} onClick={(event) => { event.stopPropagation(); void toggleFavorite(venue); }} type="button"><Heart className={`h-4 w-4 ${venue.isFavorite ? 'fill-current' : ''}`} /></button></div>
+                      <h3 className="min-w-0 break-words text-[16px] font-extrabold leading-snug">{venue.venueName}</h3>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-outline-variant bg-surface-container-low px-2 py-1 text-[11px] font-bold text-on-surface-variant">
+                          <Star className="h-3 w-3 fill-primary text-primary" />{venue.overallRating.toFixed(1)}
+                        </span>
+                        <button
+                          aria-label={venue.isFavorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
+                          className={`flex h-10 w-10 items-center justify-center rounded-full transition-[background-color,color,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${venue.isFavorite ? 'bg-error-container text-error' : 'bg-surface-container-low text-on-surface-variant hover:text-primary'}`}
+                          onClick={(event) => { event.stopPropagation(); void toggleFavorite(venue); }}
+                          type="button"
+                        >
+                          <Heart className={`h-4 w-4 ${venue.isFavorite ? 'fill-current' : ''}`} />
+                        </button>
+                      </div>
                     </div>
-                    <p className="mt-2 flex items-start gap-2 text-[12px] text-on-surface-variant"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{venue.address}</p>
+                    <p className="mt-2 flex items-start gap-2 text-[12px] leading-5 text-on-surface-variant"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{venue.address}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-medium">
                       <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-primary" />{venue.openTime}–{venue.closeTime}</span>
                       <span>{venue.courtCount} sân</span>
-                      {distance !== null && <span className="inline-flex items-center gap-1 font-bold text-blue-700"><Navigation className="h-3.5 w-3.5" />{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}</span>}
+                      {distance !== null && <span className="inline-flex items-center gap-1 font-bold text-secondary"><Navigation className="h-3.5 w-3.5" />{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}</span>}
                     </div>
                     <div className="mt-4 flex items-center justify-between gap-2 border-t border-outline-variant pt-3">
-                      <p className="text-[15px] font-bold text-primary">{currency.format(venue.fromPrice)}/giờ</p>
-                      <Link className="rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white" onClick={(event) => event.stopPropagation()} to={`/court/${venue.venueId}/schedule`}>Chọn sân</Link>
+                      <p className="break-words text-[15px] font-bold text-primary">{currency.format(venue.fromPrice)}/giờ</p>
+                      <Link className="inline-flex min-h-10 items-center rounded-lg bg-primary-container px-3 py-2 text-[12px] font-bold text-on-primary-container transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-primary-fixed-dim focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]" onClick={(event) => event.stopPropagation()} to={`/court/${venue.venueId}/schedule`}>Chọn sân</Link>
                     </div>
-                  </article>
+                  </motion.article>
                 );
               })}
-              <PaginationControls page={pagination} onPageChange={setPage} />
+              {!isLoading && (
+                <div className="p-3">
+                  <PaginationControls page={pagination} onPageChange={setPage} />
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="relative h-[620px] overflow-hidden rounded-2xl border border-outline-variant bg-surface-container shadow-sm lg:sticky lg:top-5 lg:h-[calc(100vh-230px)]">
+          <div className="relative h-[420px] overflow-hidden rounded-xl border border-outline-variant bg-surface-container shadow-[0_12px_30px_rgba(25,29,20,0.06)] md:h-[560px] lg:sticky lg:top-5 lg:h-[calc(100dvh-250px)]">
             <MapContainer center={hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport playerLocation={playerLocation} selectedVenue={selectedVenue} venues={mappedVenues} />
@@ -327,18 +422,22 @@ export const BookCourt = () => {
             </MapContainer>
             <button
               aria-label="Đi đến vị trí của tôi"
-              className="absolute left-[10px] top-[82px] z-[500] flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-white text-blue-600 shadow-[0_2px_8px_rgba(0,0,0,0.4)] transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+              className="absolute left-[10px] top-[82px] z-[500] flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-secondary shadow-[0_8px_24px_rgba(25,29,20,0.22)] transition-[background-color,transform,opacity] duration-200 hover:-translate-y-px hover:bg-surface-container-low focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] disabled:cursor-wait disabled:opacity-55"
               disabled={isLocating}
               onClick={() => locatePlayer()}
               title={isLocating ? 'Đang xác định vị trí' : 'Vị trí của tôi'}
               type="button"
             >
-              <LocateFixed className={`h-5 w-5 ${isLocating ? 'animate-spin' : ''}`} />
+              <LocateFixed className={`h-5 w-5 ${isLocating ? 'animate-spin motion-reduce:animate-none' : ''}`} />
             </button>
-            {!isLoading && mappedVenues.length === 0 && <div className="pointer-events-none absolute left-1/2 top-5 z-[500] -translate-x-1/2 rounded-xl bg-white/95 px-4 py-3 text-center text-[12px] font-bold shadow-lg">Chưa có cụm sân nào trong kết quả được cập nhật tọa độ.</div>}
+            {!isLoading && mappedVenues.length === 0 && (
+              <div className="pointer-events-none absolute left-1/2 top-5 z-[500] w-[calc(100%-32px)] max-w-md -translate-x-1/2 rounded-xl border border-outline-variant bg-surface-container-lowest/95 px-4 py-3 text-center text-[12px] font-bold shadow-lg backdrop-blur-sm">
+                Chưa có cụm sân nào trong kết quả được cập nhật tọa độ.
+              </div>
+            )}
           </div>
         </section>
-      </div>
+      </main>
     </div>
   );
 };

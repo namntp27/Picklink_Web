@@ -154,7 +154,7 @@ export const GoogleAuthButton = ({ mode, onCredential, onError }: GoogleAuthButt
         {(isLoadingScript || isProcessing) && (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="absolute inset-0 flex min-h-12 items-center justify-center gap-2 rounded-lg border border-[#D8DED1] bg-white px-4 text-[14px] font-semibold text-[#60665C]"
+            className="absolute inset-0 flex min-h-12 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-4 text-[14px] font-semibold text-on-surface-variant"
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -2 }}
             initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
             role="status"

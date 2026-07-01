@@ -94,7 +94,7 @@ const getStatusLabel = (status: Exclude<TransactionStatus, 'all'>) => {
 
 const getStatusClassName = (status: Exclude<TransactionStatus, 'all'>) => {
   if (status === 'paid') {
-    return 'bg-[#eaf7df] text-primary';
+    return 'bg-[#F6F8F3] text-primary';
   }
 
   if (status === 'pending') {
@@ -491,7 +491,7 @@ export const OwnerRevenue = () => {
                           const StatusIcon = getStatusIcon(transaction.status);
 
                           return (
-                            <tr className="hover:bg-[#f9f9ff]" key={transaction.id}>
+                            <tr className="hover:bg-[#FAFBF8]" key={transaction.id}>
                               <td className="px-5 py-4">
                                 <p className="text-[14px] font-bold text-primary">{transaction.booking.code}</p>
                                 <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-bold ${getStatusClassName(transaction.status)}`}>

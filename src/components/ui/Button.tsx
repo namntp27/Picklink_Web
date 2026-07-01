@@ -36,15 +36,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           'focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70',
           'disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:active:scale-100',
           {
-            'border border-primary bg-primary text-white shadow-[0_5px_14px_rgba(61,106,0,0.18)] hover:border-[#315600] hover:bg-[#315600] hover:shadow-[0_7px_16px_rgba(61,106,0,0.22)]':
+            'border border-primary-container bg-primary-container text-on-primary-container shadow-[0_5px_14px_rgba(152,217,81,0.18)] hover:border-primary-fixed-dim hover:bg-primary-fixed-dim hover:shadow-[0_7px_16px_rgba(152,217,81,0.24)]':
               variant === 'default',
-            'border border-[#D8DED1] bg-white text-[#171A16] hover:border-primary/40 hover:bg-primary/5 hover:text-primary':
+            'border border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary-container hover:bg-surface-container-low hover:text-primary':
               variant === 'outline',
-            'border border-transparent bg-transparent text-[#60665C] hover:bg-primary/5 hover:text-primary':
+            'border border-transparent bg-transparent text-on-surface-variant hover:bg-surface-container-low hover:text-primary':
               variant === 'ghost',
-            'border border-transparent bg-transparent px-1 text-primary underline-offset-4 shadow-none hover:text-[#315600] hover:underline':
+            'border border-transparent bg-transparent px-1 text-primary underline-offset-4 shadow-none hover:text-primary-container hover:underline':
               variant === 'link',
-            'border border-[#B42318] bg-[#B42318] text-white shadow-[0_5px_14px_rgba(180,35,24,0.16)] hover:border-[#8F1C13] hover:bg-[#8F1C13]':
+            'border border-error bg-error text-on-error shadow-[0_5px_14px_rgba(186,26,26,0.16)] hover:border-on-error-container hover:bg-on-error-container':
               variant === 'danger',
             'h-12 px-5 py-2.5': size === 'default',
             'h-11 px-4 py-2': size === 'sm',

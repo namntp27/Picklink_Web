@@ -1,0 +1,36 @@
+{
+  "projectId": "2734725251296383384",
+  "title": "Picklink - Website cộng đồng Pickleball",
+  "deviceType": "DESKTOP",
+  "Last Sync Time": "2026-07-01T04:30:45.1923569Z",
+  "screens": {
+    "5d00c30adda844199095bc23b23f9090": {
+      "id": "5d00c30adda844199095bc23b23f9090",
+      "label": "Đăng nhập - Court Editorial (Typography Emphasis)",
+      "sourceScreen": "projects/2734725251296383384/screens/5d00c30adda844199095bc23b23f9090",
+      "dimensions": { "width": 2560, "height": 2172 },
+      "canvasPosition": null
+    },
+    "336ba959b1a64f1a8cd81aad448fc579": {
+      "id": "336ba959b1a64f1a8cd81aad448fc579",
+      "label": "Đăng nhập - Match-Day Utility (Typography Emphasis)",
+      "sourceScreen": "projects/2734725251296383384/screens/336ba959b1a64f1a8cd81aad448fc579",
+      "dimensions": { "width": 2560, "height": 2186 },
+      "canvasPosition": null
+    },
+    "ef3788985fb44652b8ad038a1ab6a2d6": {
+      "id": "ef3788985fb44652b8ad038a1ab6a2d6",
+      "label": "Đăng nhập - Clubhouse Focus (Typography Emphasis)",
+      "sourceScreen": "projects/2734725251296383384/screens/ef3788985fb44652b8ad038a1ab6a2d6",
+      "dimensions": { "width": 2560, "height": 2048 },
+      "canvasPosition": null
+    }
+  },
+  "designSystem": {
+    "assetId": "43ff56e7ef4346829539b72e33d6f5d2",
+    "primaryColor": "#3d6a00",
+    "secondaryColor": "#006a63",
+    "backgroundColor": "#f8fbeb",
+    "fontFamily": "INTER"
+  }
+}

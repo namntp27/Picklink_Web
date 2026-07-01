@@ -51,14 +51,14 @@ const reversePlayerArea = async (location: PlayerLocation) => {
 
 const markerIcon = (selected: boolean) => divIcon({
   className: '',
-  html: `<div style="width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border-radius:50% 50% 50% 0;background:${selected ? '#173f00' : '#438500'};border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,.35);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:9px;height:9px;border-radius:50%;background:white"></div></div>`,
+  html: `<div style="width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border-radius:50% 50% 50% 0;background:${selected ? '#477313' : '#98D951'};border:3px solid white;box-shadow:0 3px 12px rgba(22,26,18,.24);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:9px;height:9px;border-radius:50%;background:${selected ? '#98D951' : '#17310A'}"></div></div>`,
   iconAnchor: selected ? [19, 38] : [16, 32],
   popupAnchor: [0, selected ? -38 : -32],
 });
 
 const playerLocationIcon = divIcon({
   className: '',
-  html: '<div style="width:24px;height:24px;border-radius:50%;background:#2563eb;border:4px solid white;box-shadow:0 0 0 4px rgba(37,99,235,.22),0 3px 12px rgba(0,0,0,.35)"></div>',
+  html: '<div style="width:24px;height:24px;border-radius:50%;background:#477313;border:4px solid white;box-shadow:0 0 0 4px rgba(152,217,81,.28),0 3px 12px rgba(22,26,18,.24)"></div>',
   iconAnchor: [12, 12],
   popupAnchor: [0, -14],
 });
@@ -424,7 +424,7 @@ export const Opponents = () => {
               {location && (
                 <Circle
                   center={[location.latitude, location.longitude]}
-                  pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.14, opacity: 0.9, weight: 2 }}
+                  pathOptions={{ color: '#477313', fillColor: '#98D951', fillOpacity: 0.14, opacity: 0.9, weight: 2 }}
                   radius={radiusKm * 1_000}
                 />
               )}

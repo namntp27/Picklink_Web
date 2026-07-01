@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  CalendarDays, 
-  Clock, 
-  User, 
+import {
   ArrowRight,
-  Headset
+  BadgeCheck,
+  CalendarDays,
+  ChevronRight,
+  Clock,
+  Headset,
+  MapPin,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 export const CourtDetail = () => {
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
   const [activeDate, setActiveDate] = useState('12');
   const [activeTime, setActiveTime] = useState('08:00 - 09:00');
 
@@ -38,243 +46,337 @@ export const CourtDetail = () => {
     { time: '18:00 - 19:00', status: 'available' },
   ];
 
+  const selectedDate = dates.find((item) => item.date === activeDate);
+  const motionProps = prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 14 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.38, ease: 'easeOut' as const },
+      };
+
   return (
-    <div className="bg-background text-on-background font-body-md min-h-screen flex flex-col">
-      {/* TopNavBar */}
-      <header className="sticky top-0 z-50 flex justify-between items-center w-full px-4 md:px-10 py-4 max-w-[1200px] mx-auto bg-primary shadow-md">
-        <div className="flex items-center gap-2">
-          <Link to="/" className="text-[24px] md:text-[32px] font-bold text-white tracking-tight">Picklink</Link>
-        </div>
-        <nav className="hidden md:flex items-center gap-6">
-          <Link to="/book" className="text-white font-bold border-b-2 border-white pb-1 text-[14px]">Sân chơi</Link>
-          <Link to="#" className="text-white/80 font-medium hover:text-white text-[14px]">Cộng đồng</Link>
-          <Link to="/tournaments" className="text-white/80 font-medium hover:text-white text-[14px]">Giải đấu</Link>
-          <Link to="#" className="text-white/80 font-medium hover:text-white text-[14px]">Về chúng tôi</Link>
-        </nav>
-        <div className="flex items-center gap-4">
-          <Link to="/login" className="hidden lg:flex items-center text-white hover:bg-white/10 px-4 py-2 rounded-lg transition-colors text-[14px] font-bold">
-            Đăng nhập
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-surface-container-low text-on-surface">
+      <header className="sticky top-0 z-50 border-b border-outline-variant bg-surface-container-lowest/92 shadow-[0_12px_30px_rgba(25,29,20,0.06)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 px-4 py-3 md:px-10">
+          <Link
+            className="inline-flex items-center gap-2 text-[24px] font-black tracking-[-0.04em] text-primary transition hover:text-primary-container focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/60"
+            to="/"
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-container shadow-[0_8px_18px_rgba(152,217,81,0.18)]">
+              <span className="h-3.5 w-3.5 rounded-full bg-on-primary" />
+            </span>
+            Picklink
           </Link>
-          <Link to="/register" className="bg-[#84c33e] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#84c33e]/90 transition-all text-[14px] shadow-sm">
-            Đăng ký
-          </Link>
+
+          <nav className="hidden items-center gap-2 md:flex">
+            {[
+              ['Sân chơi', '/book'],
+              ['Cộng đồng', '#'],
+              ['Giải đấu', '/tournaments'],
+              ['Về chúng tôi', '#'],
+            ].map(([label, href]) => (
+              <Link
+                className="rounded-full px-4 py-2 text-[13px] font-bold text-on-surface-variant transition hover:bg-primary-fixed/25 hover:text-primary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/60"
+                key={label}
+                to={href}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Button className="hidden lg:inline-flex" size="sm" variant="ghost" onClick={() => navigate('/login')} type="button">
+              <User className="h-4 w-4" />
+              Đăng nhập
+            </Button>
+            <Button size="sm" onClick={() => navigate('/register')} type="button">
+              <ArrowRight className="h-4 w-4" />
+              Đăng ký
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-[1200px] w-full mx-auto px-4 md:px-10 py-8">
-        <h1 className="text-[32px] md:text-[40px] font-bold mb-8 text-[#3d6a00] tracking-tight">Đặt sân Pickleball</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* LEFT COLUMN (65%) */}
-          <div className="lg:col-span-8 space-y-8">
-            {/* Stepper */}
-            <div className="flex items-center justify-between px-4 py-6 bg-white rounded-xl shadow-sm border border-outline-variant/60">
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-10 h-10 rounded-full bg-[#84c33e] text-white flex items-center justify-center font-bold mb-2">1</div>
-                <span className="text-[14px] font-bold text-[#3d6a00]">Chọn ngày & giờ</span>
-              </div>
-              <div className="h-[2px] w-12 bg-outline-variant/60 flex-none mx-2 mb-8"></div>
-              <div className="flex flex-col items-center flex-1 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-bold mb-2">2</div>
-                <span className="text-[14px] font-bold text-on-surface-variant">Thông tin</span>
-              </div>
-              <div className="h-[2px] w-12 bg-outline-variant/60 flex-none mx-2 mb-8"></div>
-              <div className="flex flex-col items-center flex-1 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-bold mb-2">3</div>
-                <span className="text-[14px] font-bold text-on-surface-variant">Thanh toán</span>
-              </div>
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 md:px-10 md:py-10">
+        <motion.section
+          {...motionProps}
+          className="relative mb-6 overflow-hidden rounded-[30px] border border-primary-fixed-dim/60 bg-[linear-gradient(135deg,var(--color-primary)_0%,var(--color-primary-container)_100%)] p-5 text-on-primary shadow-[0_22px_60px_rgba(152,217,81,0.18)] md:p-8"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary-fixed/30 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 left-1/2 h-48 w-48 rounded-full bg-secondary-container/30 blur-3xl" />
+
+          <div className="relative z-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-end">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-bold uppercase tracking-[0.18em] text-primary-fixed">
+                <ShieldCheck className="h-4 w-4" />
+                Đặt sân Pickleball
+              </p>
+              <h1 className="mt-4 max-w-2xl text-[36px] font-black leading-tight tracking-[-0.05em] text-white md:text-[54px]">
+                Chọn lịch sân rõ ràng, thanh toán gọn gàng
+              </h1>
+              <p className="mt-3 max-w-xl text-[15px] font-semibold leading-7 text-white/78">
+                Hoàn tất ngày chơi, khung giờ và thông tin người đặt trong một luồng đặt sân nhất quán với hệ màu Picklink.
+              </p>
             </div>
 
-            {/* Block 1: Chọn ngày */}
-            <section className="bg-white p-6 rounded-xl border border-outline-variant/60 shadow-sm">
-              <h2 className="text-[20px] font-bold mb-4 flex items-center gap-2 text-on-background">
-                <CalendarDays className="text-[#3d6a00] w-6 h-6" />
+            <div className="rounded-2xl border border-white/15 bg-white/12 p-4 backdrop-blur">
+              <p className="text-[12px] font-black uppercase tracking-[0.16em] text-primary-fixed">Đang chọn</p>
+              <div className="mt-3 space-y-2 text-[14px] font-bold text-white">
+                <p className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-primary-fixed" />
+                  {selectedDate ? `${selectedDate.day}, ${selectedDate.date}/${selectedDate.month.replace('Th', '')}` : 'Chưa chọn ngày'}
+                </p>
+                <p className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary-fixed" />
+                  {activeTime}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+          <div className="min-w-0 space-y-6 lg:col-span-8">
+            <motion.div
+              {...motionProps}
+              className="grid grid-cols-3 overflow-hidden rounded-[24px] border border-outline-variant bg-surface-container-lowest shadow-[0_14px_34px_rgba(25,29,20,0.05)]"
+            >
+              {[
+                ['1', 'Chọn ngày & giờ'],
+                ['2', 'Thông tin'],
+                ['3', 'Thanh toán'],
+              ].map(([step, label], index) => (
+                <div
+                  className={`flex min-w-0 flex-col items-center gap-2 border-outline-variant px-3 py-5 text-center ${index > 0 ? 'border-l' : ''}`}
+                  key={step}
+                >
+                  <span
+                    className={`grid h-10 w-10 place-items-center rounded-full text-[14px] font-black ${
+                      index === 0 ? 'bg-primary-container text-on-primary-container shadow-[0_10px_18px_rgba(152,217,81,0.18)]' : 'bg-surface-container text-on-surface-variant'
+                    }`}
+                  >
+                    {step}
+                  </span>
+                  <span className={`text-[12px] font-black md:text-[14px] ${index === 0 ? 'text-primary' : 'text-on-surface-variant'}`}>
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+
+            <motion.section
+              {...motionProps}
+              className="rounded-[24px] border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_14px_34px_rgba(25,29,20,0.05)] md:p-6"
+            >
+              <h2 className="flex items-center gap-2 text-[20px] font-black tracking-[-0.02em] text-on-surface">
+                <CalendarDays className="h-6 w-6 text-primary" />
                 Bước 1: Chọn ngày
               </h2>
-              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                {dates.map((item) => (
-                  <button 
-                    key={item.date}
-                    onClick={() => setActiveDate(item.date)}
-                    className={`flex-shrink-0 flex flex-col items-center justify-center w-24 h-28 border rounded-xl transition-all p-4 ${
-                      activeDate === item.date 
-                        ? 'border-[#3d6a00] bg-[#84c33e] text-white' 
-                        : 'border-outline-variant/60 hover:border-[#3d6a00] bg-white text-on-background'
-                    }`}
-                  >
-                    <span className={`text-[12px] font-medium uppercase ${activeDate === item.date ? 'opacity-90' : 'opacity-70'}`}>{item.day}</span>
-                    <span className="text-[24px] font-bold mt-1">{item.date}</span>
-                    <span className="text-[12px] font-medium mt-1">{item.month}</span>
-                  </button>
-                ))}
+              <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-2">
+                {dates.map((item) => {
+                  const selected = activeDate === item.date;
+                  return (
+                    <button
+                      className={`flex h-28 w-24 shrink-0 snap-start flex-col items-center justify-center rounded-2xl border p-3 text-center transition-[background-color,border-color,color,box-shadow,transform] duration-200 hover:-translate-y-1 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/60 active:translate-y-px ${
+                        selected
+                          ? 'border-primary-container bg-primary-container text-on-primary-container shadow-[0_12px_22px_rgba(152,217,81,0.18)]'
+                          : 'border-outline-variant bg-surface-container-low text-on-surface hover:border-primary-fixed-dim hover:bg-primary-fixed/20'
+                      }`}
+                      key={item.date}
+                      onClick={() => setActiveDate(item.date)}
+                      type="button"
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-[0.08em] opacity-80">{item.day}</span>
+                      <span className="mt-1 text-[28px] font-black leading-none">{item.date}</span>
+                      <span className="mt-1 text-[12px] font-bold">{item.month}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </section>
+            </motion.section>
 
-            {/* Block 2: Chọn khung giờ */}
-            <section className="bg-white p-6 rounded-xl border border-outline-variant/60 shadow-sm">
-              <h2 className="text-[20px] font-bold mb-4 flex items-center gap-2 text-on-background">
-                <Clock className="text-[#3d6a00] w-6 h-6" />
+            <motion.section
+              {...motionProps}
+              className="rounded-[24px] border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_14px_34px_rgba(25,29,20,0.05)] md:p-6"
+            >
+              <h2 className="flex items-center gap-2 text-[20px] font-black tracking-[-0.02em] text-on-surface">
+                <Clock className="h-6 w-6 text-primary" />
                 Bước 2: Chọn khung giờ
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {times.map((item) => (
-                  <button 
-                    key={item.time}
-                    disabled={item.status === 'booked'}
-                    onClick={() => item.status === 'available' && setActiveTime(item.time)}
-                    className={`rounded-lg py-3 px-4 text-center text-[14px] font-bold transition-all border ${
-                      item.status === 'booked' 
-                        ? 'opacity-40 cursor-not-allowed bg-surface-container-highest border-outline-variant/40' 
-                        : activeTime === item.time
-                          ? 'bg-[#84c33e] text-white border-[#3d6a00]'
-                          : 'border-outline-variant/50 hover:border-[#3d6a00] bg-white'
-                    }`}
-                  >
-                    {item.time}
-                  </button>
-                ))}
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                {times.map((item) => {
+                  const selected = activeTime === item.time;
+                  const booked = item.status === 'booked';
+                  return (
+                    <button
+                      className={`min-w-0 rounded-xl border px-3 py-3 text-center text-[13px] font-black transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-200 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/60 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45 ${
+                        booked
+                          ? 'border-outline-variant bg-surface-container text-outline'
+                          : selected
+                            ? 'border-primary-container bg-primary-container text-on-primary-container shadow-[0_10px_18px_rgba(152,217,81,0.18)]'
+                            : 'border-outline-variant bg-surface-container-low text-on-surface hover:border-primary-fixed-dim hover:bg-primary-fixed/20'
+                      }`}
+                      disabled={booked}
+                      key={item.time}
+                      onClick={() => item.status === 'available' && setActiveTime(item.time)}
+                      type="button"
+                    >
+                      <span className="block truncate">{item.time}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </section>
+            </motion.section>
 
-            {/* Block 3: Thông tin người đặt */}
-            <section className="bg-white p-6 rounded-xl border border-outline-variant/60 shadow-sm">
-              <h2 className="text-[20px] font-bold mb-6 flex items-center gap-2 text-on-background">
-                <User className="text-[#3d6a00] w-6 h-6" />
+            <motion.section
+              {...motionProps}
+              className="rounded-[24px] border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_14px_34px_rgba(25,29,20,0.05)] md:p-6"
+            >
+              <h2 className="flex items-center gap-2 text-[20px] font-black tracking-[-0.02em] text-on-surface">
+                <User className="h-6 w-6 text-primary" />
                 Bước 3: Thông tin người đặt
               </h2>
-              <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[14px] font-bold text-on-surface-variant">Họ và tên</label>
-                    <input 
-                      type="text" 
-                      placeholder="Nhập họ và tên" 
-                      className="w-full bg-white border border-outline-variant/60 rounded-lg px-4 py-3 focus:ring-1 focus:ring-[#84c33e] focus:border-[#84c33e] outline-none transition-all text-[14px]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[14px] font-bold text-on-surface-variant">Số điện thoại</label>
-                    <input 
-                      type="tel" 
-                      placeholder="Nhập số điện thoại" 
-                      className="w-full bg-white border border-outline-variant/60 rounded-lg px-4 py-3 focus:ring-1 focus:ring-[#84c33e] focus:border-[#84c33e] outline-none transition-all text-[14px]"
-                    />
-                  </div>
+              <form className="mt-5 space-y-4" onSubmit={(event) => event.preventDefault()}>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="space-y-1.5">
+                    <span className="text-[13px] font-black text-on-surface-variant">Họ và tên</span>
+                    <Input placeholder="Nhập họ và tên" type="text" />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-[13px] font-black text-on-surface-variant">Số điện thoại</span>
+                    <Input placeholder="Nhập số điện thoại" type="tel" />
+                  </label>
                 </div>
-                
-                <div className="space-y-1">
-                  <label className="text-[14px] font-bold text-on-surface-variant">Nhóm người chơi</label>
-                  <select className="w-full bg-white border border-outline-variant/60 rounded-lg px-4 py-3 focus:ring-1 focus:ring-[#84c33e] focus:border-[#84c33e] outline-none transition-all text-[14px]">
+
+                <label className="space-y-1.5">
+                  <span className="text-[13px] font-black text-on-surface-variant">Nhóm người chơi</span>
+                  <select className="h-12 w-full rounded-lg border border-outline-variant bg-surface-container px-3.5 py-2.5 text-[14px] font-semibold text-on-surface transition hover:border-outline focus:border-primary-container focus:outline-none focus:ring-1 focus:ring-primary-container/30">
                     <option>Mới chơi (3.0 - 3.5)</option>
                     <option>Trung bình (3.5 - 4.5)</option>
                     <option>Nâng cao (4.5+)</option>
                     <option>Nhóm bạn bè / Gia đình</option>
                   </select>
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="text-[14px] font-bold text-on-surface-variant">Ghi chú</label>
-                  <textarea 
-                    placeholder="Yêu cầu thêm về dụng cụ hoặc dịch vụ..." 
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-[13px] font-black text-on-surface-variant">Ghi chú</span>
+                  <textarea
+                    className="min-h-[112px] w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3.5 py-3 text-[14px] font-semibold text-on-surface transition placeholder:text-outline hover:border-outline focus:border-primary-container focus:outline-none focus:ring-1 focus:ring-primary-container/30"
+                    placeholder="Yêu cầu thêm về dụng cụ hoặc dịch vụ..."
                     rows={3}
-                    className="w-full bg-white border border-outline-variant/60 rounded-lg px-4 py-3 focus:ring-1 focus:ring-[#84c33e] focus:border-[#84c33e] outline-none transition-all text-[14px] resize-none"
-                  ></textarea>
-                </div>
+                  />
+                </label>
               </form>
-            </section>
+            </motion.section>
           </div>
 
-          {/* RIGHT SIDEBAR (35%) */}
-          <aside className="lg:col-span-4 sticky top-24">
-            <div className="bg-white p-6 rounded-xl border border-outline-variant/60 shadow-md space-y-6">
-              <h3 className="text-[24px] font-bold border-b border-outline-variant/60 pb-4 text-on-background">Xác nhận đặt sân</h3>
-              
-              <div className="flex gap-4">
-                <img 
-                  alt="Sân Picklink Cầu Giấy" 
-                  className="w-24 h-24 object-cover rounded-lg shadow-sm" 
-                  src="https://lh3.googleusercontent.com/aida/AP1WRLvvQdGuxp_93C7nGLo2YBzPLjS4ECESxlpu01ddVvQEOH3MhLQEv6JXebYssu8Wxs5TdVc4vloNSB6tNLib5do5KVtUct6n2ZkAuj_H-xt_8ColnsEwHqkECdGcf92D5v6SQmi_2Np4QLAMDbX3l36McqFag5ubSehc5ABe1AxqQ73kd-VIvBiKNdKGbwyHjHQUXZmSr8mSjB8No9l0dzJwtd7GBVwLLhZ6OElKE34XqQqg23FMga5Pk7hJ" 
-                />
-                <div className="flex flex-col justify-center">
-                  <span className="text-[#3d6a00] font-bold text-[14px] mb-1">Hệ thống sân</span>
-                  <span className="text-[20px] font-bold text-on-background leading-tight">Picklink Cầu Giấy</span>
+          <motion.aside
+            {...motionProps}
+            className="min-w-0 space-y-4 lg:col-span-4 lg:sticky lg:top-24"
+          >
+            <div className="overflow-hidden rounded-[24px] border border-outline-variant bg-surface-container-lowest shadow-[0_18px_44px_rgba(25,29,20,0.08)]">
+              <div className="relative min-h-[150px] overflow-hidden bg-[linear-gradient(135deg,var(--color-primary)_0%,var(--color-primary-container)_62%,var(--color-secondary)_100%)] p-5 text-white">
+                <div className="pointer-events-none absolute -right-10 -top-16 h-36 w-36 rounded-full bg-primary-fixed/40 blur-2xl" />
+                <div className="relative z-10 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[12px] font-black uppercase tracking-[0.16em] text-primary-fixed">Xác nhận</p>
+                    <h3 className="mt-2 text-[26px] font-black leading-tight tracking-[-0.04em]">Đặt sân</h3>
+                  </div>
+                  <BadgeCheck className="h-8 w-8 text-primary-fixed" />
                 </div>
+                <div className="absolute bottom-4 left-5 right-5 h-14 rounded-full border border-white/10 bg-white/10" />
               </div>
-              
-              <ul className="space-y-4 text-[14px]">
-                <li className="flex justify-between items-center">
-                  <span className="text-on-surface-variant font-bold">Ngày chơi</span>
-                  <span className="font-bold text-on-background">12/08/2024</span>
-                </li>
-                <li className="flex justify-between items-center">
-                  <span className="text-on-surface-variant font-bold">Thời gian</span>
-                  <span className="font-bold text-on-background">{activeTime}</span>
-                </li>
-                <li className="flex justify-between items-center">
-                  <span className="text-on-surface-variant font-bold">Số giờ</span>
-                  <span className="font-bold text-on-background">1.0 giờ</span>
-                </li>
-              </ul>
-              
-              <hr className="border-outline-variant/60" />
-              
-              <div className="flex justify-between items-end">
-                <span className="text-on-surface-variant font-bold text-[14px]">Tổng cộng</span>
-                <span className="text-[32px] md:text-[40px] font-bold text-[#3d6a00] leading-none">200.000 VNĐ</span>
+
+              <div className="space-y-5 p-5">
+                <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+                  <span className="text-[12px] font-black uppercase tracking-[0.12em] text-primary">Hệ thống sân</span>
+                  <p className="mt-1 text-[20px] font-black tracking-[-0.02em] text-on-surface">Picklink Cầu Giấy</p>
+                  <p className="mt-2 flex items-start gap-2 text-[12px] font-semibold leading-5 text-on-surface-variant">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    Thông tin sân được giữ nguyên theo màn hiện tại.
+                  </p>
+                </div>
+
+                <ul className="space-y-3 text-[14px]">
+                  <li className="flex items-center justify-between gap-4">
+                    <span className="font-bold text-on-surface-variant">Ngày chơi</span>
+                    <span className="text-right font-black text-on-surface">
+                      {selectedDate ? `${selectedDate.date}/08/2024` : '12/08/2024'}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span className="font-bold text-on-surface-variant">Thời gian</span>
+                    <span className="text-right font-black text-on-surface">{activeTime}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4">
+                    <span className="font-bold text-on-surface-variant">Số giờ</span>
+                    <span className="text-right font-black text-on-surface">1.0 giờ</span>
+                  </li>
+                </ul>
+
+                <div className="border-t border-outline-variant pt-5">
+                  <div className="flex items-end justify-between gap-4">
+                    <span className="text-[14px] font-bold text-on-surface-variant">Tổng cộng</span>
+                    <span className="text-right text-[34px] font-black leading-none tracking-[-0.05em] text-primary md:text-[40px]">
+                      200.000 VNĐ
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-primary-fixed-dim/60 bg-primary-fixed/20 p-4">
+                  <p className="text-[12px] font-semibold leading-5 text-on-surface-variant">
+                    Bằng việc đặt sân, bạn đồng ý với chính sách hủy và thay đổi thời gian của Picklink.
+                  </p>
+                </div>
+
+                <Button
+                  className="h-[54px] w-full rounded-2xl text-[15px] shadow-[0_14px_26px_rgba(152,217,81,0.18)]"
+                  onClick={() => navigate('/checkout')}
+                  type="button"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                  Tiếp tục thanh toán
+                </Button>
               </div>
-              
-              <div className="bg-[#f0f3ff] p-4 rounded-lg">
-                <p className="text-[12px] font-medium text-on-surface-variant italic">
-                  Bằng việc đặt sân, bạn đồng ý với chính sách hủy và thay đổi thời gian của Picklink.
-                </p>
-              </div>
-              
-              <button 
-                onClick={() => navigate('/checkout')}
-                className="w-full bg-[#84c33e] text-white py-4 rounded-xl font-bold text-[18px] shadow-sm hover:bg-[#84c33e]/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-              >
-                <span>Tiếp tục thanh toán</span>
-                <ArrowRight className="w-6 h-6" />
-              </button>
             </div>
 
-            {/* Assistance Card */}
-            <div className="mt-4 p-4 bg-[#f2f9eb] rounded-xl border border-[#84c33e]/30 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-[#84c33e]/20 flex items-center justify-center text-[#3d6a00] shrink-0">
-                <Headset className="w-5 h-5" />
+            <div className="flex items-center gap-4 rounded-[22px] border border-primary-fixed-dim/70 bg-primary-fixed/20 p-4">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary-fixed/50 text-primary">
+                <Headset className="h-5 w-5" />
               </div>
-              <div>
-                <p className="text-[14px] font-bold text-on-background">Cần hỗ trợ?</p>
-                <p className="text-[12px] text-on-surface-variant font-medium mt-0.5">Hotline: 1900 6789</p>
+              <div className="min-w-0">
+                <p className="text-[14px] font-black text-on-surface">Cần hỗ trợ?</p>
+                <p className="mt-0.5 text-[12px] font-semibold text-on-surface-variant">Hotline: 1900 6789</p>
               </div>
+              <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-primary" />
             </div>
-          </aside>
+          </motion.aside>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="w-full mt-auto py-8 px-4 md:px-10 max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between bg-surface-container-highest border-t border-outline-variant/60">
-        <div className="flex flex-col gap-2 max-w-md">
-          <span className="text-[20px] font-bold text-[#3d6a00]">Picklink</span>
-          <p className="text-[14px] font-medium text-[#151c27]">© 2024 Picklink. Nền tảng kết nối Pickleball hàng đầu Việt Nam.</p>
-        </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-3 mt-6 md:mt-0">
-          <Link to="#" className="text-[12px] font-bold text-on-surface-variant hover:text-[#3d6a00] hover:underline transition-all">Điều khoản sử dụng</Link>
-          <Link to="#" className="text-[12px] font-bold text-on-surface-variant hover:text-[#3d6a00] hover:underline transition-all">Chính sách bảo mật</Link>
-          <Link to="#" className="text-[12px] font-bold text-on-surface-variant hover:text-[#3d6a00] hover:underline transition-all">Liên hệ quảng cáo</Link>
-          <Link to="#" className="text-[12px] font-bold text-on-surface-variant hover:text-[#3d6a00] hover:underline transition-all">Trung tâm hỗ trợ</Link>
+      <footer className="mt-auto border-t border-outline-variant bg-surface-container-lowest">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-10">
+          <div className="max-w-md">
+            <span className="text-[22px] font-black tracking-[-0.04em] text-primary">Picklink</span>
+            <p className="mt-2 text-[13px] font-semibold leading-5 text-on-surface-variant">
+              © 2024 Picklink. Nền tảng kết nối Pickleball hàng đầu Việt Nam.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-3">
+            {['Điều khoản sử dụng', 'Chính sách bảo mật', 'Liên hệ quảng cáo', 'Trung tâm hỗ trợ'].map((label) => (
+              <Link
+                className="text-[12px] font-black text-on-surface-variant transition hover:text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/60"
+                key={label}
+                to="#"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
       </footer>
-
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;  /* IE and Edge */
-          scrollbar-width: none;  /* Firefox */
-        }
-      `}</style>
     </div>
   );
 };

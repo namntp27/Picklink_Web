@@ -13,7 +13,7 @@ export const AdminShell = ({
 }) => {
   return (
     <div className="min-h-screen bg-background text-on-background">
-      <header className="fixed left-0 top-0 z-50 flex h-16 w-full items-center justify-between px-4 shadow-md md:px-8" style={{ backgroundColor: '#84C33E' }}>
+      <header className="fixed left-0 top-0 z-50 flex h-16 w-full items-center justify-between px-4 shadow-md md:px-8" style={{ backgroundColor: '#98D951' }}>
         <div className="flex items-center gap-3">
           <Link to="/" className="text-[24px] font-bold text-white">
             Picklink
@@ -25,7 +25,7 @@ export const AdminShell = ({
         <div className="flex items-center gap-4 text-white">
           <button className="relative rounded-full p-2 transition-colors hover:bg-black/10" title="Thông báo">
             <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[#84C33E] bg-error" />
+            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-primary-container bg-error" />
           </button>
           <div className="hidden border-l border-white/30 pl-4 text-right md:block">
             <p className="text-[14px] font-bold">Admin Cao Cấp</p>
@@ -75,7 +75,7 @@ export const AdminShell = ({
           width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #dce2f3;
+          background: #DDE5D5;
           border-radius: 10px;
         }
       `}</style>

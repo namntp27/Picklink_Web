@@ -19,7 +19,7 @@ export const PaginationControls = ({ page, onPageChange }: PaginationControlsPro
   return (
     <nav
       aria-label="Phân trang"
-      className="flex min-w-0 flex-col gap-3 rounded-lg border border-[#D8DED1] bg-[#F7F8F3] px-4 py-3 text-[13px] font-semibold text-[#60665C] sm:flex-row sm:items-center sm:justify-between"
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-outline-variant bg-surface-container-low px-4 py-3 text-[13px] font-semibold text-on-surface-variant sm:flex-row sm:items-center sm:justify-between"
     >
       <span className="whitespace-nowrap" aria-live="polite">
         {firstItem}-{lastItem} / {page.totalCount}
@@ -39,7 +39,7 @@ export const PaginationControls = ({ page, onPageChange }: PaginationControlsPro
           animate={{ opacity: 1, y: 0 }}
           aria-atomic="true"
           aria-live="polite"
-          className="min-w-24 whitespace-nowrap text-center text-[13px] font-bold text-[#171A16]"
+          className="min-w-24 whitespace-nowrap text-center text-[13px] font-bold text-on-surface"
           initial={shouldReduceMotion ? false : { opacity: 0, y: 3 }}
           key={page.page}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}

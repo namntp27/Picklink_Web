@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarDays,
-  CheckCircle2,
   Clock,
   CreditCard,
   Filter,
@@ -23,6 +23,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { CancelBookingDialog } from './components/CancelBookingDialog';
 
 type BookingFilter = 'all' | 'upcoming' | 'pending' | 'paid' | 'cancelled';
@@ -42,19 +44,36 @@ const date = (value: string) => new Intl.DateTimeFormat('vi-VN', {
 const time = (value: string) => value.slice(11, 16);
 
 const bookingLabels: Record<string, string> = {
-  Holding: 'Đang giữ chỗ', Confirmed: 'Đã đặt', Completed: 'Hoàn thành', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
+  Holding: 'Đang giữ chỗ',
+  Confirmed: 'Đã đặt',
+  Completed: 'Hoàn thành',
+  Cancelled: 'Đã hủy',
+  Expired: 'Đã hết hạn',
 };
 const paymentLabels: Record<string, string> = {
-  Pending: 'Chờ chuyển khoản', WaitingForConfirmation: 'Chờ Owner xác nhận', Paid: 'Đã thanh toán', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
+  Pending: 'Chờ chuyển khoản',
+  WaitingForConfirmation: 'Chờ Owner xác nhận',
+  Paid: 'Đã thanh toán',
+  Cancelled: 'Đã hủy',
+  Expired: 'Đã hết hạn',
 };
 const checkInLabels: Record<string, string> = {
-  NotOpen: 'Chưa mở check-in', Ready: 'Có thể check-in', CheckedIn: 'Đã check-in', NoShow: 'Vắng mặt', Missed: 'Quá giờ', NotApplicable: 'Không áp dụng',
+  NotOpen: 'Chưa mở check-in',
+  Ready: 'Có thể check-in',
+  CheckedIn: 'Đã check-in',
+  NoShow: 'Vắng mặt',
+  Missed: 'Quá giờ',
+  NotApplicable: 'Không áp dụng',
 };
 
 const statusClass = (status: string) => {
-  if (status === 'Confirmed' || status === 'Paid' || status === 'Ready' || status === 'CheckedIn') return 'bg-emerald-100 text-emerald-700';
-  if (status === 'Holding' || status === 'Pending' || status === 'WaitingForConfirmation' || status === 'NotOpen') return 'bg-amber-100 text-amber-800';
-  return 'bg-red-100 text-red-700';
+  if (status === 'Confirmed' || status === 'Paid' || status === 'Ready' || status === 'CheckedIn') {
+    return 'border-primary-container bg-primary-container/25 text-primary';
+  }
+  if (status === 'Holding' || status === 'Pending' || status === 'WaitingForConfirmation' || status === 'NotOpen') {
+    return 'border-outline-variant bg-surface-container-high text-on-surface-variant';
+  }
+  return 'border-error/25 bg-error-container text-error';
 };
 
 const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
@@ -64,6 +83,10 @@ const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
   if (filter === 'paid') return booking.paymentStatus === 'Paid';
   return booking.status === 'Cancelled' || booking.status === 'Expired';
 };
+
+const linkButtonBase = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[13px] font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]';
+const primaryLinkButton = `${linkButtonBase} border border-primary-container bg-primary-container text-on-primary-container shadow-[0_5px_14px_rgba(152,217,81,0.18)] hover:border-primary-fixed-dim hover:bg-primary-fixed-dim hover:shadow-[0_7px_16px_rgba(152,217,81,0.24)]`;
+const outlineLinkButton = `${linkButtonBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary-container hover:bg-surface-container-low hover:text-primary`;
 
 export const MyBookings = () => {
   const navigate = useNavigate();
@@ -77,6 +100,7 @@ export const MyBookings = () => {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [cancelTarget, setCancelTarget] = useState<BookingHolding | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   const load = async (showLoading = true) => {
     if (!token) return;
@@ -86,9 +110,11 @@ export const MyBookings = () => {
       const result = await getMyBookingHistory(token, { page, pageSize: 10 });
       setBookings(result.items);
       setPagination(result);
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sử đặt sân.');
+    } finally {
+      if (showLoading) setLoading(false);
     }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sử đặt sân.'); }
-    finally { if (showLoading) setLoading(false); }
   };
 
   useEffect(() => { void load(); }, [page, token]);
@@ -118,9 +144,11 @@ export const MyBookings = () => {
       await cancelPlayerBooking(token, cancelTarget.bookingId, reason);
       setCancelTarget(null);
       await load(false);
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.');
+    } finally {
+      setBusyId(null);
     }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.'); }
-    finally { setBusyId(null); }
   };
 
   const retryPayment = async (booking: BookingHolding) => {
@@ -135,41 +163,250 @@ export const MyBookings = () => {
       );
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể thanh toán lại.');
-    } finally { setBusyId(null); }
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  return <div className="min-h-screen bg-surface-container-low pt-[72px] text-on-surface">
-    <section className="bg-primary text-white"><div className="mx-auto grid max-w-[1200px] gap-6 px-4 py-9 lg:grid-cols-[minmax(0,1fr)_350px] lg:items-end"><div><p className="inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-[13px] font-bold"><ReceiptText className="h-4 w-4" /> Lịch sử đặt sân</p><h1 className="mt-4 text-[34px] font-bold md:text-[44px]">Booking của tôi</h1><p className="mt-2 max-w-2xl text-[15px] text-white/80">Theo dõi booking, thanh toán và trạng thái check-in bằng dữ liệu cập nhật trực tiếp từ hệ thống.</p></div><div className="grid grid-cols-3 gap-3 rounded-xl bg-white/10 p-5">{[['Đã thanh toán', paidCount], ['Cần xử lý', pendingCount], ['Có thể check-in', readyCount]].map(([label, value]) => <div key={label}><p className="text-[26px] font-bold">{value}</p><p className="mt-1 text-[11px] text-white/75">{label}</p></div>)}</div></div></section>
+  const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 12 };
 
-    <main className="mx-auto grid max-w-[1200px] gap-6 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_330px]">
-      <div className="space-y-5">
-        {error && <div className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700"><AlertCircle className="h-5 w-5 shrink-0" />{error}</div>}
-        <section className="rounded-xl border border-outline-variant bg-white p-4 shadow-sm"><div className="flex flex-col gap-4"><div className="relative"><Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-on-surface-variant" /><input className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-10 pr-3 text-[14px] outline-none focus:border-primary" onChange={(event) => setSearch(event.target.value)} placeholder="Tìm mã booking, sân, địa chỉ..." value={search} /></div><div className="flex items-center gap-2 overflow-x-auto"><Filter className="h-5 w-5 shrink-0 text-primary" />{filterOptions.map((option) => <button className={`shrink-0 rounded-lg px-3 py-2 text-[13px] font-bold ${activeFilter === option.value ? 'bg-primary text-white' : 'border border-outline-variant bg-white text-on-surface-variant'}`} key={option.value} onClick={() => setActiveFilter(option.value)} type="button">{option.label}</button>)}</div></div></section>
+  return (
+    <div className="min-h-dvh overflow-x-clip bg-background text-on-surface">
+      <section className="hero-gradient relative overflow-hidden px-4 py-10 text-on-primary sm:px-6 md:py-14">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 opacity-15">
+            <div className="absolute inset-x-0 top-1/2 h-px bg-on-primary" />
+            <div className="absolute inset-y-0 left-1/4 w-px bg-on-primary" />
+            <div className="absolute inset-y-0 right-1/4 w-px bg-on-primary" />
+            <div className="absolute left-[12%] right-[12%] top-[22%] h-px bg-on-primary/70" />
+            <div className="absolute bottom-[22%] left-[12%] right-[12%] h-px bg-on-primary/70" />
+          </div>
+        </div>
 
-        {loading ? <div className="flex justify-center rounded-xl border bg-white py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : <section className="space-y-4">
-          {filtered.map((booking) => {
-            const canContinue = booking.status === 'Holding' && ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
-            const canCancel = booking.canCancel;
-            const scheduleDate = booking.startTime.slice(0, 10);
-            return <article className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={booking.bookingId}>
-              <div className="flex flex-col gap-4 xl:flex-row xl:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(booking.status)}`}>{bookingLabels[booking.status] ?? booking.status}</span><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(booking.paymentStatus)}`}>{paymentLabels[booking.paymentStatus] ?? booking.paymentStatus}</span><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(booking.checkInStatus)}`}>{checkInLabels[booking.checkInStatus] ?? booking.checkInStatus}</span></div><Link className="mt-3 block text-[21px] font-bold hover:text-primary" to={`/bookings/${booking.bookingId}`}>{booking.venueName} · Sân {booking.courtNumber}</Link><p className="mt-1 text-[13px] font-bold text-primary">{booking.bookingCode}</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="flex gap-2 rounded-lg bg-surface-container-low p-3"><CalendarDays className="h-5 w-5 text-primary" /><div><p className="text-[11px] font-bold text-on-surface-variant">Ngày chơi</p><p className="mt-1 text-[13px] font-bold">{date(booking.startTime)}</p></div></div><div className="flex gap-2 rounded-lg bg-surface-container-low p-3"><Clock className="h-5 w-5 text-primary" /><div><p className="text-[11px] font-bold text-on-surface-variant">Khung giờ</p><p className="mt-1 text-[13px] font-bold">{time(booking.startTime)}–{time(booking.endTime)}</p></div></div><div className="flex gap-2 rounded-lg bg-surface-container-low p-3"><MapPin className="h-5 w-5 text-primary" /><div><p className="text-[11px] font-bold text-on-surface-variant">Địa chỉ</p><p className="mt-1 line-clamp-2 text-[13px] font-bold">{booking.address}</p></div></div></div></div><div className="h-fit shrink-0 rounded-lg border border-outline-variant p-4 xl:w-[210px]"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Tổng tiền</p><p className="mt-1 text-[23px] font-bold text-primary">{currency.format(booking.totalAmount)}</p></div></div>
-              <div className="mt-5 flex flex-wrap gap-2 border-t border-outline-variant pt-4"><Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2.5 text-[13px] font-bold hover:bg-surface-container-low" to={`/bookings/${booking.bookingId}`}><ReceiptText className="h-4 w-4" /> Chi tiết</Link>{canContinue && !booking.canRetryPayment && <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white" to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}><CreditCard className="h-4 w-4" />{booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Thanh toán'}</Link>}{booking.canRetryPayment && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={busyId === booking.bookingId} onClick={() => void retryPayment(booking)} type="button"><RefreshCcw className="h-4 w-4" /> Thanh toán lại</button>}{canCancel && <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-700 disabled:opacity-50" disabled={busyId === booking.bookingId} onClick={() => setCancelTarget(booking)} type="button">{busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Hủy booking</button>}{booking.canReview && <Link className="inline-flex items-center gap-2 rounded-lg border border-amber-300 px-4 py-2.5 text-[13px] font-bold text-amber-700" to={`/reviews/create?bookingId=${booking.bookingId}`}><Star className="h-4 w-4" /> Đánh giá sân</Link>}<Link className="inline-flex items-center gap-2 rounded-lg border border-primary px-4 py-2.5 text-[13px] font-bold text-primary" to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}><RefreshCcw className="h-4 w-4" /> Xem lịch sân</Link></div>
-            </article>;
-          })}
-          {filtered.length === 0 && <div className="rounded-xl border border-outline-variant bg-white p-12 text-center"><CalendarDays className="mx-auto h-10 w-10 text-primary" /><h2 className="mt-3 text-[20px] font-bold">Không có booking phù hợp</h2><p className="mt-2 text-[14px] text-on-surface-variant">Hãy đổi bộ lọc hoặc đặt một sân mới.</p></div>}
-          <PaginationControls page={pagination} onPageChange={setPage} />
-        </section>}
-      </div>
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 mx-auto grid max-w-[1280px] gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end"
+          initial={revealInitial}
+          transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+        >
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full border border-on-primary/20 bg-on-primary/12 px-4 py-2 text-[13px] font-bold">
+              <ReceiptText className="h-4 w-4 text-primary-fixed" />
+              Lịch sử đặt sân
+            </p>
+            <h1 className="mt-5 text-[clamp(2rem,4vw,3.2rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
+              Booking{' '}
+              <span className="inline-block text-[1.12em] text-primary-fixed [text-shadow:0_0_8px_rgba(152,217,81,0.65),0_0_18px_rgba(152,217,81,0.38)]">
+                của tôi
+              </span>
+            </h1>
+            <p className="mt-4 max-w-[65ch] text-[15px] font-medium leading-7 text-on-primary/88 md:text-[17px]">
+              Theo dõi booking, thanh toán và trạng thái check-in bằng dữ liệu cập nhật trực tiếp từ hệ thống.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 rounded-2xl border border-on-primary/15 bg-on-primary/12 p-4 backdrop-blur-sm">
+            {[
+              ['Đã thanh toán', paidCount],
+              ['Cần xử lý', pendingCount],
+              ['Có thể check-in', readyCount],
+            ].map(([label, value]) => (
+              <div className="min-w-0" key={label}>
+                <p className="text-[26px] font-extrabold text-primary-fixed">{value}</p>
+                <p className="mt-1 text-[11px] font-medium leading-4 text-on-primary/75">{label}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
 
-      <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start"><section className="rounded-xl border border-primary bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[20px] font-bold"><ShieldCheck className="h-5 w-5 text-primary" /> Lịch gần nhất</h2>{nextBooking ? <div className="mt-4"><p className="font-bold">{nextBooking.venueName} · Sân {nextBooking.courtNumber}</p><p className="mt-2 text-[13px] text-on-surface-variant">{date(nextBooking.startTime)} · {time(nextBooking.startTime)}–{time(nextBooking.endTime)}</p><Link className="mt-4 flex justify-center rounded-lg bg-primary px-4 py-3 text-[13px] font-bold text-white" to={`/bookings/${nextBooking.bookingId}`}>Xem booking</Link></div> : <p className="mt-3 text-[14px] text-on-surface-variant">Bạn chưa có lịch sắp tới.</p>}</section><section className="rounded-xl border border-outline-variant bg-white p-5"><h2 className="flex items-center gap-2 text-[18px] font-bold"><TicketCheck className="h-5 w-5 text-primary" /> Trạng thái realtime</h2><p className="mt-3 text-[13px] leading-6 text-on-surface-variant">Khi Owner xác nhận thanh toán, danh sách và trạng thái check-in sẽ tự cập nhật mà không cần F5.</p></section><Link className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" to="/book-court"><CalendarDays className="h-5 w-5" /> Đặt sân mới</Link></aside>
-    </main>
-    {cancelTarget && (
-      <CancelBookingDialog
-        bookingCode={cancelTarget.bookingCode}
-        isBusy={busyId === cancelTarget.bookingId}
-        onClose={() => setCancelTarget(null)}
-        onConfirm={cancel}
-      />
-    )}
-  </div>;
+      <main className="mx-auto grid max-w-[1280px] gap-6 px-4 py-8 sm:px-6 md:py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-5">
+          {error && (
+            <div className="flex gap-2 rounded-lg border border-error/25 bg-error-container p-4 text-[14px] font-bold text-error" role="alert">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <span className="min-w-0 break-words">{error}</span>
+            </div>
+          )}
+
+          <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-4 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+            <div className="flex flex-col gap-4">
+              <Input
+                icon={<Search className="h-5 w-5" />}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Tìm mã booking, sân, địa chỉ..."
+                value={search}
+              />
+              <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+                <Filter className="h-5 w-5 shrink-0 text-primary" />
+                {filterOptions.map((option) => (
+                  <button
+                    className={`shrink-0 rounded-lg border px-3 py-2 text-[13px] font-bold transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${
+                      activeFilter === option.value
+                        ? 'border-primary-container bg-primary-container text-on-primary'
+                        : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:bg-surface-container-low hover:text-primary'
+                    }`}
+                    key={option.value}
+                    onClick={() => setActiveFilter(option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {loading ? (
+            <div className="flex justify-center rounded-2xl border border-outline-variant bg-surface-container-lowest py-20 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary motion-reduce:animate-none" />
+            </div>
+          ) : (
+            <section className="space-y-4">
+              {filtered.map((booking) => {
+                const canContinue = booking.status === 'Holding' && ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
+                const canCancel = booking.canCancel;
+                const scheduleDate = booking.startTime.slice(0, 10);
+                const isBusy = busyId === booking.bookingId;
+
+                return (
+                  <motion.article
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]"
+                    initial={revealInitial}
+                    key={booking.bookingId}
+                    transition={{ duration: shouldReduceMotion ? 0.01 : 0.25, ease: [0.2, 0.8, 0.2, 1] }}
+                  >
+                    <div className="flex flex-col gap-4 xl:flex-row xl:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap gap-2">
+                          {[booking.status, booking.paymentStatus, booking.checkInStatus].map((status) => (
+                            <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${statusClass(status)}`} key={status}>
+                              {bookingLabels[status] ?? paymentLabels[status] ?? checkInLabels[status] ?? status}
+                            </span>
+                          ))}
+                        </div>
+                        <Link
+                          className="mt-3 block min-w-0 break-words text-[21px] font-extrabold leading-tight transition-colors hover:text-primary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
+                          to={`/bookings/${booking.bookingId}`}
+                        >
+                          {booking.venueName} · Sân {booking.courtNumber}
+                        </Link>
+                        <p className="mt-1 break-all text-[13px] font-bold text-primary">{booking.bookingCode}</p>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          {[
+                            { icon: CalendarDays, label: 'Ngày chơi', value: date(booking.startTime) },
+                            { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)}–${time(booking.endTime)}` },
+                            { icon: MapPin, label: 'Địa chỉ', value: booking.address },
+                          ].map((item) => (
+                            <div className="flex min-w-0 gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3" key={item.label}>
+                              <item.icon className="h-5 w-5 shrink-0 text-primary" />
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold text-on-surface-variant">{item.label}</p>
+                                <p className="mt-1 break-words text-[13px] font-bold leading-5">{item.value}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="h-fit shrink-0 rounded-xl border border-outline-variant bg-surface-container-low p-4 xl:w-[220px]">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">Tổng tiền</p>
+                        <p className="mt-1 break-words text-[23px] font-extrabold text-primary">{currency.format(booking.totalAmount)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-2 border-t border-outline-variant pt-4">
+                      <Link className={outlineLinkButton} to={`/bookings/${booking.bookingId}`}>
+                        <ReceiptText className="h-4 w-4" /> Chi tiết
+                      </Link>
+                      {canContinue && !booking.canRetryPayment && (
+                        <Link className={primaryLinkButton} to={`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(scheduleDate)}`}>
+                          <CreditCard className="h-4 w-4" />
+                          {booking.paymentStatus === 'WaitingForConfirmation' ? 'Xem trạng thái xác nhận' : 'Thanh toán'}
+                        </Link>
+                      )}
+                      {booking.canRetryPayment && (
+                        <Button aria-busy={isBusy} disabled={isBusy} onClick={() => void retryPayment(booking)} size="sm" type="button">
+                          <RefreshCcw className="h-4 w-4" />
+                          Thanh toán lại
+                        </Button>
+                      )}
+                      {canCancel && (
+                        <Button disabled={isBusy} onClick={() => setCancelTarget(booking)} size="sm" type="button" variant="danger">
+                          {isBusy ? <Loader2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                          Hủy booking
+                        </Button>
+                      )}
+                      {booking.canReview && (
+                        <Link className={outlineLinkButton} to={`/reviews/create?bookingId=${booking.bookingId}`}>
+                          <Star className="h-4 w-4" /> Đánh giá sân
+                        </Link>
+                      )}
+                      <Link className={outlineLinkButton} to={`/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`}>
+                        <RefreshCcw className="h-4 w-4" /> Xem lịch sân
+                      </Link>
+                    </div>
+                  </motion.article>
+                );
+              })}
+
+              {filtered.length === 0 && (
+                <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-12 text-center shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+                  <CalendarDays className="mx-auto h-10 w-10 text-primary" />
+                  <h2 className="mt-3 text-[20px] font-extrabold">Không có booking phù hợp</h2>
+                  <p className="mt-2 text-[14px] text-on-surface-variant">Hãy đổi bộ lọc hoặc đặt một sân mới.</p>
+                </div>
+              )}
+
+              <PaginationControls page={pagination} onPageChange={setPage} />
+            </section>
+          )}
+        </div>
+
+        <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
+          <section className="rounded-2xl border border-primary-container bg-surface-container-lowest p-5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+            <h2 className="flex items-center gap-2 text-[20px] font-extrabold">
+              <ShieldCheck className="h-5 w-5 text-primary" /> Lịch gần nhất
+            </h2>
+            {nextBooking ? (
+              <div className="mt-4">
+                <p className="break-words font-bold">{nextBooking.venueName} · Sân {nextBooking.courtNumber}</p>
+                <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
+                  {date(nextBooking.startTime)} · {time(nextBooking.startTime)}–{time(nextBooking.endTime)}
+                </p>
+                <Link className={`mt-4 w-full ${primaryLinkButton}`} to={`/bookings/${nextBooking.bookingId}`}>
+                  Xem booking
+                </Link>
+              </div>
+            ) : (
+              <p className="mt-3 text-[14px] text-on-surface-variant">Bạn chưa có lịch sắp tới.</p>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+            <h2 className="flex items-center gap-2 text-[18px] font-extrabold">
+              <TicketCheck className="h-5 w-5 text-primary" /> Trạng thái realtime
+            </h2>
+            <p className="mt-3 text-[13px] leading-6 text-on-surface-variant">
+              Khi Owner xác nhận thanh toán, danh sách và trạng thái check-in sẽ tự cập nhật mà không cần F5.
+            </p>
+          </section>
+
+          <Link className={`w-full ${primaryLinkButton}`} to="/book-court">
+            <CalendarDays className="h-5 w-5" />
+            Đặt sân mới
+          </Link>
+        </aside>
+      </main>
+
+      {cancelTarget && (
+        <CancelBookingDialog
+          bookingCode={cancelTarget.bookingCode}
+          isBusy={busyId === cancelTarget.bookingId}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={cancel}
+        />
+      )}
+    </div>
+  );
 };
