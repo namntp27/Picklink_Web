@@ -307,7 +307,7 @@ export const BookCourt = () => {
             </div>
           </div>
 
-          <div className="relative h-[620px] overflow-hidden rounded-2xl border border-outline-variant bg-surface-container shadow-sm lg:sticky lg:top-5 lg:h-[calc(100vh-230px)]">
+          <div className="relative h-[620px] overflow-hidden rounded-2xl border border-outline-variant bg-surface-container shadow-sm lg:sticky lg:top-5 lg:h-[calc(100vh-230px)] z-10">
             <MapContainer center={hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport playerLocation={playerLocation} selectedVenue={selectedVenue} venues={mappedVenues} />

@@ -364,7 +364,7 @@ export const Opponents = () => {
             <h2 className="text-[22px] font-bold">Các cụm sân phù hợp</h2>
             <p className="mt-1 text-[13px] text-on-surface-variant">Bản đồ chỉ để chọn danh sách mong muốn; chưa có sân hoặc khung giờ nào được giữ.</p>
           </div>
-          <div className="h-[760px] bg-surface-container">
+          <div className="h-[760px] bg-surface-container relative z-10">
             <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport location={location} radiusKm={radiusKm} venues={venues} />

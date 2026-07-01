@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bookmark,
@@ -13,30 +14,66 @@ import {
   ThumbsUp,
   TrendingUp,
   UserPlus,
+  UserRound,
   Users,
 } from 'lucide-react';
 import type { CommunityPost } from '../../data/communityPosts';
-import { activeCommunityPlayers, communityPosts, currentCommunityUser, trendingTopics } from '../../data/communityPosts';
+import { activeCommunityPlayers, communityPosts, trendingTopics } from '../../data/communityPosts';
+import { useAuth } from '../../auth/AuthContext';
+import { getMyProfile, type PlayerProfile } from '../../api/profile';
 
-const CommunitySidebar = () => (
+const CommunitySidebar = ({
+  isAuthenticated,
+  name,
+  avatarUrl,
+  subtitle,
+}: {
+  isAuthenticated: boolean;
+  name: string;
+  avatarUrl?: string;
+  subtitle: string;
+}) => (
   <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-[280px] shrink-0 overflow-y-auto p-4 md:block">
-    <div className="mb-8 flex items-center gap-3 p-2">
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white shadow-sm">
-        <img alt={currentCommunityUser.name} className="h-full w-full object-cover" src={currentCommunityUser.avatar} />
+    {isAuthenticated ? (
+      <div className="mb-8 flex items-center gap-3 p-2">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white shadow-sm flex items-center justify-center bg-primary/10 text-primary">
+          {avatarUrl ? (
+            <img alt={name} className="h-full w-full object-cover" src={avatarUrl} />
+          ) : (
+            <UserRound className="h-6 w-6" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <h3 className="truncate text-[16px] font-bold text-primary" title={name}>{name}</h3>
+          <p className="truncate text-[13px] font-medium text-[#555f6f]">{subtitle}</p>
+        </div>
       </div>
-      <div>
-        <h3 className="text-[16px] font-bold text-primary">{currentCommunityUser.name}</h3>
-        <p className="text-[13px] font-medium text-[#555f6f]">Trình độ {currentCommunityUser.level}</p>
+    ) : (
+      <div className="mb-8 rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+        <h3 className="text-[15px] font-bold text-primary mb-2">Tham gia Picklink</h3>
+        <p className="text-[13px] text-[#555f6f] leading-5 mb-4">
+          Giao lưu, đặt sân và kết bạn cùng cộng đồng Pickleball!
+        </p>
+        <Link
+          to="/login"
+          className="block w-full text-center rounded-lg bg-primary py-2 text-[13px] font-bold text-white hover:bg-primary/90 transition-colors"
+        >
+          Đăng nhập ngay
+        </Link>
       </div>
-    </div>
+    )}
 
     <nav className="space-y-2">
       {[
         { label: 'Bảng tin', icon: Home, to: '/posts', active: true },
         { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
         { label: 'Câu lạc bộ', icon: Users, to: '/clubs' },
-        { label: 'Bài viết đã lưu', icon: Bookmark, to: '/posts/saved' },
-        { label: 'Cài đặt', icon: Settings, to: '/profile' },
+        ...(isAuthenticated
+          ? [
+              { label: 'Bài viết đã lưu', icon: Bookmark, to: '/posts/saved' },
+              { label: 'Cài đặt', icon: Settings, to: '/profile' },
+            ]
+          : []),
       ].map((item) => (
         <Link
           className={`flex items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold transition-colors ${
@@ -151,74 +188,130 @@ const PostCard = ({ post }: { post: CommunityPost }) => (
         type="button"
       >
         <ThumbsUp className="h-5 w-5" fill={post.liked ? 'currentColor' : 'none'} />
-        Thích
+        <span className="hidden sm:inline">Thích</span>
       </button>
       <Link
         className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]"
         to={`/posts/${post.id}`}
       >
         <MessageCircle className="h-5 w-5" />
-        Bình luận
+        <span className="hidden sm:inline">Bình luận</span>
       </Link>
       <button className="flex items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-bold text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" type="button">
         <Share2 className="h-5 w-5" />
-        Chia sẻ
+        <span className="hidden sm:inline">Chia sẻ</span>
       </button>
     </div>
   </article>
 );
 
 export const Posts = () => {
+  const { user, token, isAuthenticated } = useAuth();
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+
+  useEffect(() => {
+    if (token && user?.role === 'player') {
+      getMyProfile(token)
+        .then(setProfile)
+        .catch(() => {});
+    }
+  }, [token, user]);
+
+  const name = user?.name || '';
+  const avatarUrl = user?.avatar || profile?.profileImageUrl;
+
+  let subtitle = '';
+  if (user) {
+    if (user.role === 'player') {
+      const levelStr = profile?.skillLevel != null ? profile.skillLevel.toFixed(1) : 'Chưa cập nhật';
+      subtitle = `Trình độ ${levelStr}`;
+    } else if (user.role === 'owner') {
+      subtitle = 'Chủ sân';
+    } else if (user.role === 'admin') {
+      subtitle = 'Quản trị viên';
+    } else if (user.role === 'staff') {
+      subtitle = 'Nhân viên';
+    }
+  }
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-[1200px] bg-[#f9f9ff] pt-[72px] font-body-md text-[#151c27]">
-      <CommunitySidebar />
+    <div className="w-full bg-[#f9f9ff] min-h-screen pt-[72px] font-body-md text-[#151c27]">
+      <div className="mx-auto flex max-w-container-max-width justify-center px-4 md:px-6">
+        <CommunitySidebar
+          isAuthenticated={isAuthenticated}
+          name={name}
+          avatarUrl={avatarUrl}
+          subtitle={subtitle}
+        />
 
-      <main className="min-w-0 flex-1 p-4 lg:max-w-[620px]">
-        <section className="mb-6 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-          <div className="mb-4 flex gap-3">
-            <img alt={currentCommunityUser.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={currentCommunityUser.avatar} />
-            <Link
-              className="flex min-h-11 w-full items-center rounded-lg bg-[#f0f3ff] px-4 text-[14px] font-medium text-[#555f6f] hover:ring-2 hover:ring-primary/20"
-              to="/posts/create"
-            >
-              Bạn đang nghĩ gì về trận đấu hôm nay?
-            </Link>
-          </div>
-          <div className="flex items-center justify-between border-t border-outline-variant/40 pt-3">
-            <div className="flex gap-2">
-              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Thêm ảnh">
-                <ImageIcon className="h-5 w-5" />
+        <main className="min-w-0 flex-1 p-4 lg:max-w-[620px]">
+          {isAuthenticated ? (
+            <section className="mb-6 rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
+              <div className="mb-4 flex gap-3">
+                {avatarUrl ? (
+                  <img alt={name} className="h-10 w-10 shrink-0 rounded-lg object-cover" src={avatarUrl} />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <UserRound className="h-5 w-5" />
+                  </div>
+                )}
+                <Link
+                  className="flex min-h-11 w-full items-center rounded-lg bg-[#f0f3ff] px-4 text-[14px] font-medium text-[#555f6f] hover:ring-2 hover:ring-primary/20"
+                  to="/posts/create"
+                >
+                  Bạn đang nghĩ gì về trận đấu hôm nay?
+                </Link>
+              </div>
+              <div className="flex items-center justify-between border-t border-outline-variant/40 pt-3 flex-wrap gap-2">
+                <div className="flex gap-2">
+                  <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create?attach=image" aria-label="Thêm ảnh">
+                    <ImageIcon className="h-5 w-5" />
+                  </Link>
+                  <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create?focus=location" aria-label="Gắn địa điểm">
+                    <MapPin className="h-5 w-5" />
+                  </Link>
+                  <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create?mode=find_players" aria-label="Tìm người chơi">
+                    <UserPlus className="h-5 w-5" />
+                  </Link>
+                </div>
+                <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts/create">
+                  <Plus className="h-4 w-4" />
+                  Tạo bài viết
+                </Link>
+              </div>
+            </section>
+          ) : (
+            <section className="mb-6 rounded-lg border border-outline-variant bg-white p-6 text-center shadow-sm">
+              <h3 className="text-[18px] font-bold mb-2">Bạn muốn chia sẻ trạng thái?</h3>
+              <p className="text-[14px] text-[#555f6f] mb-4">
+                Đăng nhập để chia sẻ những khoảnh khắc Pickleball tuyệt vời của bạn với cộng đồng.
+              </p>
+              <Link
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-[14px] font-bold text-white hover:bg-primary/90"
+                to="/login"
+              >
+                Đăng nhập ngay
               </Link>
-              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Gắn địa điểm">
-                <MapPin className="h-5 w-5" />
-              </Link>
-              <Link className="rounded-lg p-2 text-[#555f6f] transition-colors hover:bg-[#f0f3ff]" to="/posts/create" aria-label="Tìm người chơi">
-                <UserPlus className="h-5 w-5" />
-              </Link>
-            </div>
-            <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-[14px] font-bold text-white hover:bg-primary/90" to="/posts/create">
-              <Plus className="h-4 w-4" />
-              Tạo bài viết
-            </Link>
-          </div>
-        </section>
+            </section>
+          )}
 
-        <section>
-          {communityPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </section>
-      </main>
+          <section>
+            {communityPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </section>
+        </main>
 
-      <CommunityRightSidebar />
+        <CommunityRightSidebar />
 
-      <Link
-        className="fixed bottom-5 right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white shadow-lg hover:bg-primary/90 md:hidden"
-        to="/posts/create"
-        aria-label="Tạo bài viết"
-      >
-        <Send className="h-5 w-5" />
-      </Link>
+        <Link
+          className="fixed bottom-5 right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white shadow-lg hover:bg-primary/90 md:hidden"
+          to="/posts/create"
+          aria-label="Tạo bài viết"
+        >
+          <Send className="h-5 w-5" />
+        </Link>
+      </div>
     </div>
   );
 };

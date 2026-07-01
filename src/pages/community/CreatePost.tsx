@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   CalendarDays,
@@ -14,10 +14,15 @@ import {
   MessageCircle,
   Send,
   ThumbsUp,
+  UserRound,
   Users,
   X,
+  Loader2,
 } from 'lucide-react';
-import { currentCommunityUser } from '../../data/communityPosts';
+import { useAuth } from '../../auth/AuthContext';
+import { getMyProfile, type PlayerProfile } from '../../api/profile';
+import { OpenStreetMapLocationPicker } from '../owner/components/OpenStreetMapLocationPicker';
+import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../api/cloudinary';
 
 type Visibility = 'public' | 'club' | 'friends';
 type PostMode = 'discussion' | 'find_players' | 'review' | 'training';
@@ -36,19 +41,131 @@ const visibilityOptions: Array<{ label: string; value: Visibility; icon: typeof 
 ];
 
 export const CreatePost = () => {
+  const { user, token } = useAuth();
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [searchParams] = useSearchParams();
+
+  const initialLocation = user?.commune && user?.city
+    ? `${user.commune}, ${user.city}`
+    : (user?.city || user?.commune || '');
+
+  // Refs for focusing inputs
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [mode, setMode] = useState<PostMode>('discussion');
+  const [mode, setMode] = useState<PostMode>(
+    (searchParams.get('mode') as PostMode) === 'find_players' ? 'find_players' : 'discussion'
+  );
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [court, setCourt] = useState('Sân Pickleball Cầu Giấy');
-  const [location, setLocation] = useState(currentCommunityUser.location);
+  const [location, setLocation] = useState(initialLocation);
+  const [locationObj, setLocationObj] = useState({
+    address: initialLocation,
+    latitude: '',
+    longitude: '',
+  });
   const [imageUrl, setImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
   const [tagDraft, setTagDraft] = useState('Tìm đồng đội, Pickleball');
-  const [lookingFor, setLookingFor] = useState(false);
+  const [lookingFor, setLookingFor] = useState(
+    searchParams.get('mode') === 'find_players' || searchParams.get('attach') === 'people'
+  );
   const [slots, setSlots] = useState('2');
   const [levelRange, setLevelRange] = useState('3.0 - 4.0');
   const [playTime, setPlayTime] = useState('18:00 - 20:00 hôm nay');
   const [published, setPublished] = useState(false);
+
+  // Focus effect based on search query params
+  useEffect(() => {
+    const attach = searchParams.get('attach');
+    const focus = searchParams.get('focus');
+    
+    const timer = setTimeout(() => {
+      if (attach === 'image' && imageInputRef.current) {
+        imageInputRef.current.focus();
+        imageInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (focus === 'location' && locationInputRef.current) {
+        locationInputRef.current.focus();
+        locationInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (token && user?.role === 'player') {
+      getMyProfile(token)
+        .then((p) => {
+          setProfile(p);
+          const locStr = p.commune && p.city ? `${p.commune}, ${p.city}` : (p.city || p.commune || '');
+          if (locStr) {
+            setLocation(locStr);
+            setLocationObj({ address: locStr, latitude: '', longitude: '' });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token, user]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token) return;
+
+    setUploadingImage(true);
+    setUploadProgress(0);
+    try {
+      const { url } = await uploadToCloudinary(token, file, (progress) => {
+        setUploadProgress(progress);
+      });
+      setImageUrl(url);
+    } catch (err: any) {
+      alert(err.message || 'Không thể tải ảnh lên.');
+    } finally {
+      setUploadingImage(false);
+      setUploadProgress(null);
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    if (!imageUrl) return;
+
+    const publicId = getPublicIdFromUrl(imageUrl);
+    if (!publicId) {
+      setImageUrl('');
+      return;
+    }
+
+    setIsDeletingImage(true);
+    try {
+      await deleteFromCloudinary(token, publicId, 'image');
+      setImageUrl('');
+    } catch (err: any) {
+      console.error('Failed to delete image from Cloudinary:', err);
+      setImageUrl('');
+    } finally {
+      setIsDeletingImage(false);
+    }
+  };
+
+  const name = user?.name || '';
+  const avatarUrl = user?.avatar || profile?.profileImageUrl;
+  let level = '';
+  if (user) {
+    if (user.role === 'player') {
+      level = profile?.skillLevel != null ? profile.skillLevel.toFixed(1) : 'Chưa cập nhật';
+    } else if (user.role === 'owner') {
+      level = 'Chủ sân';
+    } else if (user.role === 'admin') {
+      level = 'Admin';
+    } else if (user.role === 'staff') {
+      level = 'Nhân viên';
+    }
+  }
 
   const tags = useMemo(
     () =>
@@ -120,12 +237,18 @@ export const CreatePost = () => {
 
           <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <img alt={currentCommunityUser.name} className="h-12 w-12 rounded-lg object-cover" src={currentCommunityUser.avatar} />
+              {avatarUrl ? (
+                <img alt={name} className="h-12 w-12 rounded-lg object-cover" src={avatarUrl} />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <UserRound className="h-6 w-6" />
+                </div>
+              )}
               <div>
-                <h2 className="text-[18px] font-bold">{currentCommunityUser.name}</h2>
+                <h2 className="text-[18px] font-bold">{name}</h2>
                 <p className="flex items-center gap-2 text-[13px] text-[#555f6f]">
                   <VisibilityIcon className="h-4 w-4" />
-                  {selectedVisibility.label} · Trình độ {currentCommunityUser.level}
+                  {selectedVisibility.label} · {user?.role === 'player' ? `Trình độ ${level}` : level}
                 </p>
               </div>
             </div>
@@ -192,17 +315,21 @@ export const CreatePost = () => {
           <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
             <h2 className="text-[20px] font-bold">Thông tin gắn kèm</h2>
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f]">
+              <div className="md:col-span-2 mt-2">
+                <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f] mb-2">
                   <MapPin className="h-4 w-4" />
                   Địa điểm
                 </span>
-                <input
-                  className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  onChange={(event) => setLocation(event.target.value)}
-                  value={location}
-                />
-              </label>
+                <div ref={locationInputRef} tabIndex={-1} className="outline-none">
+                  <OpenStreetMapLocationPicker
+                    value={locationObj}
+                    onChange={(nextVal) => {
+                      setLocationObj(nextVal);
+                      setLocation(nextVal.address);
+                    }}
+                  />
+                </div>
+              </div>
               <label className="block">
                 <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f]">
                   <CalendarDays className="h-4 w-4" />
@@ -228,18 +355,60 @@ export const CreatePost = () => {
               />
             </label>
 
-            <label className="mt-5 block">
-              <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f]">
+            <div className="mt-5 block">
+              <span className="flex items-center gap-2 text-[13px] font-bold text-[#555f6f] mb-2">
                 <ImageIcon className="h-4 w-4" />
                 Ảnh bài viết
               </span>
-              <input
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                onChange={(event) => setImageUrl(event.target.value)}
-                placeholder="Dán URL ảnh"
-                value={imageUrl}
-              />
-            </label>
+              
+              {imageUrl ? (
+                <div className="relative rounded-lg border border-outline-variant overflow-hidden bg-[#f8f9fa] p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src={imageUrl} alt="Uploaded" className="h-16 w-24 object-cover rounded-md border border-outline-variant" />
+                    <span className="text-[13px] text-on-surface-variant truncate max-w-xs">{imageUrl}</span>
+                  </div>
+                  <button
+                    onClick={handleDeleteImage}
+                    disabled={isDeletingImage}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] font-bold text-[13px] rounded-lg transition-colors disabled:opacity-60"
+                    type="button"
+                  >
+                    {isDeletingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                    <span>Xóa ảnh</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-outline-variant rounded-lg p-6 hover:bg-surface-container-low hover:border-primary transition-all cursor-pointer relative">
+                    <ImageIcon className="h-8 w-8 text-[#555f6f] mb-2" />
+                    <span className="text-[13px] font-bold text-[#555f6f]">{uploadingImage ? 'Đang tải ảnh...' : 'Chọn ảnh tải lên'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </label>
+                  
+                  <div className="flex items-center justify-center font-bold text-[13px] text-outline">hoặc</div>
+
+                  <input
+                    ref={imageInputRef}
+                    className="flex-[1.5] h-12 rounded-lg border border-outline-variant px-4 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    onChange={(event) => setImageUrl(event.target.value)}
+                    placeholder="Dán URL ảnh trực tiếp..."
+                    value={imageUrl}
+                  />
+                </div>
+              )}
+
+              {uploadingImage && uploadProgress !== null && (
+                <div className="mt-2 w-full bg-[#f0f3ff] rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full transition-all duration-150" style={{ width: `${uploadProgress}%` }}></div>
+                </div>
+              )}
+            </div>
           </section>
 
           <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
@@ -294,9 +463,15 @@ export const CreatePost = () => {
             </h2>
             <article className="mt-5 rounded-lg border border-outline-variant p-4">
               <div className="flex gap-3">
-                <img alt={currentCommunityUser.name} className="h-10 w-10 rounded-lg object-cover" src={currentCommunityUser.avatar} />
+                {avatarUrl ? (
+                  <img alt={name} className="h-10 w-10 rounded-lg object-cover" src={avatarUrl} />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <UserRound className="h-5 w-5" />
+                  </div>
+                )}
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold">{currentCommunityUser.name}</p>
+                  <p className="truncate text-[14px] font-bold">{name}</p>
                   <p className="flex items-center gap-1 text-[12px] text-[#555f6f]">
                     <VisibilityIcon className="h-3.5 w-3.5" />
                     {selectedVisibility.label}

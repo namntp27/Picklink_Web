@@ -115,10 +115,22 @@ export type CreatePostInput = {
 
 // ────────────────────────────── API functions ───────────────────────────────
 
-// Groups
-export const getGroups = (token?: string | null, query?: string) => {
-  const params = query ? `?query=${encodeURIComponent(query)}` : '';
-  return apiRequest<CommunityGroup[]>(`/api/Community/groups${params}`, {}, token || undefined);
+export const getGroups = (
+  token?: string | null,
+  query?: string,
+  page?: number,
+  pageSize?: number,
+  groupType?: string,
+  sortBy?: string
+) => {
+  const searchParams = new URLSearchParams();
+  if (query) searchParams.append('query', query);
+  if (groupType && groupType !== 'All') searchParams.append('groupType', groupType);
+  if (sortBy) searchParams.append('sortBy', sortBy);
+  if (page !== undefined) searchParams.append('page', page.toString());
+  if (pageSize !== undefined) searchParams.append('pageSize', pageSize.toString());
+
+  return apiRequest<CommunityGroup[]>(`/api/Community/groups?${searchParams.toString()}`, {}, token || undefined);
 };
 
 export const getGroup = (groupId: number, token?: string | null) =>
@@ -169,6 +181,12 @@ export const banMember = (token: string, groupId: number, memberUserId: number) 
 
 export const unbanMember = (token: string, groupId: number, memberUserId: number) =>
   apiRequest<void>(`/api/Community/groups/${groupId}/members/${memberUserId}/unban`, { method: 'POST' }, token);
+
+export const changeMemberRole = (token: string, groupId: number, memberUserId: number, role: string) =>
+  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  }, token);
 
 // Group images
 export const addGroupImage = (token: string, groupId: number, imageUrl: string, caption?: string) =>

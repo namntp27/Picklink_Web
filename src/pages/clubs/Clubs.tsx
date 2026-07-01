@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
-import { ClubsChat } from './ClubsChat';
 import {
   Search,
   MapPin,
@@ -23,6 +22,7 @@ import {
   joinGroup,
   type CommunityGroup,
 } from '../../api/community';
+import { Dropdown, type DropdownOption } from '../../components/ui/Dropdown';
 
 // Color gradient pairs for club cards without cover images
 const cardGradients = [
@@ -36,52 +36,95 @@ const cardGradients = [
 
 const cardIcons = [Activity, Zap, Star, Award, Users, Activity];
 
+const sortOptions: readonly DropdownOption<'newest' | 'members' | 'active'>[] = [
+  { value: 'newest', label: 'Mới nhất' },
+  { value: 'members', label: 'Nhiều thành viên nhất' },
+  { value: 'active', label: 'Hoạt động sôi nổi' },
+];
+
 export const Clubs = () => {
   const navigate = useNavigate();
   const { token, isAuthenticated } = useAuth();
-  const [showGroups, setShowGroups] = useState(false);
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
   useEffect(() => {
     if (setShowFooter) {
-      setShowFooter(!showGroups);
+      setShowFooter(true);
     }
-    return () => {
-      if (setShowFooter) {
-        setShowFooter(true);
-      }
-    };
-  }, [showGroups, setShowFooter]);
+  }, [setShowFooter]);
 
   // API state
   const [clubs, setClubs] = useState<CommunityGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [joiningId, setJoiningId] = useState<number | null>(null);
 
+  // Filter & Pagination states
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Public' | 'Private' | 'Mine'>('All');
+  const [sortBy, setSortBy] = useState<'newest' | 'members' | 'active'>('newest');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
   const loadClubs = useCallback(
-    async (query?: string) => {
-      setLoading(true);
+    async (query?: string, pageNum: number = 1, replace: boolean = false) => {
+      if (pageNum === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
       try {
-        const data = await getGroups(token, query);
-        setClubs(data);
+        const data = await getGroups(token, query, pageNum, 3, typeFilter, sortBy);
+        if (replace || pageNum === 1) {
+          setClubs(data);
+        } else {
+          setClubs((prev) => {
+            const existingIds = new Set(prev.map((c) => c.groupId));
+            const newItems = data.filter((c) => !existingIds.has(c.groupId));
+            return [...prev, ...newItems];
+          });
+        }
+        setHasMore(data.length === 3);
       } catch (err: any) {
         setError(err?.message ?? 'Không thể tải danh sách câu lạc bộ.');
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     },
-    [token],
+    [token, typeFilter, sortBy],
   );
 
+  // Load page 1 on filter or sort change
   useEffect(() => {
-    loadClubs();
-  }, [token]);
+    setPage(1);
+    loadClubs(searchTerm || undefined, 1, true);
+  }, [token, typeFilter, sortBy]);
+
+  // Infinite scroll event listener
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || loadingMore || !hasMore) return;
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 150
+      ) {
+        setPage((prev) => {
+          const next = prev + 1;
+          loadClubs(searchTerm || undefined, next, false);
+          return next;
+        });
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, loadingMore, hasMore, searchTerm, loadClubs]);
 
   const handleSearch = () => {
-    loadClubs(searchTerm || undefined);
+    setPage(1);
+    loadClubs(searchTerm || undefined, 1, true);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -96,18 +139,17 @@ export const Clubs = () => {
     setJoiningId(groupId);
     try {
       await joinGroup(token, groupId);
-      // Refresh to update myStatus
-      await loadClubs(searchTerm || undefined);
+      // Refresh list to update status
+      setPage(1);
+      await loadClubs(searchTerm || undefined, 1, true);
     } catch {
-      // Silent fail or could show toast
+      // Silent fail
     } finally {
       setJoiningId(null);
     }
   };
 
-  if (showGroups) {
-    return <ClubsChat />;
-  }
+
 
   return (
     <div className="flex-1 flex flex-col font-body-md overflow-x-hidden w-full bg-background">
@@ -159,49 +201,64 @@ export const Clubs = () => {
             </div>
             
             {/* Club Tabs */}
-            <div className="mt-stack-lg flex items-center justify-center gap-4">
-              <button 
-                className="bg-primary-container text-on-primary-container font-label-md text-label-md px-6 py-3 rounded-lg flex items-center gap-2 transition-all shadow-md font-bold"
-              >
-                Dành cho bạn
-              </button>
-              {isAuthenticated && (
-                <button 
-                  onClick={() => setShowGroups(true)}
-                  className="bg-white/10 hover:bg-white/20 border border-white/30 text-white font-label-md text-label-md px-6 py-3 rounded-lg flex items-center gap-2 transition-all backdrop-blur-sm"
-                >
-                  Nhóm của bạn
-                </button>
-              )}
-            </div>
           </div>
         </section>
       </div>
 
       {/* Filter Bar */}
-      <section className="bg-surface-container-lowest border-b border-outline-variant py-4 sticky top-[72px] z-40 shadow-sm overflow-x-auto">
-        <div className="max-w-container-max-width mx-auto px-margin-mobile md:px-margin-desktop flex items-center justify-between gap-stack-md min-w-max">
-          <div className="flex items-center gap-stack-md pb-2 md:pb-0">
-            <div className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full border border-outline-variant text-label-md font-label-md text-on-surface-variant cursor-pointer hover:bg-surface-container-highest transition-colors">
-              Khu vực <ChevronDown className="w-[18px] h-[18px]" />
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full border border-outline-variant text-label-md font-label-md text-on-surface-variant cursor-pointer hover:bg-surface-container-highest transition-colors">
-              Quy mô <ChevronDown className="w-[18px] h-[18px]" />
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full border border-outline-variant text-label-md font-label-md text-on-surface-variant cursor-pointer hover:bg-surface-container-highest transition-colors">
-              Trình độ <ChevronDown className="w-[18px] h-[18px]" />
-            </div>
+      <section className="bg-surface-container-lowest border-b border-outline-variant py-4 sticky top-[72px] z-40 shadow-sm">
+        <div className="max-w-container-max-width mx-auto px-margin-mobile md:px-margin-desktop flex items-center justify-between gap-stack-md relative">
+          <div className="flex items-center gap-stack-md overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => setTypeFilter('All')}
+              className={`px-4 py-2 rounded-full border text-label-md font-label-md transition-colors ${
+                typeFilter === 'All'
+                  ? 'bg-primary text-white border-primary shadow-sm font-semibold'
+                  : 'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-surface-container-highest'
+              }`}
+            >
+              Tất cả
+            </button>
+            <button
+              onClick={() => setTypeFilter('Public')}
+              className={`px-4 py-2 rounded-full border text-label-md font-label-md transition-colors ${
+                typeFilter === 'Public'
+                  ? 'bg-primary text-white border-primary shadow-sm font-semibold'
+                  : 'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-surface-container-highest'
+              }`}
+            >
+              Công khai
+            </button>
+            <button
+              onClick={() => setTypeFilter('Private')}
+              className={`px-4 py-2 rounded-full border text-label-md font-label-md transition-colors ${
+                typeFilter === 'Private'
+                  ? 'bg-primary text-white border-primary shadow-sm font-semibold'
+                  : 'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-surface-container-highest'
+              }`}
+            >
+              Riêng tư
+            </button>
+            {isAuthenticated && (
+              <button
+                onClick={() => setTypeFilter('Mine')}
+                className={`px-4 py-2 rounded-full border text-label-md font-label-md transition-colors ${
+                  typeFilter === 'Mine'
+                    ? 'bg-primary text-white border-primary shadow-sm font-semibold'
+                    : 'bg-surface-container border-outline-variant text-on-surface-variant hover:bg-surface-container-highest'
+                }`}
+              >
+                Của tôi
+              </button>
+            )}
           </div>
-          <div className="flex items-center gap-stack-sm ml-auto mr-4 md:mr-0 pl-4 border-l border-outline-variant md:border-none">
+          <div className="flex items-center gap-stack-sm ml-auto mr-4 md:mr-0 pl-4 border-l border-outline-variant md:border-none relative z-40">
             <span className="text-label-sm font-label-sm text-outline whitespace-nowrap">Sắp xếp:</span>
-            <div className="relative">
-              <select className="bg-transparent border-none text-label-md font-label-md text-on-surface focus:ring-0 pr-8 outline-none appearance-none cursor-pointer">
-                <option>Mới nhất</option>
-                <option>Nhiều thành viên nhất</option>
-                <option>Hoạt động sôi nổi</option>
-              </select>
-              <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-outline w-[18px] h-[18px]" />
-            </div>
+            <Dropdown<'newest' | 'members' | 'active'>
+              options={sortOptions}
+              value={sortBy}
+              onChange={setSortBy}
+            />
           </div>
         </div>
       </section>
@@ -230,7 +287,7 @@ export const Clubs = () => {
             <Users className="h-10 w-10 text-on-surface-variant" />
             <p className="mt-3 text-[16px] font-bold text-on-surface">Không tìm thấy câu lạc bộ</p>
             <p className="mt-2 text-[14px] text-on-surface-variant">
-              {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm.' : 'Hãy tạo câu lạc bộ đầu tiên!'}
+              {searchTerm || typeFilter !== 'All' ? 'Thử thay đổi từ khóa hoặc bộ lọc.' : 'Hãy tạo câu lạc bộ đầu tiên!'}
             </p>
           </div>
         ) : (
@@ -334,6 +391,12 @@ export const Clubs = () => {
                 );
               })}
             </div>
+            {loadingMore && (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="ml-2 text-[13px] text-on-surface-variant font-medium">Đang tải thêm...</span>
+              </div>
+            )}
           </>
         )}
       </main>

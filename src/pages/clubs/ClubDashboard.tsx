@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import {
-  Bell,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -41,6 +40,7 @@ import {
   declineMember,
   banMember,
   unbanMember,
+  changeMemberRole,
   type CommunityGroup,
   type CommunityMember,
   type CommunityMessage,
@@ -570,18 +570,35 @@ export const ClubDashboard = () => {
     }
   };
 
-  const updateMemberRole = (memberId: number, role: MemberRole) => {
-    setMembers((currentMembers) =>
-      currentMembers.map((member) =>
-        member.id === memberId
-          ? {
-              ...member,
-              role,
-              permissions: permissionByRole[role],
-            }
-          : member,
-      ),
-    );
+  // Map Vietnamese UI roles to backend role strings
+  const uiRoleToBackendRole: Record<MemberRole, string> = {
+    'Chủ nhiệm': 'Owner',
+    'Quản trị viên': 'Admin',
+    'Huấn luyện viên': 'Moderator',
+    'Thành viên': 'Member',
+  };
+
+  const updateMemberRole = async (memberId: number, role: MemberRole) => {
+    if (!token || !isNumericGroupId) {
+      // Fallback to local-only update
+      setMembers((currentMembers) =>
+        currentMembers.map((member) =>
+          member.id === memberId
+            ? { ...member, role, permissions: permissionByRole[role] }
+            : member,
+        ),
+      );
+      return;
+    }
+
+    const backendRole = uiRoleToBackendRole[role];
+    try {
+      await changeMemberRole(token, groupId, memberId, backendRole);
+      // Reload members to get fresh data from server
+      await loadMembers();
+    } catch (err: any) {
+      alert(err.message || 'Không thể thay đổi vai trò thành viên.');
+    }
   };
 
   const toggleMemberStatus = async (memberId: number) => {
@@ -926,7 +943,10 @@ export const ClubDashboard = () => {
                   </td>
                   <td className="px-5 py-4">
                     <select
-                      className="h-10 rounded-lg border border-outline-variant bg-white px-3 text-[13px] font-bold outline-none focus:border-primary"
+                      className={`h-10 rounded-lg border border-outline-variant px-3 text-[13px] font-bold outline-none focus:border-primary ${
+                        member.role === 'Chủ nhiệm' ? 'bg-surface-container-low text-on-surface-variant cursor-not-allowed' : 'bg-white'
+                      }`}
+                      disabled={member.role === 'Chủ nhiệm'}
                       onChange={(event) => updateMemberRole(member.id, event.target.value as MemberRole)}
                       value={member.role}
                     >
@@ -1441,13 +1461,6 @@ export const ClubDashboard = () => {
                   placeholder="Tìm thành viên, bài viết..."
                   type="text"
                 />
-              </div>
-              <button className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low" type="button">
-                <Bell className="h-5 w-5" />
-                <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#eab526]" />
-              </button>
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-white">
-                NA
               </div>
             </div>
           </div>
