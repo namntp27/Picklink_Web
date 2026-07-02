@@ -9,9 +9,10 @@ import {
   TrendingUp,
   Users,
   UserRound,
+  Search,
   type LucideIcon,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   activeCommunityPlayers,
   currentCommunityUser,
@@ -19,6 +20,7 @@ import {
 } from '../../data/communityPosts';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
+import { getOutstandingPlayers, type OutstandingPlayer } from '../../api/community';
 import './community.css';
 
 type CommunityPageProps = {
@@ -39,7 +41,7 @@ type CommunityHeroProps = {
 const feedLinks: Array<{ label: string; icon: LucideIcon; to: string }> = [
   { label: 'Bảng tin', icon: Home, to: '/posts' },
   { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
-  { label: 'Câu lạc bộ', icon: Users, to: '/clubs' },
+  { label: 'Câu lạc bộ', icon: Users, to: '/posts/clubs' },
   { label: 'Đã lưu', icon: Bookmark, to: '/posts/saved' },
   { label: 'Cài đặt', icon: Settings, to: '/profile' },
 ];
@@ -186,56 +188,120 @@ export const CommunityFeedNav = ({ activePath }: { activePath: string }) => {
   );
 };
 
-export const CommunityInsights = () => (
-  <aside className="community-insights">
-    <section className="community-panel p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-extrabold text-[#0b2228]">Đang được quan tâm</h2>
-        <Flame aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
-      </div>
-      <div className="grid gap-1">
-        {trendingTopics.map((topic, index) => (
-          <button className="community-topic" key={topic.title} type="button">
-            <span className="community-topic__rank">{String(index + 1).padStart(2, '0')}</span>
-            <span className="min-w-0">
-              <span className="block text-[11px] font-semibold text-[#718077]">{topic.category}</span>
-              <span className="mt-0.5 block text-[13px] font-extrabold leading-5 text-[#0b2228]">
-                {topic.title}
-              </span>
-              <span className="mt-0.5 block text-[11px] font-semibold text-[#718077]">{topic.posts}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
+export const CommunityInsights = () => {
+  const { token } = useAuth();
+  const [players, setPlayers] = useState<OutstandingPlayer[]>([]);
 
-    <section className="community-panel p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-extrabold text-[#0b2228]">Người chơi nổi bật</h2>
-        <Users aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
-      </div>
-      <div className="grid gap-3">
-        {activeCommunityPlayers.map((player) => (
-          <div className="flex items-center gap-3" key={player.name}>
-            <img alt={player.name} className="community-avatar" src={player.avatar} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-extrabold text-[#0b2228]">{player.name}</p>
-              <p className="text-[11px] font-semibold text-[#718077]">Trình độ {player.level}</p>
-            </div>
-            <button
-              aria-label={`Theo dõi ${player.name}`}
-              className="community-icon-button h-8 w-8"
-              title={`Theo dõi ${player.name}`}
-              type="button"
-            >
-              <span className="text-base leading-none">+</span>
+  useEffect(() => {
+    let cancelled = false;
+    getOutstandingPlayers(token)
+      .then((data) => {
+        if (!cancelled) {
+          setPlayers(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load outstanding players:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // Fallback to activeCommunityPlayers mock if API returned empty
+  const displayPlayers = players.length > 0
+    ? players.map(p => ({
+        userId: p.userId,
+        name: p.name,
+        level: p.level,
+        avatar: p.avatar
+      }))
+    : activeCommunityPlayers.map((p, idx) => ({
+        userId: 1000 + idx, // mock ID for fallback
+        name: p.name,
+        level: p.level,
+        avatar: p.avatar
+      }));
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  return (
+    <aside className="community-insights">
+      <section className="community-panel p-4 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718077]" />
+          <input
+            className="w-full h-10 pl-9 pr-3 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] text-[13px] font-semibold text-[#0b2228] placeholder-[#718077]/70 outline-none focus:border-[#477313] focus:ring-1 focus:ring-[#477313]"
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) {
+                setSearchParams({ search: val });
+              } else {
+                setSearchParams({});
+              }
+            }}
+            placeholder="Tìm bài viết, tiêu đề, hashtag..."
+            type="text"
+            value={searchParams.get('search') || ''}
+          />
+        </div>
+      </section>
+
+      <section className="community-panel p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-extrabold text-[#0b2228]">Đang được quan tâm</h2>
+          <Flame aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
+        </div>
+        <div className="grid gap-1">
+          {trendingTopics.map((topic, index) => (
+            <button className="community-topic" key={topic.title} type="button">
+              <span className="community-topic__rank">{String(index + 1).padStart(2, '0')}</span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold text-[#718077]">{topic.category}</span>
+                <span className="mt-0.5 block text-[13px] font-extrabold leading-5 text-[#0b2228]">
+                  {topic.title}
+                </span>
+                <span className="mt-0.5 block text-[11px] font-semibold text-[#718077]">{topic.posts}</span>
+              </span>
             </button>
-          </div>
-        ))}
-      </div>
-    </section>
-  </aside>
-);
+          ))}
+        </div>
+      </section>
+
+      <section className="community-panel p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-extrabold text-[#0b2228]">Người chơi nổi bật</h2>
+          <Users aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
+        </div>
+        <div className="grid gap-3">
+          {displayPlayers.map((player) => (
+            <div className="flex items-center gap-3" key={player.userId}>
+              {player.avatar ? (
+                <img alt={player.name} className="community-avatar" src={player.avatar} />
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+                  <UserRound className="h-5 w-5" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-extrabold text-[#0b2228]">{player.name}</p>
+                <p className="text-[11px] font-semibold text-[#718077]">Trình độ {player.level}</p>
+              </div>
+              <Link
+                aria-label={`Nhắn tin với ${player.name}`}
+                className="community-icon-button h-8 w-8 flex items-center justify-center text-lg text-[#477313] hover:bg-[#e0e9dc]"
+                title={`Nhắn tin với ${player.name}`}
+                to={`/messages?chatWithUserId=${player.userId}`}
+              >
+                <span className="text-base leading-none">💬</span>
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
+    </aside>
+  );
+};
 
 export const CommunityFeedShell = ({
   activePath,

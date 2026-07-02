@@ -20,6 +20,7 @@ import {
   Trophy,
   UserPlus,
   Users,
+  ThumbsUp,
 } from 'lucide-react';
 import { XCircle } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
@@ -460,39 +461,151 @@ export const ClubDetail = () => {
 
             {(activeTab === 'overview' || activeTab === 'posts') && (
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                <h2 className="mb-5 text-[24px] font-bold text-on-surface">Bảng tin CLB</h2>
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <h2 className="text-[24px] font-bold text-on-surface">Bảng tin CLB</h2>
+                  {(club.myStatus === 'Accepted') && (
+                    <Link
+                      to={`/posts/create?visibility=club&groupId=${groupId}`}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[14px] font-bold text-white hover:bg-primary/90"
+                    >
+                      <Activity className="h-4 w-4" />
+                      Đăng bài
+                    </Link>
+                  )}
+                </div>
                 {posts.length > 0 ? (
                   <div className="space-y-4">
-                    {posts.map((post) => (
-                      <article className="rounded-lg border border-outline-variant p-4" key={post.postId}>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3">
-                            <img
-                              alt={post.authorName}
-                              className="h-10 w-10 rounded-full object-cover"
-                              src={post.authorAvatarUrl || `https://i.pravatar.cc/160?u=${post.authorId}`}
-                            />
-                            <div>
-                              <h3 className="text-[15px] font-bold text-on-surface">{post.authorName}</h3>
-                              <p className="mt-0.5 text-[13px] font-bold text-primary">
-                                {new Date(post.createdAt).toLocaleDateString('vi-VN')} · {post.likeCount} lượt thích · {post.commentCount} bình luận
-                              </p>
+                    {posts.map((post) => {
+                      let parsed: {
+                        title?: string;
+                        body?: string;
+                        location?: string;
+                        mode?: string;
+                        lookingFor?: boolean;
+                        slots?: string;
+                        levelRange?: string;
+                        playTime?: string;
+                        matchId?: number | null;
+                        tags?: string[];
+                      } = {};
+                      try {
+                        const p = JSON.parse(post.content || '{}');
+                        if (p && typeof p === 'object' && 'body' in p) {
+                          parsed = p;
+                        }
+                      } catch {
+                        parsed = { body: post.content || '' };
+                      }
+
+                      const postTitle = parsed.title || '';
+                      const postBody = parsed.body || post.content || '';
+                      const postTags = parsed.tags || [];
+                      const postLocation = parsed.location || '';
+                      const isPending = post.visibility === 'Pending';
+
+                      const lookingForText = parsed.lookingFor && parsed.slots
+                        ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
+                        : null;
+
+                      let formattedDate = '';
+                      try {
+                        formattedDate = new Intl.DateTimeFormat('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }).format(new Date(post.createdAt));
+                      } catch {
+                        formattedDate = new Date(post.createdAt).toLocaleDateString('vi-VN');
+                      }
+
+                      return (
+                        <article className="rounded-xl border border-outline-variant overflow-hidden" key={post.postId}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <img
+                                  alt={post.authorName}
+                                  className="h-10 w-10 rounded-full object-cover shrink-0"
+                                  src={post.authorAvatarUrl || `https://i.pravatar.cc/160?u=${post.authorId}`}
+                                />
+                                <div className="min-w-0">
+                                  <h3 className="truncate text-[15px] font-bold text-on-surface">{post.authorName}</h3>
+                                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-bold text-on-surface-variant">
+                                    <span>{formattedDate}</span>
+                                    {postLocation && (
+                                      <span className="inline-flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        {postLocation}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isPending && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#fff8e6] px-3 py-1 text-[11px] font-bold text-[#7a5600]">
+                                    <Clock className="h-3 w-3" />
+                                    Chờ duyệt
+                                  </span>
+                                )}
+                                <MessageCircle className="h-5 w-5 text-on-surface-variant" />
+                              </div>
                             </div>
+
+                            {postTitle && (
+                              <h4 className="mt-3 text-[17px] font-bold leading-6 text-on-surface">{postTitle}</h4>
+                            )}
+                            {postBody && (
+                              <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{postBody}</p>
+                            )}
+
+                            {lookingForText && (
+                              <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+                                <span className="flex items-start gap-2">
+                                  <Users className="mt-0.5 h-4 w-4 shrink-0" />
+                                  <span>{lookingForText}</span>
+                                </span>
+                                {parsed.matchId && (
+                                  <Link
+                                    to={`/matches/${parsed.matchId}`}
+                                    className="inline-flex h-8 items-center rounded-lg bg-primary hover:bg-primary/90 px-3 py-1 text-[11px] font-black text-white transition-colors shrink-0"
+                                  >
+                                    Tham gia ngay
+                                  </Link>
+                                )}
+                              </div>
+                            )}
+
+                            {postTags.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {postTags.map((tag) => (
+                                  <span className="inline-flex items-center rounded-full bg-[#f0f3ff] px-3 py-1 text-[12px] font-bold text-primary" key={tag}>
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <MessageCircle className="h-5 w-5 shrink-0 text-on-surface-variant" />
-                        </div>
-                        {post.content && (
-                          <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">{post.content}</p>
-                        )}
-                        {post.mediaUrls.length > 0 && (
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            {post.mediaUrls.map((url, i) => (
-                              <img alt={`Media ${i + 1}`} className="h-32 w-full rounded-lg object-cover" key={url} src={url} />
-                            ))}
+
+                          {post.mediaUrls.length > 0 && (
+                            <div className={`${post.mediaUrls.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}>
+                              {post.mediaUrls.map((url, i) => (
+                                <img alt={`Media ${i + 1}`} className="h-48 w-full object-cover" key={url} src={url} />
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-3 px-4 py-2 text-[12px] font-bold text-on-surface-variant border-t border-outline-variant">
+                            <span className="inline-flex items-center gap-1.5">
+                              <ThumbsUp className="h-3.5 w-3.5 text-primary" />
+                              {post.likeCount} lượt thích
+                            </span>
+                            <span>{post.commentCount} bình luận</span>
                           </div>
-                        )}
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center py-8 text-on-surface-variant">

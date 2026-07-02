@@ -66,9 +66,15 @@ export const Clubs = () => {
   const [sortBy, setSortBy] = useState<'newest' | 'members' | 'active'>('newest');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [selectedCity, setSelectedCity] = useState('Toàn quốc');
+
+  const buildSearchQuery = useCallback((search: string, city: string) => {
+    if (city === 'Toàn quốc') return search;
+    return `${search} ${city}`.trim();
+  }, []);
 
   const loadClubs = useCallback(
-    async (query?: string, pageNum: number = 1, replace: boolean = false) => {
+    async (pageNum: number = 1, replace: boolean = false) => {
       if (pageNum === 1) {
         setLoading(true);
       } else {
@@ -76,7 +82,8 @@ export const Clubs = () => {
       }
       setError(null);
       try {
-        const data = await getGroups(token, query, pageNum, 3, typeFilter, sortBy);
+        const queryVal = buildSearchQuery(searchTerm, selectedCity) || undefined;
+        const data = await getGroups(token, queryVal, pageNum, 3, typeFilter, sortBy);
         if (replace || pageNum === 1) {
           setClubs(data);
         } else {
@@ -94,14 +101,14 @@ export const Clubs = () => {
         setLoadingMore(false);
       }
     },
-    [token, typeFilter, sortBy],
+    [token, typeFilter, sortBy, searchTerm, selectedCity, buildSearchQuery],
   );
 
   // Load page 1 on filter or sort change
   useEffect(() => {
     setPage(1);
-    loadClubs(searchTerm || undefined, 1, true);
-  }, [token, typeFilter, sortBy]);
+    loadClubs(1, true);
+  }, [token, typeFilter, sortBy, selectedCity]);
 
   // Infinite scroll event listener
   useEffect(() => {
@@ -113,18 +120,18 @@ export const Clubs = () => {
       ) {
         setPage((prev) => {
           const next = prev + 1;
-          loadClubs(searchTerm || undefined, next, false);
+          loadClubs(next, false);
           return next;
         });
       }
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loading, loadingMore, hasMore, searchTerm, loadClubs]);
+  }, [loading, loadingMore, hasMore, loadClubs]);
 
   const handleSearch = () => {
     setPage(1);
-    loadClubs(searchTerm || undefined, 1, true);
+    loadClubs(1, true);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -139,9 +146,8 @@ export const Clubs = () => {
     setJoiningId(groupId);
     try {
       await joinGroup(token, groupId);
-      // Refresh list to update status
       setPage(1);
-      await loadClubs(searchTerm || undefined, 1, true);
+      await loadClubs(1, true);
     } catch {
       // Silent fail
     } finally {
@@ -184,7 +190,11 @@ export const Clubs = () => {
               </div>
               <div className="flex items-center gap-2 w-full md:w-auto px-4 relative">
                 <MapPin className="text-outline w-[24px] h-[24px]" />
-                <select className="border-none focus:ring-0 text-body-md py-3 bg-transparent pr-8 outline-none appearance-none cursor-pointer">
+                <select 
+                  className="border-none focus:ring-0 text-body-md py-3 bg-transparent pr-8 outline-none appearance-none cursor-pointer"
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                >
                   <option>Toàn quốc</option>
                   <option>Hà Nội</option>
                   <option>TP. Hồ Chí Minh</option>
@@ -264,6 +274,20 @@ export const Clubs = () => {
       </section>
 
       <main className="max-w-container-max-width mx-auto px-margin-mobile md:px-margin-desktop py-stack-lg w-full">
+        {/* Create Club call to action banner */}
+        <div className="mb-8 p-6 rounded-xl border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-[18px] font-bold text-primary">Chưa tìm thấy câu lạc bộ ưng ý?</h2>
+            <p className="text-[14px] text-on-surface-variant mt-1">Hãy xây dựng một cộng đồng Pickleball của riêng bạn, thu hút thành viên và tổ chức hoạt động sôi nổi!</p>
+          </div>
+          <Link
+            to="/clubs/create"
+            className="inline-flex items-center justify-center shrink-0 bg-primary text-white text-[14px] font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Tạo câu lạc bộ ngay
+          </Link>
+        </div>
+
         {/* Clubs Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-20">

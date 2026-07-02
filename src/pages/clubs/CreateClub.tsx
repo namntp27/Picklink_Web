@@ -20,6 +20,16 @@ export const CreateClub = () => {
     const description = (formData.get('description') as string)?.trim() || undefined;
     const groupType = (formData.get('group-type') as string) || 'Public';
 
+    const citySelect = (formData.get('city') as string);
+    const districtInput = (formData.get('district') as string)?.trim();
+    const cityMap: Record<string, string> = {
+      hn: 'Hà Nội',
+      hcm: 'Hồ Chí Minh',
+      dn: 'Đà Nẵng'
+    };
+    const cityLabel = cityMap[citySelect] || citySelect;
+    const activeLocation = [districtInput, cityLabel].filter(Boolean).join(', ') || undefined;
+
     if (!groupName) {
       setError('Vui lòng nhập tên câu lạc bộ.');
       return;
@@ -33,6 +43,7 @@ export const CreateClub = () => {
         groupName,
         description,
         groupType,
+        activeLocation,
       });
       navigate(`/clubs/${group.groupId}/dashboard`);
     } catch (err: any) {
@@ -107,23 +118,37 @@ export const CreateClub = () => {
                     </div>
                   </div>
 
-                  {/* Location Select */}
+                  {/* City Select */}
                   <div>
-                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="city">Khu vực</label>
+                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="city">Tỉnh / Thành phố <span className="text-[#ba1a1a]">*</span></label>
                     <div className="relative">
                       <select 
                         className="w-full bg-surface-container border border-outline-variant rounded-md px-4 py-3 text-[16px] text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow"
                         id="city" 
                         name="city" 
                         defaultValue=""
+                        required
                       >
                         <option disabled value="">Chọn Tỉnh/Thành phố</option>
-                        <option value="hcm">Hồ Chí Minh</option>
                         <option value="hn">Hà Nội</option>
+                        <option value="hcm">Hồ Chí Minh</option>
                         <option value="dn">Đà Nẵng</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-3.5 text-[#555f6f] pointer-events-none w-5 h-5" />
                     </div>
+                  </div>
+
+                  {/* District / Address Input */}
+                  <div>
+                    <label className="block text-[14px] font-bold text-[#151c27] mb-2" htmlFor="district">Quận / Huyện, Địa bàn hoạt động <span className="text-[#ba1a1a]">*</span></label>
+                    <input 
+                      className="w-full bg-surface-container border border-outline-variant rounded-md px-4 py-3 text-[16px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow"
+                      id="district" 
+                      name="district" 
+                      placeholder="VD: Quận Cầu Giấy, Sân Nghĩa Tân" 
+                      required 
+                      type="text"
+                    />
                   </div>
                 </div>
                 

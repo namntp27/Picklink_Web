@@ -21,7 +21,7 @@ import { MatchDetail } from './pages/matches/MatchDetail';
 import { MyMatches } from './pages/matches/MyMatches';
 import { Opponents } from './pages/matches/Opponents';
 import { PendingInvites } from './pages/matches/PendingInvites';
-import { SavedPosts, TrendingPosts } from './pages/community/PostCollections';
+import { SavedPosts, TrendingPosts, ClubPosts } from './pages/community/PostCollections';
 import { PostDetail } from './pages/community/PostDetail';
 import { Posts } from './pages/community/Posts';
 import { Checkout } from './pages/courts/Checkout';
@@ -70,6 +70,7 @@ function App() {
         <Route path="posts" element={<Posts />} />
         <Route path="posts/trending" element={<TrendingPosts />} />
         <Route path="posts/saved" element={<SavedPosts />} />
+        <Route path="posts/clubs" element={<ClubPosts />} />
         <Route path="posts/:id" element={<PostDetail />} />
         <Route path="clubs/:id/members" element={<ClubMembers />} />
         <Route path="clubs/:id" element={<ClubDetail />} />

@@ -27,6 +27,7 @@ export type CommunityGroup = {
   overallRating: number;
   ratingCount: number;
   images: GroupImage[];
+  activeLocation: string | null;
 };
 
 export type CommunityMember = {
@@ -51,6 +52,7 @@ export type CommunityMessage = {
   replyToMessageId: number | null;
   sentAt: string;
   isMine: boolean;
+  isPinned: boolean;
 };
 
 export type CommunityPost = {
@@ -81,6 +83,8 @@ export type CommunityComment = {
   content: string;
   createdAt: string;
   updatedAt: string;
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 // ────────────────────────────── Request types ───────────────────────────────
@@ -90,6 +94,7 @@ export type CreateGroupInput = {
   description?: string;
   groupType?: string;
   coverImageUrl?: string;
+  activeLocation?: string;
 };
 
 export type UpdateGroupInput = {
@@ -100,6 +105,7 @@ export type UpdateGroupInput = {
   rules?: string;
   overallRating?: number;
   ratingCount?: number;
+  activeLocation?: string;
 };
 
 export type SendMessageInput = {
@@ -152,9 +158,15 @@ export const leaveGroup = (token: string, groupId: number) =>
 export const getGroupMembers = (token: string, groupId: number) =>
   apiRequest<CommunityMember[]>(`/api/Community/groups/${groupId}/members`, {}, token);
 
-// Messages
-export const getGroupMessages = (token: string, groupId: number) =>
-  apiRequest<CommunityMessage[]>(`/api/Community/groups/${groupId}/messages`, {}, token);
+export const getGroupMessages = (token: string, groupId: number, beforeMessageId?: number, limit = 8) => {
+  const url = beforeMessageId
+    ? `/api/Community/groups/${groupId}/messages?beforeMessageId=${beforeMessageId}&limit=${limit}`
+    : `/api/Community/groups/${groupId}/messages?limit=${limit}`;
+  return apiRequest<CommunityMessage[]>(url, {}, token);
+};
+
+export const getPinnedGroupMessages = (token: string, groupId: number) =>
+  apiRequest<CommunityMessage[]>(`/api/Community/groups/${groupId}/messages/pinned`, {}, token);
 
 export const sendGroupMessage = (token: string, groupId: number, input: SendMessageInput) =>
   apiRequest<CommunityMessage>(`/api/Community/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify(input) }, token);
@@ -228,3 +240,69 @@ export const createComment = (token: string, postId: number, content: string, pa
     method: 'POST',
     body: JSON.stringify({ content, parentCommentId: parentCommentId ?? null }),
   }, token);
+
+export const approveGroupPost = (token: string, postId: number) =>
+  apiRequest<CommunityPost>(`/api/Community/posts/${postId}/approve`, { method: 'POST' }, token);
+
+export const deletePost = (token: string, postId: number) =>
+  apiRequest<void>(`/api/Community/posts/${postId}`, { method: 'DELETE' }, token);
+
+export const deleteGroupMessage = (token: string, groupId: number, messageId: number) =>
+  apiRequest<void>(`/api/Community/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' }, token);
+
+export const pinGroupMessage = (token: string, groupId: number, messageId: number, pin: boolean) =>
+  apiRequest<CommunityMessage>(`/api/Community/groups/${groupId}/messages/${messageId}/pin?pin=${pin}`, { method: 'PUT' }, token);
+
+export const reactToComment = (token: string, commentId: number) =>
+  apiRequest<void>(`/api/Community/comments/${commentId}/like`, { method: 'POST' }, token);
+
+export const removeCommentReaction = (token: string, commentId: number) =>
+  apiRequest<void>(`/api/Community/comments/${commentId}/like`, { method: 'DELETE' }, token);
+
+export type OutstandingPlayer = {
+  userId: number;
+  name: string;
+  level: string;
+  avatar: string | null;
+};
+
+export const getOutstandingPlayers = (token?: string | null) =>
+  apiRequest<OutstandingPlayer[]>(`/api/Community/players/outstanding`, {}, token || undefined);
+
+export type DirectConversation = {
+  conversationId: number;
+  otherUserId: number;
+  otherUsername: string;
+  otherProfileImageUrl: string | null;
+  otherSkillLevel: string;
+  lastMessageAt: string;
+  lastMessage: string;
+};
+
+export const startDirectConversation = (token: string, targetUserId: number) =>
+  apiRequest<DirectConversation>(`/api/Community/conversations/direct/start?targetUserId=${targetUserId}`, {
+    method: 'POST',
+  }, token);
+
+export const getDirectConversations = (token: string) =>
+  apiRequest<DirectConversation[]>(`/api/Community/conversations/direct`, {}, token);
+
+export const getDirectMessages = (token: string, conversationId: number, beforeMessageId?: number, limit = 8) => {
+  const query = beforeMessageId ? `?beforeMessageId=${beforeMessageId}&limit=${limit}` : `?limit=${limit}`;
+  return apiRequest<CommunityMessage[]>(`/api/Community/conversations/direct/${conversationId}/messages${query}`, {}, token);
+};
+
+export const sendDirectMessage = (token: string, conversationId: number, content: string, mediaUrl?: string) =>
+  apiRequest<CommunityMessage>(`/api/Community/conversations/direct/${conversationId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content, mediaUrl }),
+  }, token);
+
+export type CommunityFriend = {
+  userId: number;
+  username: string;
+  profileImageUrl: string | null;
+};
+
+export const getFriends = (token: string) =>
+  apiRequest<CommunityFriend[]>('/api/Community/friends', {}, token);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Image as ImageIcon,
   MapPin,
@@ -13,14 +13,23 @@ import {
   UserRound,
   Users,
   Loader2,
+  X,
 } from 'lucide-react';
-import { communityPosts } from '../../data/communityPosts';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
-import { getGlobalPost, getGlobalPosts, reactToPost, removeReaction } from '../../api/community';
+import {
+  getGlobalPost,
+  getGlobalPosts,
+  reactToPost,
+  removeReaction,
+  getFriends,
+  getGroups,
+  type CommunityFriend,
+  type CommunityGroup,
+} from '../../api/community';
 import { CommunityFeedShell, CommunityPage } from './CommunityUI';
 
-interface DisplayPost {
+export interface DisplayPost {
   id: string;
   authorName: string;
   avatar: string;
@@ -38,9 +47,11 @@ interface DisplayPost {
   liked: boolean;
   saved: boolean;
   matchId?: number | null;
+  groupName?: string;
+  groupId?: number | null;
 }
 
-const parsePostContent = (rawContent: string | null) => {
+export const parsePostContent = (rawContent: string | null) => {
   if (!rawContent) {
     return { title: '', body: '' };
   }
@@ -66,66 +77,89 @@ const parsePostContent = (rawContent: string | null) => {
   return { title: '', body: rawContent };
 };
 
-const PostCard = ({ post, onLikeToggle }: { post: DisplayPost; onLikeToggle: (postId: string) => void }) => (
-  <article className="community-card overflow-hidden">
-    <div className="p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <Link className="flex min-w-0 gap-3" to={`/posts/${post.id}`}>
-          <img alt={post.authorName} className="community-avatar" src={post.avatar} />
-          <div className="min-w-0">
-            <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
-              <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>
-              <span>{post.createdAt}</span>
-              <span className="inline-flex items-center gap-1">
-                <MapPin aria-hidden="true" className="h-3 w-3" />
-                {post.location}
-              </span>
+export const PostCard = ({ 
+  post, 
+  onLikeToggle, 
+  onShareClick 
+}: { 
+  post: DisplayPost; 
+  onLikeToggle?: (postId: string) => void;
+  onShareClick?: (post: DisplayPost) => void;
+}) => {
+  const [, setSearchParams] = useSearchParams();
+
+  return (
+    <article className="community-card overflow-hidden">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 gap-3">
+            <Link to={`/posts/${post.id}`}>
+              <img alt={post.authorName} className="community-avatar" src={post.avatar} />
+            </Link>
+            <div className="min-w-0">
+              <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
+                <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>
+                {post.groupName && post.groupId && (
+                  <Link to={`/clubs/${post.groupId}`} className="community-badge !min-h-5 !px-2 !py-1 !bg-primary/10 !text-primary hover:bg-primary/20 transition-colors font-extrabold">
+                    CLB: {post.groupName}
+                  </Link>
+                )}
+                <span>{post.createdAt}</span>
+                <span className="inline-flex items-center gap-1">
+                  <MapPin aria-hidden="true" className="h-3 w-3" />
+                  {post.location}
+                </span>
+              </div>
             </div>
           </div>
-        </Link>
-        <button
-          aria-label="Tùy chọn bài viết"
-          className="community-icon-button"
-          title="Tùy chọn bài viết"
-          type="button"
-        >
-          <MoreHorizontal aria-hidden="true" className="h-[18px] w-[18px]" />
-        </button>
-      </div>
-
-      <Link className="mt-4 block" to={`/posts/${post.id}`}>
-        <h3 className="text-[17px] font-extrabold leading-6 tracking-[-0.015em] text-[#0b2228] transition-colors hover:text-[#477313]">
-          {post.title}
-        </h3>
-        <p className="mt-2 text-[13px] leading-6 text-[#526158]">{post.content}</p>
-      </Link>
-
-      {post.lookingFor && (
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
-          <span className="flex items-start gap-2">
-            <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{post.lookingFor}</span>
-          </span>
-          {post.matchId && (
-            <Link
-              to={`/matches/${post.matchId}`}
-              className="inline-flex h-8 items-center rounded-lg bg-[#477313] hover:bg-[#3b5d0f] px-3 py-1 text-[11px] font-black text-white transition-colors shrink-0"
-            >
-              Tham gia ngay
-            </Link>
-          )}
+          <button
+            aria-label="Tùy chọn bài viết"
+            className="community-icon-button"
+            title="Tùy chọn bài viết"
+            type="button"
+          >
+            <MoreHorizontal aria-hidden="true" className="h-[18px] w-[18px]" />
+          </button>
         </div>
-      )}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {post.tags.map((tag) => (
-          <span className="community-badge text-[#526158]" key={tag}>
-            #{tag}
-          </span>
-        ))}
+        <Link className="mt-4 block" to={`/posts/${post.id}`}>
+          <h3 className="text-[17px] font-extrabold leading-6 tracking-[-0.015em] text-[#0b2228] transition-colors hover:text-[#477313]">
+            {post.title}
+          </h3>
+          <p className="mt-2 text-[13px] leading-6 text-[#526158]">{post.content}</p>
+        </Link>
+
+        {post.lookingFor && (
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+            <span className="flex items-start gap-2">
+              <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{post.lookingFor}</span>
+            </span>
+            {post.matchId && (
+              <Link
+                to={`/matches/${post.matchId}`}
+                className="inline-flex h-8 items-center rounded-lg bg-[#477313] hover:bg-[#3b5d0f] px-3 py-1 text-[11px] font-black text-white transition-colors shrink-0"
+              >
+                Tham gia ngay
+              </Link>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {post.tags.map((tag) => (
+            <button
+              className="community-badge text-[#526158] hover:bg-[#477313]/10 hover:text-[#477313] transition-colors cursor-pointer"
+              key={tag}
+              onClick={() => setSearchParams({ search: `#${tag}` })}
+              type="button"
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
 
     {post.image && (
       <Link className="block overflow-hidden bg-[#dfeadc]" to={`/posts/${post.id}`}>
@@ -149,7 +183,7 @@ const PostCard = ({ post, onLikeToggle }: { post: DisplayPost; onLikeToggle: (po
         <button
           className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
           type="button"
-          onClick={() => onLikeToggle(post.id)}
+          onClick={() => onLikeToggle?.(post.id)}
         >
           <ThumbsUp aria-hidden="true" className="h-[17px] w-[17px]" fill={post.liked ? 'currentColor' : 'none'} />
           <span className="hidden sm:inline">Thích</span>
@@ -158,7 +192,11 @@ const PostCard = ({ post, onLikeToggle }: { post: DisplayPost; onLikeToggle: (po
           <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
           <span className="hidden sm:inline">Bình luận</span>
         </Link>
-        <button className="community-button-quiet !min-h-9 !px-2" type="button">
+        <button 
+          className="community-button-quiet !min-h-9 !px-2" 
+          onClick={() => onShareClick?.(post)}
+          type="button"
+        >
           <Share2 aria-hidden="true" className="h-[17px] w-[17px]" />
           <span className="hidden sm:inline">Chia sẻ</span>
         </button>
@@ -166,12 +204,35 @@ const PostCard = ({ post, onLikeToggle }: { post: DisplayPost; onLikeToggle: (po
     </div>
   </article>
 );
+};
 
 export const Posts = () => {
   const { user, token, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [posts, setPosts] = useState<DisplayPost[]>([]);
   const [loading, setLoading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(5);
+  const [sharingPost, setSharingPost] = useState<DisplayPost | null>(null);
+  const [friends, setFriends] = useState<CommunityFriend[]>([]);
+  const [groups, setGroups] = useState<CommunityGroup[]>([]);
+  const [loadingShareTargets, setLoadingShareTargets] = useState(false);
+
+  useEffect(() => {
+    if (sharingPost && token) {
+      setLoadingShareTargets(true);
+      Promise.all([
+        getFriends(token).catch(() => []),
+        getGroups(token, undefined, undefined, undefined, 'Mine').catch(() => [])
+      ]).then(([friendsData, groupsData]) => {
+        setFriends(friendsData);
+        setGroups(groupsData);
+      }).catch((err) => {
+        console.error("Failed to load share targets:", err);
+      }).finally(() => {
+        setLoadingShareTargets(false);
+      });
+    }
+  }, [sharingPost, token]);
 
   const loadPosts = async () => {
     setLoading(true);
@@ -215,22 +276,10 @@ export const Posts = () => {
         };
       });
 
-      // Map mock posts to same type and append them below
-      const mockMapped: DisplayPost[] = communityPosts.map((p) => ({
-        ...p,
-        id: `mock-${p.id}`,
-        matchId: null
-      }));
-
-      setPosts([...mapped, ...mockMapped]);
+      setPosts(mapped);
     } catch (err) {
-      console.error('Failed to load posts from API, fallback to mock:', err);
-      const mockMapped: DisplayPost[] = communityPosts.map((p) => ({
-        ...p,
-        id: `mock-${p.id}`,
-        matchId: null
-      }));
-      setPosts(mockMapped);
+      console.error('Failed to load posts from API:', err);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -247,6 +296,19 @@ export const Posts = () => {
         .catch(() => {});
     }
   }, [token, user]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 120
+      ) {
+        setVisibleCount((prev) => Math.min(prev + 5, posts.length));
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [posts.length]);
 
   const handleLikeToggle = async (postId: string) => {
     if (!token) return;
@@ -311,6 +373,31 @@ export const Posts = () => {
     }
   };
 
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
+
+  const filteredPosts = posts.filter((post) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.trim().toLowerCase();
+
+    if (query.startsWith('#')) {
+      const tagQuery = query.slice(1).trim();
+      if (!tagQuery) return true; // If they just typed '#', show everything
+      return post.tags?.some(tag => tag.toLowerCase().includes(tagQuery));
+    }
+    
+    // Check detail / content
+    const matchesContent = post.content?.toLowerCase().includes(query);
+    
+    // Check title
+    const matchesTitle = post.title?.toLowerCase().includes(query);
+    
+    // Check hashtag (tags array)
+    const matchesHashtag = post.tags?.some(tag => tag.toLowerCase().includes(query));
+    
+    return matchesContent || matchesTitle || matchesHashtag;
+  });
+
   const name = user?.name || '';
   const avatarUrl = user?.avatar || profile?.profileImageUrl;
 
@@ -366,15 +453,33 @@ export const Posts = () => {
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin text-[#477313]" />
           ) : (
-            <span className="community-badge">{posts.length} bài mới</span>
+            <span className="community-badge">{filteredPosts.length} bài mới</span>
           )}
         </div>
 
         <section className="grid gap-4">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} onLikeToggle={handleLikeToggle} />
-          ))}
+          {filteredPosts.length > 0 ? (
+            filteredPosts.slice(0, visibleCount).map((post) => (
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                onLikeToggle={handleLikeToggle} 
+                onShareClick={setSharingPost}
+              />
+            ))
+          ) : (
+            <div className="text-center p-8 bg-[#f4f8f2] rounded-2xl border border-[#cfe0c8] text-[#718077]">
+              <p className="font-extrabold text-[15px]">Không tìm thấy bài viết nào khớp với từ khóa</p>
+              <p className="text-[12px] mt-1 font-semibold">Thử tìm kiếm từ khóa khác hoặc xóa bộ lọc.</p>
+            </div>
+          )}
         </section>
+
+        {filteredPosts.length > visibleCount && (
+          <div className="mt-4 p-4 text-center text-[12px] font-bold text-[#718077] bg-[#f4f8f2] rounded-xl border border-[#cfe0c8]">
+            Đang hiển thị {Math.min(visibleCount, filteredPosts.length)} trên tổng số {filteredPosts.length} bài viết · Cuộn xuống để xem thêm
+          </div>
+        )}
 
         {isAuthenticated && (
           <Link
@@ -385,6 +490,128 @@ export const Posts = () => {
           >
             <Send aria-hidden="true" className="h-5 w-5" />
           </Link>
+        )}
+
+        {sharingPost && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border border-[#cfe0c8] bg-white p-6 shadow-2xl flex flex-col max-h-[85vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[#e0e9dc] pb-4">
+                <h2 className="text-[17px] font-extrabold text-[#0b2228]">Chia sẻ bài viết</h2>
+                <button
+                  onClick={() => setSharingPost(null)}
+                  className="rounded-full p-1.5 hover:bg-[#f4f8f2] text-[#718077] transition-colors"
+                  type="button"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="overflow-y-auto py-4 space-y-6 flex-1 pr-1 custom-scrollbar">
+                {/* Repost Options */}
+                <div>
+                  <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[#718077] mb-2">Tùy chọn chia sẻ</h3>
+                  <button
+                    onClick={() => {
+                      alert(`Đã chọn chia sẻ lại bài viết: ${sharingPost.title}`);
+                      setSharingPost(null);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] hover:bg-[#edf5e9] text-left transition-colors cursor-pointer"
+                    type="button"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Share2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-extrabold text-[#0b2228]">Chia sẻ lại lên Bảng tin</p>
+                      <p className="text-[11px] font-semibold text-[#718077] mt-0.5">Bài viết sẽ xuất hiện trên dòng thời gian của bạn</p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Send via Message */}
+                <div className="border-t border-[#e0e9dc] pt-4">
+                  <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[#718077] mb-3">Gửi tin nhắn trực tiếp</h3>
+                  
+                  {loadingShareTargets ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="ml-2 text-[12px] text-[#718077]">Đang tải danh sách...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Groups list */}
+                      <div>
+                        <h4 className="text-[12px] font-extrabold text-[#0b2228] mb-2 flex items-center gap-1.5">
+                          <Users className="h-4 w-4 text-primary" />
+                          Nhóm CLB bạn tham gia ({groups.length})
+                        </h4>
+                        {groups.length > 0 ? (
+                          <div className="grid gap-1.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
+                            {groups.map(g => (
+                              <button
+                                key={g.groupId}
+                                onClick={() => {
+                                  alert(`Đã chọn gửi tới nhóm: ${g.groupName}`);
+                                  setSharingPost(null);
+                                }}
+                                className="flex w-full items-center gap-3 p-2 rounded-lg border border-[#e0e9dc]/60 hover:bg-[#f4f8f2] text-left transition-colors cursor-pointer"
+                                type="button"
+                              >
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white uppercase">
+                                  {g.groupName.substring(0, 2)}
+                                </div>
+                                <span className="text-[13px] font-bold text-[#0b2228] truncate">{g.groupName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-[#718077] italic pl-2">Bạn chưa tham gia câu lạc bộ nào.</p>
+                        )}
+                      </div>
+
+                      {/* Friends list (only if user has friends) */}
+                      {friends.length > 0 && (
+                        <div className="border-t border-[#e0e9dc]/60 pt-4">
+                          <h4 className="text-[12px] font-extrabold text-[#0b2228] mb-2 flex items-center gap-1.5">
+                            <UserRound className="h-4 w-4 text-primary" />
+                            Bạn bè ({friends.length})
+                          </h4>
+                          <div className="grid gap-1.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
+                            {friends.map(f => (
+                              <button
+                                key={f.userId}
+                                onClick={() => {
+                                  alert(`Đã chọn gửi tới bạn bè: ${f.username}`);
+                                  setSharingPost(null);
+                                }}
+                                className="flex w-full items-center gap-3 p-2.5 rounded-lg border border-[#e0e9dc]/60 hover:bg-[#f4f8f2] text-left transition-colors cursor-pointer"
+                                type="button"
+                              >
+                                {f.profileImageUrl ? (
+                                  <img
+                                    src={f.profileImageUrl}
+                                    alt={f.username}
+                                    className="h-7 w-7 shrink-0 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#edf5e9] text-primary text-[11px] font-bold uppercase">
+                                    {f.username.substring(0, 2)}
+                                  </div>
+                                )}
+                                <span className="text-[13px] font-bold text-[#0b2228] truncate">{f.username}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </CommunityFeedShell>
     </CommunityPage>

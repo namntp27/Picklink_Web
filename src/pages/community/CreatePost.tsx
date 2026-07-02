@@ -27,7 +27,7 @@ import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '..
 import { currentCommunityUser } from '../../data/communityPosts';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';
-import { createGlobalPost } from '../../api/community';
+import { createGlobalPost, createGroupPost, getGroups, type CommunityGroup } from '../../api/community';
 
 type Visibility = 'public' | 'club' | 'friends';
 type PostMode = 'discussion' | 'find_players' | 'review' | 'training';
@@ -64,9 +64,7 @@ export const CreatePost = () => {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [searchParams] = useSearchParams();
 
-  const initialLocation = user?.commune && user?.city
-    ? `${user.commune}, ${user.city}`
-    : (user?.city || user?.commune || '');
+  const initialLocation = '';
 
   // Refs for focusing inputs
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -78,10 +76,10 @@ export const CreatePost = () => {
     (searchParams.get('mode') as PostMode) === 'find_players' ? 'find_players' : 'discussion'
   );
   const [visibility, setVisibility] = useState<Visibility>('public');
-  const [court, setCourt] = useState('Sân Pickleball Cầu Giấy');
-  const [location, setLocation] = useState(initialLocation);
+  const [court, setCourt] = useState('');
+  const [location, setLocation] = useState('');
   const [locationObj, setLocationObj] = useState({
-    address: initialLocation,
+    address: '',
     latitude: '',
     longitude: '',
   });
@@ -89,18 +87,62 @@ export const CreatePost = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isDeletingImage, setIsDeletingImage] = useState(false);
-  const [tagDraft, setTagDraft] = useState('Tìm đồng đội, Pickleball');
+  const [tagDraft, setTagDraft] = useState('');
   const [lookingFor, setLookingFor] = useState(
     searchParams.get('mode') === 'find_players' || searchParams.get('attach') === 'people'
   );
-  const [slots, setSlots] = useState('2');
-  const [levelRange, setLevelRange] = useState('3.0 - 4.0');
-  const [playTime, setPlayTime] = useState('18:00 - 20:00 hôm nay');
+  const [slots, setSlots] = useState('');
+  const [minSkill, setMinSkill] = useState('');
+  const [maxSkill, setMaxSkill] = useState('');
+  const [playDate, setPlayDate] = useState('');
+  const [playStartTime, setPlayStartTime] = useState('');
+  const [playEndTime, setPlayEndTime] = useState('');
+
+  const levelRange = useMemo(() => {
+    if (!minSkill && !maxSkill) return '';
+    return `${minSkill} - ${maxSkill}`;
+  }, [minSkill, maxSkill]);
+
+  const playTime = useMemo(() => {
+    if (!playDate) return '';
+    
+    let dateStr = '';
+    try {
+      dateStr = new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(playDate));
+    } catch {
+      dateStr = playDate;
+    }
+
+    const timeStr = playStartTime && playEndTime 
+      ? `${playStartTime} - ${playEndTime}` 
+      : (playStartTime || playEndTime || '');
+      
+    return timeStr ? `${dateStr} từ ${timeStr}` : dateStr;
+  }, [playDate, playStartTime, playEndTime]);
+
   const [published, setPublished] = useState(false);
 
   const [hostedMatches, setHostedMatches] = useState<MatchSummary[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [loadingMatches, setLoadingMatches] = useState(false);
+
+  const [userGroups, setUserGroups] = useState<CommunityGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+
+  const [linkMatchRoom, setLinkMatchRoom] = useState(false);
+
+  useEffect(() => {
+    if (hostedMatches.length > 0) {
+      setLinkMatchRoom(true);
+    } else {
+      setLinkMatchRoom(false);
+    }
+  }, [hostedMatches]);
 
   useEffect(() => {
     if (lookingFor && token) {
@@ -109,26 +151,6 @@ export const CreatePost = () => {
         .then((res) => {
           const hosted = res.items.filter((m) => m.isHost && (m.status === 'Recruiting' || m.status === 'ReadyToBook'));
           setHostedMatches(hosted);
-          if (hosted.length > 0) {
-            const first = hosted[0];
-            setSelectedMatchId(first.matchId);
-            
-            const needed = first.requiredPlayerCount - first.acceptedPlayerCount;
-            setSlots(String(needed > 0 ? needed : 0));
-            setLevelRange(`${first.minSkillLevel.toFixed(1)} - ${first.maxSkillLevel.toFixed(1)}`);
-            
-            const dateStr = new Intl.DateTimeFormat('vi-VN', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            }).format(new Date(`${first.availableDateFrom}T00:00:00`));
-            
-            const timeStr = first.startTime 
-              ? `${first.startTime.slice(11, 16)} - ${first.endTime?.slice(11, 16)}`
-              : `${first.preferredTimeStart} - ${first.preferredTimeEnd}`;
-
-            setPlayTime(`${dateStr} từ ${timeStr}`);
-          }
         })
         .catch((err) => {
           console.error('Failed to load hosted matches:', err);
@@ -146,19 +168,24 @@ export const CreatePost = () => {
     if (found) {
       const needed = found.requiredPlayerCount - found.acceptedPlayerCount;
       setSlots(String(needed > 0 ? needed : 0));
-      setLevelRange(`${found.minSkillLevel.toFixed(1)} - ${found.maxSkillLevel.toFixed(1)}`);
+      setMinSkill(found.minSkillLevel.toFixed(1));
+      setMaxSkill(found.maxSkillLevel.toFixed(1));
       
-      const dateStr = new Intl.DateTimeFormat('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }).format(new Date(`${found.availableDateFrom}T00:00:00`));
+      if (found.availableDateFrom) {
+        setPlayDate(found.availableDateFrom.slice(0, 10));
+      }
       
-      const timeStr = found.startTime 
-        ? `${found.startTime.slice(11, 16)} - ${found.endTime?.slice(11, 16)}`
-        : `${found.preferredTimeStart} - ${found.preferredTimeEnd}`;
-
-      setPlayTime(`${dateStr} từ ${timeStr}`);
+      if (found.startTime) {
+        setPlayStartTime(found.startTime.slice(11, 16));
+      } else if (found.preferredTimeStart) {
+        setPlayStartTime(found.preferredTimeStart);
+      }
+      
+      if (found.endTime) {
+        setPlayEndTime(found.endTime.slice(11, 16));
+      } else if (found.preferredTimeEnd) {
+        setPlayEndTime(found.preferredTimeEnd);
+      }
     }
   };
 
@@ -190,15 +217,25 @@ export const CreatePost = () => {
       getMyProfile(token)
         .then((p) => {
           setProfile(p);
-          const locStr = p.commune && p.city ? `${p.commune}, ${p.city}` : (p.city || p.commune || '');
-          if (locStr) {
-            setLocation(locStr);
-            setLocationObj({ address: locStr, latitude: '', longitude: '' });
-          }
         })
         .catch(() => {});
     }
   }, [token, user]);
+
+  useEffect(() => {
+    if (token) {
+      setLoadingGroups(true);
+      getGroups(token, undefined, undefined, undefined, 'Mine')
+        .then((groups) => {
+          setUserGroups(groups);
+          if (groups.length > 0) {
+            setSelectedGroupId(groups[0].groupId);
+          }
+        })
+        .catch((err) => console.error('Failed to load user clubs:', err))
+        .finally(() => setLoadingGroups(false));
+    }
+  }, [token]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -240,6 +277,7 @@ export const CreatePost = () => {
     }
   };
 
+  const selectedClub = useMemo(() => userGroups.find((g) => g.groupId === selectedGroupId), [userGroups, selectedGroupId]);
   const name = user?.name || '';
   const avatarUrl = user?.avatar || profile?.profileImageUrl;
   let level = '';
@@ -265,7 +303,10 @@ export const CreatePost = () => {
   );
   const selectedVisibility = visibilityOptions.find((option) => option.value === visibility) ?? visibilityOptions[0];
   const VisibilityIcon = selectedVisibility.icon;
-  const canPublish = title.trim().length > 0 && content.trim().length >= 10;
+  const canPublish =
+    title.trim().length > 0 &&
+    content.trim().length >= 10 &&
+    (visibility !== 'club' || selectedGroupId !== null);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -291,13 +332,21 @@ export const CreatePost = () => {
       const serializedContent = JSON.stringify(payload);
       const mediaUrls = imageUrl ? [imageUrl] : [];
 
-      await createGlobalPost(token, {
-        content: serializedContent,
-        mediaUrls
-      });
-
-      // Redirect back to news feed
-      navigate('/posts');
+      if (visibility === 'club' && selectedGroupId) {
+        await createGroupPost(token, selectedGroupId, {
+          content: serializedContent,
+          mediaUrls
+        });
+        // Redirect to the club page
+        navigate(`/clubs/${selectedGroupId}`);
+      } else {
+        await createGlobalPost(token, {
+          content: serializedContent,
+          mediaUrls
+        });
+        // Redirect back to news feed
+        navigate('/posts');
+      }
     } catch (err: any) {
       alert(err.message || 'Không thể tạo bài viết.');
     } finally {
@@ -387,6 +436,34 @@ export const CreatePost = () => {
                 />
               </div>
             </div>
+
+            {visibility === 'club' && (
+              <div className="mt-4 flex flex-col">
+                <FieldLabel icon={Users}>Chọn Câu lạc bộ</FieldLabel>
+                {loadingGroups ? (
+                  <div className="flex h-11 items-center gap-2 px-3 border rounded-[10px] border-[#cfe0c8] bg-[#f4f8f2] text-[13px] font-semibold text-[#718077]">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#477313]" />
+                    Đang tải danh sách câu lạc bộ...
+                  </div>
+                ) : userGroups.length > 0 ? (
+                  <Dropdown<string>
+                    options={userGroups.map((g) => ({
+                      label: g.groupName,
+                      value: String(g.groupId),
+                    }))}
+                    value={selectedGroupId ? String(selectedGroupId) : ''}
+                    onChange={(val) => setSelectedGroupId(Number(val))}
+                    triggerClassName="w-full justify-between !h-11 text-[13px] font-semibold text-[#0b2228] border-[#cfe0c8] bg-[#f4f8f2] hover:bg-white"
+                    dropdownClassName="w-full"
+                    align="left"
+                  />
+                ) : (
+                  <div className="flex h-11 items-center px-3 border rounded-[10px] border-red-200 bg-red-50 text-[13px] font-semibold text-red-700">
+                    Bạn chưa tham gia câu lạc bộ nào. Vui lòng tham gia CLB trước khi đăng bài.
+                  </div>
+                )}
+              </div>
+            )}
 
             <label className="mt-4 block">
               <FieldLabel>Tiêu đề</FieldLabel>
@@ -523,50 +600,186 @@ export const CreatePost = () => {
                     <Loader2 className="h-4 w-4 animate-spin text-[#477313]" />
                     <span>Đang tải danh sách phòng ghép trận của bạn...</span>
                   </div>
-                ) : hostedMatches.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex flex-col">
-                      <FieldLabel>Chọn phòng ghép trận đã tạo</FieldLabel>
-                      <Dropdown<string>
-                        options={matchOptions}
-                        value={selectedMatchId ? String(selectedMatchId) : ''}
-                        onChange={handleMatchSelect}
-                        triggerClassName="w-full justify-between !h-11 text-[13px] font-semibold text-[#0b2228] border-[#cfe0c8] bg-[#f4f8f2] hover:bg-white"
-                        dropdownClassName="w-full"
-                        align="left"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] p-3 text-[12px] sm:grid-cols-3">
-                      <div>
-                        <span className="block font-bold text-[#718077]">Số slot cần tìm</span>
-                        <strong className="mt-1 block text-[14px] text-[#0b2228]">{slots} người</strong>
-                      </div>
-                      <div>
-                        <span className="block font-bold text-[#718077]">Trình độ yêu cầu</span>
-                        <strong className="mt-1 block text-[14px] text-[#0b2228]">{levelRange}</strong>
-                      </div>
-                      <div>
-                        <span className="block font-bold text-[#718077]">Thời gian chơi</span>
-                        <strong className="mt-1 block text-[14px] text-[#0b2228]">{playTime}</strong>
-                      </div>
-                    </div>
-                  </div>
                 ) : (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-center">
-                    <p className="text-[13px] font-bold text-amber-800 leading-5">
-                      Bạn chưa làm chủ phòng ghép trận nào đang tuyển người.
-                    </p>
-                    <p className="mt-1 text-[12px] text-amber-700">
-                      Tạo phòng ghép trận trước để liên kết và đăng tuyển thành viên trên bảng tin cộng đồng.
-                    </p>
-                    <Link
-                      to="/opponents"
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#0b2228] px-4 py-2 text-[12px] font-black text-white hover:bg-[#0b2228]/95"
-                    >
-                      <PlusCircle className="h-4 w-4" />
-                      Đi tới tạo phòng ghép
-                    </Link>
+                  <div className="space-y-4">
+                    {hostedMatches.length > 0 && (
+                      <div className="mb-4 flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-[13px] font-bold text-[#0b2228] cursor-pointer">
+                          <input
+                            type="radio"
+                            name="matchInputType"
+                            checked={linkMatchRoom}
+                            onChange={() => {
+                              setLinkMatchRoom(true);
+                              const first = hostedMatches[0];
+                              if (first) {
+                                setSelectedMatchId(first.matchId);
+                                const needed = first.requiredPlayerCount - first.acceptedPlayerCount;
+                                setSlots(String(needed > 0 ? needed : 0));
+                                setMinSkill(first.minSkillLevel.toFixed(1));
+                                setMaxSkill(first.maxSkillLevel.toFixed(1));
+                                
+                                if (first.availableDateFrom) {
+                                  setPlayDate(first.availableDateFrom.slice(0, 10));
+                                }
+                                
+                                if (first.startTime) {
+                                  setPlayStartTime(first.startTime.slice(11, 16));
+                                } else if (first.preferredTimeStart) {
+                                  setPlayStartTime(first.preferredTimeStart);
+                                }
+                                
+                                if (first.endTime) {
+                                  setPlayEndTime(first.endTime.slice(11, 16));
+                                } else if (first.preferredTimeEnd) {
+                                  setPlayEndTime(first.preferredTimeEnd);
+                                }
+                              }
+                            }}
+                            className="h-4 w-4 text-[#477313] focus:ring-[#477313]"
+                          />
+                          Liên kết phòng ghép
+                        </label>
+                        <label className="flex items-center gap-2 text-[13px] font-bold text-[#0b2228] cursor-pointer">
+                          <input
+                            type="radio"
+                            name="matchInputType"
+                            checked={!linkMatchRoom}
+                            onChange={() => {
+                              setLinkMatchRoom(false);
+                              setSelectedMatchId(null);
+                              setSlots('');
+                              setMinSkill('');
+                              setMaxSkill('');
+                              setPlayDate('');
+                              setPlayStartTime('');
+                              setPlayEndTime('');
+                            }}
+                            className="h-4 w-4 text-[#477313] focus:ring-[#477313]"
+                          />
+                          Tự nhập thông tin
+                        </label>
+                      </div>
+                    )}
+
+                    {linkMatchRoom && hostedMatches.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-col">
+                          <FieldLabel>Chọn phòng ghép trận đã tạo</FieldLabel>
+                          <Dropdown<string>
+                            options={matchOptions}
+                            value={selectedMatchId ? String(selectedMatchId) : ''}
+                            onChange={handleMatchSelect}
+                            triggerClassName="w-full justify-between !h-11 text-[13px] font-semibold text-[#0b2228] border-[#cfe0c8] bg-[#f4f8f2] hover:bg-white"
+                            dropdownClassName="w-full"
+                            align="left"
+                          />
+                        </div>
+
+                        <div className="grid gap-4 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] p-3 text-[12px] sm:grid-cols-3">
+                          <div>
+                            <span className="block font-bold text-[#718077]">Số slot cần tìm</span>
+                            <strong className="mt-1 block text-[14px] text-[#0b2228]">{slots} người</strong>
+                          </div>
+                          <div>
+                            <span className="block font-bold text-[#718077]">Trình độ yêu cầu</span>
+                            <strong className="mt-1 block text-[14px] text-[#0b2228]">{levelRange}</strong>
+                          </div>
+                          <div>
+                            <span className="block font-bold text-[#718077]">Thời gian chơi</span>
+                            <strong className="mt-1 block text-[14px] text-[#0b2228]">{playTime}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {hostedMatches.length === 0 && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 mb-2 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-bold text-amber-800 leading-5">
+                                Bạn chưa có phòng ghép trận nào đang làm chủ.
+                              </p>
+                              <p className="mt-1 text-[12px] text-amber-700 leading-4">
+                                Bạn có thể đi tạo phòng ghép để người dùng khác tham gia trực tiếp trên bảng tin.
+                              </p>
+                            </div>
+                            <Link
+                              to="/opponents"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b2228] px-3.5 py-2 text-[12px] font-black text-white hover:bg-[#0b2228]/95 shrink-0"
+                            >
+                              <PlusCircle className="h-4 w-4" />
+                              Tạo phòng
+                            </Link>
+                          </div>
+                        )}
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <div>
+                            <FieldLabel>Số slot cần tìm</FieldLabel>
+                            <input
+                              type="number"
+                              min="1"
+                              max="4"
+                              className="community-control"
+                              onChange={(e) => setSlots(e.target.value)}
+                              value={slots}
+                              placeholder="Số người (1-4)"
+                            />
+                          </div>
+                          <div>
+                            <FieldLabel>Trình độ yêu cầu</FieldLabel>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="number"
+                                min="1.0"
+                                max="5.0"
+                                step="0.1"
+                                className="community-control text-center"
+                                onChange={(e) => setMinSkill(e.target.value)}
+                                value={minSkill}
+                                placeholder="Tối thiểu"
+                              />
+                              <input
+                                type="number"
+                                min="1.0"
+                                max="5.0"
+                                step="0.1"
+                                className="community-control text-center"
+                                onChange={(e) => setMaxSkill(e.target.value)}
+                                value={maxSkill}
+                                placeholder="Tối đa"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <FieldLabel>Thời gian chơi</FieldLabel>
+                            <div className="grid grid-cols-1 gap-2">
+                              <input
+                                type="date"
+                                className="community-control"
+                                onChange={(e) => setPlayDate(e.target.value)}
+                                value={playDate}
+                              />
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="time"
+                                  className="community-control"
+                                  onChange={(e) => setPlayStartTime(e.target.value)}
+                                  value={playStartTime}
+                                  placeholder="Bắt đầu"
+                                />
+                                <input
+                                  type="time"
+                                  className="community-control"
+                                  onChange={(e) => setPlayEndTime(e.target.value)}
+                                  value={playEndTime}
+                                  placeholder="Kết thúc"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -597,6 +810,12 @@ export const CreatePost = () => {
                         <VisibilityIcon aria-hidden="true" className="h-3.5 w-3.5" />
                         {selectedVisibility.label}
                       </span>
+                      {visibility === 'club' && selectedClub && (
+                        <span className="inline-flex items-center gap-1 text-[#477313]">
+                          <Users aria-hidden="true" className="h-3.5 w-3.5" />
+                          {selectedClub.groupName}
+                        </span>
+                      )}
                       {location && (
                         <span className="inline-flex items-center gap-1">
                           <MapPin aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" />

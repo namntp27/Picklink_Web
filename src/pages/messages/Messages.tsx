@@ -27,25 +27,34 @@ import {
   LogOut,
   Trash2,
   X,
+  Pin,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import {
   getGroups,
   getGroup,
   getGroupMessages,
   sendGroupMessage,
   getGroupMembers,
+  getPinnedGroupMessages,
   updateGroup,
   approveMember,
   removeMember,
   leaveGroup,
   addGroupImage,
   removeGroupImage,
+  deleteGroupMessage,
+  pinGroupMessage,
+  getDirectConversations,
+  startDirectConversation,
+  getDirectMessages,
+  sendDirectMessage,
   type CommunityGroup,
   type CommunityMessage,
   type CommunityMember,
   type GroupImage,
+  type DirectConversation,
 } from '../../api/community';
 import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../api/cloudinary';
 
@@ -68,6 +77,9 @@ type Conversation = {
   contextMeta: string;
   // If this is a club conversation, store the group ID
   groupId?: number;
+  // If this is a direct conversation, store the conversationId and otherUserId
+  conversationId?: number;
+  otherUserId?: number;
 };
 
 type ChatMessage = {
@@ -79,102 +91,8 @@ type ChatMessage = {
   read?: boolean;
   avatarUrl?: string | null;
   mediaUrl?: string | null;
-};
-
-// ─── Static conversations (match, booking, direct) ──────────────────────
-
-const staticConversations: Conversation[] = [
-  {
-    id: 'tran-quoc-bao',
-    name: 'Trần Quốc Bảo',
-    avatar: 'TB',
-    level: '3.5',
-    status: 'online',
-    kind: 'match',
-    lastMessage: 'Tối mai mình chốt sân Cầu Giấy nhé.',
-    lastTime: '10:42',
-    unread: 2,
-    location: 'Cầu Giấy, Hà Nội',
-    contextTitle: 'Trận đôi Cầu Giấy',
-    contextMeta: '20/06 · 18:00 - 19:30',
-  },
-  {
-    id: 'le-tuyet-mai',
-    name: 'Lê Tuyết Mai',
-    avatar: 'TM',
-    level: '3.0',
-    status: 'playing',
-    kind: 'direct',
-    lastMessage: 'Mình rảnh khung 19h các ngày trong tuần.',
-    lastTime: '09:15',
-    unread: 0,
-    location: 'Thủ Đức, TP. Hồ Chí Minh',
-    contextTitle: 'Bạn đánh đôi phù hợp',
-    contextMeta: 'Tỷ lệ phản hồi 96%',
-  },
-  {
-    id: 'pickleball-pro-duy-tan',
-    name: 'Pickleball Pro Duy Tân',
-    avatar: 'DT',
-    level: 'Sân',
-    status: 'online',
-    kind: 'booking',
-    lastMessage: 'Sân C.Lông 1 đã được giữ tạm trong 10 phút.',
-    lastTime: 'Hôm qua',
-    unread: 1,
-    location: 'Duy Tân, Hà Nội',
-    contextTitle: 'Đơn đặt sân #PKL2048',
-    contextMeta: '18/06 · 07:00 - 08:00',
-  },
-];
-
-const staticMessages: Record<string, ChatMessage[]> = {
-  'tran-quoc-bao': [
-    {
-      id: 1,
-      author: 'Trần Quốc Bảo',
-      text: 'Chào bạn, mình thấy bạn tham gia lời mời trận đôi tối mai đúng không?',
-      time: '10:18',
-    },
-    {
-      id: 2,
-      author: 'Bạn',
-      text: 'Đúng rồi Bảo. Mình đánh level 3.0, có thể chơi vị trí bên phải.',
-      time: '10:21',
-      mine: true,
-      read: true,
-    },
-    {
-      id: 3,
-      author: 'Trần Quốc Bảo',
-      text: 'Ổn quá. Tối mai mình chốt sân Cầu Giấy nhé, 18h có mặt trước 10 phút.',
-      time: '10:42',
-    },
-  ],
-  'le-tuyet-mai': [
-    {
-      id: 1,
-      author: 'Bạn',
-      text: 'Mai bạn có rảnh đánh thử một trận đơn không?',
-      time: '08:54',
-      mine: true,
-      read: true,
-    },
-    {
-      id: 2,
-      author: 'Lê Tuyết Mai',
-      text: 'Mình rảnh khung 19h các ngày trong tuần. Nếu bạn đặt được sân thì nhắn mình nhé.',
-      time: '09:15',
-    },
-  ],
-  'pickleball-pro-duy-tan': [
-    {
-      id: 1,
-      author: 'Pickleball Pro Duy Tân',
-      text: 'Sân C.Lông 1 đã được giữ tạm trong 10 phút. Bạn vui lòng hoàn tất thanh toán để xác nhận lịch.',
-      time: 'Hôm qua',
-    },
-  ],
+  isPinned?: boolean;
+  senderId?: number;
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -252,6 +170,23 @@ const groupToConversation = (group: CommunityGroup): Conversation => ({
   groupId: group.groupId,
 });
 
+const directToConversation = (direct: DirectConversation): Conversation => ({
+  id: `direct-conv-${direct.conversationId}`,
+  name: direct.otherUsername,
+  avatar: direct.otherProfileImageUrl || '',
+  level: direct.otherSkillLevel,
+  status: 'online' as ConversationStatus,
+  kind: 'direct' as ConversationKind,
+  lastMessage: direct.lastMessage || 'Chưa có tin nhắn',
+  lastTime: formatMessageTime(direct.lastMessageAt),
+  unread: 0,
+  location: '',
+  contextTitle: 'Trò chuyện cá nhân',
+  contextMeta: `Trình độ ${direct.otherSkillLevel}`,
+  conversationId: direct.conversationId,
+  otherUserId: direct.otherUserId,
+});
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export const Messages = () => {
@@ -271,6 +206,7 @@ export const Messages = () => {
 
   // Conversations from API
   const [clubConversations, setClubConversations] = useState<Conversation[]>([]);
+  const [directConversations, setDirectConversations] = useState<Conversation[]>([]);
   const [clubGroupsLoading, setClubGroupsLoading] = useState(true);
 
   // Group info & settings states
@@ -292,22 +228,35 @@ export const Messages = () => {
 
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
-  // All conversations = static + club
+  // Search parameters for starting chat
+  const [searchParams, setSearchParams] = useSearchParams();
+  const chatWithUserId = searchParams.get('chatWithUserId');
+
+  // All conversations = direct + club
   const allConversations = useMemo(
-    () => [...staticConversations, ...clubConversations],
-    [clubConversations],
+    () => [
+      ...directConversations,
+      ...clubConversations
+    ],
+    [directConversations, clubConversations],
   );
 
-  const [activeConversationId, setActiveConversationId] = useState(staticConversations[0].id);
+  const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [filter, setFilter] = useState<ConversationFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [draftMessage, setDraftMessage] = useState('');
-  const [messagesByConversation, setMessagesByConversation] = useState<Record<string, ChatMessage[]>>(staticMessages);
+  const [messagesByConversation, setMessagesByConversation] = useState<Record<string, ChatMessage[]>>({});
   const [clubMessagesLoading, setClubMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState<number | null>(null);
+  const [hasMoreByConversation, setHasMoreByConversation] = useState<Record<string, boolean>>({});
+  const [loadingMoreByConversation, setLoadingMoreByConversation] = useState<Record<string, boolean>>({});
+  const [pinnedMessagesByConversation, setPinnedMessagesByConversation] = useState<Record<string, ChatMessage[]>>({});
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const lastMessageIdRef = useRef<Record<string, number | null>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load club groups on mount
+  // Load conversations on mount & handle chatWithUserId query param
   useEffect(() => {
     if (!token) {
       setClubGroupsLoading(false);
@@ -317,22 +266,58 @@ export const Messages = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const data = await getGroups(token);
+        // Fetch groups
+        const groupsData = await getGroups(token, undefined, undefined, undefined, 'Mine');
         if (cancelled) return;
-        const myGroups = data.filter(
+        const myGroups = groupsData.filter(
           (g) => g.myStatus === 'Accepted' || g.myRole === 'Owner',
         );
         setGroups(myGroups);
         setClubConversations(myGroups.map(groupToConversation));
-      } catch {
-        // silent fail
+
+        // Fetch direct conversations
+        const directData = await getDirectConversations(token);
+        if (cancelled) return;
+        const mappedDirect = directData.map(directToConversation);
+        setDirectConversations(mappedDirect);
+
+        // If chatWithUserId is provided in the URL, start/ensure that chat!
+        if (chatWithUserId) {
+          const targetUid = Number(chatWithUserId);
+          if (!isNaN(targetUid)) {
+            // Check if direct conversation already loaded
+            const existing = mappedDirect.find(c => c.otherUserId === targetUid);
+            if (existing) {
+              setActiveConversationId(existing.id);
+            } else {
+              // Start a new direct conversation
+              const newDirect = await startDirectConversation(token, targetUid);
+              if (!cancelled) {
+                const newConv = directToConversation(newDirect);
+                setDirectConversations(prev => [newConv, ...prev]);
+                setActiveConversationId(newConv.id);
+              }
+            }
+            // Clear search param once processed
+            setSearchParams({});
+          }
+        } else {
+          // Auto-select first loaded conversation
+          if (mappedDirect.length > 0) {
+            setActiveConversationId(mappedDirect[0].id);
+          } else if (myGroups.length > 0) {
+            setActiveConversationId(groupToConversation(myGroups[0]).id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load conversations', err);
       } finally {
         if (!cancelled) setClubGroupsLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, chatWithUserId]);
 
   const filteredConversations = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -354,6 +339,10 @@ export const Messages = () => {
   const activeConversation =
     allConversations.find((conversation) => conversation.id === activeConversationId) ?? allConversations[0];
   const activeMessages = messagesByConversation[activeConversation?.id] ?? [];
+  const pinnedMessages = useMemo(
+    () => pinnedMessagesByConversation[activeConversation?.id] ?? [],
+    [pinnedMessagesByConversation, activeConversation?.id],
+  );
 
   const activeGroup = groups.find((g) => g.groupId === activeConversation?.groupId) ?? null;
   const isManager = !!(activeGroup && ['Owner', 'Admin', 'Moderator'].includes(activeGroup.myRole || ''));
@@ -540,7 +529,7 @@ export const Messages = () => {
     try {
       await leaveGroup(token, activeConversation.groupId);
       setShowSettings(false);
-      setActiveConversationId(staticConversations[0].id);
+      setActiveConversationId('');
       const groupsData = await getGroups(token);
       const myGroups = groupsData.filter(
         (g) => g.myStatus === 'Accepted' || g.myRole === 'Owner'
@@ -554,15 +543,23 @@ export const Messages = () => {
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !token || !activeConversation?.groupId || uploadingMedia) return;
+    if (!file || !token || uploadingMedia || !activeConversation) return;
+    const isGroup = !!activeConversation.groupId;
+    const isDirect = !!activeConversation.conversationId;
+    if (!isGroup && !isDirect) return;
 
     setUploadingMedia(true);
     try {
       const { url } = await uploadToCloudinary(token, file);
-      const newMsg = await sendGroupMessage(token, activeConversation.groupId, {
-        mediaUrl: url,
-        content: `Đã gửi một ${file.type.startsWith('video/') ? 'video' : 'hình ảnh'}`
-      });
+      let newMsg;
+      if (isGroup) {
+        newMsg = await sendGroupMessage(token, activeConversation.groupId!, {
+          mediaUrl: url,
+          content: `Đã gửi một ${file.type.startsWith('video/') ? 'video' : 'hình ảnh'}`
+        });
+      } else {
+        newMsg = await sendDirectMessage(token, activeConversation.conversationId!, `Đã gửi một ${file.type.startsWith('video/') ? 'video' : 'hình ảnh'}`, url);
+      }
       const chatMsg: ChatMessage = {
         id: newMsg.messageId,
         author: 'Bạn',
@@ -585,9 +582,13 @@ export const Messages = () => {
     }
   };
 
-  // Load club messages when a club conversation is selected
+  // Load messages when conversation is selected
   useEffect(() => {
-    if (!token || !activeConversation?.groupId) return;
+    if (!token || !activeConversation) return;
+    const isGroup = !!activeConversation.groupId;
+    const isDirect = !!activeConversation.conversationId;
+    if (!isGroup && !isDirect) return;
+
     // Already loaded
     if (messagesByConversation[activeConversation.id]?.length) return;
 
@@ -595,8 +596,22 @@ export const Messages = () => {
     const load = async () => {
       setClubMessagesLoading(true);
       try {
-        const msgs = await getGroupMessages(token, activeConversation.groupId!);
+        let msgs: CommunityMessage[] = [];
+        let pinned: CommunityMessage[] = [];
+
+        if (isGroup) {
+          const [groupMsgs, groupPinned] = await Promise.all([
+            getGroupMessages(token, activeConversation.groupId!, undefined, 8),
+            getPinnedGroupMessages(token, activeConversation.groupId!).catch(() => []),
+          ]);
+          msgs = groupMsgs;
+          pinned = groupPinned;
+        } else if (isDirect) {
+          msgs = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
+        }
+
         if (cancelled) return;
+
         const chatMessages: ChatMessage[] = msgs.map((m) => ({
           id: m.messageId,
           author: m.isMine ? 'Bạn' : m.senderName,
@@ -606,30 +621,72 @@ export const Messages = () => {
           read: true,
           avatarUrl: m.senderAvatarUrl,
           mediaUrl: m.mediaUrl,
+          isPinned: m.isPinned,
+          senderId: m.senderId,
         }));
+
+        const mappedPinned: ChatMessage[] = pinned.map((m) => ({
+          id: m.messageId,
+          author: m.isMine ? 'Bạn' : m.senderName,
+          text: m.content ?? '',
+          time: formatMessageTime(m.sentAt),
+          mine: m.isMine,
+          read: true,
+          avatarUrl: m.senderAvatarUrl,
+          mediaUrl: m.mediaUrl,
+          isPinned: m.isPinned,
+          senderId: m.senderId,
+        }));
+
         setMessagesByConversation((prev) => ({
           ...prev,
           [activeConversation.id]: chatMessages,
         }));
-      } catch {
-        // silent
+        setPinnedMessagesByConversation((prev) => ({
+          ...prev,
+          [activeConversation.id]: mappedPinned,
+        }));
+        setHasMoreByConversation((prev) => ({
+          ...prev,
+          [activeConversation.id]: msgs.length >= 8,
+        }));
+      } catch (err) {
+        console.error('Failed to load messages', err);
       } finally {
         if (!cancelled) setClubMessagesLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [token, activeConversation?.id, activeConversation?.groupId]);
+  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId]);
 
-  // Poll club messages every 8s
+  // Poll messages every 8s
   useEffect(() => {
-    if (!token || !activeConversation?.groupId) return;
+    if (!token || !activeConversation) return;
+    const isGroup = !!activeConversation.groupId;
+    const isDirect = !!activeConversation.conversationId;
+    if (!isGroup && !isDirect) return;
+
     let cancelled = false;
 
     const interval = setInterval(async () => {
       try {
-        const msgs = await getGroupMessages(token, activeConversation.groupId!);
+        let msgs: CommunityMessage[] = [];
+        let pinned: CommunityMessage[] = [];
+
+        if (isGroup) {
+          const [groupMsgs, groupPinned] = await Promise.all([
+            getGroupMessages(token, activeConversation.groupId!, undefined, 8),
+            getPinnedGroupMessages(token, activeConversation.groupId!).catch(() => []),
+          ]);
+          msgs = groupMsgs;
+          pinned = groupPinned;
+        } else if (isDirect) {
+          msgs = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
+        }
+
         if (cancelled) return;
+
         const chatMessages: ChatMessage[] = msgs.map((m) => ({
           id: m.messageId,
           author: m.isMine ? 'Bạn' : m.senderName,
@@ -639,13 +696,40 @@ export const Messages = () => {
           read: true,
           avatarUrl: m.senderAvatarUrl,
           mediaUrl: m.mediaUrl,
+          isPinned: m.isPinned,
+          senderId: m.senderId,
         }));
-        setMessagesByConversation((prev) => ({
+
+        const mappedPinned: ChatMessage[] = pinned.map((m) => ({
+          id: m.messageId,
+          author: m.isMine ? 'Bạn' : m.senderName,
+          text: m.content ?? '',
+          time: formatMessageTime(m.sentAt),
+          mine: m.isMine,
+          read: true,
+          avatarUrl: m.senderAvatarUrl,
+          mediaUrl: m.mediaUrl,
+          isPinned: m.isPinned,
+          senderId: m.senderId,
+        }));
+
+        setMessagesByConversation((prev) => {
+          const currentList = prev[activeConversation.id] ?? [];
+          const existingIds = new Set(currentList.map(m => m.id));
+          const newMsgs = chatMessages.filter(m => !existingIds.has(m.id));
+          if (newMsgs.length === 0) return prev;
+          return {
+            ...prev,
+            [activeConversation.id]: [...currentList, ...newMsgs].sort((a, b) => a.id - b.id),
+          };
+        });
+
+        setPinnedMessagesByConversation((prev) => ({
           ...prev,
-          [activeConversation.id]: chatMessages,
+          [activeConversation.id]: mappedPinned,
         }));
-      } catch {
-        // silent
+      } catch (err) {
+        console.error('Failed to poll messages', err);
       }
     }, 8000);
 
@@ -653,12 +737,101 @@ export const Messages = () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [token, activeConversation?.id, activeConversation?.groupId]);
+  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId]);
 
-  // Auto-scroll
+  const loadOlderChatMessages = async () => {
+    if (!token || !activeConversation) return;
+    const isGroup = !!activeConversation.groupId;
+    const isDirect = !!activeConversation.conversationId;
+    if (!isGroup && !isDirect) return;
+
+    const conversationId = activeConversation.id;
+    if (loadingMoreByConversation[conversationId] || hasMoreByConversation[conversationId] === false) return;
+
+    const currentMsgs = messagesByConversation[conversationId] ?? [];
+    const lowestId = currentMsgs[0]?.id;
+    if (!lowestId) return;
+
+    setLoadingMoreByConversation((prev) => ({ ...prev, [conversationId]: true }));
+    const container = chatScrollRef.current;
+    const previousScrollHeight = container ? container.scrollHeight : 0;
+
+    try {
+      let msgs: CommunityMessage[] = [];
+      if (isGroup) {
+        msgs = await getGroupMessages(token, activeConversation.groupId!, lowestId, 8);
+      } else if (isDirect) {
+        msgs = await getDirectMessages(token, activeConversation.conversationId!, lowestId, 8);
+      }
+
+      if (msgs.length === 0) {
+        setHasMoreByConversation((prev) => ({ ...prev, [conversationId]: false }));
+        setLoadingMoreByConversation((prev) => ({ ...prev, [conversationId]: false }));
+        return;
+      }
+
+      const mapped: ChatMessage[] = msgs.map((m) => ({
+        id: m.messageId,
+        author: m.isMine ? 'Bạn' : m.senderName,
+        text: m.content ?? '',
+        time: formatMessageTime(m.sentAt),
+        mine: m.isMine,
+        read: true,
+        avatarUrl: m.senderAvatarUrl,
+        mediaUrl: m.mediaUrl,
+        isPinned: m.isPinned,
+        senderId: m.senderId,
+      }));
+
+      setMessagesByConversation((prev) => {
+        const currentList = prev[conversationId] ?? [];
+        const existingIds = new Set(currentList.map((m) => m.id));
+        const newMsgs = mapped.filter((m) => !existingIds.has(m.id));
+        return {
+          ...prev,
+          [conversationId]: [...newMsgs, ...currentList],
+        };
+      });
+      setHasMoreByConversation((prev) => ({
+        ...prev,
+        [conversationId]: msgs.length >= 8,
+      }));
+
+      if (container) {
+        requestAnimationFrame(() => {
+          const newScrollHeight = container.scrollHeight;
+          container.scrollTop = newScrollHeight - previousScrollHeight;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load older inbox messages', err);
+    } finally {
+      setLoadingMoreByConversation((prev) => ({ ...prev, [conversationId]: false }));
+    }
+  };
+
+  const handleChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollTop <= 5) {
+      loadOlderChatMessages();
+    }
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeMessages]);
+    const conversationId = activeConversation?.id;
+    if (!conversationId) return;
+    const currentMsgs = messagesByConversation[conversationId] ?? [];
+    if (currentMsgs.length === 0) return;
+    const lastMsg = currentMsgs[currentMsgs.length - 1];
+    const container = chatScrollRef.current;
+    if (!container) return;
+
+    const previousLastId = lastMessageIdRef.current[conversationId];
+    if (previousLastId === undefined || previousLastId !== lastMsg.id) {
+      container.scrollTop = container.scrollHeight;
+    }
+    lastMessageIdRef.current[conversationId] = lastMsg.id;
+  }, [activeConversation?.id, messagesByConversation]);
 
   const handleSendMessage = async () => {
     const text = draftMessage.trim();
@@ -678,6 +851,8 @@ export const Messages = () => {
           read: true,
           avatarUrl: newMsg.senderAvatarUrl,
           mediaUrl: newMsg.mediaUrl,
+          isPinned: newMsg.isPinned,
+          senderId: newMsg.senderId,
         };
         setMessagesByConversation((prev) => ({
           ...prev,
@@ -686,6 +861,36 @@ export const Messages = () => {
         setDraftMessage('');
       } catch {
         // silent
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    // If direct conversation, send via API
+    if (activeConversation?.conversationId && token) {
+      setSending(true);
+      try {
+        const newMsg = await sendDirectMessage(token, activeConversation.conversationId, text);
+        const chatMsg: ChatMessage = {
+          id: newMsg.messageId,
+          author: 'Bạn',
+          text: newMsg.content ?? '',
+          time: formatMessageTime(newMsg.sentAt),
+          mine: true,
+          read: true,
+          avatarUrl: newMsg.senderAvatarUrl,
+          mediaUrl: newMsg.mediaUrl,
+          isPinned: newMsg.isPinned,
+          senderId: newMsg.senderId,
+        };
+        setMessagesByConversation((prev) => ({
+          ...prev,
+          [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
+        }));
+        setDraftMessage('');
+      } catch (err) {
+        console.error('Failed to send direct message', err);
       } finally {
         setSending(false);
       }
@@ -713,6 +918,110 @@ export const Messages = () => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleDeleteChatMessage = async (messageId: number) => {
+    if (!token || !activeConversation?.groupId) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) return;
+    try {
+      await deleteGroupMessage(token, activeConversation.groupId, messageId);
+      const msgs = await getGroupMessages(token, activeConversation.groupId);
+      const chatMessages: ChatMessage[] = msgs.map((m) => ({
+        id: m.messageId,
+        author: m.isMine ? 'Bạn' : m.senderName,
+        text: m.content ?? '',
+        time: formatMessageTime(m.sentAt),
+        mine: m.isMine,
+        read: true,
+        avatarUrl: m.senderAvatarUrl,
+        mediaUrl: m.mediaUrl,
+        isPinned: m.isPinned,
+        senderId: m.senderId,
+      }));
+      setMessagesByConversation((prev) => ({
+        ...prev,
+        [activeConversation.id]: chatMessages,
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa tin nhắn.');
+    }
+  };
+
+  const handleTogglePinChatMessage = async (messageId: number, currentPin: boolean) => {
+    if (!token || !activeConversation?.groupId) return;
+    try {
+      await pinGroupMessage(token, activeConversation.groupId, messageId, !currentPin);
+      
+      const [msgs, pinned] = await Promise.all([
+        getGroupMessages(token, activeConversation.groupId, undefined, 8),
+        getPinnedGroupMessages(token, activeConversation.groupId).catch(() => []),
+      ]);
+
+      const chatMessages: ChatMessage[] = msgs.map((m) => ({
+        id: m.messageId,
+        author: m.isMine ? 'Bạn' : m.senderName,
+        text: m.content ?? '',
+        time: formatMessageTime(m.sentAt),
+        mine: m.isMine,
+        read: true,
+        avatarUrl: m.senderAvatarUrl,
+        mediaUrl: m.mediaUrl,
+        isPinned: m.isPinned,
+        senderId: m.senderId,
+      }));
+
+      const mappedPinned: ChatMessage[] = pinned.map((m) => ({
+        id: m.messageId,
+        author: m.isMine ? 'Bạn' : m.senderName,
+        text: m.content ?? '',
+        time: formatMessageTime(m.sentAt),
+        mine: m.isMine,
+        read: true,
+        avatarUrl: m.senderAvatarUrl,
+        mediaUrl: m.mediaUrl,
+        isPinned: m.isPinned,
+        senderId: m.senderId,
+      }));
+
+      setMessagesByConversation((prev) => ({
+        ...prev,
+        [activeConversation.id]: chatMessages,
+      }));
+
+      setPinnedMessagesByConversation((prev) => ({
+        ...prev,
+        [activeConversation.id]: mappedPinned,
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Không thể thay đổi trạng thái ghim tin nhắn.');
+    }
+  };
+
+  const handleModifyChatMessage = async (messageId: number, text: string) => {
+    if (!token || !activeConversation?.groupId) return;
+    try {
+      await deleteGroupMessage(token, activeConversation.groupId, messageId);
+      setDraftMessage(text);
+      const msgs = await getGroupMessages(token, activeConversation.groupId);
+      const chatMessages: ChatMessage[] = msgs.map((m) => ({
+        id: m.messageId,
+        author: m.isMine ? 'Bạn' : m.senderName,
+        text: m.content ?? '',
+        time: formatMessageTime(m.sentAt),
+        mine: m.isMine,
+        read: true,
+        avatarUrl: m.senderAvatarUrl,
+        mediaUrl: m.mediaUrl,
+        isPinned: m.isPinned,
+        senderId: m.senderId,
+      }));
+      setMessagesByConversation((prev) => ({
+        ...prev,
+        [activeConversation.id]: chatMessages,
+      }));
+    } catch (err: any) {
+      alert(err.message || 'Không thể chỉnh sửa tin nhắn.');
     }
   };
 
@@ -880,8 +1189,38 @@ export const Messages = () => {
                 </div>
               </header>
 
+              {activeConversation.groupId && pinnedMessages.length > 0 && (
+                <div className="bg-[#f0f3ff] border-b border-outline-variant px-5 py-3 flex flex-col gap-2 shrink-0">
+                  <div className="flex items-center gap-2 text-[12px] font-bold text-primary">
+                    <Pin className="h-3.5 w-3.5 fill-current" />
+                    <span>TIN NHẮN ĐÃ GHIM ({pinnedMessages.length})</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-24 overflow-y-auto custom-scrollbar">
+                    {pinnedMessages.map((msg) => (
+                      <div className="flex items-center justify-between gap-3 text-[13px] bg-white p-2 rounded border border-outline-variant shadow-sm" key={msg.id}>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-on-surface mr-1">{msg.author}:</span>
+                          <span className="text-on-surface-variant">{msg.text}</span>
+                        </div>
+                        {isManager && (
+                          <button
+                            className="text-[11px] font-bold text-[#ba1a1a] hover:underline"
+                            onClick={() => handleTogglePinChatMessage(msg.id, msg.isPinned || false)}
+                            type="button"
+                          >
+                            Bỏ ghim
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div
                 className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-4 md:p-6"
+                ref={chatScrollRef}
+                onScroll={handleChatScroll}
                 style={{
                   backgroundImage: 'radial-gradient(#DDE5D5 1px, transparent 1px)',
                   backgroundSize: '18px 18px',
@@ -926,20 +1265,80 @@ export const Messages = () => {
                               <span className="text-[12px] font-bold text-on-surface-variant">{message.author}</span>
                               <span className="text-[11px] font-medium text-on-surface-variant">{message.time}</span>
                             </div>
-                            <div
-                              className={`rounded-2xl px-4 py-3 text-[14px] leading-6 shadow-sm ${
-                                message.mine
-                                  ? 'rounded-tr-sm bg-primary text-white'
-                                  : 'rounded-tl-sm border border-outline-variant bg-white text-on-surface'
-                              }`}
-                            >
-                              {message.text}
-                              {message.mediaUrl && (
-                                <img
-                                  alt="Media"
-                                  className="mt-2 max-h-56 max-w-[240px] rounded-lg border border-outline-variant object-cover"
-                                  src={message.mediaUrl}
-                                />
+                            <div className="relative flex items-center gap-1.5 group">
+                              <div
+                                className={`rounded-2xl px-4 py-3 text-[14px] leading-6 shadow-sm ${
+                                  message.mine
+                                    ? 'rounded-tr-sm bg-primary text-white'
+                                    : 'rounded-tl-sm border border-outline-variant bg-white text-on-surface'
+                                }`}
+                              >
+                                {message.isPinned && (
+                                  <div className="mb-1 flex items-center gap-1 text-[11px] font-bold text-primary-container bg-primary/20 px-1.5 py-0.5 rounded w-fit">
+                                    <Pin className="h-3 w-3 fill-current" />
+                                    <span>Đã ghim</span>
+                                  </div>
+                                )}
+                                {message.text}
+                                {message.mediaUrl && (
+                                  <img
+                                    alt="Media"
+                                    className="mt-2 max-h-56 max-w-[240px] rounded-lg border border-outline-variant object-cover"
+                                    src={message.mediaUrl}
+                                  />
+                                )}
+                              </div>
+
+                              {activeConversation.groupId && (message.mine || isManager) && (
+                                <div className="relative flex items-center justify-center shrink-0">
+                                  <button
+                                    aria-label="Tùy chọn tin nhắn"
+                                    className="h-10 w-10 flex items-center justify-center text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container-low transition-colors"
+                                    onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
+                                    type="button"
+                                  >
+                                    <MoreVertical className="h-5 w-5" />
+                                  </button>
+
+                                  {activeMenuMessageId === message.id && (
+                                    <div className="absolute right-0 top-11 z-50 w-44 rounded-xl border border-outline-variant bg-white p-1.5 shadow-lg text-left">
+                                      {message.mine && (
+                                        <button
+                                          className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
+                                          onClick={() => {
+                                            handleModifyChatMessage(message.id, message.text);
+                                            setActiveMenuMessageId(null);
+                                          }}
+                                          type="button"
+                                        >
+                                          Sửa tin nhắn
+                                        </button>
+                                      )}
+                                      <button
+                                        className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+                                        onClick={() => {
+                                          handleDeleteChatMessage(message.id);
+                                          setActiveMenuMessageId(null);
+                                        }}
+                                        type="button"
+                                      >
+                                        Xóa tin nhắn
+                                      </button>
+                                      {isManager && (
+                                        <button
+                                          className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                                          onClick={() => {
+                                            handleTogglePinChatMessage(message.id, message.isPinned || false);
+                                            setActiveMenuMessageId(null);
+                                          }}
+                                          type="button"
+                                        >
+                                          {message.isPinned ? 'Bỏ ghim' : 'Ghim tin nhắn'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                             {message.mine && (
@@ -977,7 +1376,7 @@ export const Messages = () => {
                     aria-label="Gửi hình ảnh"
                     className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary sm:flex disabled:opacity-50"
                     onClick={() => mediaInputRef.current?.click()}
-                    disabled={uploadingMedia || !activeConversation?.groupId}
+                    disabled={uploadingMedia || (!activeConversation?.groupId && !activeConversation?.conversationId)}
                     type="button"
                   >
                     {uploadingMedia ? (
@@ -1019,6 +1418,13 @@ export const Messages = () => {
                 </div>
               </div>
             </>
+          )}
+          {!activeConversation && !clubGroupsLoading && (
+            <div className="flex h-full flex-1 flex-col items-center justify-center p-8 text-center text-on-surface-variant">
+              <MessageCircle className="h-12 w-12 text-primary" />
+              <p className="mt-4 text-[15px] font-bold text-on-surface">Chưa chọn cuộc trò chuyện nào</p>
+              <p className="mt-1 text-[13px]">Hãy chọn một câu lạc bộ hoặc một người chơi từ danh sách để bắt đầu.</p>
+            </div>
           )}
         </main>
 
@@ -1209,48 +1615,17 @@ export const Messages = () => {
                   {/* Rating */}
                   <div className="border-t border-outline-variant pt-4">
                     <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-2">
-                      Đánh giá
+                      Đánh giá câu lạc bộ
                     </label>
-                    {isManager ? (
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-1.5 flex-1">
-                          <span className="text-amber-500 text-[16px]">★</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="5"
-                            step="0.1"
-                            value={editRating}
-                            onChange={(e) => setEditRating(e.target.value)}
-                            className="w-16 bg-transparent text-[14px] font-bold outline-none text-on-surface"
-                            placeholder="0.0"
-                          />
-                          <span className="text-[12px] text-on-surface-variant">/5</span>
-                        </div>
-                        {editRating !== (activeGroup.overallRating > 0 ? String(activeGroup.overallRating) : '') && (
-                          <button
-                            onClick={() => {
-                              const val = parseFloat(editRating);
-                              if (!isNaN(val)) handleUpdateGroup({ overallRating: val });
-                            }}
-                            disabled={updatingGroup}
-                            className="rounded-lg bg-primary p-2 text-white hover:bg-primary/95 transition-colors disabled:opacity-50"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[13px] font-bold text-amber-700">
-                          <span>★</span>
-                          {activeGroup.overallRating > 0 ? activeGroup.overallRating.toFixed(1) : '—'}
-                        </span>
-                        {activeGroup.ratingCount > 0 && (
-                          <span className="text-[12px] text-on-surface-variant">{activeGroup.ratingCount} đánh giá</span>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[13px] font-bold text-amber-700">
+                        <span>★</span>
+                        {activeGroup.overallRating > 0 ? activeGroup.overallRating.toFixed(1) : '—'}
+                      </span>
+                      {activeGroup.ratingCount > 0 && (
+                        <span className="text-[12px] text-on-surface-variant">{activeGroup.ratingCount} đánh giá từ người chơi</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Intro Images */}
