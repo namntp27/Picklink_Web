@@ -17,7 +17,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { getCourtAvailability, type CourtAvailability } from '../../api/booking';
+import { getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
 import {
   acceptParticipant,
   cancelMatch,
@@ -36,6 +36,7 @@ import {
 import { submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 
 const statusLabels: Record<MatchDetailResponse['status'], string> = {
@@ -46,6 +47,21 @@ const statusLabels: Record<MatchDetailResponse['status'], string> = {
   Completed: 'Đã hoàn thành',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
+};
+const paymentStatusLabels: Record<string, string> = {
+  Pending: 'Chờ thanh toán',
+  WaitingForConfirmation: 'Chờ xác nhận',
+  Paid: 'Đã thanh toán',
+  Rejected: 'Bị từ chối',
+  Cancelled: 'Đã hủy',
+  Expired: 'Đã hết hạn',
+  Failed: 'Thanh toán lỗi',
+};
+const paymentStatusClass = (status?: string | null) => {
+  if (status === 'Paid') return 'bg-emerald-100 text-emerald-700';
+  if (status === 'WaitingForConfirmation') return 'bg-amber-100 text-amber-800';
+  if (status === 'Rejected' || status === 'Failed' || status === 'Cancelled' || status === 'Expired') return 'bg-red-100 text-red-700';
+  return 'bg-slate-100 text-slate-700';
 };
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
@@ -59,6 +75,23 @@ const currency = new Intl.NumberFormat('vi-VN', {
 });
 const approvedStatus = (status: string) => status === 'Approved' || status === 'Accepted';
 const timePart = (value: string) => value.slice(11, 16);
+const minuteOfDay = (value: string) => {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+};
+const timeFromMinutes = (value: number) => {
+  const hours = Math.floor(value / 60).toString().padStart(2, '0');
+  const minutes = (value % 60).toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+const unavailableLabel: Record<string, string> = {
+  Holding: 'Đang giữ',
+  Booked: 'Đã đặt',
+  Blocked: 'Đã khóa',
+  Maintenance: 'Bảo trì',
+  Event: 'Sự kiện',
+  Closed: 'Đóng cửa',
+};
 
 export const MatchDetail = () => {
   const { id } = useParams();
@@ -121,20 +154,46 @@ export const MatchDetail = () => {
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages]);
 
-  useEffect(() => {
+  const loadAvailability = async () => {
     if (!selectedVenueId || !bookingDate || match?.status !== 'ReadyToBook') {
       setAvailability(null);
       return;
     }
-    getCourtAvailability(selectedVenueId, bookingDate, token)
-      .then((result) => {
-        setAvailability(result);
-        setCourtId((current) => result.courts.some((court) => court.courtId === current)
-          ? current
-          : result.courts[0]?.courtId ?? null);
-      })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Không thể tải lịch sân.'));
+    try {
+      const result = await getCourtAvailability(selectedVenueId, bookingDate, token);
+      setAvailability(result);
+      setCourtId((current) => result.courts.some((court) => court.courtId === current)
+        ? current
+        : result.courts[0]?.courtId ?? null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể tải lịch sân.');
+    }
+  };
+
+  useEffect(() => {
+    void loadAvailability();
   }, [selectedVenueId, bookingDate, match?.status, token]);
+
+  const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
+    if (!selectedVenueId || !courtId || !startTime || !endTime) return false;
+    if (notification.venueId !== selectedVenueId || notification.courtId !== courtId || notification.startTime.slice(0, 10) !== bookingDate) return false;
+
+    const changedStart = minuteOfDay(timePart(notification.startTime));
+    const changedEnd = minuteOfDay(timePart(notification.endTime));
+    const selectedStart = minuteOfDay(startTime);
+    const selectedEnd = minuteOfDay(endTime);
+    return selectedStart < changedEnd && selectedEnd > changedStart;
+  };
+
+  useScheduleRealtime((notification) => {
+    if (notification.venueId !== selectedVenueId || notification.startTime.slice(0, 10) !== bookingDate) return;
+    if (notification.action !== 'Deleted' && notificationTouchesSelection(notification)) {
+      setStartTime('');
+      setEndTime('');
+      setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn giờ khác.');
+    }
+    void loadAvailability();
+  });
 
   const approved = useMemo(
     () => match?.participants.filter((participant) => approvedStatus(participant.status)) ?? [],
@@ -143,15 +202,21 @@ export const MatchDetail = () => {
   const pending = match?.participants.filter((participant) => participant.status === 'Pending') ?? [];
   const isApprovedMember = Boolean(match?.isHost || match?.myParticipantStatus && approvedStatus(match.myParticipantStatus));
   const isFull = Boolean(match && approved.length === match.requiredPlayerCount);
-  const availableSlots = useMemo(
+  const selectedCourt = availability?.courts.find((court) => court.courtId === courtId);
+  const slotMinutes = availability?.slotMinutes ?? 30;
+  const slotPrice = selectedCourt ? Math.round(selectedCourt.hourlyPrice * slotMinutes / 60) : 0;
+  const visibleSlots = useMemo(
     () => availability?.slots
       .filter((slot) =>
         slot.courtId === courtId
-        && slot.status === 'Available'
         && timePart(slot.startTime) >= (match?.preferredTimeStart ?? '00:00')
         && timePart(slot.endTime) <= (match?.preferredTimeEnd ?? '23:59'))
       .sort((left, right) => left.startTime.localeCompare(right.startTime)) ?? [],
     [availability, courtId, match?.preferredTimeStart, match?.preferredTimeEnd],
+  );
+  const availableSlots = useMemo(
+    () => visibleSlots.filter((slot) => slot.status === 'Available' && new Date(slot.startTime).getTime() > Date.now()),
+    [visibleSlots],
   );
   const startOptions = useMemo(
     () => Array.from(new Set(availableSlots.map((slot) => timePart(slot.startTime)))),
@@ -168,6 +233,91 @@ export const MatchDetail = () => {
     }
     return values;
   }, [availableSlots, startTime]);
+  const selectedSlotStarts = useMemo(() => {
+    if (!startTime || !endTime) return [];
+    const start = minuteOfDay(startTime);
+    const end = minuteOfDay(endTime);
+    return visibleSlots
+      .filter((slot) => {
+        const slotStart = minuteOfDay(timePart(slot.startTime));
+        const slotEnd = minuteOfDay(timePart(slot.endTime));
+        return slotStart >= start && slotEnd <= end;
+      })
+      .map((slot) => timePart(slot.startTime));
+  }, [visibleSlots, startTime, endTime]);
+  const selectedDurationHours = startTime && endTime
+    ? Math.max(0, (minuteOfDay(endTime) - minuteOfDay(startTime)) / 60)
+    : 0;
+  const estimatedTotalAmount = selectedCourt ? Math.round(selectedCourt.hourlyPrice * selectedDurationHours) : 0;
+  const estimatedAmountPerPlayer = (match?.requiredPlayerCount ?? 0) > 0
+    ? Math.ceil(estimatedTotalAmount / match!.requiredPlayerCount)
+    : 0;
+
+  useEffect(() => {
+    if (!startTime) return;
+    if (!startOptions.includes(startTime)) {
+      setStartTime('');
+      setEndTime('');
+      setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn giờ khác.');
+      return;
+    }
+    if (endTime && !endOptions.includes(endTime)) {
+      setEndTime('');
+      setError('Khung giờ kết thúc vừa chọn không còn khả dụng. Vui lòng chọn lại.');
+    }
+  }, [startOptions, endOptions, startTime, endTime]);
+
+  const applySlotSelection = (slotStarts: string[]) => {
+    const sorted = [...slotStarts].sort((left, right) => minuteOfDay(left) - minuteOfDay(right));
+    if (!sorted.length) {
+      setStartTime('');
+      setEndTime('');
+      return;
+    }
+    const lastSlot = availableSlots.find((slot) => timePart(slot.startTime) === sorted.at(-1));
+    setStartTime(sorted[0]);
+    setEndTime(lastSlot ? timePart(lastSlot.endTime) : timeFromMinutes(minuteOfDay(sorted.at(-1)!) + slotMinutes));
+  };
+
+  const selectSlot = (slot: AvailabilitySlot) => {
+    const slotStart = timePart(slot.startTime);
+    const slotEnd = timePart(slot.endTime);
+    if (slot.status !== 'Available' || new Date(slot.startTime).getTime() <= Date.now()) return;
+
+    setError('');
+    if (!selectedSlotStarts.length) {
+      setStartTime(slotStart);
+      setEndTime(slotEnd);
+      return;
+    }
+
+    if (selectedSlotStarts.includes(slotStart)) {
+      const sorted = [...selectedSlotStarts].sort((left, right) => minuteOfDay(left) - minuteOfDay(right));
+      if (sorted.length === 1) {
+        applySlotSelection([]);
+      } else if (slotStart === sorted[0]) {
+        applySlotSelection(sorted.slice(1));
+      } else if (slotStart === sorted.at(-1)) {
+        applySlotSelection(sorted.slice(0, -1));
+      } else {
+        setStartTime(slotStart);
+        setEndTime(slotEnd);
+      }
+      return;
+    }
+
+    const candidate = [...selectedSlotStarts, slotStart].sort((left, right) => minuteOfDay(left) - minuteOfDay(right));
+    const consecutive = candidate.every((value, index) =>
+      index === 0 || minuteOfDay(value) - minuteOfDay(candidate[index - 1]) === slotMinutes);
+    if (consecutive) {
+      applySlotSelection(candidate);
+    } else {
+      setStartTime(slotStart);
+      setEndTime(slotEnd);
+      setError('Chỉ được chọn các slot liên tiếp. Hệ thống đã bắt đầu một lựa chọn mới.');
+    }
+  };
+
 
   const run = async (action: () => Promise<unknown>) => {
     setIsBusy(true);
@@ -232,22 +382,15 @@ export const MatchDetail = () => {
   const inputClass = 'community-control';
 
   return (
-    <CommunityPage>
+    <CommunityPage className="match-detail-page">
       <CommunityHero
         backLink={{ label: 'Danh sách lời mời', to: '/opponents' }}
-        description={`Chủ phòng: ${match.hostName} · ${match.note || 'Chủ phòng chưa thêm mô tả.'}`}
+        description={`Chủ phòng: ${match.hostName}${match.note ? ` · ${match.note}` : ''}`}
         icon={ShieldCheck}
         label={`Phòng #${match.matchId}`}
         stats={(
           <div>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-bold text-white/65">Trạng thái</p>
-              {match.checkInCode && isApprovedMember && (
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 font-mono text-[11px] font-black tracking-wide text-emerald-700" title="Mã đơn ghép trận dùng để check-in">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> {match.checkInCode}
-                  </span>
-              )}
-              </div>
+              <p className="text-[11px] font-bold text-white/65">Trạng thái</p>
               <p className="mt-2 text-[17px] font-extrabold text-white">{statusLabels[match.status]}</p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">{approved.length}/{match.requiredPlayerCount} thành viên chính thức</p>
           </div>
@@ -255,17 +398,23 @@ export const MatchDetail = () => {
         title={match.title}
       />
 
-      <main className="community-container grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="space-y-5">
-          {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[12px] font-bold text-red-700" role="alert">{error}</div>}
+      <main className="community-container match-detail-shell grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="match-detail-main space-y-5">
+          {error && <div className="match-alert" role="alert">{error}</div>}
 
-          <section className="community-panel p-4 sm:p-5">
-            <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Phạm vi lời mời</h2>
-            <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-[#d8e4d4] bg-[#d8e4d4] sm:grid-cols-2 xl:grid-cols-4">
-              <div className="bg-[#f7faf5] p-3"><MapPin className="h-4 w-4 text-[#477313]" /><p className="mt-2 text-[11px] font-bold text-[#718077]">Khu vực</p><p className="mt-1 text-[13px] font-extrabold">{match.ward}, {match.province}</p><p className="text-[11px] text-[#718077]">Bán kính {match.searchRadiusKm} km</p></div>
-              <div className="bg-[#f7faf5] p-3"><CalendarRange className="h-4 w-4 text-[#477313]" /><p className="mt-2 text-[11px] font-bold text-[#718077]">Ngày có thể chơi</p><p className="mt-1 text-[13px] font-extrabold">{dateLabel(match.availableDateFrom)} - {dateLabel(match.availableDateTo)}</p></div>
-              <div className="bg-[#f7faf5] p-3"><Clock className="h-4 w-4 text-[#477313]" /><p className="mt-2 text-[11px] font-bold text-[#718077]">Giờ mong muốn</p><p className="mt-1 text-[13px] font-extrabold">{match.preferredTimeStart} - {match.preferredTimeEnd}</p></div>
-              <div className="bg-[#f7faf5] p-3"><Users className="h-4 w-4 text-[#477313]" /><p className="mt-2 text-[11px] font-bold text-[#718077]">Trình độ / hình thức</p><p className="mt-1 text-[13px] font-extrabold">Level {match.minSkillLevel}-{match.maxSkillLevel} · {match.matchType}</p></div>
+          <section className="community-panel match-panel match-scope-panel">
+            <div className="match-section-heading">
+              <div>
+                <p className="match-eyebrow">điều kiện ghép trận</p>
+                <h2>Phạm vi lời mời</h2>
+              </div>
+              <span className="match-soft-badge">{match.preferredVenues.length} cụm sân</span>
+            </div>
+            <div className="match-scope-grid">
+              <div className="match-info-tile"><MapPin className="h-4 w-4" /><p>Khu vực</p><strong>{match.ward}, {match.province}</strong><span>Bán kính {match.searchRadiusKm} km</span></div>
+              <div className="match-info-tile"><CalendarRange className="h-4 w-4" /><p>Ngày có thể chơi</p><strong>{dateLabel(match.availableDateFrom)}</strong><span>đến {dateLabel(match.availableDateTo)}</span></div>
+              <div className="match-info-tile"><Clock className="h-4 w-4" /><p>Giờ mong muốn</p><strong>{match.preferredTimeStart} - {match.preferredTimeEnd}</strong><span>lọc slot theo khung này</span></div>
+              <div className="match-info-tile"><Users className="h-4 w-4" /><p>Trình độ / hình thức</p><strong>Level {match.minSkillLevel}-{match.maxSkillLevel}</strong><span>{match.matchType}</span></div>
             </div>
             <div className="mt-4">
               <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Cụm sân mong muốn</p>
@@ -273,10 +422,10 @@ export const MatchDetail = () => {
             </div>
           </section>
 
-          <section className="community-panel p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div><h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Thành viên</h2><p className="mt-1 text-[11px] font-semibold leading-5 text-[#718077]">Yêu cầu chờ duyệt chưa được tính và chưa thể truy cập chat.</p></div>
-              <span className="community-badge">{approved.length}/{match.requiredPlayerCount}</span>
+          <section className="community-panel match-panel">
+            <div className="match-section-heading">
+              <div><p className="match-eyebrow">đội hình</p><h2>Thành viên</h2><p>Yêu cầu chờ duyệt chưa được tính và chưa thể truy cập chat.</p></div>
+              <span className="match-count-pill">{approved.length}/{match.requiredPlayerCount}</span>
             </div>
 
             {match.isHost && pending.length > 0 && (
@@ -294,14 +443,15 @@ export const MatchDetail = () => {
               </div>
             )}
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="match-member-grid">
               {approved.map((participant) => (
-                <article className="flex items-center gap-3 rounded-xl border border-[#d8e4d4] p-3" key={participant.participantId}>
+                <article className="match-member-card" key={participant.participantId}>
                   <div className="grid h-10 w-10 place-items-center rounded-[11px] bg-[#0b2228] text-[12px] font-bold text-[#e2ff57]">{participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}</div>
                   <div className="min-w-0 flex-1"><p className="truncate text-[14px] font-bold">{participant.playerName}</p><p className="text-[12px] text-on-surface-variant">{participant.isHost ? 'Chủ phòng' : 'Thành viên'} · Level {participant.skillLevel.toFixed(1)}</p></div>
-                  {participant.paymentStatus === 'Paid' && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Đã thanh toán
+                  {match.bookingId && isApprovedMember && participant.paymentStatus && (
+                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
+                      {participant.paymentStatus === 'Paid' && <CheckCircle2 className="h-3.5 w-3.5" />}
+                      {paymentStatusLabels[participant.paymentStatus] ?? participant.paymentStatus}
                     </span>
                   )}
                   {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
@@ -312,57 +462,131 @@ export const MatchDetail = () => {
             </div>
           </section>
 
-          {match.isHost && match.status === 'ReadyToBook' && (
-            <section className="community-panel border-[#a8c39e] p-4 sm:p-5">
-              <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Chọn lịch và tạo booking</h2>
-              <p className="mt-1 text-[13px] text-on-surface-variant">Chỉ các cụm sân, ngày và giờ nằm trong lời mời mới được chấp nhận.</p>
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {isApprovedMember && match.status === 'ReadyToBook' && (
+            <section className="community-panel match-panel match-schedule-panel">
+              <div className="match-section-heading">
+                <div>
+                  <p className="match-eyebrow">giữ sân</p>
+                  <h2>Chọn lịch và tạo booking</h2>
+                  <p>Chọn các slot liền nhau trong phạm vi lời mời. {!match.isHost && 'Bạn có thể xem lịch và chi phí dự kiến; chỉ chủ phòng mới tạo booking.'}</p>
+                </div>
+                <span className="match-soft-badge">{startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa chọn'}</span>
+              </div>
+              <div className="match-booking-form">
                 <label><span className="mb-1 block text-[13px] font-bold">Cụm sân</span><select className={inputClass} onChange={(event) => { setSelectedVenueId(Number(event.target.value)); setCourtId(null); setStartTime(''); setEndTime(''); }} value={selectedVenueId ?? ''}>{match.preferredVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
                 <label><span className="mb-1 block text-[13px] font-bold">Ngày chơi chính xác</span><input className={inputClass} max={match.availableDateTo} min={match.availableDateFrom} onChange={(event) => { setBookingDate(event.target.value); setStartTime(''); setEndTime(''); }} type="date" value={bookingDate} /></label>
-                <label><span className="mb-1 block text-[13px] font-bold">Sân con</span><select className={inputClass} onChange={(event) => { setCourtId(Number(event.target.value)); setStartTime(''); setEndTime(''); }} value={courtId ?? ''}><option value="">Chọn sân</option>{availability?.courts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType}</option>)}</select></label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label><span className="mb-1 block text-[13px] font-bold">Bắt đầu</span><select className={inputClass} onChange={(event) => { setStartTime(event.target.value); setEndTime(''); }} value={startTime}><option value="">Chọn giờ</option>{startOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
-                  <label><span className="mb-1 block text-[13px] font-bold">Kết thúc</span><select className={inputClass} onChange={(event) => setEndTime(event.target.value)} value={endTime}><option value="">Chọn giờ</option>{endOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
+                <label><span className="mb-1 block text-[13px] font-bold">Sân con</span><select className={inputClass} onChange={(event) => { setCourtId(Number(event.target.value)); setStartTime(''); setEndTime(''); }} value={courtId ?? ''}><option value="">Chọn sân</option>{availability?.courts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType} · {currency.format(court.hourlyPrice)}/giờ</option>)}</select></label>
+                <div className="match-selected-time">
+                  <p className="text-[12px] font-bold text-[#526158]">Khung giờ đã chọn</p>
+                  <p className="mt-1 text-[15px] font-extrabold text-[#0b2228]">{startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa chọn slot'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[13px] font-bold text-[#0b2228]">Slot khả dụng ({slotMinutes} phút/slot)</span>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                      <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-primary">Trống</span>
+                      <span className="rounded-full border border-[#0b2228] bg-[#0b2228] px-2 py-1 text-white">Đã chọn</span>
+                      <span className="rounded-full border border-[#d8e4d4] bg-white px-2 py-1 text-[#8a968f]">Không khả dụng</span>
+                    </div>
+                  </div>
+                  <div className="match-slot-grid">
+                    {visibleSlots.map((slot) => {
+                      const slotTime = timePart(slot.startTime);
+                      const selected = selectedSlotStarts.includes(slotTime);
+                      const past = new Date(slot.startTime).getTime() <= Date.now();
+                      const disabled = slot.status !== 'Available' || past;
+                      const className = selected
+                        ? 'border-[#0b2228] bg-[#0b2228] text-white'
+                        : disabled
+                          ? 'cursor-not-allowed border-[#d8e4d4] bg-white text-[#98a39d]'
+                          : 'border-[#b9dca8] bg-[#eef8e6] text-primary hover:border-primary hover:bg-[#e2ff57] hover:text-[#102414]';
+                      return (
+                        <button
+                          className={`match-slot-button ${className}`}
+                          disabled={disabled}
+                          key={`${slot.courtId}-${slot.startTime}`}
+                          onClick={() => selectSlot(slot)}
+                          title={past ? 'Đã qua' : unavailableLabel[slot.status] ?? 'Còn trống'}
+                          type="button"
+                        >
+                          <span className="block">{slotTime}</span>
+                          <span className="mt-0.5 block text-[10px] font-bold opacity-75">{disabled ? (past ? 'Đã qua' : unavailableLabel[slot.status] ?? slot.status) : currency.format(slotPrice)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!visibleSlots.length && <p className="rounded-xl bg-[#f7faf5] p-4 text-center text-[13px] font-bold text-[#718077]">Không có slot phù hợp với ngày và sân đã chọn.</p>}
                 </div>
               </div>
-              <button className="community-button mt-4 w-full" disabled={isBusy || !courtId || !startTime || !endTime} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
+              {selectedCourt && (
+                <div className="match-price-summary">
+                  <div><p className="text-[11px] font-bold text-[#718077]">Giá slot {slotMinutes} phút</p><p className="mt-1 font-extrabold text-[#0b2228]">{currency.format(slotPrice)}</p></div>
+                  <div><p className="text-[11px] font-bold text-[#718077]">Tổng tiền sân</p><p className="mt-1 font-extrabold text-[#0b2228]">{selectedDurationHours ? currency.format(estimatedTotalAmount) : 'Chưa chọn giờ'}</p></div>
+                  <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-primary">{selectedDurationHours ? currency.format(estimatedAmountPerPlayer) : 'Chưa chọn giờ'}</p></div>
+                </div>
+              )}
+              {match.isHost ? (
+                <button className="community-button mt-4 w-full" disabled={isBusy || !courtId || !startTime || !endTime} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
+              ) : (
+                <div className="mt-4 rounded-xl border border-[#d8e4d4] bg-white p-3 text-center text-[13px] font-bold text-[#526158]">
+                  Chỉ chủ phòng mới có quyền tạo booking.
+                </div>
+              )}
             </section>
           )}
 
           {match.bookingId && (
-            <section className="community-panel p-4 sm:p-5">
-              <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Booking đã chọn</h2>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-lg bg-surface-container-low p-4"><p className="text-[12px] font-bold text-on-surface-variant">Sân</p><p className="mt-1 text-[14px] font-bold">{match.venueName} · Sân {match.courtNumber}</p><p className="mt-1 text-[12px]">{match.address}</p></div>
-                <div className="rounded-lg bg-surface-container-low p-4"><p className="text-[12px] font-bold text-on-surface-variant">Thời gian</p><p className="mt-1 text-[14px] font-bold">{match.startTime && dateTimeLabel(match.startTime)}</p><p className="mt-1 text-[12px]">Đến {match.endTime && dateTimeLabel(match.endTime)}</p></div>
-                <div className="rounded-lg bg-surface-container-low p-4"><p className="text-[12px] font-bold text-on-surface-variant">Chi phí</p><p className="mt-1 text-[17px] font-bold text-primary">{currency.format(match.amountPerPlayer)}/người</p><p className="mt-1 text-[12px]">Tổng {currency.format(match.totalBookingAmount)}</p></div>
+            <section className="community-panel match-panel match-booking-card">
+              <div className="match-section-heading">
+                <div><p className="match-eyebrow">booking đã tạo</p><h2>Booking đã chọn</h2></div>
+                <span className="match-soft-badge">{statusLabels[match.status]}</span>
+              </div>
+              <div className="match-booking-grid">
+                <div><p>Sân</p><strong>{match.venueName} · Sân {match.courtNumber}</strong><span>{match.address}</span></div>
+                <div><p>Thời gian</p><strong>{match.startTime && dateTimeLabel(match.startTime)}</strong><span>Đến {match.endTime && dateTimeLabel(match.endTime)}</span></div>
+                <div><p>Chi phí</p><strong>{currency.format(match.amountPerPlayer)}/người</strong><span>Tổng {currency.format(match.totalBookingAmount)}</span></div>
               </div>
             </section>
           )}
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <section className="community-panel border-[#b9d0b2] p-4">
-            <h3 className="text-[18px] font-bold">Thao tác</h3>
-            {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.status === 'Recruiting' && (
-              <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
-            )}
-            {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng duyệt</div>}
-            {!match.isHost && (match.myParticipantStatus === 'Pending' || isApprovedMember) && match.status !== 'BookingPending' && match.status !== 'Booked' && (
-              <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={() => token && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
-            )}
-            {match.isHost && match.status === 'Recruiting' && isFull && (
-              <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
-            )}
-            {match.isHost && ['Recruiting', 'ReadyToBook', 'BookingPending'].includes(match.status) && (
-              <button className="community-button-danger mt-3 w-full" disabled={isBusy} onClick={() => token && window.confirm('Hủy phòng ghép trận này?') && void run(() => cancelMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Hủy phòng</button>
-            )}
-          </section>
+        <aside className="match-aside space-y-4 lg:sticky lg:top-20 lg:self-start">
+          {match.checkInCode && isApprovedMember && (
+            <section className="match-checkin-card">
+              <p className="match-eyebrow">check-in tại sân</p>
+              <h3>Mã check-in</h3>
+              <div className="match-checkin-code">{match.checkInCode}</div>
+              <p>Xuất trình mã này cho nhân viên sân khi tới giờ chơi. Mã chỉ hiển thị sau khi booking hợp lệ.</p>
+            </section>
+          )}
+
+          {!(match.checkInCode && isApprovedMember) && (
+            <section className="community-panel match-side-panel">
+              <h3 className="text-[18px] font-bold">Thao tác</h3>
+              {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.status === 'Recruiting' && (
+                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
+              )}
+              {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng duyệt</div>}
+              {!match.isHost && (match.myParticipantStatus === 'Pending' || isApprovedMember) && match.status !== 'BookingPending' && match.status !== 'Booked' && (
+                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={() => token && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
+              )}
+              {match.isHost && match.status === 'Recruiting' && isFull && (
+                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
+              )}
+              {match.isHost && ['Recruiting', 'ReadyToBook', 'BookingPending'].includes(match.status) && (
+                <button className="community-button-danger mt-3 w-full" disabled={isBusy} onClick={() => token && window.confirm('Hủy phòng ghép trận này?') && void run(() => cancelMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Hủy phòng</button>
+              )}
+            </section>
+          )}
 
           {match.status === 'BookingPending' && isApprovedMember && (
-            <section className="community-panel border-[#b9d0b2] p-4">
+            <section className="community-panel match-payment-card">
+              <p className="match-eyebrow">thanh toán</p>
               <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán booking</h3>
-              <p className="mt-2 text-[14px]">Phần của bạn: <strong className="text-primary">{currency.format(match.amountPerPlayer)}</strong></p>
+              <div className="match-payment-amount">
+                <span>Phần của bạn</span>
+                <strong>{currency.format(match.amountPerPlayer)}</strong>
+              </div>
               {match.myPaymentStatus === 'Pending' && match.myPaymentRejectionReason && (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
                   <p className="flex items-center gap-2 font-bold"><AlertCircle className="h-4 w-4" /> Biên lai đã bị từ chối</p>
@@ -409,10 +633,6 @@ export const MatchDetail = () => {
             )}
           </section>
 
-          <section className="community-panel p-4 text-[12px] leading-6 text-[#66756b]">
-            <h3 className="flex items-center gap-2 text-[17px] font-bold text-on-surface"><AlertCircle className="h-5 w-5 text-primary" /> Lưu ý</h3>
-            <p className="mt-2">Lời mời không giữ chỗ sân. Nếu booking hết hạn thanh toán, phòng quay lại trạng thái sẵn sàng đặt sân để chủ phòng chọn slot khác.</p>
-          </section>
         </aside>
       </main>
     </CommunityPage>

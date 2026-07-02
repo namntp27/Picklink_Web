@@ -126,7 +126,7 @@ export const OwnerTransactionReviewModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4"
+      className="owner-modal-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isBusy) onClose();
       }}
@@ -135,7 +135,7 @@ export const OwnerTransactionReviewModal = ({
       <div
         aria-labelledby="transaction-review-title"
         aria-modal="true"
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+        className="owner-modal max-w-3xl"
         role="dialog"
       >
         <div className="flex items-start justify-between gap-4">
@@ -189,12 +189,12 @@ export const OwnerTransactionReviewModal = ({
                 {[
                   ['Người chơi', payment.playerName],
                   ['Sân', `${payment.venueName} · Sân ${payment.courtNumber}`],
-                  ['Giờ chơi', `${playTime(payment.startTime)}–${playTime(payment.endTime)} · ${playDate(payment.startTime)}`],
+                  ['Giờ chơi', `${playTime(payment.startTime)} - ${playTime(payment.endTime)} · ${playDate(payment.startTime)}`],
                   ['Trạng thái', paymentStatusLabels[payment.paymentStatus] ?? payment.paymentStatus],
                   ['Số tiền cần trả', currency.format(payment.amount)],
-                  ['Nội dung CK', payment.transferContent ?? '—'],
-                  ['Tài khoản nhận', `${payment.bankName ?? '—'} · ${payment.bankAccountNumber ?? '—'}`],
-                  ['Hạn giữ chỗ', payment.holdExpiresAt ? dateTime(payment.holdExpiresAt) : '—'],
+                  ['Nội dung CK', payment.transferContent ?? '-'],
+                  ['Tài khoản nhận', `${payment.bankName ?? '-'} · ${payment.bankAccountNumber ?? '-'}`],
+                  ['Hạn giữ chỗ', payment.holdExpiresAt ? dateTime(payment.holdExpiresAt) : '-'],
                 ].map(([label, value]) => (
                   <div className="rounded-lg bg-surface-container-low p-3" key={label}>
                     <p className="text-[11px] font-bold uppercase text-on-surface-variant">{label}</p>

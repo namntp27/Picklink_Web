@@ -44,10 +44,10 @@ export const OwnerCourtEdit = () => {
       <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/courts">
         <ArrowLeft className="h-4 w-4" /> Quay lại danh sách sân
       </Link>
-      <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm md:p-8">
-        <div className="mb-6 flex items-center gap-3">
-          <span className="rounded-lg bg-primary/10 p-3 text-primary"><Building2 className="h-6 w-6" /></span>
-          <div><h1 className="text-[28px] font-bold">Chỉnh sửa cụm sân</h1><p className="text-[14px] text-on-surface-variant">Cập nhật địa chỉ, giờ hoạt động, tiện ích và giá cơ bản.</p></div>
+      <section className="owner-panel p-5 md:p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="rounded-lg bg-primary/10 p-2.5 text-primary"><Building2 className="h-5 w-5" /></span>
+          <div><h1 className="font-bold">Chỉnh sửa cụm sân</h1><p className="text-[14px] text-on-surface-variant">Cập nhật địa chỉ, giờ hoạt động, tiện ích và giá cơ bản.</p></div>
         </div>
         {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
         {isLoading && <p className="py-10 text-center text-[14px] font-bold text-on-surface-variant">Đang tải...</p>}

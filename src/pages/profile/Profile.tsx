@@ -1,9 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Camera, CheckCircle2, Heart, Loader2, MapPin, Save, Trophy, UserRound } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import {
+  Activity,
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  Clock3,
+  Heart,
+  Loader2,
+  MapPin,
+  Ruler,
+  Save,
+  Trophy,
+  UserRound,
+  Weight,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { getMyProfile, updateMyProfile, uploadMyAvatar, type PlayerProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
+import './profile.css';
 
 const emptyProfile: PlayerProfile = {
   userId: 0,
@@ -14,10 +30,11 @@ const emptyProfile: PlayerProfile = {
   matchesPlayed: 0,
 };
 
-const inputClass = 'h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
+const toOptionalNumber = (value: string) => value === '' ? null : Number(value);
 
 export const Profile = () => {
   const { token, refreshUser } = useAuth();
+  const shouldReduceMotion = useReducedMotion();
   const [profile, setProfile] = useState<PlayerProfile>(emptyProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +52,7 @@ export const Profile = () => {
   const setField = <Key extends keyof PlayerProfile>(key: Key, value: PlayerProfile[Key]) => {
     setProfile((current) => ({ ...current, [key]: value }));
     setMessage('');
+    setError('');
   };
 
   const save = async () => {
@@ -62,7 +80,9 @@ export const Profile = () => {
       setMessage('Đã lưu hồ sơ cá nhân.');
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật hồ sơ.');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,22 +102,377 @@ export const Profile = () => {
     }
   };
 
-  if (loading) return <div className="flex min-h-[70vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-
-  return <div className="min-h-screen bg-surface-container-low pt-[72px] text-on-surface">
-    <section className="border-b border-outline-variant bg-white"><div className="mx-auto flex max-w-[1100px] flex-col gap-5 px-4 py-8 md:flex-row md:items-end md:justify-between"><div><span className="inline-flex items-center gap-2 rounded-full bg-primary-container px-4 py-2 text-[13px] font-bold"><UserRound className="h-4 w-4" /> Hồ sơ Player</span><h1 className="mt-4 text-[34px] font-bold">Hồ sơ cá nhân</h1><p className="mt-2 text-[14px] text-on-surface-variant">Cập nhật avatar, trình độ, khu vực và hình thức chơi.</p></div><button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={saving} onClick={() => void save()} type="button">{saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Lưu thay đổi</button></div></section>
-
-    <main className="mx-auto grid max-w-[1100px] gap-6 px-4 py-8 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="space-y-5"><section className="rounded-2xl border border-outline-variant bg-white p-6 text-center shadow-sm"><div className="relative mx-auto h-32 w-32"><div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-4 border-primary-container bg-surface-container-low">{profile.profileImageUrl ? <img alt={profile.username} className="h-full w-full object-cover" src={profile.profileImageUrl} /> : <UserRound className="h-14 w-14 text-primary/50" />}</div><label className="absolute bottom-0 right-0 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow"><Camera className="h-5 w-5" /><input accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" disabled={saving} onChange={(event) => void uploadAvatar(event)} type="file" /></label></div><h2 className="mt-4 text-[22px] font-bold">{profile.username}</h2><p className="mt-1 text-[13px] text-on-surface-variant">{profile.email}</p><span className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[13px] font-bold text-primary"><Trophy className="h-4 w-4" /> Level {(profile.skillLevel ?? 0).toFixed(1)}</span><div className="mt-5 grid grid-cols-2 gap-3"><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[22px] font-bold text-primary">{profile.matchesPlayed}</p><p className="text-[11px] font-bold text-on-surface-variant">Trận</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[22px] font-bold text-primary">{profile.prestige ?? 0}</p><p className="text-[11px] font-bold text-on-surface-variant">Uy tín</p></div></div></section><Link className="flex items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 py-3 text-[14px] font-bold text-primary" to="/book-court?favorites=true"><Heart className="h-5 w-5" /> Xem sân yêu thích</Link></aside>
-
-      <div className="space-y-5">
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700">{error}</div>}
-        {message && <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-[14px] font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" />{message}</div>}
-
-        <section className="rounded-2xl border border-outline-variant bg-white p-6 shadow-sm"><h2 className="text-[21px] font-bold">Thông tin người chơi</h2><div className="mt-5 grid gap-4 md:grid-cols-2"><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Tên hiển thị</span><input className={inputClass} maxLength={100} onChange={(event) => setField('username', event.target.value)} value={profile.username} /></label><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Email</span><input className={`${inputClass} bg-surface-container-low text-on-surface-variant`} disabled value={profile.email} /></label><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Trình độ (0–5)</span><input className={inputClass} max="5" min="0" onChange={(event) => setField('skillLevel', Number(event.target.value))} step="0.5" type="number" value={profile.skillLevel ?? 0} /></label><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Hình thức chơi</span><select className={inputClass} onChange={(event) => setField('playerSubType', event.target.value)} value={profile.playerSubType ?? ''}><option value="">Chưa chọn</option><option value="Singles">Đánh đơn (1vs1)</option><option value="Doubles">Đánh đôi (2vs2)</option><option value="Both">Cả hai</option></select></label><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Tần suất chơi</span><select className={inputClass} onChange={(event) => setField('playFrequency', event.target.value)} value={profile.playFrequency ?? ''}><option value="">Chưa chọn</option><option value="Occasional">Thỉnh thoảng</option><option value="Weekly">Hàng tuần</option><option value="Frequent">Thường xuyên</option></select></label><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Khung giờ yêu thích</span><select className={inputClass} onChange={(event) => setField('preferredTimeSlot', event.target.value)} value={profile.preferredTimeSlot ?? ''}><option value="">Chưa chọn</option><option value="Morning">Buổi sáng</option><option value="Afternoon">Buổi chiều</option><option value="Evening">Buổi tối</option></select></label></div><label className="mt-4 block"><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Giới thiệu</span><textarea className="min-h-24 w-full rounded-lg border border-outline-variant p-3 text-[14px] outline-none focus:border-primary" maxLength={500} onChange={(event) => setField('bio', event.target.value)} value={profile.bio ?? ''} /></label></section>
-
-        <section className="rounded-2xl border border-outline-variant bg-white p-6 shadow-sm"><h2 className="flex items-center gap-2 text-[21px] font-bold"><MapPin className="h-5 w-5 text-primary" /> Khu vực</h2><div className="mt-5 grid gap-4 md:grid-cols-2"><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Tỉnh/thành phố</span><input className={inputClass} maxLength={100} onChange={(event) => setField('city', event.target.value)} placeholder="Ví dụ: Hà Nội" value={profile.city ?? ''} /></label><label><span className="mb-1 block text-[12px] font-bold text-on-surface-variant">Xã/phường</span><input className={inputClass} maxLength={150} onChange={(event) => setField('commune', event.target.value)} placeholder="Ví dụ: Cầu Giấy" value={profile.commune ?? ''} /></label></div></section>
+  if (loading) {
+    return (
+      <div aria-busy="true" aria-label="Đang tải hồ sơ" className="profile-root" role="status">
+        <div className="profile-skeleton">
+          <div className="profile-skeleton__inner">
+            <div className="profile-skeleton__line" />
+            <div className="grid gap-[18px] min-[900px]:grid-cols-[280px_minmax(0,1fr)]">
+              <div className="profile-skeleton__block" />
+              <div className="profile-skeleton__block min-[900px]:min-h-[560px]" />
+            </div>
+          </div>
+        </div>
       </div>
-    </main>
-  </div>;
+    );
+  }
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className="profile-root"
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
+      transition={{ duration: shouldReduceMotion ? 0.01 : 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+    >
+      <div className="profile-shell">
+        <header className="profile-page-header">
+          <div>
+            <p className="profile-kicker">
+              <UserRound aria-hidden="true" className="h-4 w-4" />
+              Hồ sơ người chơi
+            </p>
+            <h1 className="profile-page-title">Thông tin của bạn trên sân</h1>
+            <p className="profile-page-description">
+              Cập nhật trình độ, lịch chơi và khu vực để Picklink đề xuất sân, trận đấu phù hợp hơn.
+            </p>
+          </div>
+          <button
+            aria-busy={saving}
+            className="profile-save-button"
+            disabled={saving}
+            form="player-profile-form"
+            type="submit"
+          >
+            {saving ? <Loader2 aria-hidden="true" className="h-[18px] w-[18px] animate-spin motion-reduce:animate-none" /> : <Save aria-hidden="true" className="h-[18px] w-[18px]" />}
+            {saving ? 'Đang lưu' : 'Lưu thay đổi'}
+          </button>
+        </header>
+
+        <div className="profile-workspace">
+          <aside className="profile-sidebar">
+            <section className="profile-identity">
+              <div className="profile-avatar-wrap">
+                <div className="profile-avatar">
+                  {profile.profileImageUrl ? (
+                    <img
+                      alt={`Ảnh đại diện của ${profile.username}`}
+                      className="h-full w-full object-cover"
+                      src={profile.profileImageUrl}
+                    />
+                  ) : (
+                    <UserRound aria-hidden="true" className="h-11 w-11 text-white/48" />
+                  )}
+                </div>
+                <label
+                  className={`profile-avatar-action ${saving ? 'is-disabled' : ''}`}
+                  title="Đổi ảnh đại diện"
+                >
+                  <Camera aria-hidden="true" className="h-[18px] w-[18px]" />
+                  <span className="sr-only">Đổi ảnh đại diện</span>
+                  <input
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    aria-label="Chọn ảnh đại diện mới"
+                    className="sr-only"
+                    disabled={saving}
+                    onChange={(event) => void uploadAvatar(event)}
+                    type="file"
+                  />
+                </label>
+              </div>
+
+              <h2 className="mt-5 break-words text-[19px] font-extrabold tracking-[-0.02em] text-white">
+                {profile.username || 'Người chơi Picklink'}
+              </h2>
+              <p className="mt-1 break-all text-[12px] font-medium text-white/60">{profile.email}</p>
+              <div className="mt-4">
+                <span className="profile-level">
+                  <Trophy aria-hidden="true" className="h-4 w-4" />
+                  Trình độ {(profile.skillLevel ?? 0).toFixed(1)}
+                </span>
+              </div>
+
+              <div className="profile-metrics">
+                <div className="profile-metric">
+                  <strong>{profile.matchesPlayed}</strong>
+                  <span>Trận đã chơi</span>
+                </div>
+                <div className="profile-metric">
+                  <strong>{profile.prestige ?? 0}</strong>
+                  <span>Điểm uy tín</span>
+                </div>
+              </div>
+            </section>
+
+            <p className="px-1 text-[11px] leading-5 text-[#718077]">
+              Ảnh JPG, PNG, WEBP hoặc GIF, dung lượng tối đa 2MB.
+            </p>
+
+            <Link className="profile-secondary-link" to="/book-court?favorites=true">
+              <Heart aria-hidden="true" className="h-[18px] w-[18px]" />
+              Sân yêu thích
+            </Link>
+          </aside>
+
+          <div className="min-w-0">
+            <div aria-live="polite" className="mb-3 grid gap-3">
+              {error && (
+                <div className="profile-status profile-status--error" role="alert">
+                  <Activity aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+              {message && (
+                <div className="profile-status profile-status--success">
+                  <CheckCircle2 aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0" />
+                  <span>{message}</span>
+                </div>
+              )}
+            </div>
+
+            <form
+              className="profile-form-surface"
+              id="player-profile-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void save();
+              }}
+            >
+              <section className="profile-form-section">
+                <div className="profile-section-heading">
+                  <span className="profile-section-icon">
+                    <UserRound aria-hidden="true" className="h-[18px] w-[18px]" />
+                  </span>
+                  <div>
+                    <h2>Thông tin cá nhân</h2>
+                    <p>Tên hiển thị và thông tin cơ bản được dùng trong cộng đồng Picklink.</p>
+                  </div>
+                </div>
+
+                <div className="profile-fields">
+                  <label className="profile-field">
+                    <span className="profile-field-label">Tên hiển thị</span>
+                    <input
+                      autoComplete="nickname"
+                      className="profile-control"
+                      maxLength={100}
+                      minLength={3}
+                      onChange={(event) => setField('username', event.target.value)}
+                      required
+                      value={profile.username}
+                    />
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Email</span>
+                    <input
+                      autoComplete="email"
+                      className="profile-control"
+                      disabled
+                      type="email"
+                      value={profile.email}
+                    />
+                    <span className="profile-field-helper">Email đăng nhập không thể chỉnh sửa tại đây.</span>
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Ngày sinh</span>
+                    <input
+                      className="profile-control"
+                      onChange={(event) => setField('birthDate', event.target.value || null)}
+                      type="date"
+                      value={profile.birthDate?.slice(0, 10) ?? ''}
+                    />
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Giới tính</span>
+                    <select
+                      className="profile-control"
+                      onChange={(event) => setField('gender', event.target.value)}
+                      value={profile.gender ?? ''}
+                    >
+                      <option value="">Chưa chọn</option>
+                      <option value="Male">Nam</option>
+                      <option value="Female">Nữ</option>
+                      <option value="Other">Khác</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section className="profile-form-section">
+                <div className="profile-section-heading">
+                  <span className="profile-section-icon">
+                    <Trophy aria-hidden="true" className="h-[18px] w-[18px]" />
+                  </span>
+                  <div>
+                    <h2>Hồ sơ thi đấu</h2>
+                    <p>Các lựa chọn này giúp hệ thống tìm người chơi và khung giờ phù hợp.</p>
+                  </div>
+                </div>
+
+                <div className="profile-fields">
+                  <label className="profile-field">
+                    <span className="profile-field-label">Trình độ (0-5)</span>
+                    <input
+                      className="profile-control"
+                      max="5"
+                      min="0"
+                      onChange={(event) => setField('skillLevel', Number(event.target.value))}
+                      step="0.5"
+                      type="number"
+                      value={profile.skillLevel ?? 0}
+                    />
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Hình thức chơi</span>
+                    <select
+                      className="profile-control"
+                      onChange={(event) => setField('playerSubType', event.target.value)}
+                      value={profile.playerSubType ?? ''}
+                    >
+                      <option value="">Chưa chọn</option>
+                      <option value="Singles">Đánh đơn (1vs1)</option>
+                      <option value="Doubles">Đánh đôi (2vs2)</option>
+                      <option value="Both">Cả hai</option>
+                    </select>
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Tần suất chơi</span>
+                    <select
+                      className="profile-control"
+                      onChange={(event) => setField('playFrequency', event.target.value)}
+                      value={profile.playFrequency ?? ''}
+                    >
+                      <option value="">Chưa chọn</option>
+                      <option value="Occasional">Thỉnh thoảng</option>
+                      <option value="Weekly">Hàng tuần</option>
+                      <option value="Frequent">Thường xuyên</option>
+                    </select>
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Khung giờ yêu thích</span>
+                    <select
+                      className="profile-control"
+                      onChange={(event) => setField('preferredTimeSlot', event.target.value)}
+                      value={profile.preferredTimeSlot ?? ''}
+                    >
+                      <option value="">Chưa chọn</option>
+                      <option value="Morning">Buổi sáng</option>
+                      <option value="Afternoon">Buổi chiều</option>
+                      <option value="Evening">Buổi tối</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section className="profile-form-section">
+                <div className="profile-section-heading">
+                  <span className="profile-section-icon">
+                    <Ruler aria-hidden="true" className="h-[18px] w-[18px]" />
+                  </span>
+                  <div>
+                    <h2>Thể chất và giới thiệu</h2>
+                    <p>Bổ sung thông tin vừa đủ để đồng đội hiểu rõ hơn về bạn.</p>
+                  </div>
+                </div>
+
+                <div className="profile-fields">
+                  <label className="profile-field">
+                    <span className="profile-field-label">Chiều cao (cm)</span>
+                    <span className="relative">
+                      <input
+                        className="profile-control pr-10"
+                        max="250"
+                        min="50"
+                        onChange={(event) => setField('heightCm', toOptionalNumber(event.target.value))}
+                        placeholder="170"
+                        step="0.1"
+                        type="number"
+                        value={profile.heightCm ?? ''}
+                      />
+                      <Ruler aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718077]" />
+                    </span>
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Cân nặng (kg)</span>
+                    <span className="relative">
+                      <input
+                        className="profile-control pr-10"
+                        max="250"
+                        min="20"
+                        onChange={(event) => setField('weightKg', toOptionalNumber(event.target.value))}
+                        placeholder="65"
+                        step="0.1"
+                        type="number"
+                        value={profile.weightKg ?? ''}
+                      />
+                      <Weight aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718077]" />
+                    </span>
+                  </label>
+                  <label className="profile-field profile-field--wide">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="profile-field-label">Giới thiệu</span>
+                      <span className="text-[10px] font-semibold tabular-nums text-[#718077]">
+                        {profile.bio?.length ?? 0}/500
+                      </span>
+                    </span>
+                    <textarea
+                      className="profile-control"
+                      maxLength={500}
+                      onChange={(event) => setField('bio', event.target.value)}
+                      placeholder="Phong cách thi đấu, mục tiêu hoặc lịch chơi thường xuyên của bạn."
+                      value={profile.bio ?? ''}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="profile-form-section">
+                <div className="profile-section-heading">
+                  <span className="profile-section-icon">
+                    <MapPin aria-hidden="true" className="h-[18px] w-[18px]" />
+                  </span>
+                  <div>
+                    <h2>Khu vực hoạt động</h2>
+                    <p>Thông tin khu vực giúp ưu tiên sân và cộng đồng ở gần bạn.</p>
+                  </div>
+                </div>
+
+                <div className="profile-fields">
+                  <label className="profile-field">
+                    <span className="profile-field-label">Tỉnh hoặc thành phố</span>
+                    <input
+                      autoComplete="address-level1"
+                      className="profile-control"
+                      maxLength={100}
+                      onChange={(event) => setField('city', event.target.value)}
+                      placeholder="Ví dụ: Hà Nội"
+                      value={profile.city ?? ''}
+                    />
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Xã hoặc phường</span>
+                    <input
+                      autoComplete="address-level3"
+                      className="profile-control"
+                      maxLength={150}
+                      onChange={(event) => setField('commune', event.target.value)}
+                      placeholder="Ví dụ: Cầu Giấy"
+                      value={profile.commune ?? ''}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-[#d8e4d4] bg-[#f8fbf6] px-5 py-3 text-[11px] font-semibold text-[#627168]">
+                <CalendarDays aria-hidden="true" className="h-4 w-4 text-[#477313]" />
+                <span>Thông tin được dùng để cá nhân hóa gợi ý.</span>
+                <Clock3 aria-hidden="true" className="ml-auto h-4 w-4 text-[#477313]" />
+                <span>Có thể cập nhật bất cứ lúc nào.</span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 };

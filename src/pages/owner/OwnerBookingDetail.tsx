@@ -26,7 +26,7 @@ import { OwnerShell } from './components/OwnerShell';
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateTime = (value?: string | null) => value
   ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-  : '—';
+  : '-';
 const time = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 
 const statusLabel: Record<string, string> = {
@@ -106,7 +106,7 @@ export const OwnerBookingDetail = () => {
     } finally { setIsBusy(false); }
   };
 
-  if (isLoading) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-outline-variant bg-white p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết booking...</div></OwnerShell>;
+  if (isLoading) return <OwnerShell activeId="bookings"><div className="owner-panel p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết booking...</div></OwnerShell>;
   if (!booking) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700"><AlertCircle className="mx-auto h-7 w-7" /><p className="mt-3 font-bold">{error || 'Không tìm thấy booking.'}</p><Link className="mt-4 inline-flex font-bold underline" to="/owner/bookings">Quay lại danh sách</Link></div></OwnerShell>;
 
   const serviceFee = Math.max(0, booking.totalAmount - booking.courtAmount);
@@ -114,18 +114,18 @@ export const OwnerBookingDetail = () => {
 
   return (
     <OwnerShell activeId="bookings">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><Link className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" to="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Link><h1 className="mt-3 text-[32px] font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
+      <section className="owner-page-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><Link className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" to="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Link><h1 className="mt-3 font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
         <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired' && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Cancelled')} type="button">Từ chối / Hủy</button>}</div>
       </section>
 
       {(error || success) && <div className={`rounded-lg border px-4 py-3 text-[13px] font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{error || success}</div>}
 
-      <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+      <section className="owner-panel overflow-hidden">
         <div className="bg-primary p-6 text-white"><p className="text-[11px] font-bold uppercase text-white/70">Mã booking</p><div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-[30px] font-bold">{booking.bookingCode}</h2><div className="flex flex-wrap gap-2">{[booking.bookingStatus, booking.paymentStatus, booking.checkInStatus].map((status) => <span className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold" key={status}>{statusLabel[status] ?? status}</span>)}</div></div></div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">{[
           { icon: CalendarDays, label: 'Ngày chơi', value: dateTime(booking.startTime) },
-          { icon: Clock3, label: 'Khung giờ', value: `${time(booking.startTime)}–${time(booking.endTime)}` },
+          { icon: Clock3, label: 'Khung giờ', value: `${time(booking.startTime)} - ${time(booking.endTime)}` },
           { icon: MapPin, label: 'Sân', value: `${booking.venueName} · Sân ${booking.courtNumber}` },
           { icon: ReceiptText, label: 'Tổng tiền', value: currency.format(booking.totalAmount) },
         ].map((item) => <div className="rounded-lg bg-surface-container-low p-4" key={item.label}><item.icon className="h-5 w-5 text-primary" /><p className="mt-3 text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p><p className="mt-1 text-[14px] font-bold">{item.value}</p></div>)}</div>
@@ -158,7 +158,7 @@ export const OwnerBookingDetail = () => {
             { label: 'Xác minh mã', status: booking.codeVerifiedAt ? 'Đã hoàn tất' : 'Chưa thực hiện', actor: booking.codeVerifiedBy, at: booking.codeVerifiedAt, icon: CheckCircle2 },
             { label: 'Thu tiền tại sân', status: booking.paymentConfirmedAt ? 'Đã hoàn tất' : 'Không có/Chưa thực hiện', actor: booking.paymentConfirmedBy, at: booking.paymentConfirmedAt, icon: Banknote },
             { label: booking.noShowAt ? 'No-show' : 'Check-in', status: statusLabel[booking.checkInStatus] ?? booking.checkInStatus, actor: booking.checkedInBy || booking.noShowBy, at: booking.checkedInAt || booking.noShowAt, icon: booking.noShowAt ? XCircle : ShieldCheck },
-          ].map((item) => <div className="flex gap-3 rounded-lg bg-surface-container-low p-3" key={item.label}><item.icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-[12px] font-bold">{item.label}: {item.status}</p><p className="mt-1 text-[11px] text-on-surface-variant">{item.actor || '—'} · {dateTime(item.at)}</p></div></div>)}</div></section>
+          ].map((item) => <div className="flex gap-3 rounded-lg bg-surface-container-low p-3" key={item.label}><item.icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-[12px] font-bold">{item.label}: {item.status}</p><p className="mt-1 text-[11px] text-on-surface-variant">{item.actor || '-'} · {dateTime(item.at)}</p></div></div>)}</div></section>
 
           <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="text-[18px] font-bold">Trạng thái hiện tại</h2><div className="mt-4 flex flex-wrap gap-2">{[booking.bookingStatus, booking.paymentStatus, booking.checkInStatus].map((status) => <span className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${statusClass(status)}`} key={status}>{statusLabel[status] ?? status}</span>)}</div></section>
         </aside>

@@ -14,7 +14,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
-import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -80,14 +80,16 @@ export const CourtScheduleDetail = () => {
         transition: { duration: 0.28, ease: [0.2, 0.8, 0.2, 1] as const },
       };
 
-  const load = async (showLoading = true) => {
+  const load = async (showLoading = true, resetSelection = true) => {
     if (!Number.isInteger(venueId)) return;
     if (showLoading) setIsLoading(true);
-    setError('');
+    if (showLoading) setError('');
     try {
       setAvailability(await getCourtAvailability(venueId, date, token));
-      setSelectedCourtId(null);
-      setSelectedStarts([]);
+      if (resetSelection) {
+        setSelectedCourtId(null);
+        setSelectedStarts([]);
+      }
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
     } finally {
@@ -99,12 +101,30 @@ export const CourtScheduleDetail = () => {
     void load();
   }, [venueId, date, token]);
 
+  const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
+    if (!selectedCourtId || !selectedStarts.length) return false;
+    if (notification.venueId !== venueId || notification.courtId !== selectedCourtId || notification.startTime.slice(0, 10) !== date) return false;
+
+    const changedStart = minuteOfDay(notification.startTime.slice(11, 16));
+    const changedEnd = minuteOfDay(notification.endTime.slice(11, 16));
+    return selectedStarts.some((slotStart) => {
+      const selectedStart = minuteOfDay(slotStart);
+      return selectedStart < changedEnd && selectedStart + 30 > changedStart;
+    });
+  };
+
   useScheduleRealtime((notification) => {
-    if (notification.venueId === venueId && notification.startTime.slice(0, 10) === date) void load(false);
+    if (notification.venueId !== venueId || notification.startTime.slice(0, 10) !== date) return;
+    if (notification.action !== 'Deleted' && notificationTouchesSelection(notification)) {
+      setSelectedCourtId(null);
+      setSelectedStarts([]);
+      setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');
+    }
+    void load(false, false);
   });
 
   useVenueRealtime((notification) => {
-    if (notification.venueId === venueId) void load(false);
+    if (notification.venueId === venueId) void load(false, false);
   });
 
   const selectedCourt = availability?.courts.find((court) => court.courtId === selectedCourtId);
@@ -117,6 +137,16 @@ export const CourtScheduleDetail = () => {
   );
   const durationHours = selectedSlots.length * 0.5;
   const estimatedCourtAmount = (selectedCourt?.hourlyPrice ?? 0) * durationHours;
+
+  useEffect(() => {
+    if (!selectedStarts.length || isLoading) return;
+    const hasInvalidSelection = selectedSlots.length !== selectedStarts.length
+      || selectedSlots.some((slot) => slot.status !== 'Available' || new Date(slot.startTime).getTime() <= Date.now());
+    if (!hasInvalidSelection) return;
+    setSelectedCourtId(null);
+    setSelectedStarts([]);
+    setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');
+  }, [isLoading, selectedSlots, selectedStarts.length]);
 
   const selectSlot = (slot: AvailabilitySlot) => {
     if (slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId) {

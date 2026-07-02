@@ -334,16 +334,16 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     <OwnerShell activeId={isMatchBooking ? 'matchBookings' : 'bookings'} innerClassName="max-w-[1320px]">
             {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700">{error}</div>}
             {isLoading && <div className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-[13px] font-bold text-on-surface-variant">Đang tải booking thực tế...</div>}
-            <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <section className="owner-page-header">
               <div>
-                <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">
+                <p className="owner-kicker">
                   {isMatchBooking ? <UsersRound className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
                   {isMatchBooking ? 'Danh sách đơn ghép trận' : 'Danh sách đơn đặt sân'}
                 </p>
-                <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[40px]">
+                <h1 className="mt-2">
                   {isMatchBooking ? 'Quản lý đơn ghép trận' : 'Quản lý đơn đặt sân'}
                 </h1>
-                <p className="mt-2 max-w-2xl text-[15px] leading-6 text-on-surface-variant">
+                <p className="mt-2">
                   {isMatchBooking
                     ? 'Theo dõi các trận ghép sử dụng sân của bạn, số người tham gia và trạng thái thanh toán.'
                     : 'Theo dõi đơn mới, trạng thái thanh toán, check-in và xử lý nhanh từng lịch đặt của người chơi.'}
@@ -368,18 +368,18 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
               </div>
             </section>
 
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="owner-stat-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: isMatchBooking ? 'Tổng trận ghép' : 'Tổng đơn', value: bookings.length, icon: isMatchBooking ? UsersRound : CreditCard, helper: `${pendingBookings.length} đơn chờ xử lý` },
                 { label: 'Đã xác nhận', value: confirmedBookings.length, icon: CheckCircle2, helper: 'Đang giữ sân cho khách' },
                 { label: 'Sẵn sàng check-in', value: readyCheckIns.length, icon: UserRound, helper: 'Có thể check-in tại quầy' },
                 { label: 'Doanh thu đã trả', value: formatBookingCurrency(totalRevenue), icon: Banknote, helper: 'Từ các đơn đã thanh toán' },
               ].map((stat) => (
-                <div className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
+                <div className="owner-stat-card" key={stat.label}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[13px] font-bold text-on-surface-variant">{stat.label}</p>
-                      <p className="mt-2 text-[28px] font-bold leading-tight text-on-surface">{stat.value}</p>
+                      <p className="mt-2 font-mono text-[24px] font-extrabold leading-tight text-on-surface">{stat.value}</p>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <stat.icon className="h-5 w-5" />
@@ -390,7 +390,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
               ))}
             </section>
 
-            <section className="rounded-lg border border-outline-variant bg-white shadow-sm">
+            <section className="owner-panel">
               <div className="flex flex-col gap-4 border-b border-outline-variant p-5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <h2 className="text-[20px] font-bold">

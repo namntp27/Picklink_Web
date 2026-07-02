@@ -196,14 +196,14 @@ export const OwnerSettings = () => {
 
   return (
     <OwnerShell activeId="settings" innerClassName="max-w-[1320px]">
-            <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <section className="owner-page-header">
               <div>
-                <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">
+                <p className="owner-kicker">
                   <Settings className="h-4 w-4" />
                   Cấu hình vận hành chủ sân
                 </p>
-                <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[40px]">Cài đặt chủ sân</h1>
-                <p className="mt-2 max-w-2xl text-[15px] leading-6 text-on-surface-variant">
+                <h1 className="mt-2">Cài đặt chủ sân</h1>
+                <p className="mt-2">
                   Quản lý hồ sơ đơn vị vận hành, quy tắc đặt sân, nhận thông báo và thông tin đối soát doanh thu.
                 </p>
               </div>
@@ -226,17 +226,17 @@ export const OwnerSettings = () => {
               </div>
             </section>
 
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="owner-stat-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: 'Hồ sơ vận hành', value: 'Đã xác minh', icon: ShieldCheck, helper: profile.businessName },
                 { label: 'Giữ chỗ tạm', value: `${rules.holdMinutes} phút`, icon: Clock, helper: 'Trước khi giải phóng slot' },
                 { label: 'Thông báo bật', value: `${enabledNotifications}/4`, icon: Bell, helper: 'Email và cảnh báo trong app' },
                 { label: 'Đối soát', value: payoutCycleLabels[payout.payoutCycle], icon: Banknote, helper: payout.bankName },
               ].map((stat) => (
-                <div className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
+                <div className="owner-stat-card" key={stat.label}>
                   <stat.icon className="h-6 w-6 text-primary" />
                   <p className="mt-4 text-[12px] font-bold uppercase text-on-surface-variant">{stat.label}</p>
-                  <p className="mt-1 text-[24px] font-bold leading-tight">{stat.value}</p>
+                  <p className="mt-1 font-mono text-[21px] font-extrabold leading-tight">{stat.value}</p>
                   <p className="mt-2 text-[13px] font-medium text-on-surface-variant">{stat.helper}</p>
                 </div>
               ))}
@@ -244,7 +244,7 @@ export const OwnerSettings = () => {
 
             <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
               <div className="space-y-6">
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4 sm:p-5">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <User className="h-5 w-5 text-primary" />
                     Hồ sơ đơn vị vận hành
@@ -302,7 +302,7 @@ export const OwnerSettings = () => {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4 sm:p-5">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <CalendarDays className="h-5 w-5 text-primary" />
                     Quy tắc đặt sân
@@ -383,7 +383,7 @@ export const OwnerSettings = () => {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4 sm:p-5">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <Banknote className="h-5 w-5 text-primary" />
                     Tài khoản đối soát
@@ -457,7 +457,7 @@ export const OwnerSettings = () => {
               </div>
 
               <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <Bell className="h-5 w-5 text-primary" />
                     Thông báo
@@ -485,7 +485,7 @@ export const OwnerSettings = () => {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <Lock className="h-5 w-5 text-primary" />
                     Bảo mật & phân quyền

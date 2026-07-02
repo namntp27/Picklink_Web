@@ -20,7 +20,6 @@ const navItems = [
   { path: '/clubs', label: 'Câu lạc bộ' },
   { path: '/opponents', label: 'Tìm đối thủ' },
   { path: '/posts', label: 'Bài đăng' },
-  { path: '/tournaments', label: 'Giải đấu' },
 ];
 
 const utilityItems = [

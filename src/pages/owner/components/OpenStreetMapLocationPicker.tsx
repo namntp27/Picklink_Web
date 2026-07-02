@@ -181,7 +181,7 @@ export const OpenStreetMapLocationPicker = ({
         </div>
       </label>
 
-      <div className="h-72 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low relative z-10">
+      <div className="relative z-10 h-64 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low sm:h-72">
         <MapContainer center={position ?? hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={position ? 17 : 12}>
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapClickHandler onSelect={(lat, lng) => { void selectPosition(lat, lng); }} />

@@ -25,7 +25,7 @@ const permissions: Array<{ value: StaffPermission; label: string }> = [
 ];
 
 const inputClass = 'h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
-const dateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
+const dateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '-';
 
 export const OwnerStaff = () => {
   const { token } = useAuth();
@@ -135,26 +135,26 @@ export const OwnerStaff = () => {
 
   return (
     <OwnerShell activeId="staff">
-      <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <section className="owner-page-header">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary"><UsersRound className="h-4 w-4" /> Đội ngũ vận hành</p>
-          <h1 className="mt-3 text-[32px] font-bold">Nhân viên & lịch sử check-in</h1>
-          <p className="mt-2 text-[14px] text-on-surface-variant">Gán đúng cụm sân, cấp quyền tối thiểu cần thiết và theo dõi mọi thao tác tại quầy.</p>
+          <p className="owner-kicker"><UsersRound className="h-4 w-4" /> Đội ngũ vận hành</p>
+          <h1 className="mt-2">Nhân viên & lịch sử check-in</h1>
+          <p className="mt-2">Gán đúng cụm sân, cấp quyền tối thiểu cần thiết và theo dõi mọi thao tác tại quầy.</p>
         </div>
       </section>
 
       {(error || success) && <div className={`rounded-lg border px-4 py-3 text-[13px] font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{error || success}</div>}
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="owner-stat-grid sm:grid-cols-3">
         {[
           { label: 'Staff đang hoạt động', value: activeCount, icon: ShieldCheck },
           { label: 'Đã check-in', value: checkedInCount, icon: CheckCircle2 },
           { label: 'No-show', value: noShowCount, icon: XCircle },
-        ].map((item) => <div className="rounded-xl border border-outline-variant bg-white p-5" key={item.label}><item.icon className="h-5 w-5 text-primary" /><p className="mt-3 text-[28px] font-bold">{item.value}</p><p className="text-[13px] text-on-surface-variant">{item.label}</p></div>)}
+        ].map((item) => <div className="owner-stat-card" key={item.label}><item.icon className="h-5 w-5 text-primary" /><p className="mt-3 font-mono text-[24px] font-extrabold">{item.value}</p><p className="text-[12px] text-on-surface-variant">{item.label}</p></div>)}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[380px_1fr]">
-        <form className="h-fit rounded-xl border border-outline-variant bg-white p-5 shadow-sm" onSubmit={submit}>
+        <form className="owner-panel h-fit p-4" onSubmit={submit}>
           <h2 className="flex items-center gap-2 text-[19px] font-bold"><UserPlus className="h-5 w-5 text-primary" /> Cấp tài khoản Staff</h2>
           <div className="mt-5 space-y-4">
             <div className="grid grid-cols-2 rounded-lg bg-surface-container-low p-1">
@@ -176,7 +176,7 @@ export const OwnerStaff = () => {
           </div>
         </form>
 
-        <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+        <section className="owner-panel">
           <div className="border-b border-outline-variant p-5"><h2 className="text-[19px] font-bold">Danh sách phân công</h2><p className="mt-1 text-[13px] text-on-surface-variant">Một tài khoản có thể được phân công vào nhiều cụm sân.</p></div>
           {isLoading ? <p className="p-8 text-center text-[13px] font-bold text-on-surface-variant">Đang tải...</p> : !staff.length ? <p className="p-8 text-center text-[13px] text-on-surface-variant">Chưa có Staff.</p> : <div className="divide-y divide-outline-variant">{staff.map((assignment) => (
             <article className="p-5" key={assignment.staffId}>
@@ -190,7 +190,7 @@ export const OwnerStaff = () => {
         </section>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+      <section className="owner-panel">
         <div className="flex flex-col gap-4 border-b border-outline-variant p-5 lg:flex-row lg:items-end lg:justify-between"><div><h2 className="flex items-center gap-2 text-[19px] font-bold"><History className="h-5 w-5 text-primary" /> Lịch sử vận hành của Staff</h2><p className="mt-1 text-[13px] text-on-surface-variant">Mã, thanh toán, check-in và no-show đều lưu người thực hiện cùng thời gian.</p></div><div className="grid gap-2 sm:grid-cols-2"><select className={inputClass} onChange={(event) => { setHistoryVenueId(Number(event.target.value)); setHistoryPage(1); }} value={historyVenueId}><option value={0}>Tất cả cụm sân</option>{venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select><input className={inputClass} onChange={(event) => { setHistoryDate(event.target.value); setHistoryPage(1); }} type="date" value={historyDate} /></div></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead className="bg-surface-container-low text-[11px] uppercase text-on-surface-variant"><tr><th className="px-5 py-3">Booking</th><th className="px-5 py-3">Lịch sân</th><th className="px-5 py-3">Xác minh mã</th><th className="px-5 py-3">Thanh toán</th><th className="px-5 py-3">Kết quả</th></tr></thead><tbody className="divide-y divide-outline-variant">{history.map((item) => <tr key={item.bookingId}><td className="px-5 py-4"><p className="font-bold text-primary">{item.bookingCode}</p><p className="text-[12px] text-on-surface-variant">{item.playerName}</p></td><td className="px-5 py-4 text-[13px]"><p className="font-bold">{item.venueName} · Sân {item.courtNumber}</p><p className="text-on-surface-variant">{dateTime(item.startTime)}</p></td><td className="px-5 py-4 text-[12px]"><p className="font-bold">{item.codeVerifiedBy || '—'}</p><p className="text-on-surface-variant">{dateTime(item.codeVerifiedAt)}</p></td><td className="px-5 py-4 text-[12px]"><p className="font-bold">{item.paymentConfirmedBy || '—'}</p><p className="text-on-surface-variant">{dateTime(item.paymentConfirmedAt)}</p></td><td className="px-5 py-4 text-[12px]"><span className={`rounded-full px-2.5 py-1 font-bold ${item.checkInStatus === 'CheckedIn' ? 'bg-green-100 text-green-700' : item.checkInStatus === 'NoShow' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{item.checkInStatus}</span><p className="mt-2 font-bold">{item.checkedInBy || item.noShowBy || '—'}</p><p className="text-on-surface-variant">{dateTime(item.checkedInAt || item.noShowAt)}</p></td></tr>)}</tbody></table>{!history.length && !isLoading && <p className="p-8 text-center text-[13px] text-on-surface-variant"><Clock3 className="mx-auto mb-2 h-5 w-5" />Chưa có lịch sử phù hợp.</p>}</div>
         {historyPagination.totalPages > 1 && <div className="border-t border-outline-variant p-4"><PaginationControls page={historyPagination} onPageChange={setHistoryPage} /></div>}

@@ -123,12 +123,12 @@ export const OwnerCourts = () => {
 
   return (
     <OwnerShell activeId="courts">
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div><p className="text-[13px] font-bold uppercase tracking-wider text-primary">Quản lý cơ sở</p><h1 className="mt-1 text-[30px] font-bold">Cụm sân & sân con</h1><p className="mt-1 text-[14px] text-on-surface-variant">Quản lý vận hành, hồ sơ duyệt và cấu hình từng sân con.</p></div>
+      <section className="owner-page-header">
+        <div><p className="owner-kicker"><Building2 className="h-4 w-4" /> Quản lý cơ sở</p><h1 className="mt-2">Cụm sân & sân con</h1><p className="mt-1">Quản lý vận hành, hồ sơ duyệt và cấu hình từng sân con.</p></div>
         <div className="flex gap-2"><button className="rounded-lg border border-outline-variant bg-white p-3" onClick={load} title="Tải lại" type="button"><RefreshCw className="h-5 w-5" /></button><Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-[14px] font-bold text-white" to="/owner/courts/create"><Plus className="h-5 w-5" /> Thêm cụm sân</Link></div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[{ label: 'Cụm sân', value: stats.venues }, { label: 'Tổng sân con', value: stats.courts }, { label: 'Đang hoạt động', value: stats.available }, { label: 'Chờ Admin duyệt', value: stats.pending }].map((item) => <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={item.label}><p className="text-[13px] font-bold text-on-surface-variant">{item.label}</p><p className="mt-1 text-[28px] font-bold text-primary">{item.value}</p></div>)}</section>
+      <section className="owner-stat-grid sm:grid-cols-2 lg:grid-cols-4">{[{ label: 'Cụm sân', value: stats.venues }, { label: 'Tổng sân con', value: stats.courts }, { label: 'Đang hoạt động', value: stats.available }, { label: 'Chờ Admin duyệt', value: stats.pending }].map((item) => <div className="owner-stat-card" key={item.label}><p className="text-[12px] font-bold text-on-surface-variant">{item.label}</p><p className="mt-1 font-mono text-[24px] font-extrabold text-primary">{item.value}</p></div>)}</section>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
       {isLoading && <div className="rounded-xl bg-white p-12 text-center font-bold text-on-surface-variant">Đang tải dữ liệu sân...</div>}
@@ -139,11 +139,11 @@ export const OwnerCourts = () => {
           const primaryImage = venue.images.find((image) => image.isPrimary) ?? venue.images[0];
           const disabled = busyVenueId === venue.venueId;
           return (
-            <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm" key={venue.venueId}>
+            <section className="owner-panel" key={venue.venueId}>
               <div className="flex flex-col gap-4 border-b border-outline-variant p-5 xl:flex-row xl:items-start xl:justify-between">
                 <div className="flex min-w-0 gap-4">
                   <div className="hidden h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-surface-container sm:block">{primaryImage ? <img alt={primaryImage.caption ?? venue.venueName} className="h-full w-full object-cover" src={primaryImage.imageUrl} /> : <Building2 className="m-auto h-full w-8 text-outline" />}</div>
-                  <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-[22px] font-bold">{venue.venueName}</h2><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${approvalClass[venue.approvalStatus]}`}>{approvalLabel[venue.approvalStatus]}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${venue.isOpen ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-700'}`}>{venue.isOpen ? 'Đang mở' : 'Đã đóng'}</span></div><p className="mt-1 flex items-center gap-2 text-[13px] text-on-surface-variant"><MapPin className="h-4 w-4" /> {venue.address}</p><p className="mt-2 text-[13px] font-medium">{venue.openTime.slice(0, 5)}–{venue.closeTime.slice(0, 5)} · từ {currency.format(venue.basePrice)}/giờ · {venue.courts.length} sân con · {venue.images.length} ảnh</p>{venue.rejectionReason && <p className="mt-2 text-[12px] font-bold text-red-700">Lý do từ chối: {venue.rejectionReason}</p>}</div>
+                  <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-[20px] font-bold">{venue.venueName}</h2><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${approvalClass[venue.approvalStatus]}`}>{approvalLabel[venue.approvalStatus]}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${venue.isOpen ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-700'}`}>{venue.isOpen ? 'Đang mở' : 'Đã đóng'}</span></div><p className="mt-1 flex items-center gap-2 text-[13px] text-on-surface-variant"><MapPin className="h-4 w-4" /> {venue.address}</p><p className="mt-2 text-[13px] font-medium">{venue.openTime.slice(0, 5)}-{venue.closeTime.slice(0, 5)} · từ {currency.format(venue.basePrice)}/giờ · {venue.courts.length} sân con · {venue.images.length} ảnh</p>{venue.rejectionReason && <p className="mt-2 text-[12px] font-bold text-red-700">Lý do từ chối: {venue.rejectionReason}</p>}</div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold hover:bg-surface-container-low" to={`/owner/courts/${venue.venueId}`}><Eye className="h-4 w-4" /> Chi tiết & ảnh</Link>

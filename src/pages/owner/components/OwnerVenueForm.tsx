@@ -139,14 +139,6 @@ export const OwnerVenueForm = ({
             ))}
           </div>
         </div>
-        {/* <label>
-          <span className="mb-1.5 block text-[13px] font-bold">Vĩ độ</span>
-          <input className={fieldClassName} max="90" min="-90" onChange={(event) => update('latitude', event.target.value)} step="any" type="number" value={draft.latitude} />
-        </label>
-        <label>
-          <span className="mb-1.5 block text-[13px] font-bold">Kinh độ</span>
-          <input className={fieldClassName} max="180" min="-180" onChange={(event) => update('longitude', event.target.value)} step="any" type="number" value={draft.longitude} />
-        </label> */}
       </div>
 
       <div className="flex justify-end gap-3 border-t border-outline-variant pt-5">

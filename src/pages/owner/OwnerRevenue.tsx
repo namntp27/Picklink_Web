@@ -293,14 +293,14 @@ export const OwnerRevenue = () => {
 
   return (
     <OwnerShell activeId="revenue" innerClassName="max-w-[1320px]">
-            <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <section className="owner-page-header">
               <div>
-                <p className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-bold text-primary">
+                <p className="owner-kicker">
                   <BarChart3 className="h-4 w-4" />
                   Doanh thu và đối soát
                 </p>
-                <h1 className="mt-3 text-[30px] font-bold leading-tight md:text-[40px]">Doanh thu chủ sân</h1>
-                <p className="mt-2 max-w-2xl text-[15px] leading-6 text-on-surface-variant">
+                <h1 className="mt-2">Doanh thu chủ sân</h1>
+                <p className="mt-2">
                   Theo dõi doanh thu đã nhận, khoản chờ thanh toán, hiệu suất theo sân và lịch sử giao dịch từ các đơn đặt sân.
                 </p>
               </div>
@@ -343,7 +343,7 @@ export const OwnerRevenue = () => {
               ))}
             </section>
 
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="owner-stat-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
                   label: 'Doanh thu đã nhận',
@@ -370,11 +370,11 @@ export const OwnerRevenue = () => {
                   helper: `${failedTransactions.length} lỗi, ${refundedTransactions.length} hoàn/hủy`,
                 },
               ].map((stat) => (
-                <div className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
+                <div className="owner-stat-card" key={stat.label}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[13px] font-bold text-on-surface-variant">{stat.label}</p>
-                      <p className="mt-2 text-[26px] font-bold leading-tight text-on-surface">{stat.value}</p>
+                      <p className="mt-2 font-mono text-[23px] font-extrabold leading-tight text-on-surface">{stat.value}</p>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <stat.icon className="h-5 w-5" />
@@ -387,7 +387,7 @@ export const OwnerRevenue = () => {
 
             <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-6">
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4 sm:p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h2 className="flex items-center gap-2 text-[20px] font-bold">
@@ -433,7 +433,7 @@ export const OwnerRevenue = () => {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-outline-variant bg-white shadow-sm">
+                <section className="owner-panel">
                   <div className="flex flex-col gap-4 border-b border-outline-variant p-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h2 className="flex items-center gap-2 text-[20px] font-bold">
@@ -554,7 +554,7 @@ export const OwnerRevenue = () => {
               </div>
 
               <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-                <section className="rounded-lg border border-primary bg-white p-5 shadow-sm">
+                <section className="owner-panel border-[#b8ccaf] p-4">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <CreditCard className="h-5 w-5 text-primary" />
                     Đối soát kỳ này
@@ -582,7 +582,7 @@ export const OwnerRevenue = () => {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <MapIcon className="h-5 w-5 text-primary" />
                     Doanh thu theo sân
@@ -611,7 +611,7 @@ export const OwnerRevenue = () => {
                   </div>
                 </section>
 
-                <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
+                <section className="owner-panel p-4">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <ReceiptText className="h-5 w-5 text-primary" />
                     Phương thức thanh toán

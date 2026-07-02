@@ -1,9 +1,11 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
   Bell,
   CalendarDays,
+  CircleGauge,
   CreditCard,
   HelpCircle,
   Map,
@@ -12,6 +14,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import '../owner.css';
 
 export type OwnerSectionId = 'schedule' | 'bookings' | 'matchBookings' | 'payments' | 'courts' | 'revenue' | 'staff' | 'settings';
 
@@ -41,86 +44,104 @@ export const OwnerShell = ({
   children: React.ReactNode;
   contentClassName?: string;
   innerClassName?: string;
-}) => (
-  <div className="min-h-screen bg-[#FAFBF8] text-on-surface">
-    <header className="sticky top-0 z-50 flex h-16 items-center justify-between bg-primary px-4 text-white shadow-md md:px-margin-desktop">
-      <div className="flex items-center gap-4">
-        <Link className="text-[24px] font-bold tracking-tight" to="/">
-          Picklink
+}) => {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <div className="owner-root">
+      <header className="owner-topbar">
+        <Link aria-label="Picklink - Trang chủ" className="owner-brand" to="/">
+          <span className="owner-brand__mark">
+            <CircleGauge aria-hidden="true" className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0 leading-none">
+            <span className="block text-[16px] font-extrabold tracking-[-0.03em]">Picklink</span>
+            <span className="mt-1 hidden text-[9px] font-bold uppercase tracking-[0.13em] text-[#e2ff57] sm:block">
+              owner workspace
+            </span>
+          </span>
         </Link>
-        <span className="hidden rounded-lg border border-white/20 px-3 py-1 text-[12px] font-bold text-white/86 md:inline-flex">
-          Chủ sân
-        </span>
-      </div>
 
-      <div className="flex items-center gap-2">
-        {ownerNavItems.slice(0, 3).map((item) => (
-          <Link
-            className={cn(
-              'hidden rounded-lg px-4 py-2 text-[14px] font-bold md:inline-flex',
-              activeId === item.id ? 'bg-white text-primary' : 'bg-white/10 hover:bg-white/16',
-            )}
-            key={item.id}
-            to={item.to}
-          >
-            {item.label}
-          </Link>
-        ))}
-        <button aria-label="Thông báo chủ sân" className="rounded-lg p-2 hover:bg-white/10" type="button">
-          <Bell className="h-5 w-5" />
-        </button>
-        <button aria-label="Trợ giúp" className="hidden rounded-lg p-2 hover:bg-white/10 sm:inline-flex" type="button">
-          <HelpCircle className="h-5 w-5" />
-        </button>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/30 bg-white/12">
-          <User className="h-5 w-5" />
-        </div>
-      </div>
-    </header>
-
-    <div className="flex min-w-0">
-      <aside className="sticky top-16 hidden h-[calc(100vh-64px)] w-64 shrink-0 border-r border-outline-variant bg-white p-4 md:block">
-        <div className="mb-6 px-2 pt-2">
-          <h2 className="text-[20px] font-bold text-primary">Picklink Admin</h2>
-          <p className="mt-1 text-[12px] font-medium text-on-surface-variant">Quản lý vận hành sân</p>
-        </div>
-
-        <nav className="space-y-1">
-          {ownerNavItems.map((item) => (
+        <nav aria-label="Lối tắt chủ sân" className="owner-topbar__nav">
+          {ownerNavItems.slice(0, 3).map((item) => (
             <Link
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-3 text-[14px] font-bold transition-colors',
-                activeId === item.id ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary',
-              )}
+              aria-current={activeId === item.id ? 'page' : undefined}
+              className={cn('owner-topbar__link', activeId === item.id && 'is-active')}
               key={item.id}
               to={item.to}
             >
-              <item.icon className="h-5 w-5" />
               {item.label}
             </Link>
           ))}
         </nav>
-      </aside>
 
-      <main className={cn('min-w-0 flex-1 px-4 py-6 pb-24 md:px-8 md:pb-8', contentClassName)}>
-        <div className={cn('mx-auto max-w-[1320px] space-y-6', innerClassName)}>{children}</div>
-      </main>
+        <div className="flex items-center gap-1.5">
+          <button aria-label="Thông báo chủ sân" className="owner-topbar__action" title="Thông báo" type="button">
+            <Bell aria-hidden="true" className="h-[18px] w-[18px]" />
+          </button>
+          <button aria-label="Trợ giúp" className="owner-topbar__action hidden sm:grid" title="Trợ giúp" type="button">
+            <HelpCircle aria-hidden="true" className="h-[18px] w-[18px]" />
+          </button>
+          <span aria-label="Tài khoản chủ sân" className="owner-topbar__action text-[#e2ff57]" title="Tài khoản chủ sân">
+            <User aria-hidden="true" className="h-[18px] w-[18px]" />
+          </span>
+        </div>
+      </header>
+
+      <div className="owner-layout">
+        <aside className="owner-sidebar">
+          <div className="owner-sidebar__summary">
+            <p className="text-[11px] font-extrabold text-[#e2ff57]">Trung tâm vận hành</p>
+            <p className="mt-1 text-[11px] font-semibold leading-5 text-white/64">
+              Lịch sân, booking và doanh thu trong một workspace.
+            </p>
+          </div>
+
+          <nav aria-label="Điều hướng chủ sân" className="owner-nav">
+            {ownerNavItems.map((item) => (
+              <Link
+                aria-current={activeId === item.id ? 'page' : undefined}
+                className={cn('owner-nav__link', activeId === item.id && 'is-active')}
+                key={item.id}
+                to={item.to}
+              >
+                <item.icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
+        <main className={cn('owner-content', contentClassName)}>
+          <div className={cn('owner-content__inner', innerClassName)}>
+            <motion.div
+              animate={{ opacity: 1, y: 0 }}
+              className="owner-content__motion"
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
+              transition={{
+                duration: shouldReduceMotion ? 0.01 : 0.22,
+                ease: [0.2, 0.8, 0.2, 1],
+              }}
+            >
+              {children}
+            </motion.div>
+          </div>
+        </main>
+      </div>
+
+      <nav aria-label="Điều hướng chủ sân trên di động" className="owner-mobile-nav">
+        {ownerNavItems.map((item) => (
+          <Link
+            aria-current={activeId === item.id ? 'page' : undefined}
+            className={cn('owner-mobile-nav__link', activeId === item.id && 'is-active')}
+            key={item.id}
+            to={item.to}
+          >
+            <item.icon aria-hidden="true" className="h-[18px] w-[18px]" />
+            <span>{item.shortLabel}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
-
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 overflow-x-auto border-t border-outline-variant bg-white md:hidden">
-      {ownerNavItems.map((item) => (
-        <Link
-          className={cn(
-            'flex min-w-[76px] flex-1 flex-col items-center justify-center gap-1',
-            activeId === item.id ? 'text-primary' : 'text-on-surface-variant',
-          )}
-          key={item.id}
-          to={item.to}
-        >
-          <item.icon className="h-5 w-5" />
-          <span className="text-[10px] font-bold">{item.shortLabel}</span>
-        </Link>
-      ))}
-    </nav>
-  </div>
-);
+  );
+};

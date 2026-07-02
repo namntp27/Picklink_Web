@@ -51,15 +51,15 @@ export const OwnerVenueDetail = () => {
 
   return (
     <OwnerShell activeId="courts">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="owner-page-header flex flex-wrap items-center justify-between gap-3">
         <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/courts"><ArrowLeft className="h-4 w-4" /> Danh sách cụm sân</Link>
         {venue && <div className="flex gap-2"><Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-white px-4 py-2 text-[13px] font-bold" to={`/owner/courts/${venueId}/edit`}><Edit3 className="h-4 w-4" /> Sửa thông tin</Link>{venue.approvalStatus !== 'Pending' && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => token && void run(() => submitOwnerVenue(token, venueId))} type="button"><Send className="h-4 w-4" /> Gửi Admin duyệt</button>}</div>}
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
-      {!venue && !error && <div className="rounded-xl bg-white p-12 text-center font-bold text-on-surface-variant">Đang tải chi tiết...</div>}
+      {!venue && !error && <div className="owner-panel p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết...</div>}
       {venue && <>
-        <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+        <section className="owner-panel p-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-[30px] font-bold">{venue.venueName}</h1><span className="rounded-full bg-primary/10 px-3 py-1 text-[12px] font-bold text-primary">{statusLabel[venue.approvalStatus]}</span><span className={`rounded-full px-3 py-1 text-[12px] font-bold ${venue.isOpen ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-700'}`}>{venue.isOpen ? 'Đang mở cửa' : 'Đang đóng cửa'}</span></div><p className="mt-2 flex items-center gap-2 text-[14px] text-on-surface-variant"><MapPin className="h-4 w-4" /> {venue.address}</p><p className="mt-2 text-[13px] font-medium">Mở {venue.openTime.slice(0, 5)}–{venue.closeTime.slice(0, 5)} · Giá cơ bản {currency.format(venue.basePrice)}/giờ · {venue.phoneNumber || 'Chưa có số điện thoại'}</p>{venue.rejectionReason && <p className="mt-3 rounded-lg bg-red-50 p-3 text-[13px] font-bold text-red-700">Admin phản hồi: {venue.rejectionReason}</p>}</div>
             <div className="grid grid-cols-2 gap-3 text-center"><div className="rounded-lg bg-surface-container-low p-4"><p className="text-[24px] font-bold text-primary">{venue.courts.length}</p><p className="text-[12px] font-bold">Sân con</p></div><div className="rounded-lg bg-surface-container-low p-4"><p className="text-[24px] font-bold text-primary">{venue.images.length}</p><p className="text-[12px] font-bold">Hình ảnh</p></div></div>
@@ -67,7 +67,7 @@ export const OwnerVenueDetail = () => {
           <div className="mt-5 flex flex-wrap gap-2">{venue.amenities.length ? venue.amenities.map((amenity) => <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[12px] font-bold text-primary" key={amenity}>{amenity}</span>) : <span className="text-[13px] text-on-surface-variant">Chưa thiết lập tiện ích.</span>}</div>
         </section>
 
-        <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+        <section className="owner-panel p-5">
           <div className="mb-4 flex items-center gap-3"><Camera className="h-6 w-6 text-primary" /><div><h2 className="text-[21px] font-bold">Hình ảnh cụm sân</h2><p className="text-[13px] text-on-surface-variant">Tối đa 10 ảnh, mỗi ảnh không quá 5MB. Chấp nhận JPG, PNG và WEBP.</p></div></div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {venue.images.map((image) => <article className="group relative overflow-hidden rounded-xl border border-outline-variant" key={image.venueImageId}><img alt={image.caption ?? venue.venueName} className="h-48 w-full object-cover" src={image.imageUrl} />{image.isPrimary && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white"><Star className="h-3 w-3 fill-current" /> Ảnh đại diện</span>}<div className="flex items-center justify-between gap-2 p-3"><p className="truncate text-[12px] font-medium">{image.caption || 'Ảnh sân'}</p><div className="flex gap-1">{!image.isPrimary && <button className="rounded-lg border border-outline-variant p-2 text-primary" disabled={isBusy} onClick={() => token && void run(() => setPrimaryOwnerVenueImage(token, venueId, image.venueImageId))} title="Đặt làm ảnh đại diện" type="button"><Check className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" disabled={isBusy} onClick={() => token && window.confirm('Xóa ảnh này?') && void run(() => deleteOwnerVenueImage(token, venueId, image.venueImageId))} title="Xóa ảnh" type="button"><Trash2 className="h-4 w-4" /></button></div></div></article>)}

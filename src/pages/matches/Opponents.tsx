@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
-import { CalendarRange, Crosshair, ListChecks, MapPin, PlusCircle, Search, Sparkles, Trophy } from 'lucide-react';
+import { CalendarRange, Crosshair, ListChecks, MapPin, PlusCircle, Sparkles, Trophy } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import { createMatch, searchMatchVenues, type MatchFormat, type MatchPreferredVenue } from '../../api/matches';
@@ -111,7 +111,6 @@ export const Opponents = () => {
   const [maxSkill, setMaxSkill] = useState(4);
   const [format, setFormat] = useState<MatchFormat>('2vs2');
   const [neededPlayers, setNeededPlayers] = useState(3);
-  const [note, setNote] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -212,33 +211,6 @@ export const Opponents = () => {
     locate(nextRadiusKm);
   };
 
-  const searchVenues = async () => {
-    if (!province.trim() || !ward.trim()) {
-      setError('Vui lòng nhập tỉnh/thành phố và xã/phường trước khi tìm sân.');
-      return;
-    }
-    const requestId = ++venueRequestId.current;
-    setIsSearching(true);
-    try {
-      const result = await searchMatchVenues({
-        province: province.trim(),
-        ward: ward.trim(),
-        radiusKm,
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-      });
-      if (requestId !== venueRequestId.current) return;
-      setVenues(result);
-      setSelectedVenueIds((current) => current.filter((id) => result.some((venue) => venue.venueId === id)));
-      setError(result.length === 0 ? 'Chưa tìm thấy cụm sân phù hợp. Hãy tăng bán kính hoặc kiểm tra lại khu vực.' : '');
-    } catch (reason) {
-      if (requestId !== venueRequestId.current) return;
-      setError(reason instanceof Error ? reason.message : 'Không thể tìm cụm sân.');
-    } finally {
-      if (requestId === venueRequestId.current) setIsSearching(false);
-    }
-  };
-
   const toggleVenue = (venueId: number) => {
     setSelectedVenueIds((current) =>
       current.includes(venueId) ? current.filter((id) => id !== venueId) : [...current, venueId]);
@@ -282,7 +254,6 @@ export const Opponents = () => {
         maxSkillLevel: maxSkill,
         matchType: format,
         neededPlayerCount: neededPlayers,
-        note: note.trim() || undefined,
       });
       navigate(`/matches/${match.matchId}`);
     } catch (reason) {
@@ -347,11 +318,6 @@ export const Opponents = () => {
             <input className={inputClass} maxLength={200} onChange={(event) => setTitle(event.target.value)} placeholder="Ví dụ: Tìm đội đánh đôi buổi tối" value={title} />
           </label>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tỉnh/thành phố</span><input className={inputClass} maxLength={100} onChange={(event) => setProvince(event.target.value)} placeholder="Hà Nội" value={province} /></label>
-            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Xã/phường</span><input className={inputClass} maxLength={150} onChange={(event) => setWard(event.target.value)} placeholder="Cầu Giấy" value={ward} /></label>
-          </div>
-
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <label>
               <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Bán kính tìm sân</span>
@@ -365,9 +331,10 @@ export const Opponents = () => {
           </div>
           {locationAreaStatus && <p className="text-[11px] font-semibold leading-5 text-[#718077]">{locationAreaStatus}</p>}
 
-          <button className="community-button-secondary w-full" disabled={isSearching} onClick={() => void searchVenues()} type="button">
-            <Search className="h-5 w-5" /> {isSearching ? 'Đang tìm sân...' : 'Tìm cụm sân trong khu vực'}
-          </button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tỉnh/thành phố</span><input className={inputClass} maxLength={100} onChange={(event) => setProvince(event.target.value)} placeholder="Hà Nội" value={province} /></label>
+            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Xã/phường</span><input className={inputClass} maxLength={150} onChange={(event) => setWard(event.target.value)} placeholder="Cầu Giấy" value={ward} /></label>
+          </div>
 
           <div>
             <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Cụm sân mong muốn ({selectedVenueIds.length} đã chọn)</p>
@@ -412,11 +379,6 @@ export const Opponents = () => {
             </div>
             <label><span className="mb-2 block text-[12px] font-extrabold text-[#526158]">Số người cần tìm</span><select className={inputClass} onChange={(event) => setNeededPlayers(Number(event.target.value))} value={neededPlayers}>{neededOptions.map((value) => <option key={value} value={value}>{value} người</option>)}</select></label>
           </div>
-
-          <label className="block">
-            <span className="mb-1 block text-[13px] font-bold">Mô tả hoặc yêu cầu bổ sung</span>
-            <textarea className="community-control min-h-24" maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Phong cách chơi, yêu cầu đúng giờ..." value={note} />
-          </label>
 
           <button className="community-button w-full" disabled={isCreating} type="submit">
             <PlusCircle className="h-5 w-5" /> {isCreating ? 'Đang đăng...' : 'Đăng lời mời'}

@@ -127,7 +127,7 @@ export const OwnerMatchTransactionReviewModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4"
+      className="owner-modal-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && busyId === null) onClose();
       }}
@@ -136,7 +136,7 @@ export const OwnerMatchTransactionReviewModal = ({
       <section
         aria-labelledby="match-payment-title"
         aria-modal="true"
-        className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+        className="owner-modal max-w-6xl"
         role="dialog"
       >
         <div className="flex items-start justify-between gap-4">
@@ -186,7 +186,7 @@ export const OwnerMatchTransactionReviewModal = ({
               <div>
                 <p className="text-[11px] font-bold uppercase text-on-surface-variant">Lịch chơi</p>
                 <p className="mt-1 text-[14px] font-bold">
-                  {playDateTime(payments[0].startTime)} – {payments[0].endTime.slice(11, 16)}
+                  {playDateTime(payments[0].startTime)} - {payments[0].endTime.slice(11, 16)}
                 </p>
               </div>
             </div>

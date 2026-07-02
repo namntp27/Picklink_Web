@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'motion/react';
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
   Calendar,
   Clock,
@@ -15,10 +16,13 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getOpenMatches, type MatchSummary } from '../../api/matches';
+import { useAuth } from '../../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 
 const courts = [
   {
@@ -49,30 +53,6 @@ const courts = [
     price: '120.000đ/h',
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAhNBoyqg4ux058JbthhhCf5oWz4Iz_fuEFvBV6R1tmJLVyEi7pQPdcfdAvB4m82pwbSxyVwQpOSEHpKxexl71bfc5Zx-Oq7KCjyUM1J6GDTCuckE2Gk4cCFIUyC_-02FL8wbz0Qr0nkKKhi1-LRZTkGrwd29KmfycgN72bn_qRgX-biTgOWW-0mYF8KCE9AtIXSQ48sxGwt6lCmFHTZvNPVn27FdFUi_puh3gp6PYeUFqlrILDzDYSCvKwnSlGpJUD_xBY7wnSeY9a',
-  },
-];
-
-const tournaments = [
-  {
-    label: 'Hà Nội Open 2026',
-    name: 'Giải vô địch miền Bắc',
-    date: '25/12/2026',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCLdGuS7icP9FL_DoaxyJlD0VrbUbnC5lDSm03ye2Q8Qn3q-r2o9FcYKLuFwO0GuBjTkA07MPkviyig7xNVNq4-Masq7J9nlql2mwcR9_6wQXnf99LZWiD6bqmzAvwY4xHXgNnvyLgnmdZV3jK1UDrx6rUrFRa2--rtsq4H_EKMEyQ4nGbwmP039l56LsRanYlB4jaml8GmFAdsQ2zFaWJ5lSds6CUP9OUMUBWJqM3URfzEUE94BzJ85WDR6_fiRvbs8tr4CQ6TbWV7',
-  },
-  {
-    label: 'Giao hữu',
-    name: 'Vietnam Smash 2026',
-    date: '05/01/2027',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDpH19bFFlsN23aNwU7VQmfscEtba7KlewFcdiEo1sz-IMC9WCG7hhJtpGE9_WP2Gg38kxttaJ0dLy6yvgowupG2isVpZIfjTrgmUSKikfV8ya_kO6qlypAat2XpdI4jldLrtVPbOPYNCBekJrkh-ATBwcMn0l2LwXKtenZmqe3HMoJsUK8RwZ1q5NFMNljo2b4CM1hTwuiEOXVQKNaBl3VfVlbfCG5MllyrkDjuWgjLDZZZQYIvmqVWqj6Xo2qJEk8Bc_tLO5JHwzD',
-  },
-  {
-    label: 'Chuyên nghiệp',
-    name: 'Saigon Master Cup',
-    date: '12/01/2027',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuD17f_r92JIFzxFVM4g9F-m7zehFn4jSPVkMLJ3DzoNbZYJrexLp2g7I3E7V_hgXzW20Q-6kBXitdFfDpJotZCMEYkRfP1G5DiSA4Ap_eTr61IGT8RDpMNCgAzHZUryPq0rbrul0HYBqiN8yo4LZVt5I4sWvLFCcz_ruiDmAzhDu4NVwmw_8xtmTfBTLIR-AgbN9KCapSJGDn_mf0lI6MzBHebfJ4vKbsYytRIc81on7EUOejkwGrnjbfGc7MwsaSgXhyRnbsek9pdt',
   },
 ];
 
@@ -127,6 +107,11 @@ const sectionRevealTransition = {
   ease: [0.2, 0.8, 0.2, 1],
 } as const;
 
+const invitationDateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+}).format(new Date(`${value}T00:00:00`));
+
 const SectionHeader = ({
   action,
   label,
@@ -148,9 +133,41 @@ const SectionHeader = ({
 );
 
 export const Home = () => {
+  const { token } = useAuth();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
+  const [openInvitations, setOpenInvitations] = useState<MatchSummary[]>([]);
+  const [openInvitationCount, setOpenInvitationCount] = useState(0);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
+  const [invitationError, setInvitationError] = useState('');
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 18 };
+
+  const loadOpenInvitations = useCallback(async () => {
+    setIsLoadingInvitations(true);
+    try {
+      const result = await getOpenMatches(token ?? undefined, { page: 1, pageSize: 3 });
+      setOpenInvitations(result.items);
+      setOpenInvitationCount(result.totalCount);
+      setInvitationError('');
+    } catch (reason) {
+      setInvitationError(reason instanceof Error ? reason.message : 'Không thể tải danh sách lời mời.');
+    } finally {
+      setIsLoadingInvitations(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    void loadOpenInvitations();
+  }, [loadOpenInvitations]);
+
+  useMatchRealtime(() => {
+    void loadOpenInvitations();
+  });
+
+  const availableInvitationSlots = openInvitations.reduce(
+    (total, invitation) => total + invitation.availableSlotCount,
+    0,
+  );
 
   return (
     <div className="min-w-0 flex-1 overflow-x-clip bg-[#f8fbf4] text-on-background">
@@ -364,52 +381,144 @@ export const Home = () => {
       </section>
 
       <section className="px-4 py-10 sm:px-6 md:py-12 lg:px-8">
-        <div className="mx-auto grid max-w-[1180px] gap-5 rounded-2xl bg-[#0b2228] p-4 text-white shadow-[0_20px_60px_rgba(8,29,36,0.14)] md:grid-cols-[0.82fr_1.18fr] md:p-6 lg:p-8">
+        <div className="mx-auto grid max-w-[1180px] gap-5 rounded-2xl bg-[#0b2228] p-4 text-white shadow-[0_20px_60px_rgba(8,29,36,0.14)] md:p-6 lg:grid-cols-[0.68fr_1.32fr] lg:p-8">
           <div className="flex min-w-0 flex-col justify-between gap-6 rounded-xl border border-white/12 bg-white/7 p-5">
             <div>
-              <p className="text-[13px] font-bold text-[#e2ff57]">Lịch giải tiêu biểu</p>
+              <p className="text-[13px] font-bold text-[#e2ff57]">Lời mời đang mở</p>
               <h2 className="mt-2 max-w-[11ch] text-[clamp(1.7rem,3vw,2.45rem)] font-bold leading-[1.06] tracking-[-0.025em]">
-                Thi đấu có lịch, có hội cổ vũ
+                Có hội đang chờ bạn vào sân
               </h2>
+              <p className="mt-4 max-w-[34ch] text-[13px] leading-6 text-white/68">
+                Chọn phòng phù hợp với khu vực, thời gian và trình độ của bạn.
+              </p>
             </div>
-            <Link
-              className={`inline-flex min-h-11 w-fit items-center gap-2 rounded-lg bg-[#e2ff57] px-4 py-2.5 text-[14px] font-bold text-[#102414] hover:bg-[#d6f64d] ${interactiveLinkClass}`}
-              to="/tournaments"
-            >
-              Khám phá giải đấu
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
-            </Link>
+
+            <div>
+              <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/12 bg-white/12">
+                <div className="bg-white/5 p-3">
+                  <p className="font-mono text-[22px] font-bold text-[#e2ff57]">{openInvitationCount}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/58">lời mời đang mở</p>
+                </div>
+                <div className="bg-white/5 p-3">
+                  <p className="font-mono text-[22px] font-bold text-[#e2ff57]">{availableInvitationSlots}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/58">chỗ trống đang xem</p>
+                </div>
+              </div>
+              <Link
+                className={`inline-flex min-h-11 w-fit items-center gap-2 rounded-lg bg-[#e2ff57] px-4 py-2.5 text-[14px] font-bold text-[#102414] hover:bg-[#d6f64d] ${interactiveLinkClass}`}
+                to="/opponents"
+              >
+                Xem tất cả lời mời
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            {tournaments.map((tournament, index) => (
-              <motion.article
-                className={`group relative min-h-[230px] overflow-hidden rounded-xl bg-inverse-surface ${index === 0 ? 'lg:row-span-2 lg:min-h-[470px]' : ''}`}
-                initial={revealInitial}
-                key={tournament.name}
-                transition={{ ...sectionRevealTransition, delay: shouldReduceMotion ? 0 : index * 0.05, duration: shouldReduceMotion ? 0.01 : 0.32 }}
-                viewport={{ amount: 0.15, once: true }}
-                whileInView={{ opacity: 1, y: 0 }}
-              >
-                <img
-                  alt={tournament.name}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover:scale-[1.04] motion-reduce:transform-none"
-                  loading="lazy"
-                  src={tournament.image}
+          <div className="grid min-w-0 gap-3">
+            {isLoadingInvitations ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  aria-hidden="true"
+                  className="min-h-[136px] animate-pulse rounded-xl border border-white/10 bg-white/7 motion-reduce:animate-none"
+                  key={index}
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,29,36,0.93),rgba(8,29,36,0.16)_68%,rgba(8,29,36,0.02))]" />
-                <div className="absolute inset-x-0 bottom-0 p-5">
-                  <span className="inline-flex rounded-lg bg-[#e2ff57] px-3 py-1.5 text-[12px] font-bold text-[#102414]">
-                    {tournament.label}
-                  </span>
-                  <h3 className="mt-3 text-[clamp(1.15rem,2.2vw,1.65rem)] font-bold leading-tight tracking-[-0.02em] text-white">{tournament.name}</h3>
-                  <p className="mt-2 flex items-center gap-2 text-[13px] font-semibold text-white/76">
-                    <Calendar aria-hidden="true" className="h-4 w-4" />
-                    {tournament.date}
-                  </p>
+              ))
+            ) : invitationError ? (
+              <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-red-200/20 bg-red-950/20 p-6 text-center">
+                <div>
+                  <AlertTriangle aria-hidden="true" className="mx-auto h-6 w-6 text-[#e2ff57]" />
+                  <p className="mt-3 text-[14px] font-bold">Chưa thể tải lời mời</p>
+                  <p className="mt-1 text-[12px] text-white/62">Mở trang ghép trận để thử lại.</p>
                 </div>
-              </motion.article>
-            ))}
+              </div>
+            ) : openInvitations.length === 0 ? (
+              <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-dashed border-white/18 bg-white/5 p-6 text-center">
+                <div>
+                  <Users aria-hidden="true" className="mx-auto h-7 w-7 text-[#e2ff57]" />
+                  <p className="mt-3 text-[14px] font-bold">Chưa có lời mời đang mở</p>
+                  <p className="mt-1 text-[12px] text-white/62">Bạn có thể tạo phòng mới trên trang tìm đối thủ.</p>
+                </div>
+              </div>
+            ) : (
+              openInvitations.map((invitation, index) => (
+                <motion.article
+                  className="group min-w-0 rounded-xl border border-white/12 bg-white/7 transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-white/24 hover:bg-white/10"
+                  initial={revealInitial}
+                  key={invitation.matchId}
+                  transition={{ ...sectionRevealTransition, delay: shouldReduceMotion ? 0 : index * 0.05, duration: shouldReduceMotion ? 0.01 : 0.28 }}
+                  viewport={{ amount: 0.15, once: true }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                >
+                  <Link
+                    className="grid min-w-0 gap-4 p-4 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57]/75 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                    to={`/matches/${invitation.matchId}`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-start gap-3">
+                        {invitation.hostAvatarUrl ? (
+                          <img
+                            alt={`Ảnh đại diện của ${invitation.hostName}`}
+                            className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-white/18"
+                            src={invitation.hostAvatarUrl}
+                          />
+                        ) : (
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414]">
+                            {invitation.hostName.trim().charAt(0).toUpperCase() || 'P'}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-lg bg-[#e2ff57] px-2 py-1 text-[10px] font-bold text-[#102414]">
+                              {invitation.matchType}
+                            </span>
+                            <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold text-white/78">
+                              Level {invitation.minSkillLevel}-{invitation.maxSkillLevel}
+                            </span>
+                            {invitation.isHost && (
+                              <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold text-[#e2ff57]">
+                                Của bạn
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="mt-2 line-clamp-1 text-[15px] font-bold tracking-[-0.015em] text-white group-hover:text-[#e2ff57]">
+                            {invitation.title}
+                          </h3>
+                          <p className="mt-1 text-[11px] font-semibold text-white/56">
+                            Chủ phòng: {invitation.isHost ? 'Bạn' : invitation.hostName}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-2 text-[11px] font-semibold text-white/68 min-[520px]:grid-cols-3">
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                          <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#e2ff57]" />
+                          <span className="truncate">{invitation.ward}, {invitation.province}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Calendar aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#e2ff57]" />
+                          {invitationDateLabel(invitation.availableDateFrom)}
+                          {invitation.availableDateFrom !== invitation.availableDateTo
+                            ? ` - ${invitationDateLabel(invitation.availableDateTo)}`
+                            : ''}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#e2ff57]" />
+                          {invitation.preferredTimeStart.slice(0, 5)} - {invitation.preferredTimeEnd.slice(0, 5)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 sm:block sm:min-w-20 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 sm:text-right">
+                      <div>
+                        <p className="font-mono text-[20px] font-bold text-[#e2ff57]">{invitation.availableSlotCount}</p>
+                        <p className="text-[10px] font-semibold text-white/56">chỗ còn lại</p>
+                      </div>
+                      <ArrowRight aria-hidden="true" className="h-4 w-4 text-white/58 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-[#e2ff57] sm:ml-auto sm:mt-3" />
+                    </div>
+                  </Link>
+                </motion.article>
+              ))
+            )}
           </div>
         </div>
       </section>
