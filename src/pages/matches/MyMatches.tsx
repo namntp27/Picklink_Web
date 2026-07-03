@@ -9,6 +9,7 @@ import {
   MapPin,
   PlusCircle,
   Trophy,
+  UserPlus,
   Users,
   XCircle,
 } from 'lucide-react';
@@ -89,7 +90,9 @@ export const MyMatches = () => {
   }, [activeFilter, matches]);
 
   const attentionCount = matches.filter(
-    (match) => match.status === 'ReadyToBook' || match.status === 'BookingPending',
+    (match) => match.myParticipantStatus === 'Invited'
+      || match.status === 'ReadyToBook'
+      || match.status === 'BookingPending',
   ).length;
 
   const handleCancel = async (matchId: number) => {
@@ -111,14 +114,14 @@ export const MyMatches = () => {
             Tạo lời mời mới
           </Link>
         )}
-        description="Theo dõi các phòng bạn tạo hoặc đã được duyệt tham gia, từ tuyển người đến hoàn tất booking."
+        description="Theo dõi lời mời nhận được, các phòng bạn tạo hoặc đã tham gia, từ tuyển người đến hoàn tất booking."
         icon={Trophy}
         label="Phòng ghép trận cá nhân"
         stats={(
           <div>
             <p className="text-[11px] font-bold text-white/65">Cần xử lý</p>
             <p className="mt-1 font-mono text-[30px] font-extrabold text-[#e2ff57]">{attentionCount}</p>
-            <p className="mt-1 text-[11px] leading-5 text-white/65">phòng chờ đặt sân hoặc thanh toán</p>
+            <p className="mt-1 text-[11px] leading-5 text-white/65">lời mời hoặc phòng cần xử lý</p>
           </div>
         )}
         title="Phòng của tôi"
@@ -156,6 +159,7 @@ export const MyMatches = () => {
           {visible.map((match) => {
             const status = statusConfig[match.status];
             const StatusIcon = status.icon;
+            const isInvitation = match.myParticipantStatus === 'Invited';
 
             return (
               <article className="community-card p-4 sm:p-5" key={match.matchId}>
@@ -167,8 +171,14 @@ export const MyMatches = () => {
                         {status.label}
                       </span>
                       <span className="community-badge text-[#526158]">
-                        {match.isHost ? 'Bạn là chủ phòng' : 'Bạn là thành viên'}
+                        {match.isHost ? 'Bạn là chủ phòng' : isInvitation ? 'Đang mời bạn' : 'Bạn là thành viên'}
                       </span>
+                      {isInvitation && (
+                        <span className="community-badge !bg-[#fff4d8] !text-[#8a5b00]">
+                          <UserPlus aria-hidden="true" className="h-3.5 w-3.5" />
+                          Cần phản hồi
+                        </span>
+                      )}
                       <span className="community-badge text-[#526158]">{match.matchType}</span>
                     </div>
                     <Link className="mt-3 block" to={`/matches/${match.matchId}`}>
@@ -183,7 +193,7 @@ export const MyMatches = () => {
                   <div className="flex shrink-0 gap-2">
                     <Link className="community-button-secondary" to={`/matches/${match.matchId}`}>
                       <Eye aria-hidden="true" className="h-4 w-4" />
-                      Xem phòng
+                      {isInvitation ? 'Phản hồi' : 'Xem phòng'}
                     </Link>
                     {match.isHost && (match.status === 'Recruiting' || match.status === 'ReadyToBook') && (
                       <button

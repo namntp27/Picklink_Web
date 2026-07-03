@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarRange,
@@ -19,9 +19,11 @@ import {
 } from 'lucide-react';
 import { getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
 import {
+  acceptMatchInvitation,
   acceptParticipant,
   cancelMatch,
   createMatchBooking,
+  declineMatchInvitation,
   getMatchDetail,
   getMatchMessages,
   joinMatch,
@@ -97,6 +99,7 @@ export const MatchDetail = () => {
   const { id } = useParams();
   const matchId = Number(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { token } = useAuth();
   const [match, setMatch] = useState<MatchDetailResponse | null>(null);
   const [messages, setMessages] = useState<MatchMessage[]>([]);
@@ -200,6 +203,7 @@ export const MatchDetail = () => {
     [match],
   );
   const pending = match?.participants.filter((participant) => participant.status === 'Pending') ?? [];
+  const invited = match?.participants.filter((participant) => participant.status === 'Invited') ?? [];
   const isApprovedMember = Boolean(match?.isHost || match?.myParticipantStatus && approvedStatus(match.myParticipantStatus));
   const isFull = Boolean(match && approved.length === match.requiredPlayerCount);
   const selectedCourt = availability?.courts.find((court) => court.courtId === courtId);
@@ -207,12 +211,18 @@ export const MatchDetail = () => {
   const slotPrice = selectedCourt ? Math.round(selectedCourt.hourlyPrice * slotMinutes / 60) : 0;
   const visibleSlots = useMemo(
     () => availability?.slots
-      .filter((slot) =>
-        slot.courtId === courtId
-        && timePart(slot.startTime) >= (match?.preferredTimeStart ?? '00:00')
-        && timePart(slot.endTime) <= (match?.preferredTimeEnd ?? '23:59'))
+      .filter((slot) => {
+        if (slot.courtId !== courtId) return false;
+        if (match?.availabilitySlots.length) {
+          return match.availabilitySlots.some((declared) =>
+            timePart(slot.startTime) >= declared.timeStart
+            && timePart(slot.endTime) <= declared.timeEnd);
+        }
+        return timePart(slot.startTime) >= (match?.preferredTimeStart ?? '00:00')
+          && timePart(slot.endTime) <= (match?.preferredTimeEnd ?? '23:59');
+      })
       .sort((left, right) => left.startTime.localeCompare(right.startTime)) ?? [],
-    [availability, courtId, match?.preferredTimeStart, match?.preferredTimeEnd],
+    [availability, courtId, match?.availabilitySlots, match?.preferredTimeStart, match?.preferredTimeEnd],
   );
   const availableSlots = useMemo(
     () => visibleSlots.filter((slot) => slot.status === 'Available' && new Date(slot.startTime).getTime() > Date.now()),
@@ -401,6 +411,11 @@ export const MatchDetail = () => {
       <main className="community-container match-detail-shell grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="match-detail-main space-y-5">
           {error && <div className="match-alert" role="alert">{error}</div>}
+          {searchParams.get('invite') === 'failed' && (
+            <div className="match-alert" role="alert">
+              Phòng đã được tạo nhưng chưa gửi được lời mời. Bạn có thể chia sẻ phòng để người chơi gửi yêu cầu tham gia.
+            </div>
+          )}
 
           <section className="community-panel match-panel match-scope-panel">
             <div className="match-section-heading">
@@ -413,13 +428,25 @@ export const MatchDetail = () => {
             <div className="match-scope-grid">
               <div className="match-info-tile"><MapPin className="h-4 w-4" /><p>Khu vực</p><strong>{match.ward}, {match.province}</strong><span>Bán kính {match.searchRadiusKm} km</span></div>
               <div className="match-info-tile"><CalendarRange className="h-4 w-4" /><p>Ngày có thể chơi</p><strong>{dateLabel(match.availableDateFrom)}</strong><span>đến {dateLabel(match.availableDateTo)}</span></div>
-              <div className="match-info-tile"><Clock className="h-4 w-4" /><p>Giờ mong muốn</p><strong>{match.preferredTimeStart} - {match.preferredTimeEnd}</strong><span>lọc slot theo khung này</span></div>
+              <div className="match-info-tile"><Clock className="h-4 w-4" /><p>Slot đã chọn</p><strong>{match.availabilitySlots.length || 1} khung/ngày</strong><span>{match.preferredTimeStart} - {match.preferredTimeEnd}</span></div>
               <div className="match-info-tile"><Users className="h-4 w-4" /><p>Trình độ / hình thức</p><strong>Level {match.minSkillLevel}-{match.maxSkillLevel}</strong><span>{match.matchType}</span></div>
             </div>
             <div className="mt-4">
               <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Cụm sân mong muốn</p>
               <div className="flex flex-wrap gap-2">{match.preferredVenues.map((venue) => <span className="community-badge text-[#526158]" key={venue.venueId}>{venue.venueName}</span>)}</div>
             </div>
+            {match.availabilitySlots.length > 0 && (
+              <div className="mt-4 border-t border-[#d8e4d4] pt-4">
+                <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Các slot có thể chơi</p>
+                <div className="flex flex-wrap gap-2">
+                  {match.availabilitySlots.map((slot) => (
+                    <span className="community-badge text-[#526158]" key={slot.matchAvailabilitySlotId}>
+                      {slot.timeStart} - {slot.timeEnd}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="community-panel match-panel">
@@ -440,6 +467,19 @@ export const MatchDetail = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {match.isHost && invited.length > 0 && (
+              <div className="mt-5 border-y border-[#d8e4d4] py-4">
+                <p className="text-[13px] font-extrabold text-[#0b2228]">Lời mời đang chờ ({invited.length})</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {invited.map((participant) => (
+                    <span className="community-badge text-[#526158]" key={participant.participantId}>
+                      {participant.playerName} · Level {participant.skillLevel.toFixed(1)}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -474,7 +514,10 @@ export const MatchDetail = () => {
               </div>
               <div className="match-booking-form">
                 <label><span className="mb-1 block text-[13px] font-bold">Cụm sân</span><select className={inputClass} onChange={(event) => { setSelectedVenueId(Number(event.target.value)); setCourtId(null); setStartTime(''); setEndTime(''); }} value={selectedVenueId ?? ''}>{match.preferredVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
-                <label><span className="mb-1 block text-[13px] font-bold">Ngày chơi chính xác</span><input className={inputClass} max={match.availableDateTo} min={match.availableDateFrom} onChange={(event) => { setBookingDate(event.target.value); setStartTime(''); setEndTime(''); }} type="date" value={bookingDate} /></label>
+                <label>
+                  <span className="mb-1 block text-[13px] font-bold">Ngày chơi chính xác</span>
+                  <input className={inputClass} max={match.availableDateTo} min={match.availableDateFrom} onChange={(event) => { setBookingDate(event.target.value); setStartTime(''); setEndTime(''); }} type="date" value={bookingDate} />
+                </label>
                 <label><span className="mb-1 block text-[13px] font-bold">Sân con</span><select className={inputClass} onChange={(event) => { setCourtId(Number(event.target.value)); setStartTime(''); setEndTime(''); }} value={courtId ?? ''}><option value="">Chọn sân</option>{availability?.courts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType} · {currency.format(court.hourlyPrice)}/giờ</option>)}</select></label>
                 <div className="match-selected-time">
                   <p className="text-[12px] font-bold text-[#526158]">Khung giờ đã chọn</p>
@@ -563,7 +606,20 @@ export const MatchDetail = () => {
           {!(match.checkInCode && isApprovedMember) && (
             <section className="community-panel match-side-panel">
               <h3 className="text-[18px] font-bold">Thao tác</h3>
-              {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.status === 'Recruiting' && (
+              {!match.isHost && match.myParticipantStatus === 'Invited' && match.status === 'Recruiting' && (
+                <div className="mt-4 border-y border-[#cfe0c8] py-4">
+                  <p className="text-center text-[13px] font-extrabold text-[#0b2228]">Bạn được mời tham gia trận này</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button className="community-button-secondary" disabled={isBusy} onClick={() => token && void run(() => declineMatchInvitation(token, matchId))} type="button">
+                      <X className="h-4 w-4" /> Từ chối
+                    </button>
+                    <button className="community-button" disabled={isBusy} onClick={() => token && void run(() => acceptMatchInvitation(token, matchId))} type="button">
+                      <Check className="h-4 w-4" /> Chấp nhận
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.myParticipantStatus !== 'Invited' && match.status === 'Recruiting' && (
                 <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
               )}
               {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng duyệt</div>}

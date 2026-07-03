@@ -10,6 +10,7 @@ export type MatchStatus =
   | 'Cancelled'
   | 'Expired';
 export type ParticipantStatus =
+  | 'Invited'
   | 'Pending'
   | 'Approved'
   | 'Accepted'
@@ -25,6 +26,12 @@ export type MatchPreferredVenue = {
   latitude?: number | null;
   longitude?: number | null;
   distanceKm?: number | null;
+};
+
+export type MatchAvailabilitySlot = {
+  matchAvailabilitySlotId: number;
+  timeStart: string;
+  timeEnd: string;
 };
 
 export type MatchSummary = {
@@ -48,6 +55,7 @@ export type MatchSummary = {
   availableDateTo: string;
   preferredTimeStart: string;
   preferredTimeEnd: string;
+  availabilitySlots: MatchAvailabilitySlot[];
   neededPlayerCount: number;
   requiredPlayerCount: number;
   acceptedPlayerCount: number;
@@ -81,6 +89,19 @@ export type MatchParticipant = {
   paymentStatus?: string | null;
   checkInStatus: string;
   checkedInAt?: string | null;
+};
+
+export type MatchPlayerRecommendation = {
+  playerId: number;
+  playerName: string;
+  avatarUrl?: string | null;
+  skillLevel: number;
+  prestige: number;
+  city?: string | null;
+  commune?: string | null;
+  preferredTimeSlot?: string | null;
+  distanceKm?: number | null;
+  matchReason: string;
 };
 
 export type MatchDetailResponse = MatchSummary & {
@@ -146,6 +167,21 @@ export const searchMatchVenues = (input: {
   longitude?: number;
 }) => apiRequest<MatchPreferredVenue[]>(`/api/Match/venues${queryString(input)}`);
 
+export const getMatchPlayerRecommendations = (token: string, input: {
+  radiusKm: number;
+  latitude?: number;
+  longitude?: number;
+  province?: string;
+  ward?: string;
+  minSkillLevel: number;
+  maxSkillLevel: number;
+  limit?: number;
+}) => apiRequest<MatchPlayerRecommendation[]>(
+  `/api/Match/player-recommendations${queryString(input)}`,
+  {},
+  token,
+);
+
 export const getOpenMatches = (token?: string, filters: MatchSearchFilters = {}) =>
   apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/open${queryString(filters)}`, {}, token);
 
@@ -167,6 +203,10 @@ export const createMatch = (token: string, input: {
   availableDateTo: string;
   preferredTimeStart: string;
   preferredTimeEnd: string;
+  availabilitySlots: Array<{
+    timeStart: string;
+    timeEnd: string;
+  }>;
   minSkillLevel: number;
   maxSkillLevel: number;
   matchType: MatchFormat;
@@ -180,12 +220,29 @@ export const createMatch = (token: string, input: {
       ...input,
       preferredTimeStart: normalizeTime(input.preferredTimeStart),
       preferredTimeEnd: normalizeTime(input.preferredTimeEnd),
+      availabilitySlots: input.availabilitySlots.map((slot) => ({
+        ...slot,
+        timeStart: normalizeTime(slot.timeStart),
+        timeEnd: normalizeTime(slot.timeEnd),
+      })),
     }),
   }, token);
 };
 
 export const joinMatch = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/join`, { method: 'POST' }, token);
+export const inviteMatchPlayers = (
+  token: string,
+  matchId: number,
+  input: { automatic: boolean; playerIds?: number[] },
+) => apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/invitations`, {
+  method: 'POST',
+  body: JSON.stringify({ automatic: input.automatic, playerIds: input.playerIds ?? [] }),
+}, token);
+export const acceptMatchInvitation = (token: string, matchId: number) =>
+  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/invitation/accept`, { method: 'POST' }, token);
+export const declineMatchInvitation = (token: string, matchId: number) =>
+  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/invitation/decline`, { method: 'POST' }, token);
 export const leaveMatch = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/leave`, { method: 'POST' }, token);
 export const acceptParticipant = (token: string, matchId: number, participantId: number) =>

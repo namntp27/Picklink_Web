@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Building2, Camera, Check, Edit3, MapPin, Send, Star, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Building2, Camera, Check, Edit3, MapPin, Save, Send, Star, Trash2, Upload, X } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import {
@@ -7,7 +7,9 @@ import {
   getOwnerVenue,
   setPrimaryOwnerVenueImage,
   submitOwnerVenue,
+  updateOwnerCourt,
   uploadOwnerVenueImage,
+  type OwnerCourt,
   type OwnerVenue,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
@@ -15,6 +17,111 @@ import { OwnerShell } from './components/OwnerShell';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const statusLabel: Record<OwnerVenue['approvalStatus'], string> = { Draft: 'Bản nháp', Pending: 'Chờ Admin duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' };
+
+const CourtPriceEditor = ({
+  court,
+  disabled,
+  onSave,
+}: {
+  court: OwnerCourt;
+  disabled: boolean;
+  onSave: (court: OwnerCourt, hourlyPrice: number) => Promise<void>;
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [priceDraft, setPriceDraft] = useState(String(court.hourlyPrice));
+  const [isSaving, setIsSaving] = useState(false);
+  const hourlyPrice = Number(priceDraft);
+  const isInvalid = priceDraft.trim() === '' || !Number.isFinite(hourlyPrice) || hourlyPrice < 0 || hourlyPrice > 100_000_000;
+
+  useEffect(() => {
+    if (!isEditing) setPriceDraft(String(court.hourlyPrice));
+  }, [court.hourlyPrice, isEditing]);
+
+  const cancel = () => {
+    setPriceDraft(String(court.hourlyPrice));
+    setIsEditing(false);
+  };
+
+  const save = async () => {
+    if (isInvalid) return;
+    setIsSaving(true);
+    try {
+      await onSave(court, hourlyPrice);
+      setIsEditing(false);
+    } catch {
+      // The parent surfaces the API error and keeps the editor open for correction.
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isEditing) {
+    return (
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-outline-variant pt-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase text-on-surface-variant">Giá thuê</p>
+          <p className="mt-1 text-[16px] font-bold text-primary">{currency.format(court.hourlyPrice)}/giờ</p>
+        </div>
+        <button
+          className="inline-flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-[12px] font-bold text-primary hover:bg-primary/5 disabled:opacity-50"
+          disabled={disabled}
+          onClick={() => setIsEditing(true)}
+          type="button"
+        >
+          <Edit3 className="h-4 w-4" /> Sửa giá
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t border-outline-variant pt-3">
+      <label>
+        <span className="mb-1.5 block text-[11px] font-bold uppercase text-on-surface-variant">Giá thuê mỗi giờ</span>
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <input
+              aria-label={`Giá thuê sân ${court.courtNumber} mỗi giờ`}
+              autoFocus
+              className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 pr-10 text-[14px] font-bold outline-none focus:border-primary"
+              inputMode="numeric"
+              max="100000000"
+              min="0"
+              onChange={(event) => setPriceDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void save();
+                if (event.key === 'Escape') cancel();
+              }}
+              step="1000"
+              type="number"
+              value={priceDraft}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-on-surface-variant">đ</span>
+          </div>
+          <button
+            className="rounded-lg bg-primary p-2.5 text-white disabled:opacity-50"
+            disabled={disabled || isSaving || isInvalid}
+            onClick={() => void save()}
+            title="Lưu giá"
+            type="button"
+          >
+            <Save className="h-4 w-4" />
+          </button>
+          <button
+            className="rounded-lg border border-outline-variant p-2.5 text-on-surface-variant disabled:opacity-50"
+            disabled={isSaving}
+            onClick={cancel}
+            title="Hủy"
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </label>
+      {isInvalid && <p className="mt-1.5 text-[11px] font-bold text-red-600">Giá phải từ 0 đến 100.000.000đ.</p>}
+    </div>
+  );
+};
 
 export const OwnerVenueDetail = () => {
   const { token } = useAuth();
@@ -25,6 +132,7 @@ export const OwnerVenueDetail = () => {
   const [caption, setCaption] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = async () => {
     if (!token || !Number.isInteger(venueId)) return;
@@ -49,6 +157,30 @@ export const OwnerVenueDetail = () => {
     setCaption('');
   };
 
+  const saveCourtPrice = async (court: OwnerCourt, hourlyPrice: number) => {
+    if (!token) return;
+    setIsBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await updateOwnerCourt(token, court.courtId, {
+        courtNumber: court.courtNumber,
+        courtType: court.courtType,
+        surfaceType: court.surfaceType ?? undefined,
+        hourlyPrice,
+        isIndoor: court.isIndoor,
+        availabilityStatus: court.availabilityStatus,
+      });
+      await load();
+      setNotice(`Đã cập nhật giá sân ${court.courtNumber} thành ${currency.format(hourlyPrice)}/giờ.`);
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật giá sân con.');
+      throw requestError;
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   return (
     <OwnerShell activeId="courts">
       <div className="owner-page-header flex flex-wrap items-center justify-between gap-3">
@@ -57,6 +189,7 @@ export const OwnerVenueDetail = () => {
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
+      {notice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[13px] font-bold text-emerald-800">{notice}</div>}
       {!venue && !error && <div className="owner-panel p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết...</div>}
       {venue && <>
         <section className="owner-panel p-5">
@@ -76,7 +209,25 @@ export const OwnerVenueDetail = () => {
           {venue.images.length < 10 && <div className="mt-5 grid gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end"><label><span className="mb-1.5 block text-[12px] font-bold">Chọn ảnh</span><input accept="image/jpeg,image/png,image/webp" className="block w-full text-[13px] file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-bold file:text-white" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} type="file" /></label><label><span className="mb-1.5 block text-[12px] font-bold">Chú thích</span><input className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-[13px] outline-none focus:border-primary" maxLength={200} onChange={(event) => setCaption(event.target.value)} placeholder="Mặt sân, khu vực khán giả..." value={caption} /></label><button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={!imageFile || isBusy} onClick={() => void upload()} type="button"><Upload className="h-4 w-4" /> Tải ảnh</button></div>}
         </section>
 
-        <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm"><h2 className="mb-4 text-[21px] font-bold">Danh sách sân con</h2><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{venue.courts.map((court) => <article className="rounded-xl border border-outline-variant p-4" key={court.courtId}><div className="flex items-center justify-between"><h3 className="font-bold">Sân {court.courtNumber}</h3><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${court.availabilityStatus === 'Available' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700'}`}>{court.availabilityStatus === 'Available' ? 'Hoạt động' : court.availabilityStatus === 'Maintenance' ? 'Bảo trì' : 'Ngừng'}</span></div><p className="mt-3 text-[13px]">{court.courtType} · {court.surfaceType || 'Chưa rõ mặt sân'}</p><p className="mt-1 text-[13px]">{court.isIndoor ? 'Trong nhà' : 'Ngoài trời'} · <strong>{currency.format(court.hourlyPrice)}/giờ</strong></p></article>)}</div></section>
+        <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-[21px] font-bold">Danh sách sân con</h2>
+            <p className="mt-1 text-[13px] text-on-surface-variant">Giá mới áp dụng cho các booking được tạo sau khi cập nhật.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {venue.courts.map((court) => (
+              <article className="rounded-xl border border-outline-variant p-4" key={court.courtId}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold">Sân {court.courtNumber}</h3>
+                  <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${court.availabilityStatus === 'Available' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700'}`}>{court.availabilityStatus === 'Available' ? 'Hoạt động' : court.availabilityStatus === 'Maintenance' ? 'Bảo trì' : 'Ngừng'}</span>
+                </div>
+                <p className="mt-3 text-[13px]">{court.courtType} · {court.surfaceType || 'Chưa rõ mặt sân'}</p>
+                <p className="mt-1 text-[13px]">{court.isIndoor ? 'Trong nhà' : 'Ngoài trời'}</p>
+                <CourtPriceEditor court={court} disabled={isBusy} onSave={saveCourtPrice} />
+              </article>
+            ))}
+          </div>
+        </section>
       </>}
     </OwnerShell>
   );
