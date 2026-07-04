@@ -24,6 +24,7 @@ import {
   cancelMatch,
   createMatchBooking,
   declineMatchInvitation,
+  getMatchSlotOptions,
   getMatchDetail,
   getMatchMessages,
   joinMatch,
@@ -32,10 +33,18 @@ import {
   rejectParticipant,
   removeParticipant,
   sendMatchMessage,
+  unvoteMatchSlot,
+  voteMatchSlot,
   type MatchDetailResponse,
   type MatchMessage,
+  type MatchSlotOption,
 } from '../../api/matches';
-import { submitBankTransfer } from '../../api/payment';
+import { ApiError } from '../../api/client';
+import {
+  previewBatchPayment,
+  submitBatchBankTransfer,
+  type BatchPaymentPreview,
+} from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
@@ -94,6 +103,8 @@ const unavailableLabel: Record<string, string> = {
   Event: 'Sự kiện',
   Closed: 'Đóng cửa',
 };
+const slotIdentity = (courtId: number, startTimeValue: string, endTimeValue: string) =>
+  `${courtId}|${startTimeValue}|${endTimeValue}`;
 
 export const MatchDetail = () => {
   const { id } = useParams();
@@ -107,10 +118,13 @@ export const MatchDetail = () => {
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
   const [bookingDate, setBookingDate] = useState('');
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
+  const [slotOptions, setSlotOptions] = useState<MatchSlotOption[]>([]);
   const [courtId, setCourtId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [selectedPaymentPlayerIds, setSelectedPaymentPlayerIds] = useState<number[]>([]);
+  const [batchPreview, setBatchPreview] = useState<BatchPaymentPreview | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -139,18 +153,6 @@ export const MatchDetail = () => {
 
   useEffect(() => { void loadMatch(); }, [matchId, token]);
   useEffect(() => { void loadMessages(); }, [match?.conversationId, token]);
-  useMatchRealtime((event) => {
-    if (event.matchId !== matchId) return;
-    if (event.action === 'Expired') {
-      navigate('/opponents/create?expired=1', { replace: true });
-      return;
-    }
-    if (event.action === 'MessageSent') {
-      void loadMessages();
-      return;
-    }
-    void loadMatch();
-  });
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -173,9 +175,73 @@ export const MatchDetail = () => {
     }
   };
 
+  const loadSlotOptions = async () => {
+    if (!token || !selectedVenueId || !bookingDate || match?.status !== 'ReadyToBook') {
+      setSlotOptions([]);
+      return;
+    }
+    try {
+      const result = await getMatchSlotOptions(token, matchId, selectedVenueId, bookingDate);
+      setSlotOptions(result);
+    } catch (reason) {
+      setSlotOptions([]);
+      setError(reason instanceof Error ? reason.message : 'Không thể tải khung giờ rảnh chung.');
+    }
+  };
+
+  useMatchRealtime((event) => {
+    if (event.matchId !== matchId) return;
+    if (event.action === 'Expired') {
+      navigate('/opponents/create?expired=1', { replace: true });
+      return;
+    }
+    if (event.action === 'MessageSent') {
+      void loadMessages();
+      return;
+    }
+    if (event.action === 'SlotVoteChanged') {
+      void loadSlotOptions();
+      return;
+    }
+    void loadMatch();
+  });
+
   useEffect(() => {
     void loadAvailability();
   }, [selectedVenueId, bookingDate, match?.status, token]);
+
+  useEffect(() => {
+    void loadSlotOptions();
+  }, [selectedVenueId, bookingDate, match?.status, token]);
+
+  useEffect(() => {
+    if (!match || match.status !== 'BookingPending') {
+      setSelectedPaymentPlayerIds([]);
+      setBatchPreview(null);
+      setReceipt(null);
+      return;
+    }
+
+    const targets = match.participants.filter((participant) =>
+      approvedStatus(participant.status)
+      && participant.paymentId
+      && participant.paymentStatus === 'Pending');
+    if (!targets.length) {
+      setSelectedPaymentPlayerIds([]);
+      setBatchPreview(null);
+      setReceipt(null);
+      return;
+    }
+
+    const eligibleIds = new Set(targets.map((participant) => participant.playerId));
+    setSelectedPaymentPlayerIds((current) => {
+      const retained = current.filter((playerId) => eligibleIds.has(playerId));
+      if (retained.length) return retained;
+      return targets.some((participant) => participant.playerId === match.myPlayerId)
+        ? [match.myPlayerId!]
+        : [];
+    });
+  }, [match]);
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
     if (!selectedVenueId || !courtId || !startTime || !endTime) return false;
@@ -196,6 +262,7 @@ export const MatchDetail = () => {
       setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn giờ khác.');
     }
     void loadAvailability();
+    void loadSlotOptions();
   });
 
   const approved = useMemo(
@@ -205,8 +272,21 @@ export const MatchDetail = () => {
   const pending = match?.participants.filter((participant) => participant.status === 'Pending') ?? [];
   const invited = match?.participants.filter((participant) => participant.status === 'Invited') ?? [];
   const isApprovedMember = Boolean(match?.isHost || match?.myParticipantStatus && approvedStatus(match.myParticipantStatus));
+  const paymentTargets = useMemo(
+    () => approved.filter((participant) => participant.paymentId),
+    [approved],
+  );
+  const selectedPaymentKey = useMemo(
+    () => [...selectedPaymentPlayerIds].sort((left, right) => left - right).join(','),
+    [selectedPaymentPlayerIds],
+  );
   const isFull = Boolean(match && approved.length === match.requiredPlayerCount);
   const selectedCourt = availability?.courts.find((court) => court.courtId === courtId);
+  const slotOptionLookup = useMemo(
+    () => new Map(slotOptions.map((option) =>
+      [slotIdentity(option.courtId, option.startTime, option.endTime), option])),
+    [slotOptions],
+  );
   const slotMinutes = availability?.slotMinutes ?? 30;
   const slotPrice = selectedCourt ? Math.round(selectedCourt.hourlyPrice * slotMinutes / 60) : 0;
   const visibleSlots = useMemo(
@@ -262,6 +342,29 @@ export const MatchDetail = () => {
   const estimatedAmountPerPlayer = (match?.requiredPlayerCount ?? 0) > 0
     ? Math.ceil(estimatedTotalAmount / match!.requiredPlayerCount)
     : 0;
+
+  useEffect(() => {
+    if (!token || !match?.bookingId || !selectedPaymentKey) {
+      setBatchPreview(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setBatchPreview(null);
+    const payerIds = selectedPaymentKey.split(',').map(Number);
+    void previewBatchPayment(token, match.bookingId, payerIds)
+      .then((preview) => {
+        if (!cancelled) setBatchPreview(preview);
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setBatchPreview(null);
+        setError(reason instanceof Error ? reason.message : 'Không thể tạo mã thanh toán gộp.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [match?.bookingId, selectedPaymentKey, token]);
 
   useEffect(() => {
     if (!startTime) return;
@@ -328,6 +431,28 @@ export const MatchDetail = () => {
     }
   };
 
+  const toggleSlotVote = async (option: MatchSlotOption) => {
+    if (!token) return;
+    setIsBusy(true);
+    setError('');
+    try {
+      const input = {
+        courtId: option.courtId,
+        startTime: option.startTime,
+        endTime: option.endTime,
+      };
+      const nextOptions = option.isVotedByMe
+        ? await unvoteMatchSlot(token, matchId, input)
+        : await voteMatchSlot(token, matchId, input);
+      setSlotOptions(nextOptions);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể cập nhật vote khung giờ.');
+      await loadSlotOptions();
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
 
   const run = async (action: () => Promise<unknown>) => {
     setIsBusy(true);
@@ -369,12 +494,29 @@ export const MatchDetail = () => {
   };
 
   const pay = async () => {
-    if (!token || !match?.bookingId || !receipt) {
-      setError('Vui lòng chọn ảnh biên lai.');
+    if (!token || !match?.bookingId || !receipt || !batchPreview || selectedPaymentPlayerIds.length === 0) {
+      setError('Vui lòng chọn thành viên và ảnh biên lai.');
       return;
     }
-    await run(() => submitBankTransfer(token, match.bookingId!, receipt));
-    setReceipt(null);
+    setIsBusy(true);
+    setError('');
+    try {
+      await submitBatchBankTransfer(token, match.bookingId!, selectedPaymentPlayerIds, receipt);
+      setReceipt(null);
+      setSelectedPaymentPlayerIds([]);
+      setBatchPreview(null);
+      await loadMatch();
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 409) {
+        setReceipt(null);
+        setSelectedPaymentPlayerIds([]);
+        setBatchPreview(null);
+        await loadMatch();
+      }
+      setError(reason instanceof Error ? reason.message : 'Không thể gửi thanh toán gộp.');
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   if (!match) {
@@ -484,21 +626,39 @@ export const MatchDetail = () => {
             )}
 
             <div className="match-member-grid">
-              {approved.map((participant) => (
-                <article className="match-member-card" key={participant.participantId}>
-                  <div className="grid h-10 w-10 place-items-center rounded-[11px] bg-[#0b2228] text-[12px] font-bold text-[#e2ff57]">{participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}</div>
-                  <div className="min-w-0 flex-1"><p className="truncate text-[14px] font-bold">{participant.playerName}</p><p className="text-[12px] text-on-surface-variant">{participant.isHost ? 'Chủ phòng' : 'Thành viên'} · Level {participant.skillLevel.toFixed(1)}</p></div>
-                  {match.bookingId && isApprovedMember && participant.paymentStatus && (
-                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
-                      {participant.paymentStatus === 'Paid' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                      {paymentStatusLabels[participant.paymentStatus] ?? participant.paymentStatus}
-                    </span>
-                  )}
-                  {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
-                    <button className="text-red-600" disabled={isBusy} onClick={() => token && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-5 w-5" /></button>
-                  )}
-                </article>
-              ))}
+              {approved.map((participant) => {
+                const roleLabel = participant.isHost ? 'Chủ phòng' : 'Thành viên';
+                const isCurrentPlayer = match.myPlayerId === participant.playerId;
+                return (
+                  <article
+                    aria-label={`${participant.isHost ? 'Chủ phòng' : 'Thành viên'}: ${participant.playerName}`}
+                    className={`match-member-card ${participant.isHost ? 'match-member-card--host' : 'match-member-card--participant'}`}
+                    key={participant.participantId}
+                  >
+                    <div className="match-member-avatar">{participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className={`match-role-badge ${participant.isHost ? 'match-role-badge--host' : 'match-role-badge--participant'}`}>
+                          {participant.isHost ? <ShieldCheck className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+                          {roleLabel}
+                        </span>
+                        {isCurrentPlayer && <span className="match-self-badge">Bạn</span>}
+                      </div>
+                      <p className="truncate text-[14px] font-bold">{participant.playerName}</p>
+                      <p className="text-[12px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p>
+                    </div>
+                    {match.bookingId && isApprovedMember && participant.paymentStatus && (
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
+                        {participant.paymentStatus === 'Paid' && <CheckCircle2 className="h-3.5 w-3.5" />}
+                        {paymentStatusLabels[participant.paymentStatus] ?? participant.paymentStatus}
+                      </span>
+                    )}
+                    {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
+                      <button className="text-red-600" disabled={isBusy} onClick={() => token && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-5 w-5" /></button>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           </section>
 
@@ -508,7 +668,8 @@ export const MatchDetail = () => {
                 <div>
                   <p className="match-eyebrow">giữ sân</p>
                   <h2>Chọn lịch và tạo booking</h2>
-                  <p>Chọn các slot liền nhau trong phạm vi lời mời. {!match.isHost && 'Bạn có thể xem lịch và chi phí dự kiến; chỉ chủ phòng mới tạo booking.'}</p>
+                  <p>Chọn các slot liền nhau trong phạm vi lời mời. Chủ phòng hoặc thành viên đã được duyệt đều có thể tạo booking.</p>
+                  <p>Dùng chat để thảo luận, vote các slot rảnh chung rồi tạo booking khi cả nhóm chốt.</p>
                 </div>
                 <span className="match-soft-badge">{startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa chọn'}</span>
               </div>
@@ -535,26 +696,48 @@ export const MatchDetail = () => {
                   <div className="match-slot-grid">
                     {visibleSlots.map((slot) => {
                       const slotTime = timePart(slot.startTime);
+                      const option = slotOptionLookup.get(slotIdentity(slot.courtId, slot.startTime, slot.endTime));
                       const selected = selectedSlotStarts.includes(slotTime);
                       const past = new Date(slot.startTime).getTime() <= Date.now();
                       const disabled = slot.status !== 'Available' || past;
+                      const compatible = Boolean(option?.isCompatibleForAll);
+                      const voted = Boolean(option?.isVotedByMe);
                       const className = selected
-                        ? 'border-[#0b2228] bg-[#0b2228] text-white'
+                        ? 'match-slot-button--selected'
                         : disabled
                           ? 'cursor-not-allowed border-[#d8e4d4] bg-white text-[#98a39d]'
-                          : 'border-[#b9dca8] bg-[#eef8e6] text-primary hover:border-primary hover:bg-[#e2ff57] hover:text-[#102414]';
+                          : compatible
+                            ? 'match-slot-button--compatible'
+                            : 'border-[#b9dca8] bg-[#eef8e6] text-primary hover:border-primary hover:bg-[#e2ff57] hover:text-[#102414]';
                       return (
-                        <button
-                          className={`match-slot-button ${className}`}
-                          disabled={disabled}
-                          key={`${slot.courtId}-${slot.startTime}`}
-                          onClick={() => selectSlot(slot)}
-                          title={past ? 'Đã qua' : unavailableLabel[slot.status] ?? 'Còn trống'}
-                          type="button"
-                        >
-                          <span className="block">{slotTime}</span>
-                          <span className="mt-0.5 block text-[10px] font-bold opacity-75">{disabled ? (past ? 'Đã qua' : unavailableLabel[slot.status] ?? slot.status) : currency.format(slotPrice)}</span>
-                        </button>
+                        <div className="match-slot-card" key={`${slot.courtId}-${slot.startTime}`}>
+                          <button
+                            className={`match-slot-button ${className} ${voted ? 'match-slot-button--voted' : ''}`}
+                            disabled={disabled}
+                            onClick={() => selectSlot(slot)}
+                            title={past ? 'Đã qua' : unavailableLabel[slot.status] ?? 'Còn trống'}
+                            type="button"
+                          >
+                            <span className="block">{slotTime}</span>
+                            <span className="mt-0.5 block text-[10px] font-bold opacity-75">{disabled ? (past ? 'Đã qua' : unavailableLabel[slot.status] ?? slot.status) : currency.format(slotPrice)}</span>
+                            {compatible && option && (
+                              <span className="match-slot-vote-meta">
+                                Rảnh {option.compatiblePlayerCount}/{option.requiredPlayerCount}
+                                {option.voteCount > 0 ? ` · ${option.voteCount} vote` : ''}
+                              </span>
+                            )}
+                          </button>
+                          {compatible && option && (
+                            <button
+                              className="match-slot-vote-button"
+                              disabled={isBusy}
+                              onClick={() => void toggleSlotVote(option)}
+                              type="button"
+                            >
+                              {option.isVotedByMe ? 'Bỏ vote' : 'Vote slot này'}
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -568,13 +751,7 @@ export const MatchDetail = () => {
                   <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-primary">{selectedDurationHours ? currency.format(estimatedAmountPerPlayer) : 'Chưa chọn giờ'}</p></div>
                 </div>
               )}
-              {match.isHost ? (
-                <button className="community-button mt-4 w-full" disabled={isBusy || !courtId || !startTime || !endTime} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
-              ) : (
-                <div className="mt-4 rounded-xl border border-[#d8e4d4] bg-white p-3 text-center text-[13px] font-bold text-[#526158]">
-                  Chỉ chủ phòng mới có quyền tạo booking.
-                </div>
-              )}
+              <button className="community-button mt-4 w-full" disabled={isBusy || !courtId || !startTime || !endTime} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
             </section>
           )}
 
@@ -640,27 +817,81 @@ export const MatchDetail = () => {
               <p className="match-eyebrow">thanh toán</p>
               <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán booking</h3>
               <div className="match-payment-amount">
-                <span>Phần của bạn</span>
-                <strong>{currency.format(match.amountPerPlayer)}</strong>
+                <span>{selectedPaymentPlayerIds.length} phần đã chọn</span>
+                <strong>{batchPreview ? currency.format(batchPreview.totalAmount) : '—'}</strong>
               </div>
-              {match.myPaymentStatus === 'Pending' && match.myPaymentRejectionReason && (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
-                  <p className="flex items-center gap-2 font-bold"><AlertCircle className="h-4 w-4" /> Biên lai đã bị từ chối</p>
-                  <p className="mt-1 leading-5">Lý do: {match.myPaymentRejectionReason}</p>
+              {paymentTargets.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-[12px] font-bold text-on-surface-variant">Chọn các thành viên bạn muốn thanh toán cùng lúc</p>
+                  {paymentTargets.map((participant) => {
+                    const canSelect = participant.paymentStatus === 'Pending';
+                    const isSelected = selectedPaymentPlayerIds.includes(participant.playerId);
+                    return (
+                      <label
+                        className={`flex items-start gap-3 rounded-lg border p-3 ${isSelected ? 'border-primary bg-primary/5' : 'border-outline-variant'} ${canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+                        key={participant.playerId}
+                      >
+                        <input
+                          checked={isSelected}
+                          className="mt-1 h-4 w-4 accent-primary"
+                          disabled={!canSelect || isBusy}
+                          onChange={(event) => {
+                            setSelectedPaymentPlayerIds((current) => event.target.checked
+                              ? [...current, participant.playerId]
+                              : current.filter((playerId) => playerId !== participant.playerId));
+                            setReceipt(null);
+                          }}
+                          type="checkbox"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center justify-between gap-2">
+                            <strong className="text-[13px]">{participant.playerName}</strong>
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
+                              {paymentStatusLabels[participant.paymentStatus ?? ''] ?? participant.paymentStatus ?? 'Chưa có trạng thái'}
+                            </span>
+                          </span>
+                          <span className="mt-1 block text-[12px] text-on-surface-variant">
+                            {currency.format(match.amountPerPlayer)}
+                          </span>
+                          {participant.paymentStatus === 'Pending' && participant.paymentRejectionReason && (
+                            <span className="mt-2 block text-[12px] font-bold text-red-700">
+                              Lần gửi trước bị từ chối: {participant.paymentRejectionReason}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
-              {match.myQrImageUrl && match.myPaymentStatus === 'Pending' && <img alt="QR thanh toán" className="mx-auto mt-4 w-full max-w-[250px] rounded-lg border" src={match.myQrImageUrl} />}
-              {match.myTransferContent && <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px]">Nội dung: <strong>{match.myTransferContent}</strong></p>}
-              {match.myPaymentStatus === 'Pending' && (
+              {paymentTargets.length === 0 && (
+                <p className="mt-3 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">
+                  Chưa có khoản thanh toán nào cho nhóm chơi này.
+                </p>
+              )}
+              {selectedPaymentPlayerIds.length > 0 && !batchPreview && (
+                <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px] font-bold text-on-surface-variant">
+                  Đang tạo mã QR cho giao dịch gộp...
+                </p>
+              )}
+              {batchPreview && (
                 <>
+                  <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px]">
+                    Thanh toán một lần cho <strong>{batchPreview.memberNames.join(', ')}</strong>.
+                  </p>
+                  <img alt="QR thanh toán gộp" className="mx-auto mt-4 w-full max-w-[250px] rounded-lg border" src={batchPreview.qrImageUrl} />
+                  <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px]">
+                    Nội dung: <strong>{batchPreview.transferContent}</strong>
+                  </p>
                   <label className="mt-3 block cursor-pointer rounded-lg border border-dashed border-primary p-3 text-center text-[13px] font-bold text-primary">
-                    {receipt?.name || (match.myPaymentRejectionReason ? 'Chọn ảnh biên lai mới' : 'Chọn ảnh biên lai')}<input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                    {receipt?.name || 'Chọn một ảnh biên lai'}
+                    <input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
                   </label>
-                  <button className="community-button mt-3 w-full" disabled={!receipt || isBusy} onClick={() => void pay()} type="button">{match.myPaymentRejectionReason ? 'Gửi lại biên lai' : 'Gửi biên lai'}</button>
+                  <button className="community-button mt-3 w-full" disabled={!receipt || isBusy || !batchPreview} onClick={() => void pay()} type="button">
+                    Gửi thanh toán cho {selectedPaymentPlayerIds.length} người
+                  </button>
                 </>
               )}
-              {match.myPaymentStatus === 'WaitingForConfirmation' && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ sân xác nhận biên lai</p>}
-              {match.myPaymentStatus === 'Paid' && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-center text-[13px] font-bold text-emerald-700">Đã thanh toán</p>}
             </section>
           )}
 

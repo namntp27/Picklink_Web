@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CalendarRange,
@@ -49,8 +49,29 @@ export const PendingInvites = () => {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [debouncedProvince, setDebouncedProvince] = useState(filters.province);
+  const [debouncedWard, setDebouncedWard] = useState(filters.ward);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
-  const load = async () => {
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedProvince(filters.province.trim());
+      setDebouncedWard(filters.ward.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timerId);
+  }, [filters.province, filters.ward]);
+
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
+
+    if (!options?.silent) setIsLoading(true);
     try {
       const result = await getOpenMatches(token ?? undefined, {
         page,
@@ -59,23 +80,34 @@ export const PendingInvites = () => {
         skillLevel: filters.skill === 'all' ? undefined : Number(filters.skill),
         from: filters.date || undefined,
         to: filters.date || undefined,
-        province: filters.province || undefined,
-        ward: filters.ward || undefined,
-      });
+        province: debouncedProvince || undefined,
+        ward: debouncedWard || undefined,
+      }, { signal: controller.signal });
+
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
       setMatches(result.items);
       setPagination(result);
       setError('');
     } catch (reason) {
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
       setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách lời mời.');
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+        if (abortRef.current === controller) abortRef.current = null;
+      }
     }
-  };
+  }, [debouncedProvince, debouncedWard, filters.date, filters.format, filters.skill, page, token]);
 
   useEffect(() => {
     void load();
-  }, [page, token, filters.format, filters.skill, filters.province, filters.ward, filters.date]);
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [load]);
 
   useMatchRealtime(() => {
-    void load();
+    void load({ silent: true });
   });
 
   const visibleMatches = useMemo(
@@ -132,7 +164,9 @@ export const PendingInvites = () => {
                 <Filter aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
                 Bộ lọc trận
               </h2>
-              <p className="mt-1 hidden text-[11px] font-semibold text-[#718077] sm:block">Kết quả cập nhật theo điều kiện đã chọn.</p>
+              <p className="mt-1 hidden text-[11px] font-semibold text-[#718077] sm:block">
+                {isLoading ? 'Đang cập nhật kết quả...' : 'Kết quả cập nhật theo điều kiện đã chọn.'}
+              </p>
             </div>
             <button
               className="community-button-quiet !min-h-9"

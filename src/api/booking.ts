@@ -62,6 +62,9 @@ export type PaymentHistory = {
 
 export type BankTransfer = {
   paymentId: number;
+  paymentGroupId?: string | null;
+  groupPaymentCount: number;
+  groupTotalAmount: number;
   bookingId: number;
   bookingCode: string;
   bookingStatus: string;

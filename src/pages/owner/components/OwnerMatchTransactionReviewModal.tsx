@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, ReceiptText, XCircle } from 'lucide-react';
 import type { BankTransfer } from '../../../api/booking';
 import { ApiError } from '../../../api/client';
@@ -88,18 +88,34 @@ export const OwnerMatchTransactionReviewModal = ({
   }, [initialPayments, load]);
 
   usePaymentRealtime((event) => {
-    if (event.bookingId === bookingId && event.paymentId !== busyId) void load(true);
+    if (event.bookingId === bookingId && busyId === null) void load(true);
   });
+
+  const groupedPayments = useMemo(() => {
+    const groups = new Map<string, BankTransfer[]>();
+    payments.forEach((payment) => {
+      const key = payment.paymentGroupId ?? `single-${payment.paymentId}`;
+      groups.set(key, [...(groups.get(key) ?? []), payment]);
+    });
+    return Array.from(groups.values()).map((groupPayments) => {
+      const representative = groupPayments[0];
+      return {
+        representative,
+        payments: groupPayments,
+        groupTotalAmount: representative.paymentGroupId
+          ? representative.groupTotalAmount
+          : groupPayments.reduce((total, payment) => total + payment.amount, 0),
+      };
+    });
+  }, [payments]);
 
   const approve = async (payment: BankTransfer) => {
     if (!token) return;
     setBusyId(payment.paymentId);
     setError('');
     try {
-      const updatedPayment = await approveOperatorPayment(token, payment.paymentId);
-      setPayments((current) => current.map((item) =>
-        item.paymentId === updatedPayment.paymentId ? updatedPayment : item));
-      await onUpdated();
+      await approveOperatorPayment(token, payment.paymentId);
+      await Promise.all([load(true), onUpdated()]);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.');
     } finally {
@@ -113,11 +129,9 @@ export const OwnerMatchTransactionReviewModal = ({
     setBusyId(payment.paymentId);
     setError('');
     try {
-      const updatedPayment = await rejectOperatorPayment(token, payment.paymentId, reason);
-      setPayments((current) => current.map((item) =>
-        item.paymentId === updatedPayment.paymentId ? updatedPayment : item));
+      await rejectOperatorPayment(token, payment.paymentId, reason);
       setRejectReasons((current) => ({ ...current, [payment.paymentId]: '' }));
-      await onUpdated();
+      await Promise.all([load(true), onUpdated()]);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.');
     } finally {
@@ -146,7 +160,7 @@ export const OwnerMatchTransactionReviewModal = ({
               Biên lai của nhóm chơi
             </h2>
             <p className="mt-1 text-[13px] text-on-surface-variant">
-              Xác nhận hoặc từ chối riêng từng người chơi.
+              Một giao dịch gộp chỉ cần xác nhận hoặc từ chối một lần.
             </p>
           </div>
           <button
@@ -192,17 +206,25 @@ export const OwnerMatchTransactionReviewModal = ({
             </div>
           )}
           <div className="mt-6 grid gap-5 lg:grid-cols-2">
-            {payments.map((payment) => {
+            {groupedPayments.map((group) => {
+              const payment = group.representative;
+              const isBatch = group.payments.length > 1 || payment.groupPaymentCount > 1;
               const isBusy = busyId === payment.paymentId;
               const rejectReason = rejectReasons[payment.paymentId] ?? '';
+              const playerNames = group.payments.map((item) => item.playerName).join(', ');
               return (
-                <article className="overflow-hidden rounded-xl border border-outline-variant" key={payment.paymentId}>
+                <article className="overflow-hidden rounded-xl border border-outline-variant" key={payment.paymentGroupId ?? payment.paymentId}>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4">
                     <div>
-                      <p className="text-[16px] font-bold">{payment.playerName}</p>
+                      <p className="text-[16px] font-bold">{isBatch ? `Giao dịch gộp ${group.payments.length} người` : payment.playerName}</p>
                       <p className="mt-1 text-[12px] text-on-surface-variant">
-                        Phần thanh toán: {currency.format(payment.amount)}
+                        Tổng thanh toán: {currency.format(group.groupTotalAmount)}
                       </p>
+                      {isBatch && (
+                        <p className="mt-2 text-[12px] leading-5 text-on-surface-variant">
+                          <strong>Các phần được thanh toán:</strong> {playerNames}
+                        </p>
+                      )}
                     </div>
                     <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClasses[payment.paymentStatus] ?? 'bg-slate-100 text-slate-700'}`}>
                       {statusLabels[payment.paymentStatus] ?? payment.paymentStatus}
@@ -213,7 +235,7 @@ export const OwnerMatchTransactionReviewModal = ({
                     {payment.receiptImageUrl ? (
                       <a href={payment.receiptImageUrl} rel="noreferrer" target="_blank">
                         <img
-                          alt={`Biên lai của ${payment.playerName}`}
+                          alt={isBatch ? `Biên lai thanh toán cho ${playerNames}` : `Biên lai của ${payment.playerName}`}
                           className="h-64 w-full rounded-lg border object-contain"
                           src={payment.receiptImageUrl}
                         />
@@ -245,7 +267,7 @@ export const OwnerMatchTransactionReviewModal = ({
                             type="button"
                           >
                             <XCircle className="h-4 w-4" />
-                            Từ chối
+                            {isBatch ? 'Từ chối toàn bộ' : 'Từ chối'}
                           </button>
                           <button
                             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
@@ -254,7 +276,7 @@ export const OwnerMatchTransactionReviewModal = ({
                             type="button"
                           >
                             {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                            Chấp nhận
+                            {isBatch ? 'Duyệt toàn bộ' : 'Chấp nhận'}
                           </button>
                         </div>
                       </>

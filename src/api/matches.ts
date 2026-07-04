@@ -86,7 +86,11 @@ export type MatchParticipant = {
   isHost: boolean;
   requestedAt: string;
   respondedAt?: string | null;
+  paymentId?: number | null;
   paymentStatus?: string | null;
+  qrImageUrl?: string | null;
+  transferContent?: string | null;
+  paymentRejectionReason?: string | null;
   checkInStatus: string;
   checkedInAt?: string | null;
 };
@@ -127,6 +131,26 @@ export type MatchMessage = {
   messageType: string;
   sentAt: string;
   isMine: boolean;
+};
+
+export type MatchSlotOption = {
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  status: string;
+  isCompatibleForAll: boolean;
+  compatiblePlayerCount: number;
+  requiredPlayerCount: number;
+  voteCount: number;
+  voterNames: string[];
+  isVotedByMe: boolean;
+};
+
+export type MatchSlotVoteInput = {
+  courtId: number;
+  startTime: string;
+  endTime: string;
 };
 
 export type MatchPlayerReview = {
@@ -182,11 +206,17 @@ export const getMatchPlayerRecommendations = (token: string, input: {
   token,
 );
 
-export const getOpenMatches = (token?: string, filters: MatchSearchFilters = {}) =>
-  apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/open${queryString(filters)}`, {}, token);
+export const getOpenMatches = (
+  token?: string,
+  filters: MatchSearchFilters = {},
+  options: Pick<RequestInit, 'signal'> = {},
+) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/open${queryString(filters)}`, options, token);
 
-export const getMyMatches = (token: string, pagination: PaginationParams = {}) =>
-  apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/mine${queryString(pagination)}`, {}, token);
+export const getMyMatches = (
+  token: string,
+  pagination: PaginationParams = {},
+  options: Pick<RequestInit, 'signal'> = {},
+) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/mine${queryString(pagination)}`, options, token);
 
 export const getMatchDetail = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/Match/${matchId}`, {}, token);
@@ -261,6 +291,26 @@ export const createMatchBooking = (token: string, matchId: number, input: {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
+export const getMatchSlotOptions = (
+  token: string,
+  matchId: number,
+  venueId: number,
+  date: string,
+) => apiRequest<MatchSlotOption[]>(
+  `/api/Match/${matchId}/slot-options${queryString({ venueId, date })}`,
+  {},
+  token,
+);
+export const voteMatchSlot = (token: string, matchId: number, input: MatchSlotVoteInput) =>
+  apiRequest<MatchSlotOption[]>(`/api/Match/${matchId}/slot-votes`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }, token);
+export const unvoteMatchSlot = (token: string, matchId: number, input: MatchSlotVoteInput) =>
+  apiRequest<MatchSlotOption[]>(`/api/Match/${matchId}/slot-votes`, {
+    method: 'DELETE',
+    body: JSON.stringify(input),
+  }, token);
 export const cancelMatch = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/cancel`, { method: 'POST' }, token);
 export const reopenMatch = (token: string, matchId: number) =>

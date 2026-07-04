@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CalendarRange,
@@ -52,6 +52,24 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
 }).format(new Date(`${value}T00:00:00`));
 
 const timePart = (value: string) => value.slice(11, 16);
+const matchListRefreshActions = new Set([
+  'Created',
+  'JoinRequested',
+  'ParticipantWithdrawn',
+  'ParticipantApproved',
+  'ParticipantRejected',
+  'ParticipantRemoved',
+  'ReadyToBook',
+  'BookingCreated',
+  'Cancelled',
+  'Reopened',
+  'Completed',
+  'BookingExpired',
+  'Expired',
+  'PlayersInvited',
+  'InvitationAccepted',
+  'InvitationDeclined',
+]);
 
 export const MyMatches = () => {
   const { token } = useAuth();
@@ -60,24 +78,32 @@ export const MyMatches = () => {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
+  const requestIdRef = useRef(0);
 
-  const load = async () => {
+  const load = async (options: Pick<RequestInit, 'signal'> = {}) => {
     if (!token) return;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     try {
-      const result = await getMyMatches(token, { page, pageSize: 10 });
+      const result = await getMyMatches(token, { page, pageSize: 10 }, options);
+      if (requestId !== requestIdRef.current) return;
       setMatches(result.items);
       setPagination(result);
       setError('');
     } catch (reason) {
+      if (options.signal?.aborted || requestId !== requestIdRef.current) return;
       setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách phòng.');
     }
   };
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load({ signal: controller.signal });
+    return () => controller.abort();
   }, [page, token]);
 
-  useMatchRealtime(() => {
+  useMatchRealtime((event) => {
+    if (!matchListRefreshActions.has(event.action)) return;
     void load();
   });
 
