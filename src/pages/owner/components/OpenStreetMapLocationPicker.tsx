@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Crosshair, MapPin, Search } from 'lucide-react';
+import { Crosshair, MapPin } from 'lucide-react';
 import { divIcon, type LatLngExpression, type LeafletMouseEvent } from 'leaflet';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { LocationSearchControls } from './LocationSearchControls';
+import { createLocationSelectionController } from './locationSelection';
 import 'leaflet/dist/leaflet.css';
 
 type LocationValue = {
@@ -79,6 +81,10 @@ export const OpenStreetMapLocationPicker = ({
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [status, setStatus] = useState('Tìm địa chỉ, kéo marker hoặc bấm trực tiếp trên bản đồ.');
+  const selectionController = useMemo(
+    () => createLocationSelectionController(reverseAddress),
+    [],
+  );
 
   const position = useMemo<LatLngExpression | null>(() => {
     const lat = coordinate(value.latitude);
@@ -88,17 +94,15 @@ export const OpenStreetMapLocationPicker = ({
 
   const selectPosition = async (lat: number, lng: number, knownAddress?: string) => {
     setStatus('Đang xác định địa chỉ...');
-    let address = knownAddress ?? value.address;
-    if (!knownAddress) {
-      try { address = await reverseAddress(lat, lng); }
-      catch { setStatus('Đã cập nhật tọa độ nhưng không lấy được tên địa chỉ.'); }
-    }
-    onChange({ address, latitude: lat.toFixed(7), longitude: lng.toFixed(7) });
-    if (address) setStatus('Đã cập nhật vị trí sân.');
+    const outcome = await selectionController.select(lat, lng, knownAddress);
+    if (outcome.status === 'stale') return;
+    onChange(outcome.value);
+    setStatus(outcome.status === 'success'
+      ? 'Đã cập nhật vị trí sân.'
+      : 'Đã cập nhật tọa độ nhưng không lấy được tên địa chỉ.');
   };
 
-  const searchAddress = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const searchAddress = async () => {
     const keyword = query.trim();
     if (!keyword) return;
     setIsSearching(true);
@@ -155,13 +159,12 @@ export const OpenStreetMapLocationPicker = ({
         </button>
       </div>
 
-      <form className="flex gap-2" onSubmit={searchAddress}>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
-          <input className="w-full rounded-lg border border-outline-variant bg-white py-2.5 pl-9 pr-3 text-[14px] outline-none focus:border-primary" onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên đường, phường/xã, quận/huyện..." value={query} />
-        </div>
-        <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-60" disabled={isSearching} type="submit">{isSearching ? 'Đang tìm...' : 'Tìm'}</button>
-      </form>
+      <LocationSearchControls
+        isSearching={isSearching}
+        onQueryChange={setQuery}
+        onSearch={() => { void searchAddress(); }}
+        query={query}
+      />
 
       {results.length > 0 && (
         <div className="max-h-48 overflow-y-auto rounded-lg border border-outline-variant bg-white shadow-sm">

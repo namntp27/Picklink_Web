@@ -23,7 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import { getMyMatches, type MatchSummary } from '../../api/matches';
 import { OpenStreetMapLocationPicker } from '../owner/components/OpenStreetMapLocationPicker';
-import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../api/cloudinary';
+import { uploadToCloudinary } from '../../api/cloudinary';
 import { currentCommunityUser } from '../../data/communityPosts';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';
@@ -86,7 +86,6 @@ export const CreatePost = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [isDeletingImage, setIsDeletingImage] = useState(false);
   const [tagDraft, setTagDraft] = useState('');
   const [lookingFor, setLookingFor] = useState(
     searchParams.get('mode') === 'find_players' || searchParams.get('attach') === 'people'
@@ -256,26 +255,7 @@ export const CreatePost = () => {
     }
   };
 
-  const handleDeleteImage = async () => {
-    if (!imageUrl) return;
-
-    const publicId = getPublicIdFromUrl(imageUrl);
-    if (!publicId) {
-      setImageUrl('');
-      return;
-    }
-
-    setIsDeletingImage(true);
-    try {
-      await deleteFromCloudinary(token, publicId, 'image');
-      setImageUrl('');
-    } catch (err: any) {
-      console.error('Failed to delete image from Cloudinary:', err);
-      setImageUrl('');
-    } finally {
-      setIsDeletingImage(false);
-    }
-  };
+  const handleDeleteImage = () => setImageUrl('');
 
   const selectedClub = useMemo(() => userGroups.find((g) => g.groupId === selectedGroupId), [userGroups, selectedGroupId]);
   const name = user?.name || '';
@@ -530,11 +510,10 @@ export const CreatePost = () => {
                     </div>
                     <button
                       onClick={handleDeleteImage}
-                      disabled={isDeletingImage}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] font-bold text-[13px] rounded-lg transition-colors disabled:opacity-60"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-[#ffdad6] hover:bg-[#ffb4ab] text-[#ba1a1a] font-bold text-[13px] rounded-lg transition-colors"
                       type="button"
                     >
-                      {isDeletingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                      <X className="h-4 w-4" />
                       <span>Xóa ảnh</span>
                     </button>
                   </div>

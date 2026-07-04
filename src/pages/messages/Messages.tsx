@@ -56,7 +56,7 @@ import {
   type GroupImage,
   type DirectConversation,
 } from '../../api/community';
-import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../api/cloudinary';
+import { uploadToCloudinary } from '../../api/cloudinary';
 
 type ConversationKind = 'match' | 'booking' | 'club' | 'direct';
 type ConversationStatus = 'online' | 'offline' | 'playing';
@@ -477,8 +477,7 @@ export const Messages = () => {
     if (!token || !activeConversation?.groupId) return;
     if (!confirm('Xóa ảnh giới thiệu này?')) return;
 
-    const targetImage = introImages.find((img) => img.groupImageId === imageId);
-    if (!targetImage) return;
+    if (!introImages.some((img) => img.groupImageId === imageId)) return;
 
     try {
       await removeGroupImage(token, activeConversation.groupId, imageId);
@@ -490,13 +489,6 @@ export const Messages = () => {
             : g
         )
       );
-
-      const publicId = getPublicIdFromUrl(targetImage.imageUrl);
-      if (publicId) {
-        await deleteFromCloudinary(token, publicId, 'image').catch((err) => {
-          console.error('Failed to physically delete file from Cloudinary:', err);
-        });
-      }
     } catch (err: any) {
       alert(err.message || 'Không thể xóa ảnh.');
     }

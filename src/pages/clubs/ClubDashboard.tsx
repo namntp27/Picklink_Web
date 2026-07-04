@@ -62,7 +62,7 @@ import {
   type CommunityPost,
   type GroupImage,
 } from '../../api/community';
-import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../../api/cloudinary';
+import { uploadToCloudinary } from '../../api/cloudinary';
 
 type DashboardTab = 'overview' | 'members' | 'events' | 'posts' | 'chat' | 'settings';
 type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Huấn luyện viên' | 'Thành viên';
