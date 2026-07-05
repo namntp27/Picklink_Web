@@ -38,7 +38,27 @@ export type UpdatePlayerProfile = {
   weightKg?: number | null;
 };
 
+export type PublicPlayerProfile = {
+  playerId: number;
+  username: string;
+  profileImageUrl?: string | null;
+  city?: string | null;
+  commune?: string | null;
+  skillLevel: number;
+  prestige: number;
+  playerSubType?: string | null;
+  playFrequency?: string | null;
+  preferredTimeSlot?: string | null;
+  bio?: string | null;
+  matchesPlayed: number;
+};
+
 export const getMyProfile = (token: string) => apiRequest<PlayerProfile>('/api/Profile/me', {}, token);
+
+export const getPublicPlayerProfile = (
+  playerId: number,
+  options: Pick<RequestInit, 'signal'> = {},
+) => apiRequest<PublicPlayerProfile>(`/api/Profile/players/${playerId}`, options);
 
 export const updateMyProfile = (token: string, input: UpdatePlayerProfile) => apiRequest<PlayerProfile>('/api/Profile/me', {
   method: 'PUT',

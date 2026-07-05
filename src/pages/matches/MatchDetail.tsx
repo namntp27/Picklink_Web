@@ -9,6 +9,7 @@ import {
   CreditCard,
   MapPin,
   MessageCircle,
+  Route,
   Send,
   ShieldCheck,
   Trash2,
@@ -37,6 +38,7 @@ import {
   voteMatchSlot,
   type MatchDetailResponse,
   type MatchMessage,
+  type MatchParticipant,
   type MatchSlotOption,
 } from '../../api/matches';
 import { ApiError } from '../../api/client';
@@ -49,6 +51,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
+import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
+import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 
 const statusLabels: Record<MatchDetailResponse['status'], string> = {
   Recruiting: 'Đang tìm người',
@@ -125,6 +129,8 @@ export const MatchDetail = () => {
   const [receipt, setReceipt] = useState<File | null>(null);
   const [selectedPaymentPlayerIds, setSelectedPaymentPlayerIds] = useState<number[]>([]);
   const [batchPreview, setBatchPreview] = useState<BatchPaymentPreview | null>(null);
+  const [showVenueMap, setShowVenueMap] = useState(false);
+  const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<MatchParticipant | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -532,6 +538,9 @@ export const MatchDetail = () => {
   }
 
   const inputClass = 'community-control';
+  const playableSlotLabels = match.availabilitySlots.length > 0
+    ? match.availabilitySlots.map((slot) => `${slot.timeStart.slice(0, 5)} - ${slot.timeEnd.slice(0, 5)}`)
+    : [`${match.preferredTimeStart.slice(0, 5)} - ${match.preferredTimeEnd.slice(0, 5)}`];
 
   return (
     <CommunityPage className="match-detail-page">
@@ -559,6 +568,7 @@ export const MatchDetail = () => {
             </div>
           )}
 
+          <div className="match-overview-grid">
           <section className="community-panel match-panel match-scope-panel">
             <div className="match-section-heading">
               <div>
@@ -570,42 +580,50 @@ export const MatchDetail = () => {
             <div className="match-scope-grid">
               <div className="match-info-tile"><MapPin className="h-4 w-4" /><p>Khu vực</p><strong>{match.ward}, {match.province}</strong><span>Bán kính {match.searchRadiusKm} km</span></div>
               <div className="match-info-tile"><CalendarRange className="h-4 w-4" /><p>Ngày có thể chơi</p><strong>{dateLabel(match.availableDateFrom)}</strong><span>đến {dateLabel(match.availableDateTo)}</span></div>
-              <div className="match-info-tile"><Clock className="h-4 w-4" /><p>Slot đã chọn</p><strong>{match.availabilitySlots.length || 1} khung/ngày</strong><span>{match.preferredTimeStart} - {match.preferredTimeEnd}</span></div>
+              <div className="match-info-tile">
+                <Clock className="h-4 w-4" />
+                <p>Các slot có thể chơi</p>
+                <strong>{playableSlotLabels.join(' · ')}</strong>
+                <span>{playableSlotLabels.length} khung/ngày</span>
+              </div>
               <div className="match-info-tile"><Users className="h-4 w-4" /><p>Trình độ / hình thức</p><strong>Level {match.minSkillLevel}-{match.maxSkillLevel}</strong><span>{match.matchType}</span></div>
             </div>
             <div className="mt-4">
-              <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Cụm sân mong muốn</p>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[12px] font-extrabold text-[#526158]">Cụm sân mong muốn</p>
+                {match.preferredVenues.some((venue) =>
+                  typeof venue.latitude === 'number'
+                  && typeof venue.longitude === 'number') && (
+                  <button
+                    className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[10px]"
+                    onClick={() => setShowVenueMap(true)}
+                    title="Xem vị trí, khoảng cách và lộ trình"
+                    type="button"
+                  >
+                    <Route aria-hidden="true" className="h-3 w-3" />
+                    Bản đồ và lộ trình
+                  </button>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">{match.preferredVenues.map((venue) => <span className="community-badge text-[#526158]" key={venue.venueId}>{venue.venueName}</span>)}</div>
             </div>
-            {match.availabilitySlots.length > 0 && (
-              <div className="mt-4 border-t border-[#d8e4d4] pt-4">
-                <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Các slot có thể chơi</p>
-                <div className="flex flex-wrap gap-2">
-                  {match.availabilitySlots.map((slot) => (
-                    <span className="community-badge text-[#526158]" key={slot.matchAvailabilitySlotId}>
-                      {slot.timeStart} - {slot.timeEnd}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </section>
 
-          <section className="community-panel match-panel">
+          <section className="community-panel match-panel match-roster-panel">
             <div className="match-section-heading">
-              <div><p className="match-eyebrow">đội hình</p><h2>Thành viên</h2><p>Yêu cầu chờ duyệt chưa được tính và chưa thể truy cập chat.</p></div>
+              <div><p className="match-eyebrow">đội hình ghép trận</p><h2>Thành viên</h2></div>
               <span className="match-count-pill">{approved.length}/{match.requiredPlayerCount}</span>
             </div>
 
             {match.isHost && pending.length > 0 && (
-              <div className="mt-5 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-[14px] font-bold text-amber-900">Yêu cầu đang chờ duyệt</p>
+              <div className="mt-3 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2">
+                <p className="text-[11px] font-bold text-amber-900">Chờ duyệt ({pending.length})</p>
                 {pending.map((participant) => (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white p-3" key={participant.participantId}>
-                    <div><p className="text-[14px] font-bold">{participant.playerName}</p><p className="text-[12px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p></div>
-                    <div className="flex gap-2">
-                      <button className="grid h-9 w-9 place-items-center rounded-lg border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-4 w-4" /></button>
-                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-9 w-9 !min-h-9 !p-0" disabled={isBusy} onClick={() => token && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-4 w-4" /></button>
+                  <div className="flex items-center justify-between gap-2 rounded-md bg-white p-2" key={participant.participantId}>
+                    <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p></div>
+                    <div className="flex shrink-0 gap-1">
+                      <button className="grid h-7 w-7 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
+                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-7 w-7 !min-h-7 !p-0" disabled={isBusy} onClick={() => token && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 ))}
@@ -613,11 +631,11 @@ export const MatchDetail = () => {
             )}
 
             {match.isHost && invited.length > 0 && (
-              <div className="mt-5 border-y border-[#d8e4d4] py-4">
-                <p className="text-[13px] font-extrabold text-[#0b2228]">Lời mời đang chờ ({invited.length})</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 border-y border-[#d8e4d4] py-2.5">
+                <p className="text-[11px] font-extrabold text-[#0b2228]">Đang chờ phản hồi ({invited.length})</p>
+                <div className="mt-2 flex flex-wrap gap-1">
                   {invited.map((participant) => (
-                    <span className="community-badge text-[#526158]" key={participant.participantId}>
+                    <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[9px] text-[#526158]" key={participant.participantId}>
                       {participant.playerName} · Level {participant.skillLevel.toFixed(1)}
                     </span>
                   ))}
@@ -635,7 +653,17 @@ export const MatchDetail = () => {
                     className={`match-member-card ${participant.isHost ? 'match-member-card--host' : 'match-member-card--participant'}`}
                     key={participant.participantId}
                   >
-                    <div className="match-member-avatar">{participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}</div>
+                    <button
+                      aria-label={`Xem thông tin ${participant.playerName}`}
+                      className="match-member-avatar overflow-hidden transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
+                      onClick={() => setSelectedProfilePlayer(participant)}
+                      title="Xem thông tin người chơi"
+                      type="button"
+                    >
+                      {participant.avatarUrl
+                        ? <img alt="" className="h-full w-full object-cover" src={participant.avatarUrl} />
+                        : participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}
+                    </button>
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         <span className={`match-role-badge ${participant.isHost ? 'match-role-badge--host' : 'match-role-badge--participant'}`}>
@@ -644,23 +672,31 @@ export const MatchDetail = () => {
                         </span>
                         {isCurrentPlayer && <span className="match-self-badge">Bạn</span>}
                       </div>
-                      <p className="truncate text-[14px] font-bold">{participant.playerName}</p>
-                      <p className="text-[12px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p>
+                      <button
+                        className="block max-w-full truncate text-left text-[12px] font-bold hover:text-[#477313] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
+                        onClick={() => setSelectedProfilePlayer(participant)}
+                        title={`Xem thông tin ${participant.playerName}`}
+                        type="button"
+                      >
+                        {participant.playerName}
+                      </button>
+                      <p className="text-[10px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p>
                     </div>
                     {match.bookingId && isApprovedMember && participant.paymentStatus && (
-                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
                         {participant.paymentStatus === 'Paid' && <CheckCircle2 className="h-3.5 w-3.5" />}
                         {paymentStatusLabels[participant.paymentStatus] ?? participant.paymentStatus}
                       </span>
                     )}
                     {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
-                      <button className="text-red-600" disabled={isBusy} onClick={() => token && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-5 w-5" /></button>
+                      <button className="grid h-7 w-7 shrink-0 place-items-center text-red-600" disabled={isBusy} onClick={() => token && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </article>
                 );
               })}
             </div>
           </section>
+          </div>
 
           {isApprovedMember && match.status === 'ReadyToBook' && (
             <section className="community-panel match-panel match-schedule-panel">
@@ -922,6 +958,24 @@ export const MatchDetail = () => {
 
         </aside>
       </main>
+
+      {showVenueMap && (
+        <MatchVenueMapDialog
+          matchTitle={match.title}
+          onClose={() => setShowVenueMap(false)}
+          venues={match.preferredVenues}
+        />
+      )}
+
+      {selectedProfilePlayer && (
+        <PlayerProfileDialog
+          fallbackAvatarUrl={selectedProfilePlayer.avatarUrl}
+          fallbackName={selectedProfilePlayer.playerName}
+          onClose={() => setSelectedProfilePlayer(null)}
+          playerId={selectedProfilePlayer.playerId}
+          roleLabel={selectedProfilePlayer.isHost ? 'Chủ phòng' : 'Thành viên'}
+        />
+      )}
     </CommunityPage>
   );
 };

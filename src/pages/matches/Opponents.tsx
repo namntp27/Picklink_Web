@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
-import { AlertTriangle, Bot, CalendarRange, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Sparkles, Trash2, Trophy, UserPlus, UsersRound, X } from 'lucide-react';
+import { AlertTriangle, Bot, CalendarRange, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, UserPlus, UsersRound, X } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -15,8 +15,9 @@ import {
 } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
+import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 
-type PlayerLocation = { latitude: number; longitude: number };
+type PlayerLocation = { accuracy: number; latitude: number; longitude: number };
 type InvitationMode = 'automatic' | 'manual' | 'none';
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
 type ReverseGeocodeAddress = Record<string, string | undefined>;
@@ -24,7 +25,8 @@ type ReverseGeocodeResponse = { address?: ReverseGeocodeAddress };
 
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
-const PLAYER_LOCATION_CACHE_TTL_MS = 30 * 60 * 1000;
+const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_ACCURACY_METERS = 1_000;
 const skillLevelOptions = [
   { value: 1, label: 'Mới bắt đầu' },
   { value: 2, label: 'Cơ bản' },
@@ -58,7 +60,10 @@ const readCachedPlayerLocation = (): PlayerLocation | null => {
     const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
     if (!rawValue) return null;
     const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
-    const isValid = Number.isFinite(cached.latitude)
+    const isValid = Number.isFinite(cached.accuracy)
+      && cached.accuracy >= 0
+      && cached.accuracy <= MAX_CACHE_ACCURACY_METERS
+      && Number.isFinite(cached.latitude)
       && cached.latitude >= -90
       && cached.latitude <= 90
       && Number.isFinite(cached.longitude)
@@ -69,13 +74,18 @@ const readCachedPlayerLocation = (): PlayerLocation | null => {
       window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
       return null;
     }
-    return { latitude: cached.latitude, longitude: cached.longitude };
+    return {
+      accuracy: cached.accuracy,
+      latitude: cached.latitude,
+      longitude: cached.longitude,
+    };
   } catch {
     return null;
   }
 };
 
 const cachePlayerLocation = (location: PlayerLocation) => {
+  if (location.accuracy > MAX_CACHE_ACCURACY_METERS) return;
   try {
     window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({ ...location, cachedAt: Date.now() }));
   } catch {
@@ -141,15 +151,15 @@ const locationErrorMessage = (error: GeolocationPositionError) => {
 
 const markerIcon = (selected: boolean) => divIcon({
   className: '',
-  html: `<div style="width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border-radius:50% 50% 50% 0;background:${selected ? '#477313' : '#98D951'};border:3px solid white;box-shadow:0 3px 12px rgba(22,26,18,.24);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:9px;height:9px;border-radius:50%;background:${selected ? '#98D951' : '#17310A'}"></div></div>`,
-  iconAnchor: selected ? [19, 38] : [16, 32],
-  popupAnchor: [0, selected ? -38 : -32],
+  html: `<div style="width:${selected ? 36 : 30}px;height:${selected ? 36 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#c5221f' : '#ea4335'};border:3px solid white;box-shadow:0 4px 12px rgba(60,64,67,.32);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:white"></div></div>`,
+  iconAnchor: selected ? [18, 36] : [15, 30],
+  popupAnchor: [0, selected ? -36 : -30],
 });
 
 const playerLocationIcon = divIcon({
   className: '',
-  html: '<div style="width:24px;height:24px;border-radius:50%;background:#477313;border:4px solid white;box-shadow:0 0 0 4px rgba(152,217,81,.28),0 3px 12px rgba(22,26,18,.24)"></div>',
-  iconAnchor: [12, 12],
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:#1a73e8;border:4px solid white;box-shadow:0 0 0 6px rgba(26,115,232,.2),0 3px 10px rgba(60,64,67,.32)"></div>',
+  iconAnchor: [11, 11],
   popupAnchor: [0, -14],
 });
 
@@ -192,6 +202,7 @@ export const Opponents = () => {
   const [location, setLocation] = useState<PlayerLocation | null>(null);
   const [venues, setVenues] = useState<MatchPreferredVenue[]>([]);
   const [selectedVenueIds, setSelectedVenueIds] = useState<number[]>([]);
+  const [showRouteMap, setShowRouteMap] = useState(false);
   const [dateFrom, setDateFrom] = useState(today());
   const [dateTo, setDateTo] = useState(today());
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlotInput[]>([
@@ -354,7 +365,11 @@ export const Opponents = () => {
     if (!cachedLocation) setLocationAreaStatus('Đang lấy vị trí hiện tại...');
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
-        const playerLocation = { latitude: coords.latitude, longitude: coords.longitude };
+        const playerLocation = {
+          accuracy: Math.max(0, coords.accuracy),
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        };
         setLocation(playerLocation);
         cachePlayerLocation(playerLocation);
         setError('');
@@ -386,7 +401,7 @@ export const Opponents = () => {
         }
         setIsLocating(false);
       },
-      { enableHighAccuracy: false, timeout: 20_000, maximumAge: 60_000 },
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
     );
   };
 
@@ -839,18 +854,29 @@ export const Opponents = () => {
         </form>
 
         <section className="community-panel overflow-hidden xl:sticky xl:top-20">
-          <div className="border-b border-[#d8e4d4] p-4">
-            <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Các cụm sân phù hợp</h2>
-            <p className="mt-1 text-[11px] font-semibold leading-5 text-[#718077]">Bản đồ dùng để chọn danh sách mong muốn. Chưa có sân hoặc khung giờ nào được giữ.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d8e4d4] p-4">
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Các cụm sân phù hợp</h2>
+              <p className="mt-1 text-[11px] font-semibold leading-5 text-[#718077]">Bản đồ dùng để chọn danh sách mong muốn. Chưa có sân hoặc khung giờ nào được giữ.</p>
+            </div>
+            <button
+              className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg bg-[#1a73e8] px-3 text-[11px] font-bold text-white transition-colors hover:bg-[#1765cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={preferredVenueOptions.length === 0}
+              onClick={() => setShowRouteMap(true)}
+              type="button"
+            >
+              <Route aria-hidden="true" className="h-4 w-4" />
+              Xem khoảng cách và lộ trình
+            </button>
           </div>
           <div className="h-[420px] bg-[#e7eee4] sm:h-[520px] xl:h-[calc(100dvh-190px)] xl:min-h-[540px] xl:max-h-[720px] relative z-10">
-            <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={12}>
+            <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="match-venue-map-google h-full w-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport location={location} radiusKm={radiusKm} venues={visibleVenues} />
               {location && (
                 <Circle
                   center={[location.latitude, location.longitude]}
-                  pathOptions={{ color: '#477313', fillColor: '#98D951', fillOpacity: 0.14, opacity: 0.9, weight: 2 }}
+                  pathOptions={{ color: '#1a73e8', fillColor: '#1a73e8', fillOpacity: 0.1, opacity: 0.9, weight: 2 }}
                   radius={radiusKm * 1_000}
                 />
               )}
@@ -875,6 +901,17 @@ export const Opponents = () => {
           </div>
         </section>
       </main>
+
+      {showRouteMap && (
+        <MatchVenueMapDialog
+          initialSelectedVenueId={selectedVenueIds[0] ?? preferredVenueOptions[0]?.venueId}
+          matchTitle="Chọn cụm sân mong muốn"
+          onClose={() => setShowRouteMap(false)}
+          onVenueToggle={toggleVenue}
+          selectedVenueIds={selectedVenueIds}
+          venues={preferredVenueOptions}
+        />
+      )}
 
       {error && (
         <div

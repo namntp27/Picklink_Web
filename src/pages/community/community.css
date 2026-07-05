@@ -237,6 +237,58 @@ textarea.community-control {
   line-height: 1;
 }
 
+.match-venue-map-google .leaflet-tile-pane {
+  filter: saturate(0.82) contrast(0.96) brightness(1.04);
+}
+
+.match-venue-map-google .leaflet-top.leaflet-left {
+  inset: auto 12px 76px auto;
+}
+
+.match-venue-map-google .leaflet-top.leaflet-left .leaflet-control {
+  margin: 0;
+}
+
+.match-venue-map-google .leaflet-control-zoom {
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(60 64 67 / 0.34);
+}
+
+.match-venue-map-google .leaflet-control-zoom a {
+  width: 40px;
+  height: 40px;
+  border-color: #e8eaed;
+  background: #fff;
+  color: #3c4043;
+  font-size: 20px;
+  line-height: 40px;
+}
+
+.match-venue-map-google .leaflet-control-zoom a:hover {
+  background: #f8f9fa;
+  color: #1a73e8;
+}
+
+.match-venue-map-google .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgb(60 64 67 / 0.3);
+}
+
+.match-venue-map-google .leaflet-popup-content {
+  margin: 12px 14px;
+  color: #202124;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.match-venue-map-google .leaflet-control-attribution {
+  background: rgb(255 255 255 / 0.86);
+  color: #5f6368;
+  font-size: 9px;
+}
+
 .community-hero {
   position: relative;
   overflow: hidden;
@@ -522,6 +574,16 @@ textarea.community-control {
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 7px 20px rgb(8 29 36 / 0.05);
 }
 
+.match-overview-grid {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.match-overview-grid > * {
+  min-width: 0;
+}
+
 .match-section-heading {
   display: flex;
   align-items: flex-start;
@@ -642,6 +704,44 @@ textarea.community-control {
   line-height: 1.45;
 }
 
+.match-scope-panel .match-scope-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #d8e4d4;
+  border-radius: 10px;
+  background: #fbfcfa;
+}
+
+.match-scope-panel .match-info-tile {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid #e2eae0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.match-scope-panel .match-info-tile:last-child {
+  border-bottom: 0;
+}
+
+.match-scope-panel .match-info-tile svg {
+  grid-row: 1 / span 3;
+  margin-top: 1px;
+}
+
+.match-scope-panel .match-info-tile p,
+.match-scope-panel .match-info-tile strong,
+.match-scope-panel .match-info-tile span {
+  grid-column: 2;
+}
+
+.match-scope-panel .match-info-tile p {
+  margin-top: 0;
+}
+
 .match-member-card {
   display: flex;
   min-width: 0;
@@ -663,6 +763,31 @@ textarea.community-control {
 .match-member-card--participant {
   border-color: #d8e4d4;
   background: #f7faf5;
+}
+
+.match-roster-panel .match-member-grid {
+  margin-top: 8px;
+}
+
+.match-roster-panel .match-member-card {
+  gap: 7px;
+  padding: 7px;
+  border-radius: 9px;
+}
+
+.match-roster-panel .match-member-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  font-size: 10px;
+}
+
+.match-roster-panel .match-role-badge,
+.match-roster-panel .match-self-badge {
+  gap: 3px;
+  padding: 3px 6px;
+  font-size: 8px;
+  letter-spacing: 0;
 }
 
 .match-member-avatar {
@@ -983,6 +1108,17 @@ textarea.community-control {
 
   .match-section-heading {
     display: grid;
+  }
+}
+
+@media (min-width: 1180px) {
+  .match-overview-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.9fr);
+    align-items: start;
+  }
+
+  .match-roster-panel .match-member-grid {
+    grid-template-columns: 1fr;
   }
 }
 

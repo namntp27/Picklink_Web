@@ -8,6 +8,7 @@ import {
   LocateFixed,
   MapPin,
   Navigation,
+  Route,
   Search,
   SlidersHorizontal,
   Star,
@@ -23,16 +24,19 @@ import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { MatchVenueMapDialog } from '../matches/components/MatchVenueMapDialog';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 
-type PlayerLocation = { latitude: number; longitude: number };
+type Coordinates = { latitude: number; longitude: number };
+type PlayerLocation = Coordinates & { accuracy: number };
 type LocatedVenue = BookingVenue & { latitude: number; longitude: number };
 type MainLayoutContext = { setShowFooter?: (value: boolean) => void };
 
 const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
-const PLAYER_LOCATION_CACHE_TTL_MS = 30 * 60 * 1000;
+const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_ACCURACY_METERS = 1_000;
 
 const compactButtonClass = 'h-10 rounded-xl px-3 text-[13px] font-bold';
 const compactInputClass = 'h-10 rounded-xl border-[#dbe8d3] bg-white text-[13px] focus:border-primary-container focus:ring-primary-container/30';
@@ -42,7 +46,10 @@ const readCachedPlayerLocation = (): PlayerLocation | null => {
     const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
     if (!rawValue) return null;
     const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
-    const isValid = Number.isFinite(cached.latitude)
+    const isValid = Number.isFinite(cached.accuracy)
+      && cached.accuracy >= 0
+      && cached.accuracy <= MAX_CACHE_ACCURACY_METERS
+      && Number.isFinite(cached.latitude)
       && cached.latitude >= -90
       && cached.latitude <= 90
       && Number.isFinite(cached.longitude)
@@ -53,13 +60,18 @@ const readCachedPlayerLocation = (): PlayerLocation | null => {
       window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
       return null;
     }
-    return { latitude: cached.latitude, longitude: cached.longitude };
+    return {
+      accuracy: cached.accuracy,
+      latitude: cached.latitude,
+      longitude: cached.longitude,
+    };
   } catch {
     return null;
   }
 };
 
 const cachePlayerLocation = (location: PlayerLocation) => {
+  if (location.accuracy > MAX_CACHE_ACCURACY_METERS) return;
   try {
     window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({ ...location, cachedAt: Date.now() }));
   } catch {
@@ -69,15 +81,15 @@ const cachePlayerLocation = (location: PlayerLocation) => {
 
 const venueIcon = (selected: boolean) => divIcon({
   className: '',
-  html: `<div style="width:${selected ? 34 : 30}px;height:${selected ? 34 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#0b2228' : '#e2ff57'};border:3px solid white;box-shadow:0 10px 24px rgba(8,29,36,.18);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:${selected ? '#e2ff57' : '#0b2228'}"></div></div>`,
-  iconAnchor: selected ? [17, 34] : [15, 30],
-  popupAnchor: [0, selected ? -34 : -30],
-  iconSize: selected ? [34, 34] : [30, 30],
+  html: `<div style="width:${selected ? 36 : 30}px;height:${selected ? 36 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#c5221f' : '#ea4335'};border:3px solid white;box-shadow:0 4px 12px rgba(60,64,67,.32);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:white"></div></div>`,
+  iconAnchor: selected ? [18, 36] : [15, 30],
+  popupAnchor: [0, selected ? -36 : -30],
+  iconSize: selected ? [36, 36] : [30, 30],
 });
 
 const playerIcon = divIcon({
   className: '',
-  html: '<div style="width:22px;height:22px;border-radius:50%;background:#0b2228;border:4px solid white;box-shadow:0 0 0 3px rgba(226,255,87,.35),0 10px 24px rgba(8,29,36,.2)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:#1a73e8;border:4px solid white;box-shadow:0 0 0 6px rgba(26,115,232,.2),0 3px 10px rgba(60,64,67,.32)"></div>',
   iconAnchor: [11, 11],
   iconSize: [22, 22],
 });
@@ -86,7 +98,7 @@ const isLocatedVenue = (venue: BookingVenue): venue is LocatedVenue =>
   typeof venue.latitude === 'number' && Number.isFinite(venue.latitude)
   && typeof venue.longitude === 'number' && Number.isFinite(venue.longitude);
 
-const distanceInKm = (from: PlayerLocation, to: PlayerLocation) => {
+const distanceInKm = (from: Coordinates, to: Coordinates) => {
   const radians = (value: number) => value * Math.PI / 180;
   const latitudeDelta = radians(to.latitude - from.latitude);
   const longitudeDelta = radians(to.longitude - from.longitude);
@@ -144,6 +156,7 @@ export const BookCourt = () => {
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [error, setError] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
+  const [showRouteMap, setShowRouteMap] = useState(false);
   const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(() => readCachedPlayerLocation());
   const [isLocating, setIsLocating] = useState(false);
   const [locationStatus, setLocationStatus] = useState(() => readCachedPlayerLocation()
@@ -225,7 +238,11 @@ export const BookCourt = () => {
     if (!cachedLocation && !refreshSilently) setLocationStatus('Đang xác định vị trí của bạn...');
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        const nextLocation = { latitude: coords.latitude, longitude: coords.longitude };
+        const nextLocation = {
+          accuracy: Math.max(0, coords.accuracy),
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        };
         setPlayerLocation(nextLocation);
         cachePlayerLocation(nextLocation);
         setLocationStatus('Danh sách đã được xếp theo khoảng cách gần nhất.');
@@ -237,7 +254,7 @@ export const BookCourt = () => {
           : locationErrorMessage(locationError));
         setIsLocating(false);
       },
-      { enableHighAccuracy: false, maximumAge: 5 * 60_000, timeout: 5_000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
     );
   };
 
@@ -457,14 +474,23 @@ export const BookCourt = () => {
           </aside>
 
           <div className="relative isolate z-10 min-h-[460px] overflow-hidden rounded-2xl border border-[#dbe8d3] bg-[#dfe9d7] shadow-[0_10px_28px_rgba(18,45,34,0.06)] lg:min-h-0">
-            <div className="absolute left-3 top-3 z-20 max-w-[min(360px,calc(100%-24px))] rounded-xl border border-white/70 bg-white/92 px-3 py-2 shadow-[0_10px_24px_rgba(8,29,36,0.12)] backdrop-blur-md">
+            <div className="absolute left-3 top-3 z-20 max-w-[min(360px,calc(100%-24px))] rounded-lg bg-white px-3 py-2 shadow-[0_2px_8px_rgba(60,64,67,0.3)]">
               <p className="text-[11px] font-black text-primary">Bản đồ sân</p>
               <p className="mt-0.5 line-clamp-2 text-[12px] font-semibold leading-5 text-[#53645a]">
                 Chọn một cụm sân bên trái để map tự căn vị trí.
               </p>
+              <button
+                className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg bg-[#1a73e8] px-3 text-[11px] font-bold text-white transition-colors hover:bg-[#1765cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={mappedVenues.length === 0}
+                onClick={() => setShowRouteMap(true)}
+                type="button"
+              >
+                <Route aria-hidden="true" className="h-4 w-4" />
+                Xem khoảng cách và lộ trình
+              </button>
             </div>
 
-            <MapContainer center={hanoiCenter} className="relative z-0 h-full min-h-[460px] w-full lg:min-h-full" scrollWheelZoom zoom={12}>
+            <MapContainer center={hanoiCenter} className="match-venue-map-google relative z-0 h-full min-h-[460px] w-full lg:min-h-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport playerLocation={playerLocation} selectedVenue={selectedVenue} venues={mappedVenues} />
               {playerLocation && (
@@ -503,6 +529,15 @@ export const BookCourt = () => {
           </div>
         </section>
       </main>
+
+      {showRouteMap && (
+        <MatchVenueMapDialog
+          initialSelectedVenueId={selectedVenueId}
+          matchTitle="Tìm sân pickleball"
+          onClose={() => setShowRouteMap(false)}
+          venues={mappedVenues}
+        />
+      )}
     </div>
   );
 };

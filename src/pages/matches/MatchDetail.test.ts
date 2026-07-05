@@ -22,6 +22,16 @@ const paymentApiSource = readFileSync(
   'utf8',
 );
 
+const matchVenueMapDialogSource = readFileSync(
+  new URL('./components/MatchVenueMapDialog.tsx', import.meta.url),
+  'utf8',
+);
+
+const playerProfileDialogSource = readFileSync(
+  new URL('./components/PlayerProfileDialog.tsx', import.meta.url),
+  'utf8',
+);
+
 test('match detail visually distinguishes host and regular members', () => {
   assert.match(matchDetailSource, /match-member-card--host/);
   assert.match(matchDetailSource, /match-member-card--participant/);
@@ -33,6 +43,16 @@ test('match detail visually distinguishes host and regular members', () => {
   assert.match(communityCss, /\.match-member-card--participant/);
   assert.match(communityCss, /\.match-role-badge--host/);
   assert.match(communityCss, /\.match-role-badge--participant/);
+});
+
+test('match scope and compact roster share one desktop row', () => {
+  assert.match(matchDetailSource, /match-overview-grid/);
+  assert.match(matchDetailSource, /match-roster-panel/);
+  assert.match(communityCss, /\.match-overview-grid/);
+  assert.match(communityCss, /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s+minmax\(340px,\s*0\.9fr\)/);
+  assert.match(communityCss, /\.match-scope-panel \.match-scope-grid[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(communityCss, /\.match-roster-panel \.match-member-grid/);
+  assert.match(communityCss, /\.match-roster-panel \.match-member-avatar/);
 });
 
 test('match detail previews and submits one receipt for multiple selected payment shares', () => {
@@ -88,4 +108,34 @@ test('match detail wires compatible slot voting API and guidance', () => {
   assert.match(matchDetailSource, /match-slot-button--compatible/);
   assert.match(matchDetailSource, /Rảnh/);
   assert.match(matchDetailSource, /Dùng chat để thảo luận, vote các slot rảnh chung rồi tạo booking khi cả nhóm chốt\./);
+});
+
+test('match detail opens the shared venue map from preferred venues', () => {
+  assert.match(matchDetailSource, /showVenueMap/);
+  assert.match(matchDetailSource, /setShowVenueMap\(true\)/);
+  assert.match(matchDetailSource, /<MatchVenueMapDialog/);
+  assert.match(matchDetailSource, /venues=\{match\.preferredVenues\}/);
+  assert.match(matchVenueMapDialogSource, /navigator\.geolocation\.watchPosition/);
+  assert.match(matchVenueMapDialogSource, /enableHighAccuracy:\s*true/);
+  assert.match(matchVenueMapDialogSource, /draggable/);
+  assert.match(matchVenueMapDialogSource, /router\.project-osrm\.org\/route\/v1\/driving/);
+});
+
+test('match scope shows playable slot ranges once inside the time tile', () => {
+  assert.match(matchDetailSource, /playableSlotLabels/);
+  assert.match(matchDetailSource, /<p>Các slot có thể chơi<\/p>/);
+  assert.match(matchDetailSource, /playableSlotLabels\.join\(' · '\)/);
+  assert.equal(matchDetailSource.match(/Các slot có thể chơi/g)?.length, 1);
+  assert.doesNotMatch(matchDetailSource, /mt-4 border-t border-\[#d8e4d4\] pt-4[\s\S]*match\.availabilitySlots\.map/);
+});
+
+test('match roster opens a public player profile from the member avatar or name', () => {
+  assert.match(matchDetailSource, /selectedProfilePlayer/);
+  assert.match(matchDetailSource, /setSelectedProfilePlayer\(participant\)/);
+  assert.match(matchDetailSource, /<PlayerProfileDialog/);
+  assert.match(matchDetailSource, /fallbackAvatarUrl=\{selectedProfilePlayer\.avatarUrl\}/);
+  assert.match(matchDetailSource, /playerId=\{selectedProfilePlayer\.playerId\}/);
+  assert.match(matchDetailSource, /roleLabel=\{selectedProfilePlayer\.isHost \? 'Chủ phòng' : 'Thành viên'\}/);
+  assert.match(matchDetailSource, /participant\.avatarUrl/);
+  assert.match(playerProfileDialogSource, /roleLabel/);
 });
