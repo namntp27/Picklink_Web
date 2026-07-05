@@ -39,7 +39,7 @@ const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ACCURACY_METERS = 1_000;
 
 const compactButtonClass = 'h-10 rounded-xl px-3 text-[13px] font-bold';
-const compactInputClass = 'h-10 rounded-xl border-[#dbe8d3] bg-white text-[13px] focus:border-primary-container focus:ring-primary-container/30';
+const compactInputClass = 'h-10 rounded-xl border-white/15 bg-[#102b31]/90 text-[13px] text-white placeholder:text-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#e2ff57]/45 focus:border-[#e2ff57] focus:bg-[#102b31] focus:ring-[#e2ff57]/20';
 
 const readCachedPlayerLocation = (): PlayerLocation | null => {
   try {
@@ -81,7 +81,7 @@ const cachePlayerLocation = (location: PlayerLocation) => {
 
 const venueIcon = (selected: boolean) => divIcon({
   className: '',
-  html: `<div style="width:${selected ? 36 : 30}px;height:${selected ? 36 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#c5221f' : '#ea4335'};border:3px solid white;box-shadow:0 4px 12px rgba(60,64,67,.32);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:white"></div></div>`,
+  html: `<div style="width:${selected ? 36 : 30}px;height:${selected ? 36 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#0b2228' : '#477313'};border:3px solid white;box-shadow:0 0 0 1px rgba(226,255,87,.4),0 5px 14px rgba(8,29,36,.28);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:#e2ff57"></div></div>`,
   iconAnchor: selected ? [18, 36] : [15, 30],
   popupAnchor: [0, selected ? -36 : -30],
   iconSize: selected ? [36, 36] : [30, 30],
@@ -89,7 +89,7 @@ const venueIcon = (selected: boolean) => divIcon({
 
 const playerIcon = divIcon({
   className: '',
-  html: '<div style="width:22px;height:22px;border-radius:50%;background:#1a73e8;border:4px solid white;box-shadow:0 0 0 6px rgba(26,115,232,.2),0 3px 10px rgba(60,64,67,.32)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:#e2ff57;border:4px solid white;box-shadow:0 0 0 6px rgba(152,217,81,.22),0 3px 12px rgba(8,29,36,.28)"></div>',
   iconAnchor: [11, 11],
   iconSize: [22, 22],
 });
@@ -291,13 +291,14 @@ export const BookCourt = () => {
       <main className="relative z-0 mx-auto grid w-full max-w-[1500px] gap-3 px-3 py-3 sm:px-4 lg:px-5">
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 rounded-2xl border border-[#dbe8d3] bg-white/96 p-3 shadow-[0_10px_28px_rgba(18,45,34,0.06)]"
+          className="relative z-10 overflow-hidden rounded-2xl border border-white/15 bg-[#081d24] p-3 text-white shadow-[0_18px_44px_rgba(8,29,36,0.22)] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_8%_0%,rgba(226,255,87,0.14),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_42%)]"
+          data-motion-managed
           initial={revealInitial}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.28, ease: [0.2, 0.8, 0.2, 1] }}
         >
-          <div className="grid gap-3 xl:grid-cols-[280px_minmax(0,1fr)_auto] xl:items-center">
+          <div className="relative grid gap-3 xl:grid-cols-[280px_minmax(0,1fr)_auto] xl:items-center">
             <div className="min-w-0">
-              <p className="inline-flex w-fit items-center gap-2 rounded-lg bg-[#0b2228] px-2.5 py-1.5 text-[11px] font-black text-[#e2ff57]">
+              <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-[#e2ff57]/45 bg-[#e2ff57] px-2.5 py-1.5 text-[11px] font-black text-[#081d24] shadow-[0_0_0_1px_rgba(226,255,87,0.18),0_8px_20px_rgba(226,255,87,0.12)]">
                 <Building2 aria-hidden="true" className="h-4 w-4" />
                 Book court
               </p>
@@ -309,13 +310,13 @@ export const BookCourt = () => {
             <div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
               <Input
                 className={compactInputClass}
-                icon={<Search className="h-5 w-5" />}
+                icon={<Search className="h-5 w-5 text-white/55" />}
                 onChange={(event) => { setSearch(event.target.value); setPage(1); }}
                 placeholder="Tên sân hoặc địa chỉ..."
                 value={search}
               />
               <Button
-                className={`${compactButtonClass} bg-[#e2ff57] text-[#102414] shadow-[0_10px_22px_rgba(152,217,81,0.18)] hover:bg-[#d6f64d]`}
+                className={`${compactButtonClass} border-[#e2ff57] bg-[#e2ff57] text-[#081d24] shadow-[0_10px_24px_rgba(226,255,87,0.18)] hover:border-[#f0ff8b] hover:bg-[#f0ff8b] hover:shadow-[0_0_0_1px_rgba(226,255,87,0.5),0_12px_26px_rgba(226,255,87,0.22)]`}
                 onClick={() => locatePlayer()}
                 type="button"
               >
@@ -324,13 +325,13 @@ export const BookCourt = () => {
               </Button>
             </div>
 
-            <div className="flex h-10 items-center gap-2 rounded-xl bg-[#eef8e6] px-3 text-[12px] font-black text-[#53645a] xl:justify-center">
-              <SlidersHorizontal className="h-4 w-4 text-primary" />
+            <div className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-3 text-[12px] font-black text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] xl:justify-center">
+              <SlidersHorizontal className="h-4 w-4 text-[#e2ff57]" />
               {activeFilterCount ? `${activeFilterCount} bộ lọc` : 'Bộ lọc gọn'}
             </div>
           </div>
 
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_132px_132px_auto]">
+          <div className="relative mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_132px_132px_auto]">
             <label className="min-w-0">
               <span className="sr-only">Khu vực</span>
               <Input className={compactInputClass} onChange={(event) => { setArea(event.target.value); setPage(1); }} placeholder="Khu vực, quận, thành phố" value={area} />
@@ -344,7 +345,7 @@ export const BookCourt = () => {
               <Input className={compactInputClass} min="0" onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }} placeholder="Giá đến" type="number" value={maxPrice} />
             </label>
             <Button
-              className={`${compactButtonClass} ${favoritesOnly ? 'bg-[#0b2228] text-white hover:bg-[#14333a]' : ''}`}
+              className={`${compactButtonClass} border-white/15 bg-white/[0.07] text-white hover:border-[#e2ff57]/55 hover:bg-white/[0.11] hover:text-[#e2ff57] ${favoritesOnly ? 'border-[#e2ff57] bg-[#e2ff57] text-[#081d24] hover:bg-[#f0ff8b] hover:text-[#081d24]' : ''}`}
               onClick={() => token ? (setFavoritesOnly((value) => !value), setPage(1)) : setError('Vui lòng đăng nhập để xem sân yêu thích.')}
               type="button"
               variant={favoritesOnly ? 'default' : 'outline'}
@@ -411,7 +412,8 @@ export const BookCourt = () => {
                 return (
                   <motion.article
                     animate={{ opacity: 1, y: 0 }}
-                    className={`cursor-pointer rounded-xl px-3 py-3 transition-[background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px ${selected ? 'bg-[#0b2228] text-white shadow-[0_12px_28px_rgba(8,29,36,0.16)]' : 'bg-[#fbfdf8] hover:bg-[#eef8e6]'}`}
+                    className={`picklink-glow-surface cursor-pointer rounded-xl px-3 py-3 transition-[background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px ${selected ? 'bg-[#0b2228] text-white shadow-[0_12px_28px_rgba(8,29,36,0.16)]' : 'bg-[#fbfdf8] hover:bg-[#eef8e6]'}`}
+                    data-motion-managed
                     initial={revealInitial}
                     key={venue.venueId}
                     onClick={() => setSelectedVenueId(venue.venueId)}
@@ -480,7 +482,7 @@ export const BookCourt = () => {
                 Chọn một cụm sân bên trái để map tự căn vị trí.
               </p>
               <button
-                className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg bg-[#1a73e8] px-3 text-[11px] font-bold text-white transition-colors hover:bg-[#1765cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg bg-[#0b2228] px-3 text-[11px] font-bold text-[#e2ff57] transition-[background-color,transform,box-shadow] hover:-translate-y-px hover:bg-[#14333a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={mappedVenues.length === 0}
                 onClick={() => setShowRouteMap(true)}
                 type="button"

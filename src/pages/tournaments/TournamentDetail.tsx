@@ -139,7 +139,7 @@ export const TournamentDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f9f9ff] pt-[72px]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f9f9ff] pt-[72px]">
         <Loader2 className="h-9 w-9 animate-spin text-primary" />
       </div>
     );
@@ -147,7 +147,7 @@ export const TournamentDetail = () => {
 
   if (!tournament) {
     return (
-      <div className="min-h-screen bg-[#f9f9ff] px-gutter pt-[120px] text-center">
+      <div className="min-h-dvh bg-[#f9f9ff] px-gutter pt-[120px] text-center">
         <Trophy className="mx-auto h-12 w-12 text-primary" />
         <h1 className="mt-4 text-2xl font-bold">Không thể mở giải đấu</h1>
         <p className="mt-2 text-sm text-on-surface-variant">{error || 'Giải đấu không tồn tại.'}</p>
@@ -165,10 +165,10 @@ export const TournamentDetail = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
-      <section className="relative overflow-hidden bg-[#101820]">
+    <div className="min-h-dvh bg-[#f9f9ff] pt-[72px] text-on-surface">
+      <section className="relative overflow-hidden bg-[#081d24]">
         <img alt={tournament.name} className="absolute inset-0 h-full w-full object-cover opacity-42" src={tournament.imageUrl || 'https://images.unsplash.com/photo-1626245465352-87ff55a6d0ab?q=80&w=1600&auto=format&fit=crop'} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#101820] via-[#101820]/78 to-[#101820]/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#081d24] via-[#081d24]/78 to-[#081d24]/30" />
         <div className="relative z-10 mx-auto max-w-container-max-width px-gutter py-8 text-white">
           <Link className="inline-flex items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-[14px] font-bold backdrop-blur hover:bg-white/20" to="/tournaments">
             <ArrowLeft className="h-4 w-4" />
@@ -259,7 +259,7 @@ export const TournamentDetail = () => {
                               <p>{match.courtName || 'Chưa xếp sân'}</p>
                             </div>
                             <p className="text-sm font-bold">{match.team1Name || 'Chờ đội'} <span className="mx-2 text-on-surface-variant">vs</span> {match.team2Name || 'Chờ đội'}</p>
-                            <p className="text-lg font-bold text-primary">{match.team1Score === undefined ? '—' : `${match.team1Score} – ${match.team2Score}`}</p>
+                            <p className="text-lg font-bold text-primary">{match.team1Score === undefined ? 'Chưa có' : `${match.team1Score} - ${match.team2Score}`}</p>
                           </div>
                         ))}
                       </div>
@@ -285,7 +285,7 @@ export const TournamentDetail = () => {
                   <thead className="bg-surface-container-low"><tr>{['STT', 'Tên đội', 'Hạng mục', 'Khu vực', 'Trạng thái'].map((heading) => <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant" key={heading}>{heading}</th>)}</tr></thead>
                   <tbody className="divide-y divide-outline-variant">
                     {tournament.teams.map((team, index) => (
-                      <tr key={team.registrationId}><td className="px-5 py-4 text-sm font-bold">{index + 1}</td><td className="px-5 py-4 text-sm font-bold">{team.teamName}</td><td className="px-5 py-4 text-sm">{team.divisionName}</td><td className="px-5 py-4 text-sm text-on-surface-variant">{team.area || '—'}</td><td className="px-5 py-4 text-sm font-bold text-primary">{getTournamentRegistrationStatusLabel(team.status)}</td></tr>
+                      <tr key={team.registrationId}><td className="px-5 py-4 text-sm font-bold">{index + 1}</td><td className="px-5 py-4 text-sm font-bold">{team.teamName}</td><td className="px-5 py-4 text-sm">{team.divisionName}</td><td className="px-5 py-4 text-sm text-on-surface-variant">{team.area || 'Chưa có'}</td><td className="px-5 py-4 text-sm font-bold text-primary">{getTournamentRegistrationStatusLabel(team.status)}</td></tr>
                     ))}
                     {!tournament.teams.length && <tr><td className="px-5 py-8 text-center text-sm text-on-surface-variant" colSpan={5}>Chưa có đội được duyệt.</td></tr>}
                   </tbody>

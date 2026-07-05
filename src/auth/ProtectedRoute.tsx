@@ -13,7 +13,7 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   const context = useOutletContext();
 
   if (isInitializing) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
+    return <div className="flex min-h-dvh items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
   }
 
   if (!user) {
@@ -32,7 +32,7 @@ export const PublicOnlyRoute = () => {
   const context = useOutletContext();
 
   if (isInitializing) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
+    return <div className="flex min-h-dvh items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
   }
 
   if (user) {

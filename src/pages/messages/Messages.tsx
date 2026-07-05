@@ -30,6 +30,7 @@ import {
   Pin,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { useToast } from '../../components/ui/ToastRegion';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import {
   getGroups,
@@ -191,6 +192,7 @@ const directToConversation = (direct: DirectConversation): Conversation => ({
 
 export const Messages = () => {
   const { token } = useAuth();
+  const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
   useEffect(() => {
@@ -427,7 +429,7 @@ export const Messages = () => {
       );
       if (fields.rules !== undefined) setEditRules(updated.rules || '');
     } catch (err: any) {
-      alert(err.message || 'Không thể cập nhật thông tin nhóm.');
+      notify(err.message || 'Không thể cập nhật thông tin nhóm.', 'error');
     } finally {
       setUpdatingGroup(false);
     }
@@ -446,7 +448,7 @@ export const Messages = () => {
       await handleUpdateGroup({ coverImageUrl: url });
     } catch (err: any) {
       setUploadProgress(null);
-      alert(err.message || 'Không thể tải ảnh lên.');
+      notify(err.message || 'Không thể tải ảnh lên.', 'error');
     }
   };
 
@@ -466,7 +468,7 @@ export const Messages = () => {
         )
       );
     } catch (err: any) {
-      alert(err.message || 'Không thể tải ảnh lên.');
+      notify(err.message || 'Không thể tải ảnh lên.', 'error');
     } finally {
       setUploadingIntro(false);
       if (e.target) e.target.value = '';
@@ -490,7 +492,7 @@ export const Messages = () => {
         )
       );
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa ảnh.');
+      notify(err.message || 'Không thể xóa ảnh.', 'error');
     }
   };
 
@@ -500,7 +502,7 @@ export const Messages = () => {
       await approveMember(token, activeConversation.groupId, memberUserId);
       loadSettingsMembers();
     } catch (err: any) {
-      alert(err.message || 'Không thể phê duyệt thành viên.');
+      notify(err.message || 'Không thể phê duyệt thành viên.', 'error');
     }
   };
 
@@ -511,7 +513,7 @@ export const Messages = () => {
       await removeMember(token, activeConversation.groupId, memberUserId);
       loadSettingsMembers();
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa thành viên.');
+      notify(err.message || 'Không thể xóa thành viên.', 'error');
     }
   };
 
@@ -529,7 +531,7 @@ export const Messages = () => {
       setGroups(myGroups);
       setClubConversations(myGroups.map(groupToConversation));
     } catch (err: any) {
-      alert(err.message || 'Không thể rời nhóm.');
+      notify(err.message || 'Không thể rời nhóm.', 'error');
     }
   };
 
@@ -567,7 +569,7 @@ export const Messages = () => {
         [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
       }));
     } catch (err: any) {
-      alert(err.message || 'Không thể tải lên tệp tin.');
+      notify(err.message || 'Không thể tải lên tệp tin.', 'error');
     } finally {
       setUploadingMedia(false);
       if (mediaInputRef.current) mediaInputRef.current.value = '';
@@ -889,7 +891,7 @@ export const Messages = () => {
       return;
     }
 
-    // Static conversations — local-only send
+    // Static conversations, local-only send
     const nextMessage: ChatMessage = {
       id: Date.now(),
       author: 'Bạn',
@@ -936,7 +938,7 @@ export const Messages = () => {
         [activeConversation.id]: chatMessages,
       }));
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa tin nhắn.');
+      notify(err.message || 'Không thể xóa tin nhắn.', 'error');
     }
   };
 
@@ -986,7 +988,7 @@ export const Messages = () => {
         [activeConversation.id]: mappedPinned,
       }));
     } catch (err: any) {
-      alert(err.message || 'Không thể thay đổi trạng thái ghim tin nhắn.');
+      notify(err.message || 'Không thể thay đổi trạng thái ghim tin nhắn.', 'error');
     }
   };
 
@@ -1013,13 +1015,13 @@ export const Messages = () => {
         [activeConversation.id]: chatMessages,
       }));
     } catch (err: any) {
-      alert(err.message || 'Không thể chỉnh sửa tin nhắn.');
+      notify(err.message || 'Không thể chỉnh sửa tin nhắn.', 'error');
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
-      <div className="flex min-h-[calc(100vh-72px)] flex-col overflow-hidden border-t border-outline-variant bg-[#f9f9ff] lg:h-[calc(100vh-72px)] lg:flex-row">
+    <div className="min-h-dvh bg-[#f9f9ff] pt-[72px] text-on-surface">
+      <div className="flex min-h-[calc(100dvh-72px)] flex-col overflow-hidden border-t border-outline-variant bg-[#f9f9ff] lg:h-[calc(100dvh-72px)] lg:flex-row">
         <aside className="flex h-[360px] w-full shrink-0 flex-col border-b border-outline-variant bg-white lg:h-full lg:w-[360px] lg:border-b-0 lg:border-r">
           <div className="border-b border-outline-variant p-4">
             <div className="flex items-center justify-between gap-3">
@@ -1612,7 +1614,7 @@ export const Messages = () => {
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[13px] font-bold text-amber-700">
                         <span>★</span>
-                        {activeGroup.overallRating > 0 ? activeGroup.overallRating.toFixed(1) : '—'}
+                        {activeGroup.overallRating > 0 ? activeGroup.overallRating.toFixed(1) : 'Chưa có'}
                       </span>
                       {activeGroup.ratingCount > 0 && (
                         <span className="text-[12px] text-on-surface-variant">{activeGroup.ratingCount} đánh giá từ người chơi</span>

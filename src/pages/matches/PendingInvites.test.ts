@@ -105,11 +105,11 @@ test('match venue map provides geolocation, driving distance, and route geometry
   assert.match(matchVenueMapDialogSource, /google\.com\/maps\/dir/);
 });
 
-test('match venue map uses a Google Maps-like route sidebar and visual language', () => {
+test('match venue map keeps the route sidebar while using the Picklink brand language', () => {
   assert.match(matchVenueMapDialogSource, /lg:grid-cols-\[360px_minmax\(0,1fr\)\]/);
   assert.match(matchVenueMapDialogSource, /match-venue-map-google/);
-  assert.match(matchVenueMapDialogSource, /#1a73e8/);
-  assert.match(matchVenueMapDialogSource, /#ea4335/);
+  assert.match(matchVenueMapDialogSource, /#477313/);
+  assert.match(matchVenueMapDialogSource, /#e2ff57/);
   assert.match(matchVenueMapDialogSource, /Mở trong Google Maps/);
 });
 

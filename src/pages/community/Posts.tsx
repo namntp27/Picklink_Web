@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Image as ImageIcon,
@@ -28,6 +28,7 @@ import {
   type CommunityGroup,
 } from '../../api/community';
 import { CommunityFeedShell, CommunityPage } from './CommunityUI';
+import { useToast } from '../../components/ui/ToastRegion';
 
 export interface DisplayPost {
   id: string;
@@ -208,6 +209,7 @@ export const PostCard = ({
 
 export const Posts = () => {
   const { user, token, isAuthenticated } = useAuth();
+  const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [posts, setPosts] = useState<DisplayPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -216,6 +218,7 @@ export const Posts = () => {
   const [friends, setFriends] = useState<CommunityFriend[]>([]);
   const [groups, setGroups] = useState<CommunityGroup[]>([]);
   const [loadingShareTargets, setLoadingShareTargets] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (sharingPost && token) {
@@ -298,17 +301,19 @@ export const Posts = () => {
   }, [token, user]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 120
-      ) {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || visibleCount >= posts.length) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        observer.unobserve(sentinel);
         setVisibleCount((prev) => Math.min(prev + 5, posts.length));
       }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [posts.length]);
+    }, { rootMargin: '220px 0px' });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [posts.length, visibleCount]);
 
   const handleLikeToggle = async (postId: string) => {
     if (!token) return;
@@ -405,7 +410,7 @@ export const Posts = () => {
     <CommunityPage>
       <CommunityFeedShell activePath="/posts">
         {isAuthenticated && (
-          <section className="community-panel overflow-hidden">
+          <section className="community-panel community-composer overflow-hidden">
             <div className="flex gap-3 p-4">
               {avatarUrl ? (
                 <img
@@ -419,7 +424,7 @@ export const Posts = () => {
                 </div>
               )}
               <Link
-                className="flex min-h-10 min-w-0 flex-1 items-center rounded-[10px] border border-[#d8e4d4] bg-[#f4f8f2] px-3 text-[13px] font-semibold text-[#718077] transition-[border-color,background-color,box-shadow] duration-200 hover:border-[#afc5a8] hover:bg-white hover:shadow-[0_0_0_3px_rgba(71,115,19,0.08)]"
+                className="community-composer__prompt flex min-h-10 min-w-0 flex-1 items-center rounded-[10px] border border-[#d8e4d4] bg-[#f4f8f2] px-3 text-[13px] font-semibold text-[#718077] transition-[border-color,background-color,box-shadow] duration-200 hover:border-[#afc5a8] hover:bg-white hover:shadow-[0_0_0_3px_rgba(71,115,19,0.08)]"
                 to="/posts/create"
               >
                 Bạn muốn chia sẻ gì với cộng đồng?
@@ -445,7 +450,7 @@ export const Posts = () => {
           </section>
         )}
 
-        <div className="mb-3 mt-5 flex items-center justify-between gap-3 px-1">
+        <div className="community-feed-heading mb-3 mt-5 flex items-center justify-between gap-3 px-1">
           <div>
             <h1 className="text-[19px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Bảng tin hôm nay</h1>
             <p className="mt-1 text-[12px] font-semibold text-[#718077]">Hoạt động mới từ người chơi quanh bạn</p>
@@ -476,8 +481,11 @@ export const Posts = () => {
         </section>
 
         {filteredPosts.length > visibleCount && (
-          <div className="mt-4 p-4 text-center text-[12px] font-bold text-[#718077] bg-[#f4f8f2] rounded-xl border border-[#cfe0c8]">
-            Đang hiển thị {Math.min(visibleCount, filteredPosts.length)} trên tổng số {filteredPosts.length} bài viết · Cuộn xuống để xem thêm
+          <div
+            className="mt-4 rounded-xl border border-[#cfe0c8] bg-[#f4f8f2] p-4 text-center text-[12px] font-bold text-[#718077]"
+            ref={loadMoreRef}
+          >
+            Đang tải thêm bài viết ({Math.min(visibleCount, filteredPosts.length)}/{filteredPosts.length})
           </div>
         )}
 
@@ -514,7 +522,7 @@ export const Posts = () => {
                   <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[#718077] mb-2">Tùy chọn chia sẻ</h3>
                   <button
                     onClick={() => {
-                      alert(`Đã chọn chia sẻ lại bài viết: ${sharingPost.title}`);
+                      notify(`Đã chọn chia sẻ lại bài viết: ${sharingPost.title}`, 'success');
                       setSharingPost(null);
                     }}
                     className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] hover:bg-[#edf5e9] text-left transition-colors cursor-pointer"
@@ -553,7 +561,7 @@ export const Posts = () => {
                               <button
                                 key={g.groupId}
                                 onClick={() => {
-                                  alert(`Đã chọn gửi tới nhóm: ${g.groupName}`);
+                                  notify(`Đã chọn gửi tới nhóm: ${g.groupName}`, 'success');
                                   setSharingPost(null);
                                 }}
                                 className="flex w-full items-center gap-3 p-2 rounded-lg border border-[#e0e9dc]/60 hover:bg-[#f4f8f2] text-left transition-colors cursor-pointer"
@@ -583,7 +591,7 @@ export const Posts = () => {
                               <button
                                 key={f.userId}
                                 onClick={() => {
-                                  alert(`Đã chọn gửi tới bạn bè: ${f.username}`);
+                                  notify(`Đã chọn gửi tới bạn bè: ${f.username}`, 'success');
                                   setSharingPost(null);
                                 }}
                                 className="flex w-full items-center gap-3 p-2.5 rounded-lg border border-[#e0e9dc]/60 hover:bg-[#f4f8f2] text-left transition-colors cursor-pointer"

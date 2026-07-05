@@ -143,7 +143,7 @@ export const MyTournaments = () => {
   const paidAmount = registrations.filter((item) => item.paymentStatus === 'confirmed').reduce((total, item) => total + item.amountDue, 0);
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
+    <div className="min-h-dvh bg-[#f9f9ff] pt-[72px] text-on-surface">
       <section className="bg-primary text-white">
         <div className="mx-auto max-w-container-max-width px-gutter py-10">
           <Link className="inline-flex items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-sm font-bold" to="/tournaments"><Trophy className="h-4 w-4" />Xem tất cả giải đấu</Link>

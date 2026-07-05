@@ -30,7 +30,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         aria-busy={ariaBusy}
         className={cn(
-          'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[14px] font-semibold',
+          'picklink-glow-control inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[14px] font-semibold',
           'transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
           'hover:-translate-y-px active:translate-y-px active:scale-[0.99]',
           'focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70',

@@ -33,6 +33,7 @@ export const CancelBookingDialog = ({
         aria-labelledby="cancel-booking-title"
         aria-modal="true"
         className="w-full max-w-lg overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-[0_24px_70px_rgba(25,29,20,0.22)]"
+        data-motion-managed
         initial={shouldReduceMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
         role="dialog"
         transition={{ duration: shouldReduceMotion ? 0.01 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}

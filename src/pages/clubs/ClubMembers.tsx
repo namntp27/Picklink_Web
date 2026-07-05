@@ -18,6 +18,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import './club-pages.css';
 
 type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Huấn luyện viên' | 'Thành viên';
 type MemberStatus = 'Đang hoạt động' | 'Thi đấu thường xuyên' | 'Tạm nghỉ';
@@ -281,33 +282,33 @@ export const ClubMembers = () => {
   const topMembers = [...initialMembers].sort((first, second) => second.winRate - first.winRate).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] pt-[72px] text-on-surface">
-      <section className="relative overflow-hidden border-b border-outline-variant bg-[#101820]">
+    <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]" data-club-ui>
+      <section className="relative overflow-hidden border-b border-white/10 bg-[#081d24]" data-no-reveal>
         <img alt={clubInfo.name} className="absolute inset-0 h-full w-full object-cover opacity-34" src={clubInfo.cover} />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#101820] via-[#101820]/82 to-[#101820]/48" />
-        <div className="relative z-10 mx-auto max-w-container-max-width px-margin-mobile py-8 text-white md:px-margin-desktop">
-          <Link className="inline-flex items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-[14px] font-bold backdrop-blur hover:bg-white/20" to={`/clubs/${clubCode}`}>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#081d24] via-[#081d24]/82 to-[#081d24]/48" />
+        <div className="relative z-10 mx-auto max-w-[1180px] px-4 py-7 text-white sm:px-6 lg:px-8">
+          <Link className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/22 bg-white/8 px-3 text-[12px] font-bold backdrop-blur hover:bg-white/14" to={`/clubs/${clubCode}`}>
             <ArrowLeft className="h-4 w-4" />
             Quay lại CLB
           </Link>
-          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full bg-primary-container px-4 py-2 text-[13px] font-bold text-on-primary-container">
+              <p className="inline-flex items-center gap-2 rounded-lg bg-[#e2ff57] px-3 py-1.5 text-[12px] font-bold text-[#102414]">
                 <Users className="h-4 w-4" />
                 Danh sách thành viên
               </p>
-              <h1 className="mt-4 text-[32px] font-bold leading-tight md:text-[44px]">{clubInfo.name}</h1>
-              <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/86">
+              <h1 className="mt-3 text-[30px] font-bold leading-tight tracking-[-0.035em] md:text-[38px]">{clubInfo.name}</h1>
+              <p className="mt-2 max-w-2xl text-[14px] leading-6 text-white/72">
                 Tra cứu thành viên CLB, trình độ chơi, vai trò, lịch sử tham gia sự kiện và trạng thái hoạt động để ghép trận phù hợp.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
-              <Link className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-4 py-3 text-[14px] font-bold text-white backdrop-blur hover:bg-white/20" to={`/clubs/${clubCode}/dashboard`}>
-                <ShieldCheck className="h-5 w-5" />
+              <Link className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/24 bg-white/8 px-3.5 text-[12px] font-bold text-white backdrop-blur hover:bg-white/14" to={`/clubs/${clubCode}/dashboard`}>
+                <ShieldCheck className="h-4 w-4" />
                 Quản lý CLB
               </Link>
-              <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-4 py-3 text-[14px] font-bold text-on-primary-container hover:bg-primary-container/90" type="button">
-                <UserPlus className="h-5 w-5" />
+              <button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#e2ff57] px-3.5 text-[12px] font-bold text-[#102414] hover:bg-[#d6f64d]" type="button">
+                <UserPlus className="h-4 w-4" />
                 Mời thành viên
               </button>
             </div>
@@ -315,44 +316,44 @@ export const ClubMembers = () => {
         </div>
       </section>
 
-      <main className="mx-auto max-w-container-max-width px-margin-mobile py-8 md:px-margin-desktop">
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <main className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8">
+        <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {[
             { label: 'Tổng thành viên', value: clubInfo.members.toLocaleString('vi-VN'), icon: Users, helper: `${filteredMembers.length} đang hiển thị` },
             { label: 'Đang hoạt động', value: activeMembers, icon: CheckCircle2, helper: 'Có thể ghép lịch tuần này' },
             { label: 'Ban điều phối', value: staffMembers, icon: Crown, helper: 'Chủ nhiệm, quản trị, HLV' },
             { label: 'Trình độ trung bình', value: averageLevel.toFixed(1), icon: Trophy, helper: clubInfo.level },
           ].map((stat) => (
-            <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
+            <div className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-4 shadow-[0_8px_22px_rgba(8,29,36,0.045)]" key={stat.label}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[13px] font-bold text-on-surface-variant">{stat.label}</p>
-                  <p className="mt-2 text-[30px] font-bold leading-tight">{stat.value}</p>
+                  <p className="text-[11px] font-bold text-[#64736a]">{stat.label}</p>
+                  <p className="mt-1.5 text-[25px] font-bold leading-tight tracking-[-0.03em]">{stat.value}</p>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <stat.icon className="h-5 w-5" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                  <stat.icon className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-3 text-[12px] font-medium text-on-surface-variant">{stat.helper}</p>
+              <p className="mt-2 text-[10px] font-medium leading-4 text-[#718077]">{stat.helper}</p>
             </div>
           ))}
         </section>
 
-        <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-6">
+        <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-4">
             <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                    <Filter className="h-5 w-5 text-primary" />
+                  <h2 className="flex items-center gap-2 text-[17px] font-bold">
+                    <Filter className="h-4 w-4 text-[#477313]" />
                     Tìm kiếm thành viên
                   </h2>
                   <p className="mt-1 text-[13px] text-on-surface-variant">Lọc theo tên, khu vực, vai trò, trình độ hoặc phong cách chơi.</p>
                 </div>
-                <div className="relative w-full lg:w-[360px]">
+                <div className="relative w-full lg:w-[320px]">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
                   <input
-                    className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-10 w-full rounded-lg border border-[#cbdac6] bg-[#fbfdf8] pl-9 pr-3 text-[13px]"
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Tìm thành viên, khu vực, badge..."
                     value={searchTerm}
@@ -362,9 +363,9 @@ export const ClubMembers = () => {
 
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                 <label className="block">
-                  <span className="text-[12px] font-bold uppercase text-on-surface-variant">Vai trò</span>
+                  <span className="text-[11px] font-bold text-[#64736a]">Vai trò</span>
                   <select
-                    className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary"
+                    className="mt-1.5 h-10 w-full rounded-lg border border-[#cbdac6] bg-white px-3 text-[13px] font-bold"
                     onChange={(event) => setRoleFilter(event.target.value as 'all' | MemberRole)}
                     value={roleFilter}
                   >
@@ -376,9 +377,9 @@ export const ClubMembers = () => {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[12px] font-bold uppercase text-on-surface-variant">Trình độ</span>
+                  <span className="text-[11px] font-bold text-[#64736a]">Trình độ</span>
                   <select
-                    className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary"
+                    className="mt-1.5 h-10 w-full rounded-lg border border-[#cbdac6] bg-white px-3 text-[13px] font-bold"
                     onChange={(event) => setLevelFilter(event.target.value as LevelFilter)}
                     value={levelFilter}
                   >
@@ -390,9 +391,9 @@ export const ClubMembers = () => {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</span>
+                  <span className="text-[11px] font-bold text-[#64736a]">Trạng thái</span>
                   <select
-                    className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary"
+                    className="mt-1.5 h-10 w-full rounded-lg border border-[#cbdac6] bg-white px-3 text-[13px] font-bold"
                     onChange={(event) => setStatusFilter(event.target.value as 'all' | MemberStatus)}
                     value={statusFilter}
                   >
@@ -407,27 +408,27 @@ export const ClubMembers = () => {
             </section>
 
             <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
-              <div className="flex flex-col gap-2 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-2 border-b border-[#e0e9dc] p-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-[20px] font-bold">Thành viên CLB</h2>
+                  <h2 className="text-[17px] font-bold">Thành viên CLB</h2>
                   <p className="mt-1 text-[13px] text-on-surface-variant">{filteredMembers.length} thành viên phù hợp bộ lọc hiện tại.</p>
                 </div>
-                <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-[12px] font-bold text-primary">
+                <span className="w-fit rounded-lg bg-[#edf5e9] px-2 py-1 text-[10px] font-bold text-[#477313]">
                   Mã CLB: {clubCode.toUpperCase()}
                 </span>
               </div>
 
               <div className="divide-y divide-outline-variant">
                 {filteredMembers.map((member) => (
-                  <article className="p-5" key={member.id}>
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="flex min-w-0 gap-4">
-                        <img alt={member.name} className="h-16 w-16 shrink-0 rounded-xl object-cover" src={member.avatar} />
+                  <article className="p-4" key={member.id}>
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex min-w-0 gap-3">
+                        <img alt={member.name} className="h-12 w-12 shrink-0 rounded-xl object-cover" src={member.avatar} />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-[18px] font-bold">{member.name}</h3>
-                            <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${getRoleClassName(member.role)}`}>{member.role}</span>
-                            <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${getStatusClassName(member.status)}`}>{member.status}</span>
+                            <h3 className="text-[16px] font-bold">{member.name}</h3>
+                            <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${getRoleClassName(member.role)}`}>{member.role}</span>
+                            <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${getStatusClassName(member.status)}`}>{member.status}</span>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] font-bold text-on-surface-variant">
                             <span className="inline-flex items-center gap-1">
@@ -443,10 +444,10 @@ export const ClubMembers = () => {
                               Tham gia {member.joinedAt}
                             </span>
                           </div>
-                          <p className="mt-3 text-[14px] leading-6 text-on-surface-variant">{member.note}</p>
-                          <div className="mt-3 flex flex-wrap gap-2">
+                          <p className="mt-2 text-[12px] leading-5 text-[#64736a]">{member.note}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
                             {member.badges.map((badge) => (
-                              <span className="rounded-full bg-surface-container-low px-3 py-1 text-[12px] font-bold text-on-surface-variant" key={badge}>
+                              <span className="rounded-lg bg-[#edf5e9] px-2 py-0.5 text-[10px] font-bold text-[#64736a]" key={badge}>
                                 {badge}
                               </span>
                             ))}
@@ -454,28 +455,28 @@ export const ClubMembers = () => {
                         </div>
                       </div>
 
-                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex lg:flex-col">
-                        <Link className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-container-low" to="/messages">
+                      <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:flex lg:flex-col">
+                        <Link className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[#d8e4d4] px-2.5 text-[11px] font-bold text-[#64736a] hover:bg-[#edf5e9]" to="/messages">
                           <MessageCircle className="h-4 w-4" />
                           Nhắn tin
                         </Link>
-                        <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white hover:bg-primary/90" type="button">
+                        <button className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34]" type="button">
                           <Handshake className="h-4 w-4" />
                           Mời đánh
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
                       {[
                         { label: 'Phong cách', value: member.playStyle },
                         { label: 'Tay thuận', value: member.hand },
                         { label: 'Sự kiện', value: `${member.eventsJoined} lần` },
                         { label: 'Tỷ lệ thắng', value: `${member.winRate}%` },
                       ].map((item) => (
-                        <div className="rounded-lg bg-surface-container-low p-3" key={item.label}>
-                          <p className="text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p>
-                          <p className="mt-1 text-[13px] font-bold leading-5">{item.value}</p>
+                        <div className="rounded-lg bg-[#f4f8f1] p-2.5" key={item.label}>
+                          <p className="text-[9px] font-bold text-[#718077]">{item.label}</p>
+                          <p className="mt-0.5 text-[11px] font-bold leading-4">{item.value}</p>
                         </div>
                       ))}
                     </div>
@@ -493,16 +494,16 @@ export const ClubMembers = () => {
             </section>
           </div>
 
-          <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+          <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
             <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                <Crown className="h-5 w-5 text-primary" />
+              <h2 className="flex items-center gap-2 text-[16px] font-bold">
+                <Crown className="h-4 w-4 text-[#477313]" />
                 Ban điều phối
               </h2>
-              <div className="mt-5 space-y-4">
+              <div className="mt-3 space-y-2">
                 {[clubInfo.manager, ...initialMembers.filter((member) => member.role === 'Quản trị viên' || member.role === 'Huấn luyện viên').slice(0, 3)].map((member) => (
-                  <div className="flex items-center gap-3 rounded-lg border border-outline-variant p-3" key={member.name}>
-                    <img alt={member.name} className="h-11 w-11 rounded-lg object-cover" src={member.avatar} />
+                  <div className="flex items-center gap-2.5 rounded-lg border border-[#e0e9dc] p-2.5" key={member.name}>
+                    <img alt={member.name} className="h-9 w-9 rounded-lg object-cover" src={member.avatar} />
                     <div className="min-w-0">
                       <p className="truncate text-[14px] font-bold">{member.name}</p>
                       <p className="text-[12px] text-on-surface-variant">{'level' in member ? member.role : member.role}</p>
@@ -513,13 +514,13 @@ export const ClubMembers = () => {
             </section>
 
             <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                <Star className="h-5 w-5 text-primary" />
+              <h2 className="flex items-center gap-2 text-[16px] font-bold">
+                <Star className="h-4 w-4 text-[#477313]" />
                 Thành viên nổi bật
               </h2>
-              <div className="mt-5 space-y-4">
+              <div className="mt-3 space-y-2">
                 {topMembers.map((member, index) => (
-                  <div className="rounded-lg bg-surface-container-low p-4" key={member.id}>
+                  <div className="rounded-lg bg-[#f4f8f1] p-3" key={member.id}>
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-[13px] font-bold text-white">
@@ -537,9 +538,9 @@ export const ClubMembers = () => {
               </div>
             </section>
 
-            <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                <Sparkles className="h-5 w-5 text-primary" />
+            <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-5 shadow-sm">
+              <h2 className="flex items-center gap-2 text-[16px] font-bold">
+                <Sparkles className="h-4 w-4 text-[#477313]" />
                 Gợi ý ghép trận
               </h2>
               <div className="mt-4 space-y-3 text-[13px] leading-5 text-on-surface-variant">
@@ -550,8 +551,8 @@ export const ClubMembers = () => {
             </section>
 
             <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-[20px] font-bold">
-                <Award className="h-5 w-5 text-primary" />
+              <h2 className="flex items-center gap-2 text-[16px] font-bold">
+                <Award className="h-4 w-4 text-[#477313]" />
                 Cơ cấu vai trò
               </h2>
               <div className="mt-4 space-y-3">

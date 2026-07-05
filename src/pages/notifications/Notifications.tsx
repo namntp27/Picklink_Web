@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   Bell,
   BellRing,
@@ -136,34 +137,34 @@ const notificationTypeConfig: Record<
 > = {
   match: {
     icon: UserPlus,
-    className: 'bg-primary/10 text-primary',
+    className: 'bg-[#e2ff57] text-[#102414]',
   },
   payment: {
     icon: CreditCard,
-    className: 'bg-[#fff4d8] text-[#755400]',
+    className: 'bg-[#edf5e9] text-[#477313]',
   },
   court: {
     icon: CalendarClock,
-    className: 'bg-[#edf7ff] text-[#1d5b7a]',
+    className: 'bg-[#e5f0e5] text-[#276b3f]',
   },
   club: {
     icon: Users,
-    className: 'bg-[#F6F8F3] text-primary',
+    className: 'bg-[#edf5e9] text-[#477313]',
   },
   tournament: {
     icon: Trophy,
-    className: 'bg-[#f2edff] text-[#5a3a90]',
+    className: 'bg-[#e2ff57] text-[#102414]',
   },
   system: {
     icon: ShieldCheck,
-    className: 'bg-surface-container-low text-on-surface-variant',
+    className: 'bg-[#e8ece7] text-[#53645b]',
   },
 };
 
 const toneClassNames: Record<NotificationTone, string> = {
-  default: 'border-outline-variant',
-  urgent: 'border-[#eab526]',
-  success: 'border-primary/40',
+  default: 'border-l-transparent',
+  urgent: 'border-l-[#eab526]',
+  success: 'border-l-[#98d951]',
 };
 
 const initialPreferences: NotificationPreference[] = [
@@ -206,6 +207,7 @@ const formatNotificationTime = (value: string) => {
 };
 
 export const Notifications = () => {
+  const shouldReduceMotion = useReducedMotion();
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [preferences, setPreferences] = useState<NotificationPreference[]>(initialPreferences);
@@ -274,49 +276,45 @@ export const Notifications = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFBF8] pt-[72px] text-on-surface">
-      <section className="bg-primary text-white">
-        <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-margin-desktop md:py-10">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px] lg:items-end">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-4 py-2 text-[13px] font-bold">
-                <BellRing className="h-4 w-4" />
-                Trung tâm thông báo
-              </span>
-              <h1 className="mt-4 text-[32px] font-bold leading-tight md:text-[44px]">Thông báo</h1>
-              <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/85">
-                Theo dõi lời mời ghép trận, thanh toán tiền sân, lịch đặt sân và hoạt động câu lạc bộ của bạn.
-              </p>
-            </div>
+    <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]">
+      <section className="relative overflow-hidden bg-[#081d24] px-4 py-5 text-white sm:px-6 lg:px-8" data-no-reveal>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(152,217,81,0.17),transparent_32%),linear-gradient(120deg,#081d24,#143f34)]" />
+        <div className="relative mx-auto flex max-w-[1120px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="inline-flex items-center gap-2 text-[12px] font-bold text-[#dff6b2]">
+              <BellRing aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
+              Trung tâm thông báo
+            </p>
+            <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-[-0.035em] sm:text-[32px]">Thông báo</h1>
+            <p className="mt-1 max-w-[62ch] text-[13px] leading-5 text-white/68">
+              Lời mời, thanh toán, lịch sân và hoạt động cộng đồng tại một nơi.
+            </p>
+          </div>
 
-            <div className="rounded-lg border border-white/18 bg-white/10 p-5">
-              <p className="text-[13px] font-bold uppercase text-white/72">Cần chú ý</p>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-white/12 p-4">
-                  <p className="text-[28px] font-bold">{counts.unread}</p>
-                  <p className="text-[13px] font-medium text-white/78">chưa đọc</p>
-                </div>
-                <div className="rounded-lg bg-white/12 p-4">
-                  <p className="text-[28px] font-bold">{urgentNotifications.length}</p>
-                  <p className="text-[13px] font-medium text-white/78">cần xử lý</p>
-                </div>
-              </div>
+          <div className="grid w-full grid-cols-2 overflow-hidden rounded-xl border border-white/12 bg-white/8 sm:w-auto sm:min-w-[250px]">
+            <div className="px-4 py-2.5">
+              <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">{counts.unread}</p>
+              <p className="mt-1 text-[11px] font-medium text-white/62">chưa đọc</p>
+            </div>
+            <div className="border-l border-white/12 px-4 py-2.5">
+              <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">{urgentNotifications.length}</p>
+              <p className="mt-1 text-[11px] font-medium text-white/62">cần xử lý</p>
             </div>
           </div>
         </div>
       </section>
 
-      <main className="mx-auto grid max-w-[1200px] grid-cols-1 gap-6 px-4 py-8 md:px-margin-desktop lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
-          <section className="rounded-lg border border-outline-variant bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+      <main className="mx-auto grid max-w-[1120px] grid-cols-1 gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:px-8">
+        <div className="min-w-0 space-y-3">
+          <section className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-2.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 scrollbar-none xl:pb-0">
                 {filterOptions.map((filter) => (
                   <button
-                    className={`shrink-0 rounded-lg px-4 py-3 text-[14px] font-bold transition-colors ${
+                    className={`picklink-glow-control h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-bold transition-[background-color,color,transform] ${
                       activeFilter === filter.value
-                        ? 'bg-primary text-white'
-                        : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'
+                        ? 'bg-[#0b2228] text-white'
+                        : 'bg-[#edf5e9] text-[#53645b] hover:bg-[#e2ff57] hover:text-[#102414]'
                     }`}
                     key={filter.value}
                     onClick={() => setActiveFilter(filter.value)}
@@ -327,124 +325,140 @@ export const Notifications = () => {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto">
+              <div className="flex items-center gap-1.5 border-t border-[#e0e9dc] pt-2 xl:border-l xl:border-t-0 xl:pl-2 xl:pt-0">
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                  className="picklink-glow-control inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#b9cbb3] px-2.5 text-[12px] font-bold text-[#477313] hover:border-[#98d951] hover:bg-[#edf5e9] disabled:cursor-not-allowed disabled:opacity-45"
                   disabled={counts.unread === 0}
                   onClick={markAllAsRead}
                   type="button"
                 >
-                  <CheckCheck className="h-5 w-5" />
-                  Đánh dấu đã đọc
+                  <CheckCheck aria-hidden="true" className="h-3.5 w-3.5" />
+                  Đọc tất cả
                 </button>
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface-variant hover:bg-surface-container-low"
+                  className="picklink-glow-control inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#d8e4d4] px-2.5 text-[12px] font-bold text-[#64736a] hover:bg-[#edf5e9] disabled:cursor-not-allowed disabled:opacity-45"
                   disabled={notifications.every((notification) => !notification.read)}
                   onClick={clearReadNotifications}
                   type="button"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
                   Xóa đã đọc
                 </button>
               </div>
             </div>
           </section>
 
-          <section className="space-y-4">
-            {filteredNotifications.map((notification) => {
-              const config = notificationTypeConfig[notification.type];
-              const NotificationIcon = config.icon;
+          <section className="picklink-glow-surface overflow-hidden rounded-xl border border-[#d8e4d4] bg-white shadow-[0_10px_28px_rgba(8,29,36,0.05)]">
+            <AnimatePresence initial={false}>
+              {filteredNotifications.map((notification) => {
+                const config = notificationTypeConfig[notification.type];
+                const NotificationIcon = config.icon;
 
-              return (
-                <article
-                  className={`rounded-lg border bg-white p-5 shadow-sm transition-colors hover:border-primary ${toneClassNames[notification.tone]} ${
-                    notification.read ? 'opacity-78' : ''
-                  }`}
-                  key={notification.id}
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="flex min-w-0 gap-4">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${config.className}`}>
-                        <NotificationIcon className="h-6 w-6" />
+                return (
+                  <motion.article
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`border-b border-l-2 border-b-[#e0e9dc] transition-colors last:border-b-0 hover:bg-[#f4f9ef] ${toneClassNames[notification.tone]} ${
+                      notification.read ? 'bg-white' : 'bg-[#fbfdf8]'
+                    }`}
+                    data-motion-managed
+                    exit={shouldReduceMotion ? undefined : { opacity: 0, y: -5 }}
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
+                    key={notification.id}
+                    layout
+                    transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+                  >
+                    <div className="flex min-w-0 items-start gap-2.5 px-3 py-2.5 sm:px-3.5">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.className}`}>
+                        <NotificationIcon aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {!notification.read && <span className="h-2.5 w-2.5 rounded-full bg-[#eab526]" />}
-                          <span className="rounded-full bg-surface-container-low px-3 py-1 text-[12px] font-bold text-on-surface-variant">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          {!notification.read && (
+                            <span aria-label="Chưa đọc" className="h-1.5 w-1.5 rounded-full bg-[#d69e00]" role="img" />
+                          )}
+                          <span className="rounded-md bg-[#edf5e9] px-1.5 py-0.5 text-[10px] font-bold text-[#53645b]">
                             {notification.meta}
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[12px] font-bold text-on-surface-variant">
-                            <Clock className="h-3.5 w-3.5" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#7a887e]">
+                            <Clock aria-hidden="true" className="h-3 w-3" />
                             {formatNotificationTime(notification.createdAt)}
                           </span>
                         </div>
 
-                        <h2 className="mt-3 text-[20px] font-bold leading-tight">{notification.title}</h2>
-                        <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{notification.message}</p>
+                        <div className="mt-1.5 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <h2 className="text-[14px] font-bold leading-5 tracking-[-0.01em]">{notification.title}</h2>
+                            <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#64736a]">{notification.message}</p>
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-1">
+                            {notification.linkTo && notification.linkLabel && (
+                              <Link
+                                className="picklink-glow-control inline-flex h-8 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34]"
+                                onClick={() => markAsRead(notification.id)}
+                                to={notification.linkTo}
+                              >
+                                {notification.linkLabel}
+                              </Link>
+                            )}
+                            {!notification.read && (
+                              <button
+                                aria-label={`Đánh dấu đã đọc: ${notification.title}`}
+                                className="picklink-glow-control inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8e4d4] text-[#477313] hover:border-[#98d951] hover:bg-[#edf5e9]"
+                                onClick={() => markAsRead(notification.id)}
+                                title="Đánh dấu đã đọc"
+                                type="button"
+                              >
+                                <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              aria-label={`Xóa thông báo ${notification.title}`}
+                              className="picklink-glow-control inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8e4d4] text-[#718077] hover:border-[#e7c8c4] hover:bg-[#fff1ef] hover:text-[#a33535]"
+                              onClick={() => removeNotification(notification.id)}
+                              title="Xóa thông báo"
+                              type="button"
+                            >
+                              <X aria-hidden="true" className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
-                      {notification.linkTo && notification.linkLabel && (
-                        <Link
-                          className="flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90 md:w-auto"
-                          onClick={() => markAsRead(notification.id)}
-                          to={notification.linkTo}
-                        >
-                          {notification.linkLabel}
-                        </Link>
-                      )}
-                      {!notification.read && (
-                        <button
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low md:w-auto"
-                          onClick={() => markAsRead(notification.id)}
-                          type="button"
-                        >
-                          <CheckCircle2 className="h-5 w-5" />
-                          Đã đọc
-                        </button>
-                      )}
-                      <button
-                        aria-label={`Xóa thông báo ${notification.title}`}
-                        className="flex h-12 w-full items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-[#ffe8e8] hover:text-[#a33535] sm:w-12"
-                        onClick={() => removeNotification(notification.id)}
-                        type="button"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+                  </motion.article>
+                );
+              })}
+            </AnimatePresence>
 
             {filteredNotifications.length === 0 && (
-              <div className="rounded-lg border border-outline-variant bg-white p-8 text-center shadow-sm">
-                <Bell className="mx-auto h-10 w-10 text-primary" />
-                <h2 className="mt-3 text-[20px] font-bold">Không có thông báo phù hợp</h2>
-                <p className="mt-2 text-[14px] text-on-surface-variant">Bạn có thể đổi bộ lọc hoặc quay lại sau khi có hoạt động mới.</p>
+              <div className="p-6 text-center">
+                <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#edf5e9] text-[#477313]">
+                  <Bell aria-hidden="true" className="h-5 w-5" />
+                </span>
+                <h2 className="mt-3 text-[16px] font-bold">Không có thông báo phù hợp</h2>
+                <p className="mt-1 text-[12px] leading-5 text-[#64736a]">Hãy đổi bộ lọc hoặc quay lại khi có hoạt động mới.</p>
               </div>
             )}
           </section>
         </div>
 
-        <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
-          <section className="rounded-lg border border-primary bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-[20px] font-bold">
-              <BellRing className="h-5 w-5 text-primary" />
+        <aside className="space-y-3 lg:sticky lg:top-24 lg:self-start">
+          <section className="picklink-glow-surface rounded-xl border border-[#b9dca8] bg-white p-3.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold">
+              <BellRing aria-hidden="true" className="h-4 w-4 text-[#477313]" />
               Việc cần xử lý
             </h2>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-2.5 divide-y divide-[#e0e9dc]">
               {urgentNotifications.length > 0 ? (
                 urgentNotifications.map((notification) => (
-                  <div className="rounded-lg border border-outline-variant p-4" key={notification.id}>
-                    <p className="text-[14px] font-bold">{notification.title}</p>
-                    <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-on-surface-variant">{notification.message}</p>
+                  <div className="py-2.5 first:pt-0 last:pb-0" key={notification.id}>
+                    <p className="text-[12px] font-bold leading-4">{notification.title}</p>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-[18px] text-[#64736a]">{notification.message}</p>
                     {notification.linkTo && notification.linkLabel && (
                       <Link
-                        className="mt-3 flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white hover:bg-primary/90"
+                        className="picklink-glow-control mt-2 inline-flex h-7 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[10px] font-bold text-white hover:bg-[#143f34]"
                         onClick={() => markAsRead(notification.id)}
                         to={notification.linkTo}
                       >
@@ -454,53 +468,64 @@ export const Notifications = () => {
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg bg-[#F6F8F3] p-4 text-[14px] font-bold text-primary">Không có việc khẩn cấp.</div>
+                <p className="rounded-lg bg-[#edf5e9] px-3 py-2.5 text-[11px] font-bold text-[#477313]">Không có việc khẩn cấp.</p>
               )}
             </div>
           </section>
 
-          <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-[20px] font-bold">
-              <Settings className="h-5 w-5 text-primary" />
+          <section className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-3.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold">
+              <Settings aria-hidden="true" className="h-4 w-4 text-[#477313]" />
               Cài đặt nhận tin
             </h2>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-2.5 divide-y divide-[#e0e9dc]">
               {preferences.map((preference) => (
-                <label
-                  className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-outline-variant p-4 hover:bg-surface-container-low"
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
                   key={preference.id}
                 >
-                  <span>
-                    <span className="block text-[14px] font-bold">{preference.label}</span>
-                    <span className="mt-1 block text-[12px] leading-5 text-on-surface-variant">{preference.description}</span>
+                  <span className="min-w-0">
+                    <span className="block text-[12px] font-bold">{preference.label}</span>
+                    <span className="mt-0.5 block text-[10px] leading-4 text-[#718077]">{preference.description}</span>
                   </span>
-                  <input
-                    checked={preference.enabled}
-                    className="h-5 w-5 accent-primary"
-                    onChange={() => togglePreference(preference.id)}
-                    type="checkbox"
-                  />
-                </label>
+                  <button
+                    aria-checked={preference.enabled}
+                    aria-label={`${preference.enabled ? 'Tắt' : 'Bật'} thông báo ${preference.label}`}
+                    className={`picklink-glow-control relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                      preference.enabled ? 'bg-[#477313]' : 'bg-[#cbd6c7]'
+                    }`}
+                    onClick={() => togglePreference(preference.id)}
+                    role="switch"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-[3px] h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                        preference.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                      }`}
+                    />
+                  </button>
+                </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-lg border border-outline-variant bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-[20px] font-bold">
-              <MapPin className="h-5 w-5 text-primary" />
+          <section className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-3.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold">
+              <MapPin aria-hidden="true" className="h-4 w-4 text-[#477313]" />
               Hoạt động gần nhất
             </h2>
 
             {latestUnreadNotification ? (
-              <div className="mt-4 rounded-lg bg-surface-container-low p-4">
-                <p className="text-[15px] font-bold">{latestUnreadNotification.title}</p>
-                <p className="mt-2 text-[13px] font-medium text-on-surface-variant">
+              <div className="mt-2.5 border-t border-[#e0e9dc] pt-2.5">
+                <p className="text-[12px] font-bold leading-4">{latestUnreadNotification.title}</p>
+                <p className="mt-1 text-[10px] font-semibold text-[#718077]">
                   {formatNotificationTime(latestUnreadNotification.createdAt)}
                 </p>
               </div>
             ) : (
-              <p className="mt-4 text-[14px] leading-6 text-on-surface-variant">Tất cả thông báo hiện đã được đọc.</p>
+              <p className="mt-2.5 text-[11px] leading-4 text-[#64736a]">Tất cả thông báo hiện đã được đọc.</p>
             )}
           </section>
         </aside>

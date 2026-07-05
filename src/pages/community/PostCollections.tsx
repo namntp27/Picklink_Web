@@ -20,7 +20,7 @@ import {
   CommunityFeedShell,
   CommunityPage,
 } from './CommunityUI';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { getGroups, getGroupPosts, reactToPost, removeReaction, getGlobalPost } from '../../api/community';
 import { PostCard, parsePostContent, type DisplayPost } from './Posts';
@@ -202,6 +202,7 @@ export const ClubPosts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const loadClubPosts = async () => {
     if (!token) {
@@ -295,17 +296,19 @@ export const ClubPosts = () => {
   }, [token]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 120
-      ) {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || visibleCount >= posts.length) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        observer.unobserve(sentinel);
         setVisibleCount((prev) => Math.min(prev + 5, posts.length));
       }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [posts.length]);
+    }, { rootMargin: '220px 0px' });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [posts.length, visibleCount]);
 
   const handleLikeToggle = async (postId: string) => {
     if (!token) return;
@@ -424,8 +427,11 @@ export const ClubPosts = () => {
         </section>
 
         {posts.length > visibleCount && (
-          <div className="mt-4 p-4 text-center text-[12px] font-bold text-[#718077] bg-[#f4f8f2] rounded-xl border border-[#cfe0c8]">
-            Đang hiển thị {Math.min(visibleCount, posts.length)} trên tổng số {posts.length} bài viết · Cuộn xuống để xem thêm
+          <div
+            className="mt-4 rounded-xl border border-[#cfe0c8] bg-[#f4f8f2] p-4 text-center text-[12px] font-bold text-[#718077]"
+            ref={loadMoreRef}
+          >
+            Đang tải thêm bài viết ({Math.min(visibleCount, posts.length)}/{posts.length})
           </div>
         )}
       </CommunityFeedShell>

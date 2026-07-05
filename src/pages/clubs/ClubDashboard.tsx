@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useToast } from '../../components/ui/ToastRegion';
 import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import {
   CalendarDays,
@@ -36,6 +37,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import './club-pages.css';
 import {
   getGroup,
   getGroupMembers,
@@ -367,6 +369,7 @@ export const ClubDashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { token, user } = useAuth();
+  const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
   useEffect(() => {
@@ -388,6 +391,7 @@ export const ClubDashboard = () => {
   const [actualPosts, setActualPosts] = useState<CommunityPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
+  const postLoadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const posts = useMemo(() => {
     return actualPosts.map((post) => {
@@ -467,9 +471,9 @@ export const ClubDashboard = () => {
     try {
       const updated = await updateGroup(token, groupId, fields);
       setGroupInfo(updated);
-      alert('Cập nhật thông tin câu lạc bộ thành công!');
+      notify('Đã cập nhật thông tin câu lạc bộ.', 'success');
     } catch (err: any) {
-      alert(err.message || 'Không thể cập nhật thông tin câu lạc bộ.');
+      notify(err.message || 'Không thể cập nhật thông tin câu lạc bộ.', 'error');
     } finally {
       setUpdatingGroup(false);
     }
@@ -483,7 +487,7 @@ export const ClubDashboard = () => {
       const { url } = await uploadToCloudinary(token, file);
       await handleUpdateGroup({ coverImageUrl: url });
     } catch (err: any) {
-      alert(err.message || 'Không thể tải ảnh bìa lên.');
+      notify(err.message || 'Không thể tải ảnh bìa lên.', 'error');
     } finally {
       setUploadingCover(false);
     }
@@ -504,7 +508,7 @@ export const ClubDashboard = () => {
         };
       });
     } catch (err: any) {
-      alert(err.message || 'Không thể tải ảnh giới thiệu lên.');
+      notify(err.message || 'Không thể tải ảnh giới thiệu lên.', 'error');
     } finally {
       setUploadingIntro(false);
     }
@@ -523,7 +527,7 @@ export const ClubDashboard = () => {
         };
       });
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa ảnh giới thiệu.');
+      notify(err.message || 'Không thể xóa ảnh giới thiệu.', 'error');
     }
   };
 
@@ -734,17 +738,20 @@ export const ClubDashboard = () => {
 
   useEffect(() => {
     if (activeTab !== 'posts') return;
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 120
-      ) {
+
+    const sentinel = postLoadMoreRef.current;
+    if (!sentinel || visibleCount >= actualPosts.length) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        observer.unobserve(sentinel);
         setVisibleCount((prev) => Math.min(prev + 5, actualPosts.length));
       }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [activeTab, actualPosts.length]);
+    }, { rootMargin: '220px 0px' });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [activeTab, actualPosts.length, visibleCount]);
 
   // Poll for chat messages when on chat tab
   useEffect(() => {
@@ -814,7 +821,7 @@ export const ClubDashboard = () => {
         await approveMember(token, groupId, request.id);
         loadMembers();
       } catch (err: any) {
-        alert(err.message || 'Không thể phê duyệt thành viên.');
+        notify(err.message || 'Không thể phê duyệt thành viên.', 'error');
       }
     } else {
       // Mock fallback
@@ -841,7 +848,7 @@ export const ClubDashboard = () => {
         await declineMember(token, groupId, requestId);
         loadMembers();
       } catch (err: any) {
-        alert(err.message || 'Không thể từ chối thành viên.');
+        notify(err.message || 'Không thể từ chối thành viên.', 'error');
       }
     } else {
       // Mock fallback
@@ -876,7 +883,7 @@ export const ClubDashboard = () => {
       // Reload members to get fresh data from server
       await loadMembers();
     } catch (err: any) {
-      alert(err.message || 'Không thể thay đổi vai trò thành viên.');
+      notify(err.message || 'Không thể thay đổi vai trò thành viên.', 'error');
     }
   };
 
@@ -892,7 +899,7 @@ export const ClubDashboard = () => {
           await unbanMember(token, groupId, memberId);
           loadMembers();
         } catch (err: any) {
-          alert(err.message || 'Không thể bỏ cấm thành viên.');
+          notify(err.message || 'Không thể bỏ cấm thành viên.', 'error');
         }
       } else {
         // Ban
@@ -901,7 +908,7 @@ export const ClubDashboard = () => {
           await banMember(token, groupId, memberId);
           loadMembers();
         } catch (err: any) {
-          alert(err.message || 'Không thể cấm thành viên.');
+          notify(err.message || 'Không thể cấm thành viên.', 'error');
         }
       }
     } else {
@@ -945,7 +952,7 @@ export const ClubDashboard = () => {
       await approveGroupPost(token, postId);
       await loadGroupPosts();
     } catch (err: any) {
-      alert(err.message || 'Không thể duyệt bài viết.');
+      notify(err.message || 'Không thể duyệt bài viết.', 'error');
     }
   };
 
@@ -960,7 +967,7 @@ export const ClubDashboard = () => {
       await deletePostApi(token, postId);
       await loadGroupPosts();
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa bài viết.');
+      notify(err.message || 'Không thể xóa bài viết.', 'error');
     }
   };
 
@@ -986,7 +993,7 @@ export const ClubDashboard = () => {
         ]);
         setChatDraft('');
       } catch (err: any) {
-        alert(err.message || 'Không thể gửi tin nhắn.');
+        notify(err.message || 'Không thể gửi tin nhắn.', 'error');
       }
     } else {
       // Mock fallback
@@ -1014,7 +1021,7 @@ export const ClubDashboard = () => {
       await deleteGroupMessage(token, groupId, messageId);
       await loadChatMessages();
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa tin nhắn.');
+      notify(err.message || 'Không thể xóa tin nhắn.', 'error');
     }
   };
 
@@ -1025,7 +1032,7 @@ export const ClubDashboard = () => {
       await loadChatMessages();
       await loadPinnedMessages();
     } catch (err: any) {
-      alert(err.message || 'Không thể thay đổi trạng thái ghim tin nhắn.');
+      notify(err.message || 'Không thể thay đổi trạng thái ghim tin nhắn.', 'error');
     }
   };
 
@@ -1036,34 +1043,34 @@ export const ClubDashboard = () => {
       setChatDraft(text);
       await loadChatMessages();
     } catch (err: any) {
-      alert(err.message || 'Không thể chỉnh sửa tin nhắn.');
+      notify(err.message || 'Không thể chỉnh sửa tin nhắn.', 'error');
     }
   };
 
   const renderOverview = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {stats.map((stat) => (
           <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[13px] font-bold uppercase text-on-surface-variant">{stat.label}</p>
-                <p className="mt-3 text-[34px] font-bold leading-none text-on-surface">{stat.value}</p>
-                <p className="mt-2 text-[13px] font-medium text-on-surface-variant">{stat.helper}</p>
+                <p className="text-[11px] font-bold text-[#64736a]">{stat.label}</p>
+                <p className="mt-2 text-[28px] font-bold leading-none tracking-[-0.035em]">{stat.value}</p>
+                <p className="mt-1.5 text-[11px] font-medium leading-4 text-[#718077]">{stat.helper}</p>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-container-low text-primary">
-                <stat.icon className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                <stat.icon className="h-4 w-4" />
               </div>
             </div>
           </section>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
         <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-[20px] font-bold">Việc cần xử lý</h2>
+              <h2 className="text-[17px] font-bold">Việc cần xử lý</h2>
               <p className="mt-1 text-[13px] text-on-surface-variant">Các mục ưu tiên trong ngày của ban quản lý CLB.</p>
             </div>
             <button
@@ -1075,7 +1082,7 @@ export const ClubDashboard = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             {[
               {
                 title: 'Duyệt thành viên',
@@ -1100,13 +1107,13 @@ export const ClubDashboard = () => {
               },
             ].map((item) => (
               <button
-                className="rounded-lg border border-outline-variant p-4 text-left transition-colors hover:border-primary hover:bg-surface-container-low"
+                className="rounded-xl border border-[#d8e4d4] p-3.5 text-left hover:border-[#98d951] hover:bg-[#edf5e9]"
                 key={item.title}
                 onClick={() => setActiveTab(item.tab)}
                 type="button"
               >
-                <item.icon className="h-6 w-6 text-primary" />
-                <p className="mt-4 text-[28px] font-bold leading-none">{item.value}</p>
+                <item.icon className="h-5 w-5 text-[#477313]" />
+                <p className="mt-3 text-[24px] font-bold leading-none">{item.value}</p>
                 <h3 className="mt-2 text-[15px] font-bold">{item.title}</h3>
                 <p className="mt-1 text-[13px] leading-5 text-on-surface-variant">{item.text}</p>
               </button>
@@ -1114,7 +1121,7 @@ export const ClubDashboard = () => {
           </div>
         </section>
 
-        <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-5 shadow-sm">
+        <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-[20px] font-bold">
             <ShieldCheck className="h-5 w-5 text-primary" />
             Quyền quản trị
@@ -1254,7 +1261,7 @@ export const ClubDashboard = () => {
             </thead>
             <tbody className="divide-y divide-outline-variant">
               {filteredMembers.map((member) => (
-                <tr className="hover:bg-[#f9f9ff]" key={member.id}>
+                <tr className="hover:bg-[#f2f8ec]" key={member.id}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       {renderAvatar(member.avatar, "h-10 w-10")}
@@ -1545,8 +1552,11 @@ export const ClubDashboard = () => {
           )}
         </div>
         {actualPosts.length > visibleCount && (
-          <div className="p-4 text-center text-[13px] font-bold text-on-surface-variant bg-surface-container-low border-t border-outline-variant">
-            Đang hiển thị {Math.min(visibleCount, actualPosts.length)} trên tổng số {actualPosts.length} bài viết · Cuộn xuống để xem thêm
+          <div
+            className="border-t border-outline-variant bg-surface-container-low p-4 text-center text-[13px] font-bold text-on-surface-variant"
+            ref={postLoadMoreRef}
+          >
+            Đang tải thêm bài viết ({Math.min(visibleCount, actualPosts.length)}/{actualPosts.length})
           </div>
         )}
       </section>
@@ -1570,7 +1580,7 @@ export const ClubDashboard = () => {
           </div>
         </section>
 
-        <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-5 shadow-sm">
+        <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-[20px] font-bold">
             <Sparkles className="h-5 w-5 text-primary" />
             Quy tắc đăng bài
@@ -1609,7 +1619,7 @@ export const ClubDashboard = () => {
           </header>
 
           {pinnedMessages.length > 0 && (
-            <div className="bg-[#f0f3ff] border-b border-outline-variant px-5 py-3 flex flex-col gap-2 shrink-0">
+            <div className="bg-[#edf5e9] border-b border-[#dbe8cf] px-5 py-3 flex flex-col gap-2 shrink-0">
               <div className="flex items-center gap-2 text-[12px] font-bold text-primary">
                 <Pin className="h-3.5 w-3.5 fill-current" />
                 <span>TIN NHẮN ĐÃ GHIM ({pinnedMessages.length})</span>
@@ -2000,7 +2010,7 @@ export const ClubDashboard = () => {
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#cfe0c8] px-3.5 py-1.5 text-[15px] font-bold text-[#2d5000] shadow-sm">
                 <span className="text-amber-500">★</span>
-                {groupInfo.overallRating > 0 ? groupInfo.overallRating.toFixed(1) : '—'}
+                {groupInfo.overallRating > 0 ? groupInfo.overallRating.toFixed(1) : 'Chưa có'}
               </span>
               <div>
                 <p className="text-[13px] font-bold text-on-surface">
@@ -2040,29 +2050,30 @@ export const ClubDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] text-on-surface pt-[72px]">
-      <aside className="fixed top-[72px] bottom-0 left-0 z-30 hidden w-[280px] flex-col border-r border-outline-variant bg-white lg:flex">
-        <div className="border-b border-outline-variant p-6">
-          <Link className="text-[24px] font-bold text-primary" to="/">
+    <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]" data-club-ui>
+      <aside className="fixed bottom-0 left-0 top-[72px] z-30 hidden w-[244px] flex-col border-r border-[#d8e4d4] bg-white/92 backdrop-blur-xl lg:flex">
+        <div className="m-3 rounded-2xl bg-[#0b2228] p-4 text-white shadow-[0_12px_28px_rgba(8,29,36,0.14)]">
+          <Link className="inline-flex items-center gap-2 text-[18px] font-bold tracking-[-0.025em] text-white" to="/">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#e2ff57] text-[12px] font-black text-[#102414]">P</span>
             Picklink
           </Link>
-          <p className="mt-2 text-[13px] font-bold text-on-surface-variant">Quản lý CLB</p>
+          <p className="mt-2 text-[11px] font-bold text-white/58">Không gian quản lý CLB</p>
         </div>
 
-        <nav className="flex-1 space-y-2 p-4">
+        <nav className="flex-1 space-y-1.5 px-3 py-2">
           {sideNavItems.map((item) => (
             <button
-              className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-[14px] font-bold transition-colors ${
+              className={`flex h-10 w-full items-center justify-between rounded-xl px-3 text-left text-[12px] font-bold transition-colors ${
                 activeTab === item.id
-                  ? 'bg-primary text-white'
-                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+                  ? 'bg-[#0b2228] text-white shadow-[0_8px_18px_rgba(8,29,36,0.12)]'
+                  : 'text-[#64736a] hover:bg-[#edf5e9] hover:text-[#0b2228]'
               }`}
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               type="button"
             >
-              <span className="inline-flex items-center gap-3">
-                <item.icon className="h-5 w-5" />
+              <span className="inline-flex items-center gap-2.5">
+                <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-[#e2ff57]' : 'text-[#477313]'}`} />
                 {item.label}
               </span>
               {item.badge !== undefined && item.badge > 0 && (
@@ -2074,29 +2085,29 @@ export const ClubDashboard = () => {
           ))}
         </nav>
 
-        <div className="border-t border-outline-variant p-4">
+        <div className="border-t border-[#e0e9dc] p-3">
           <button
-            className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-4 py-3 text-[14px] font-bold text-on-primary-container"
+            className="mb-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-3 text-[12px] font-bold text-[#102414] hover:bg-[#d6f64d]"
             onClick={() => setActiveTab('events')}
             type="button"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             Sự kiện mới
           </button>
           <button
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-[14px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+            className="flex h-9 w-full items-center gap-2.5 rounded-xl px-3 text-[12px] font-bold text-[#a33535] hover:bg-[#fff1ef]"
             onClick={() => navigate('/')}
             type="button"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-4 w-4" />
             Đăng xuất
           </button>
         </div>
       </aside>
 
-      <main className="lg:pl-[280px]">
-        <header className="sticky top-[72px] z-20 border-b border-outline-variant bg-white/95 px-4 py-4 backdrop-blur md:px-8">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <main className="lg:pl-[244px]">
+        <header className="sticky top-[72px] z-20 border-b border-[#d8e4d4] bg-[#f8fbf4]/94 px-4 py-3 backdrop-blur-xl md:px-6">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-on-surface-variant">
                 <Link className="hover:text-primary" to="/clubs">
@@ -2105,10 +2116,10 @@ export const ClubDashboard = () => {
                 <ChevronRight className="h-4 w-4" />
                 <span className="text-on-surface">{groupInfo ? groupInfo.groupName : 'Hanoi Elite Pickleball Club'}</span>
               </div>
-              <h1 className="mt-2 text-[26px] font-bold leading-tight md:text-[32px]">
+              <h1 className="mt-1.5 text-[23px] font-bold leading-tight tracking-[-0.03em] md:text-[27px]">
                 Quản lý CLB
               </h1>
-              <p className="mt-1 text-[14px] text-on-surface-variant">
+              <p className="mt-0.5 text-[12px] text-[#64736a]">
                 Mã CLB: {clubCode.toUpperCase()} · Duyệt thành viên, phân quyền, sự kiện, bài viết và chat.
               </p>
             </div>
@@ -2117,7 +2128,7 @@ export const ClubDashboard = () => {
               <div className="relative hidden w-[320px] md:block">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
                 <input
-                  className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className="h-10 w-full rounded-xl border border-[#cbdac6] bg-white pl-9 pr-3 text-[13px]"
                   placeholder="Tìm thành viên, bài viết..."
                   type="text"
                 />
@@ -2125,11 +2136,11 @@ export const ClubDashboard = () => {
             </div>
           </div>
 
-          <nav className="mt-4 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          <nav className="mt-3 flex gap-1.5 overflow-x-auto pb-1 lg:hidden">
             {sideNavItems.map((item) => (
               <button
-                className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-[13px] font-bold ${
-                  activeTab === item.id ? 'bg-primary text-white' : 'border border-outline-variant bg-white text-on-surface-variant'
+                className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-[12px] font-bold ${
+                  activeTab === item.id ? 'bg-[#0b2228] text-white' : 'border border-[#d8e4d4] bg-white text-[#64736a]'
                 }`}
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
@@ -2147,7 +2158,7 @@ export const ClubDashboard = () => {
           </nav>
         </header>
 
-        <div className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
+        <div className="mx-auto max-w-[1280px] px-4 py-4 md:px-6 md:py-6">
           {renderActiveTab()}
         </div>
       </main>

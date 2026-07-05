@@ -101,6 +101,7 @@ export const BookingSuccess = () => {
         <motion.section
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_16px_40px_rgba(25,29,20,0.08)] md:p-7"
+          data-motion-managed
           initial={revealInitial}
           transition={{
             delay: shouldReduceMotion ? 0 : 0.06,
@@ -112,7 +113,7 @@ export const BookingSuccess = () => {
             {[
               { icon: MapPin, label: 'Cụm sân', value: `${booking.venueName} · Sân ${booking.courtNumber}` },
               { icon: CalendarDays, label: 'Ngày chơi', value: date(booking.startTime) },
-              { icon: Clock, label: 'Khung giờ', value: `${booking.startTime.slice(11, 16)}–${booking.endTime.slice(11, 16)} (${booking.durationHours} giờ)` },
+              { icon: Clock, label: 'Khung giờ', value: `${booking.startTime.slice(11, 16)} - ${booking.endTime.slice(11, 16)} (${booking.durationHours} giờ)` },
               { icon: CheckCircle2, label: 'Tổng tiền sân', value: currency.format(booking.totalAmount) },
             ].map((item) => (
               <div className="min-w-0 rounded-xl border border-outline-variant bg-surface-container-low p-4" key={item.label}>

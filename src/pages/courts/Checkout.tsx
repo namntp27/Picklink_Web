@@ -188,6 +188,7 @@ export const Checkout = () => {
         <motion.section
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border border-[#dbe8d3] bg-white p-3 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+          data-motion-managed
           initial={revealInitial}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.28, ease: [0.2, 0.8, 0.2, 1] }}
         >
@@ -232,6 +233,7 @@ export const Checkout = () => {
           <motion.section
             animate={{ opacity: 1, y: 0 }}
             className="min-h-[520px] overflow-hidden rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+            data-motion-managed
             initial={revealInitial}
             transition={{
               delay: shouldReduceMotion ? 0 : 0.04,

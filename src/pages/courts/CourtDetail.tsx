@@ -61,6 +61,7 @@ export const CourtDetail = () => {
         <motion.section
           {...motionProps}
           className="rounded-2xl border border-[#dbe8d3] bg-white p-3 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+          data-motion-managed
         >
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <div className="min-w-0">
@@ -101,6 +102,7 @@ export const CourtDetail = () => {
             <motion.section
               {...motionProps}
               className="rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+              data-motion-managed
             >
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-primary" />
@@ -132,6 +134,7 @@ export const CourtDetail = () => {
             <motion.section
               {...motionProps}
               className="min-h-[360px] overflow-hidden rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+              data-motion-managed
             >
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
@@ -165,6 +168,7 @@ export const CourtDetail = () => {
             <motion.section
               {...motionProps}
               className="rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+              data-motion-managed
             >
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />

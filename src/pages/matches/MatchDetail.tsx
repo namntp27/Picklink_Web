@@ -854,7 +854,7 @@ export const MatchDetail = () => {
               <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán booking</h3>
               <div className="match-payment-amount">
                 <span>{selectedPaymentPlayerIds.length} phần đã chọn</span>
-                <strong>{batchPreview ? currency.format(batchPreview.totalAmount) : '—'}</strong>
+                <strong>{batchPreview ? currency.format(batchPreview.totalAmount) : 'Chưa có'}</strong>
               </div>
               {paymentTargets.length > 0 && (
                 <div className="mt-4 space-y-2">

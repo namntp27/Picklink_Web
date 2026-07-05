@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import {
   CheckCircle2,
   Eye,
@@ -27,6 +28,7 @@ const isViewAction = (action: string) => action.trim().toLowerCase() === 'xem';
 
 export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) => {
   const config = sectionConfigs[sectionId];
+  const shouldReduceMotion = useReducedMotion();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tất cả');
   const [selectedRow, setSelectedRow] = useState<AdminRow | null>(null);
@@ -78,26 +80,37 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
       </section>
 
       <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {config.stats.map((stat) => {
+        {config.stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm">
+            <motion.article
+              className="picklink-glow-surface rounded-2xl border border-[#d8e4d4] bg-white p-5 shadow-[0_12px_30px_rgba(8,29,36,0.055)] transition-[transform,box-shadow] hover:-translate-y-1"
+              data-motion-managed
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 14 }}
+              key={stat.label}
+              transition={{
+                delay: shouldReduceMotion ? 0 : index * 0.045,
+                duration: shouldReduceMotion ? 0.01 : 0.3,
+                ease: [0.2, 0.8, 0.2, 1],
+              }}
+              viewport={{ amount: 0.2, once: true }}
+              whileInView={{ opacity: 1, y: 0 }}
+            >
               <div className="mb-4 flex items-start justify-between gap-3">
-                <span className="rounded-lg bg-primary-container/25 p-2 text-primary">
+                <span className="rounded-xl bg-[#edf5e9] p-2.5 text-primary">
                   <Icon className="h-5 w-5" />
                 </span>
-                <span className="rounded-full bg-surface px-2 py-1 text-[11px] font-bold text-secondary">Live</span>
               </div>
               <p className="text-[13px] font-bold text-secondary">{stat.label}</p>
-              <h2 className="mt-1 text-[28px] font-bold text-on-background">{stat.value}</h2>
+              <h2 className="mt-1 font-mono text-[28px] font-extrabold text-on-background">{stat.value}</h2>
               <p className="mt-1 text-[12px] text-secondary">{stat.helper}</p>
-            </div>
+            </motion.article>
           );
         })}
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+        <section className="picklink-glow-surface overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white shadow-[0_14px_34px_rgba(8,29,36,0.055)]">
           <div className="border-b border-outline-variant p-4 md:p-5">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="relative w-full xl:max-w-md">
@@ -201,7 +214,7 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
         </section>
 
         <aside className="space-y-4">
-          <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm">
+          <section className="picklink-glow-surface rounded-2xl border border-[#d8e4d4] bg-white p-5 shadow-[0_12px_30px_rgba(8,29,36,0.05)]">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="text-[13px] font-bold text-secondary">{config.queueTitle}</p>
@@ -221,7 +234,7 @@ export const AdminDataPage = ({ sectionId }: { sectionId: AdminDataSectionId }) 
             </div>
           </section>
 
-          <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm">
+          <section className="picklink-glow-surface rounded-2xl border border-[#d8e4d4] bg-white p-5 shadow-[0_12px_30px_rgba(8,29,36,0.05)]">
             <h2 className="mb-4 text-[18px] font-bold text-on-background">Thao tác nhanh</h2>
             <div className="grid grid-cols-2 gap-3">
               <button

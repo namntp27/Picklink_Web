@@ -60,7 +60,7 @@ export const CreateReview = () => {
   const eligible = booking?.canReview === true;
   const alreadyReviewed = booking?.hasReviewed === true || review !== null;
 
-  return <div className="min-h-screen bg-surface-container-low pt-[72px] text-on-surface">
+  return <div className="min-h-dvh bg-surface-container-low pt-[72px] text-on-surface">
     <section className="bg-primary text-white"><div className="mx-auto max-w-[980px] px-4 py-9"><Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/80" to={booking ? `/bookings/${booking.bookingId}` : '/my-bookings'}><ArrowLeft className="h-4 w-4" /> Quay lại booking</Link><h1 className="mt-5 text-[34px] font-bold md:text-[44px]">Đánh giá sân</h1><p className="mt-2 text-white/80">Mỗi Player chỉ được đánh giá một lần cho một booking đủ điều kiện.</p></div></section>
 
     <main className="mx-auto grid max-w-[980px] gap-6 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_300px]">

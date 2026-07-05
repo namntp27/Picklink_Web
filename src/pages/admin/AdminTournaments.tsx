@@ -181,7 +181,7 @@ const TournamentForm = ({
           <label><span className="text-xs font-bold">Tổng giải thưởng</span><input className={`${inputClass} mt-1`} min={0} onChange={(event) => set('prizePool', Number(event.target.value))} type="number" value={value.prizePool} /></label>
           <label><span className="text-xs font-bold">URL ảnh bìa</span><input className={`${inputClass} mt-1`} onChange={(event) => set('imageUrl', event.target.value)} type="url" value={value.imageUrl} /></label>
           <label className="md:col-span-2"><span className="text-xs font-bold">Mô tả</span><textarea className={`${textareaClass} mt-1`} onChange={(event) => set('description', event.target.value)} value={value.description} /></label>
-          <label className="md:col-span-2"><span className="text-xs font-bold">Điều lệ — mỗi dòng một điều</span><textarea className={`${textareaClass} mt-1`} onChange={(event) => set('rules', event.target.value)} value={value.rules} /></label>
+          <label className="md:col-span-2"><span className="text-xs font-bold">Điều lệ, mỗi dòng một điều</span><textarea className={`${textareaClass} mt-1`} onChange={(event) => set('rules', event.target.value)} value={value.rules} /></label>
 
           {!editing && (
             <div className="grid gap-3 rounded-xl bg-surface-container-low p-4 md:col-span-2 md:grid-cols-4">
@@ -479,7 +479,7 @@ export const AdminTournaments = () => {
               {tab === 'overview' && (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {[
-                    ['Thời gian', `${formatTournamentDate(selected.startDate)} – ${formatTournamentDate(selected.endDate)}`],
+                    ['Thời gian', `${formatTournamentDate(selected.startDate)} - ${formatTournamentDate(selected.endDate)}`],
                     ['Hạn đăng ký', formatTournamentDateTime(selected.registrationDeadline)],
                     ['Thể thức', `${selected.format} · ${selected.bracketType}`],
                     ['Tài chính', `${formatTournamentCurrency(selected.entryFee)} · thưởng ${formatTournamentCurrency(selected.prizePool)}`],
@@ -518,7 +518,7 @@ export const AdminTournaments = () => {
                     <tbody className="divide-y divide-outline-variant">
                       {registrations.map((registration) => (
                         <tr key={registration.tournamentRegistrationId}>
-                          <td className="px-4 py-3"><p className="font-bold">{registration.teamName}</p><p className="text-xs text-on-surface-variant">{registration.partnerName || '—'} · {registration.representativePhone}</p></td>
+                          <td className="px-4 py-3"><p className="font-bold">{registration.teamName}</p><p className="text-xs text-on-surface-variant">{registration.partnerName || 'Chưa có'} · {registration.representativePhone}</p></td>
                           <td className="px-4 py-3 text-sm">{registration.divisionName}</td>
                           <td className="px-4 py-3 text-sm">{formatTournamentDateTime(registration.registeredAt)}</td>
                           <td className="px-4 py-3 text-sm font-bold">{formatTournamentCurrency(registration.amountDue)}<p className="text-xs text-on-surface-variant">{registration.paymentStatus}</p></td>
@@ -545,7 +545,7 @@ export const AdminTournaments = () => {
                       <div className="rounded-xl border border-outline-variant p-4" key={match.tournamentMatchId}>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div><p className="text-xs font-bold text-primary">{match.divisionName} · {match.roundName} #{match.matchNumber}</p><h3 className="mt-2 font-bold">{match.team1Name || 'Chờ đội'} <span className="mx-2 text-on-surface-variant">vs</span> {match.team2Name || 'Chờ đội'}</h3><p className="mt-1 text-xs text-on-surface-variant">{match.scheduledAt ? formatTournamentDateTime(match.scheduledAt) : 'Chưa xếp giờ'} · {match.courtName || 'Chưa xếp sân'}</p></div>
-                          <div className="text-right"><p className="text-2xl font-bold text-primary">{match.team1Score === undefined ? '—' : `${match.team1Score} – ${match.team2Score}`}</p><p className="text-xs font-bold">{match.status === 'completed' ? `Thắng: ${match.winnerName}` : 'Chưa có kết quả'}</p></div>
+                          <div className="text-right"><p className="text-2xl font-bold text-primary">{match.team1Score === undefined ? 'Chưa có' : `${match.team1Score} - ${match.team2Score}`}</p><p className="text-xs font-bold">{match.status === 'completed' ? `Thắng: ${match.winnerName}` : 'Chưa có kết quả'}</p></div>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 border-t border-outline-variant pt-3"><button className={outlineButton} disabled={match.status === 'completed'} onClick={() => editMatch(match)} type="button"><Edit3 className="h-4 w-4" />Sửa lịch</button><button className={primaryButton} disabled={!match.team1RegistrationId || !match.team2RegistrationId} onClick={() => void enterResult(match)} type="button">Nhập kết quả</button><button className={`${outlineButton} text-error`} disabled={match.status === 'completed'} onClick={() => { if (token && window.confirm('Xóa trận khỏi lịch?')) void run(() => deleteTournamentMatch(selected.tournamentId, match.tournamentMatchId, token), 'Đã xóa trận.'); }} type="button"><Trash2 className="h-4 w-4" /></button></div>
                       </div>
@@ -579,8 +579,8 @@ export const AdminTournaments = () => {
                       {payments.map((registration) => (
                         <tr key={registration.tournamentRegistrationId}>
                           <td className="px-4 py-3 font-bold">{registration.teamName}</td><td className="px-4 py-3 text-sm">{registration.divisionName}</td><td className="px-4 py-3 font-bold">{formatTournamentCurrency(registration.amountDue)}</td>
-                          <td className="px-4 py-3">{registration.payment?.receiptImageUrl ? <a className="font-bold text-primary underline" href={registration.payment.receiptImageUrl} rel="noreferrer" target="_blank">Xem ảnh</a> : '—'}</td>
-                          <td className="px-4 py-3 text-sm">{registration.payment ? formatTournamentDateTime(registration.payment.submittedAt) : '—'}</td><td className="px-4 py-3 text-sm font-bold">{registration.payment?.status}</td>
+                          <td className="px-4 py-3">{registration.payment?.receiptImageUrl ? <a className="font-bold text-primary underline" href={registration.payment.receiptImageUrl} rel="noreferrer" target="_blank">Xem ảnh</a> : 'Chưa có'}</td>
+                          <td className="px-4 py-3 text-sm">{registration.payment ? formatTournamentDateTime(registration.payment.submittedAt) : 'Chưa có'}</td><td className="px-4 py-3 text-sm font-bold">{registration.payment?.status}</td>
                           <td className="px-4 py-3"><div className="flex gap-2"><button className={primaryButton} disabled={registration.payment?.status === 'confirmed'} onClick={() => registration.payment && token && void run(() => reviewTournamentPayment(registration.payment!.tournamentPaymentId, { status: 'confirmed' }, token), 'Đã xác nhận lệ phí và cấp mã check-in.')} type="button">Xác nhận</button><button className={`${outlineButton} text-error`} onClick={() => { const reason = window.prompt('Lý do từ chối giao dịch:'); if (reason && registration.payment && token) void run(() => reviewTournamentPayment(registration.payment!.tournamentPaymentId, { status: 'rejected', reason }, token), 'Đã từ chối giao dịch.'); }} type="button">Từ chối</button></div></td>
                         </tr>
                       ))}

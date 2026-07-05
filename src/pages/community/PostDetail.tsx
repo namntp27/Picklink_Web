@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getCommunityPostById } from '../../data/communityPosts';
 import { CommunityHero, CommunityPage } from './CommunityUI';
+import { useToast } from '../../components/ui/ToastRegion';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import { uploadToCloudinary } from '../../api/cloudinary';
@@ -224,6 +225,7 @@ const CommentItem = ({
 export const PostDetail = () => {
   const { id } = useParams();
   const { token, user } = useAuth();
+  const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
 
   const [post, setPost] = useState<DisplayPost | null>(null);
@@ -467,7 +469,7 @@ export const PostDetail = () => {
       const commentTree = buildCommentTree(flatComments);
       setComments(commentTree);
     } catch (err) {
-      alert('Không thể đăng bình luận.');
+      notify('Không thể đăng bình luận.', 'error');
     } finally {
       setSubmittingComment(false);
     }
@@ -481,7 +483,7 @@ export const PostDetail = () => {
       const { url } = await uploadToCloudinary(token, file);
       setCommentImageUrl(url);
     } catch (err: any) {
-      alert(err.message || 'Không thể tải ảnh lên.');
+      notify(err.message || 'Không thể tải ảnh lên.', 'error');
     } finally {
       setUploadingImage(false);
     }

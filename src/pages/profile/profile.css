@@ -94,7 +94,10 @@
 
 .profile-save-button:hover:not(:disabled) {
   background: #d6f64d;
-  box-shadow: 0 12px 26px rgb(152 217 81 / 0.25);
+  box-shadow:
+    0 0 0 1px rgb(226 255 87 / 0.5),
+    0 0 2px rgb(152 217 81 / 0.34),
+    0 13px 28px rgb(152 217 81 / 0.25);
   transform: translateY(-1px);
 }
 

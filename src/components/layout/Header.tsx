@@ -1,5 +1,11 @@
 import { useEffect, useId, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+} from 'motion/react';
 import {
   Bell,
   CalendarClock,
@@ -35,19 +41,14 @@ export const Header = () => {
   const location = useLocation();
   const mobileMenuId = useId();
   const shouldReduceMotion = useReducedMotion();
+  const { scrollY } = useScroll();
   const dashboardPath = user ? getDefaultPathForRole(user.role) : '/';
   const dashboardLabel = user?.role === 'admin' ? 'Admin' : user?.role === 'owner' ? 'Chủ sân' : 'Nhân viên';
   const isPlayer = user?.role === 'player';
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    setIsScrolled(latest > 50);
+  });
 
   useEffect(() => {
     setIsMobileMenuOpen(false);

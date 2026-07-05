@@ -23,7 +23,9 @@ import {
   ThumbsUp,
 } from 'lucide-react';
 import { XCircle } from 'lucide-react';
+import './club-pages.css';
 import { useAuth } from '../../auth/AuthContext';
+import { useToast } from '../../components/ui/ToastRegion';
 import {
   type CommunityGroup,
   type CommunityMember,
@@ -41,6 +43,7 @@ export const ClubDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { token } = useAuth();
+  const notify = useToast();
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
 
   const [club, setClub] = useState<CommunityGroup | null>(null);
@@ -113,7 +116,7 @@ export const ClubDetail = () => {
         setMembers(freshMembers);
       }
     } catch (err: any) {
-      alert(err.message || 'Không thể thực hiện yêu cầu.');
+      notify(err.message || 'Không thể thực hiện yêu cầu.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -122,7 +125,7 @@ export const ClubDetail = () => {
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert('Đã sao chép liên kết câu lạc bộ vào bộ nhớ tạm!');
+      notify('Đã sao chép liên kết câu lạc bộ.', 'success');
     } catch (err) {
       // Fallback
     }
@@ -185,7 +188,7 @@ export const ClubDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f9f9ff]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4]" data-club-ui>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="text-[16px] font-bold text-on-surface-variant">Đang tải thông tin CLB...</p>
@@ -196,7 +199,7 @@ export const ClubDetail = () => {
 
   if (error || !club) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f9f9ff]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4]" data-club-ui>
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-[18px] font-bold text-on-surface">{error || 'Không tìm thấy câu lạc bộ.'}</p>
           <Link className="rounded-lg bg-primary px-6 py-3 text-[15px] font-bold text-white" to="/clubs">
@@ -210,14 +213,14 @@ export const ClubDetail = () => {
   const coverImage = club.coverImageUrl || 'https://images.unsplash.com/photo-1626245465352-87ff55a6d0ab?q=80&w=1800&auto=format&fit=crop';
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] font-body-md text-on-surface">
-      <section className="relative min-h-[520px] overflow-hidden bg-[#101820] pt-[72px]">
+    <div className="min-h-dvh bg-[#f8fbf4] text-[#0b2228]" data-club-ui>
+      <section className="relative min-h-[440px] overflow-hidden bg-[#081d24] pt-[72px]" data-no-reveal>
         <img alt={club.groupName} className="absolute inset-0 h-full w-full object-cover" src={coverImage} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#101820] via-[#101820]/62 to-[#101820]/12" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#081d24] via-[#081d24]/62 to-[#081d24]/12" />
 
-        <div className="relative z-10 mx-auto flex min-h-[448px] max-w-container-max-width flex-col justify-end px-margin-mobile pb-8 md:px-margin-desktop">
+        <div className="relative z-10 mx-auto flex min-h-[368px] max-w-[1180px] flex-col justify-end px-4 pb-7 sm:px-6 lg:px-8">
           <Link
-            className="mb-8 inline-flex w-fit items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-[14px] font-bold text-white backdrop-blur transition-colors hover:bg-white/20"
+            className="mb-6 inline-flex h-9 w-fit items-center gap-2 rounded-lg border border-white/22 bg-white/8 px-3 text-[12px] font-bold text-white backdrop-blur hover:bg-white/14"
             to="/clubs"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -225,35 +228,35 @@ export const ClubDetail = () => {
           </Link>
 
           <div className="max-w-4xl text-white">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary-container px-4 py-2 text-[13px] font-bold text-on-primary-container">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-lg bg-[#e2ff57] px-3 py-1.5 text-[11px] font-bold text-[#102414]">
                 <ShieldCheck className="h-4 w-4" />
                 CLB đã xác thực
               </span>
-              <span className="rounded-full bg-white/14 px-4 py-2 text-[13px] font-bold backdrop-blur">
+              <span className="rounded-lg bg-white/12 px-3 py-1.5 text-[11px] font-bold backdrop-blur">
                 {club.groupType}
               </span>
             </div>
-            <h1 className="text-[34px] font-bold leading-tight md:text-[48px]">{club.groupName}</h1>
+            <h1 className="text-[32px] font-bold leading-[1.02] tracking-[-0.04em] md:text-[42px]">{club.groupName}</h1>
             {club.description && (
-              <p className="mt-4 max-w-3xl text-[17px] leading-7 text-white/90 md:text-[18px]">
+              <p className="mt-3 max-w-3xl text-[14px] leading-6 text-white/74 md:text-[15px]">
                 {club.description}
               </p>
             )}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               {isManager ? (
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-6 py-3 text-[15px] font-bold text-on-primary-container shadow-lg transition-transform hover:scale-[0.98]"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#e2ff57] px-4 text-[13px] font-bold text-[#102414] shadow-[0_10px_24px_rgba(152,217,81,0.2)] hover:bg-[#d6f64d]"
                   onClick={() => navigate(`/clubs/${id}/dashboard`)}
                   type="button"
                 >
-                  <Crown className="h-5 w-5" />
+                  <Crown className="h-4 w-4" />
                   Quản lý CLB
                 </button>
               ) : club.myStatus === 'Accepted' ? (
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-surface-container-high px-6 py-3 text-[15px] font-bold text-on-surface transition-transform hover:scale-[0.98] disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white/90 px-4 text-[13px] font-bold text-[#0b2228] disabled:opacity-60"
                   onClick={handleJoinLeave}
                   disabled={actionLoading}
                   type="button"
@@ -267,7 +270,7 @@ export const ClubDetail = () => {
                 </button>
               ) : club.myStatus === 'Pending' ? (
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#fff8e6] px-6 py-3 text-[15px] font-bold text-[#7a5600] transition-transform hover:scale-[0.98] disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#fff8e6] px-4 text-[13px] font-bold text-[#7a5600] disabled:opacity-60"
                   onClick={handleJoinLeave}
                   disabled={actionLoading}
                   type="button"
@@ -281,7 +284,7 @@ export const ClubDetail = () => {
                 </button>
               ) : club.myStatus === 'Declined' ? (
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#fff8e6] border border-[#7a5600]/40 px-6 py-3 text-[15px] font-bold text-[#7a5600] transition-transform hover:scale-[0.98] disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#7a5600]/40 bg-[#fff8e6] px-4 text-[13px] font-bold text-[#7a5600] disabled:opacity-60"
                   onClick={handleJoinLeave}
                   disabled={actionLoading}
                   type="button"
@@ -295,14 +298,14 @@ export const ClubDetail = () => {
                 </button>
               ) : club.myStatus === 'Banned' ? (
                 <span
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ffdad6] px-6 py-3 text-[15px] font-bold text-[#ba1a1a]"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#ffdad6] px-4 text-[13px] font-bold text-[#ba1a1a]"
                 >
                   <XCircle className="h-5 w-5" />
                   Bị cấm khỏi CLB
                 </span>
               ) : (
                 <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-6 py-3 text-[15px] font-bold text-on-primary-container shadow-lg transition-transform hover:scale-[0.98] disabled:opacity-60"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#e2ff57] px-4 text-[13px] font-bold text-[#102414] shadow-[0_10px_24px_rgba(152,217,81,0.2)] hover:bg-[#d6f64d] disabled:opacity-60"
                   onClick={handleJoinLeave}
                   disabled={actionLoading}
                   type="button"
@@ -316,7 +319,7 @@ export const ClubDetail = () => {
                 </button>
               )}
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/12 px-6 py-3 text-[15px] font-bold text-white backdrop-blur transition-colors hover:bg-white/20"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/24 bg-white/8 px-4 text-[13px] font-bold text-white backdrop-blur hover:bg-white/14"
                 onClick={() => navigate('/book-court')}
                 type="button"
               >
@@ -325,7 +328,7 @@ export const ClubDetail = () => {
               </button>
               <button
                 aria-label="Chia sẻ câu lạc bộ"
-                className="inline-flex items-center justify-center rounded-lg border border-white/30 bg-white/12 px-4 py-3 text-white backdrop-blur transition-colors hover:bg-white/20"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/24 bg-white/8 text-white backdrop-blur hover:bg-white/14"
                 onClick={handleShare}
                 type="button"
               >
@@ -336,29 +339,29 @@ export const ClubDetail = () => {
         </div>
       </section>
 
-      <main className="mx-auto max-w-container-max-width px-margin-mobile py-8 md:px-margin-desktop">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-gutter">
+      <main className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {stats.map((item) => (
-            <div className="rounded-xl border border-outline-variant bg-white p-4 shadow-sm" key={item.label}>
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#f0f3ff] text-primary">
-                <item.icon className="h-5 w-5" />
+            <div className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-4 shadow-[0_8px_22px_rgba(8,29,36,0.045)]" key={item.label}>
+              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                <item.icon className="h-4 w-4" />
               </div>
-              <p className="text-[13px] font-bold text-on-surface-variant">{item.label}</p>
-              <p className="mt-1 text-[24px] font-bold leading-tight text-on-surface">{item.value}</p>
+              <p className="text-[11px] font-bold text-[#64736a]">{item.label}</p>
+              <p className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.025em]">{item.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-gutter lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-6">
-            <div className="sticky top-[72px] z-30 overflow-x-auto border-b border-outline-variant bg-[#f9f9ff]/95 py-2 backdrop-blur">
+        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-4">
+            <div className="sticky top-[72px] z-30 overflow-x-auto border-b border-[#d8e4d4] bg-[#f8fbf4]/95 py-2 backdrop-blur">
               <div className="flex min-w-max gap-2">
                 {tabs.map((tab) => (
                   <button
-                    className={`rounded-lg px-4 py-2 text-[14px] font-bold transition-colors ${
+                    className={`h-9 rounded-lg px-3 text-[12px] font-bold transition-colors ${
                       activeTab === tab.id
-                        ? 'bg-primary text-white'
-                        : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+                        ? 'bg-[#0b2228] text-white'
+                        : 'text-[#64736a] hover:bg-[#edf5e9] hover:text-[#0b2228]'
                     }`}
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
@@ -371,10 +374,10 @@ export const ClubDetail = () => {
             </div>
 
             {activeTab === 'overview' && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                  <h2 className="text-[24px] font-bold text-on-surface">Giới thiệu</h2>
-                  <p className="mt-4 text-[16px] leading-7 text-on-surface-variant">
+                  <h2 className="text-[18px] font-bold">Giới thiệu</h2>
+                  <p className="mt-3 text-[14px] leading-6 text-[#64736a]">
                     {club.description || 'Chưa có mô tả.'}
                   </p>
                 </section>
@@ -382,17 +385,17 @@ export const ClubDetail = () => {
                 {club.images.length > 0 && (
                   <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
                     <div className="mb-5 flex items-center justify-between gap-4">
-                      <h2 className="text-[24px] font-bold text-on-surface">Ảnh hoạt động</h2>
+                      <h2 className="text-[18px] font-bold">Ảnh hoạt động</h2>
                       <span className="inline-flex items-center gap-2 text-[13px] font-bold text-primary">
                         <ImageIcon className="h-4 w-4" />
                         {club.images.length} ảnh
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                       {club.images.map((image, index) => (
                         <img
                           alt={image.caption || `Hoạt động CLB ${index + 1}`}
-                          className="h-48 w-full rounded-lg object-cover"
+                          className="h-40 w-full rounded-xl object-cover transition-transform duration-300 hover:scale-[1.02]"
                           key={image.groupImageId}
                           src={image.imageUrl}
                         />
@@ -406,8 +409,8 @@ export const ClubDetail = () => {
             {(activeTab === 'overview' || activeTab === 'schedule') && (
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-[24px] font-bold text-on-surface">Lịch hoạt động sắp tới</h2>
-                  <button className="w-fit rounded-lg border border-primary px-4 py-2 text-[14px] font-bold text-primary hover:bg-primary/5" type="button">
+                  <h2 className="text-[18px] font-bold">Lịch hoạt động sắp tới</h2>
+                  <button className="h-9 w-fit rounded-lg border border-[#b9cbb3] px-3 text-[12px] font-bold text-[#477313] hover:bg-[#edf5e9]" type="button">
                     Xem lịch đầy đủ
                   </button>
                 </div>
@@ -420,9 +423,9 @@ export const ClubDetail = () => {
             {(activeTab === 'overview' || activeTab === 'members') && (
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-[24px] font-bold text-on-surface">Thành viên nổi bật</h2>
+                  <h2 className="text-[18px] font-bold">Thành viên nổi bật</h2>
                   <Link
-                    className="w-fit rounded-lg border border-outline-variant px-4 py-2 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
+                    className="inline-flex h-9 w-fit items-center rounded-lg border border-[#d8e4d4] px-3 text-[12px] font-bold hover:bg-[#edf5e9]"
                     to={`/clubs/${id}/members`}
                   >
                     Xem tất cả
@@ -462,11 +465,11 @@ export const ClubDetail = () => {
             {(activeTab === 'overview' || activeTab === 'posts') && (
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center justify-between gap-4">
-                  <h2 className="text-[24px] font-bold text-on-surface">Bảng tin CLB</h2>
+                  <h2 className="text-[18px] font-bold">Bảng tin CLB</h2>
                   {(club.myStatus === 'Accepted') && (
                     <Link
                       to={`/posts/create?visibility=club&groupId=${groupId}`}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[14px] font-bold text-white hover:bg-primary/90"
+                      className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#0b2228] px-3 text-[12px] font-bold text-white hover:bg-[#143f34]"
                     >
                       <Activity className="h-4 w-4" />
                       Đăng bài
@@ -580,7 +583,7 @@ export const ClubDetail = () => {
                             {postTags.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-2">
                                 {postTags.map((tag) => (
-                                  <span className="inline-flex items-center rounded-full bg-[#f0f3ff] px-3 py-1 text-[12px] font-bold text-primary" key={tag}>
+                                  <span className="inline-flex items-center rounded-full bg-[#edf5e9] px-3 py-1 text-[12px] font-bold text-[#0b2228]" key={tag}>
                                     #{tag}
                                   </span>
                                 ))}
@@ -618,35 +621,35 @@ export const ClubDetail = () => {
             )}
           </div>
 
-          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
             <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-[24px] font-bold text-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0b2228] text-[15px] font-bold text-[#e2ff57]">
                   {shortName}
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold uppercase text-on-surface-variant">Thông tin CLB</p>
-                  <h2 className="text-[20px] font-bold text-on-surface">{club.groupName}</h2>
+                  <p className="text-[10px] font-bold text-[#718077]">Thông tin CLB</p>
+                  <h2 className="text-[15px] font-bold">{club.groupName}</h2>
                 </div>
               </div>
 
-              <div className="mt-6 space-y-4 text-[14px]">
+              <div className="mt-4 space-y-3 text-[12px]">
                 <div className="flex gap-3">
-                  <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                   <div>
                     <p className="font-bold text-on-surface">Thành lập</p>
                     <p className="mt-1 text-on-surface-variant">{createdAtFormatted}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Users className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                   <div>
                     <p className="font-bold text-on-surface">Thành viên</p>
                     <p className="mt-1 text-on-surface-variant">{club.memberCount} thành viên</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Award className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <Award className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                   <div>
                     <p className="font-bold text-on-surface">Loại nhóm</p>
                     <p className="mt-1 text-on-surface-variant">{club.groupType}</p>
@@ -657,11 +660,11 @@ export const ClubDetail = () => {
 
             {ownerMember && (
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                <h2 className="text-[20px] font-bold text-on-surface">Quản lý CLB</h2>
+                <h2 className="text-[16px] font-bold">Quản lý CLB</h2>
                 <div className="mt-4 flex items-center gap-3">
                   <img
                     alt={ownerMember.username}
-                    className="h-14 w-14 rounded-full object-cover"
+                    className="h-11 w-11 rounded-xl object-cover"
                     src={ownerMember.profileImageUrl || `https://i.pravatar.cc/160?u=${ownerMember.userId}`}
                   />
                   <div>
@@ -670,17 +673,17 @@ export const ClubDetail = () => {
                   </div>
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[14px] font-bold hover:bg-surface-container-low" type="button">
+                  <button className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[#d8e4d4] px-2.5 text-[11px] font-bold hover:bg-[#edf5e9]" type="button">
                     <Phone className="h-4 w-4" />
                     Gọi
                   </button>
-                  <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-[14px] font-bold text-white hover:bg-primary/90" type="button">
+                  <button className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34]" type="button">
                     <MessageCircle className="h-4 w-4" />
                     Chat
                   </button>
                 </div>
                 <Link
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                  className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#b9cbb3] px-3 text-[12px] font-bold text-[#477313] hover:bg-[#edf5e9]"
                   to={`/clubs/${id}/dashboard`}
                 >
                   <ShieldCheck className="h-4 w-4" />
@@ -691,10 +694,10 @@ export const ClubDetail = () => {
 
             {!ownerMember && (
               <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                <h2 className="text-[20px] font-bold text-on-surface">Quản lý CLB</h2>
+                <h2 className="text-[16px] font-bold">Quản lý CLB</h2>
                 <p className="mt-4 text-[14px] text-on-surface-variant">{club.ownerName}</p>
                 <Link
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                  className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#b9cbb3] px-3 text-[12px] font-bold text-[#477313] hover:bg-[#edf5e9]"
                   to={`/clubs/${id}/dashboard`}
                 >
                   <ShieldCheck className="h-4 w-4" />
@@ -704,9 +707,9 @@ export const ClubDetail = () => {
             )}
 
             {rulesArray.length > 0 && (
-              <section className="rounded-xl border border-outline-variant bg-[#f0f3ff] p-6 shadow-sm">
-                <h2 className="flex items-center gap-2 text-[20px] font-bold text-on-surface">
-                  <Crown className="h-5 w-5 text-primary" />
+              <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-6 shadow-sm">
+                <h2 className="flex items-center gap-2 text-[16px] font-bold">
+                  <Crown className="h-4 w-4 text-[#477313]" />
                   Quy định nhanh
                 </h2>
                 <ul className="mt-4 space-y-3">
@@ -721,9 +724,9 @@ export const ClubDetail = () => {
             )}
 
             <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-[20px] font-bold text-on-surface">Đánh giá cộng đồng</h2>
+              <h2 className="mb-3 text-[16px] font-bold">Đánh giá cộng đồng</h2>
               <div className="flex items-end gap-3">
-                <span className="text-[40px] font-bold leading-none text-on-surface">
+                <span className="text-[30px] font-bold leading-none">
                   {club.overallRating.toFixed(1)}
                 </span>
                 <div className="pb-1">

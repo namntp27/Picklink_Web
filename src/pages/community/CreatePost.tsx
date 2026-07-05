@@ -27,6 +27,7 @@ import { uploadToCloudinary } from '../../api/cloudinary';
 import { currentCommunityUser } from '../../data/communityPosts';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';
+import { useToast } from '../../components/ui/ToastRegion';
 import { createGlobalPost, createGroupPost, getGroups, type CommunityGroup } from '../../api/community';
 
 type Visibility = 'public' | 'club' | 'friends';
@@ -61,6 +62,7 @@ const FieldLabel = ({
 export const CreatePost = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [searchParams] = useSearchParams();
 
@@ -248,7 +250,7 @@ export const CreatePost = () => {
       });
       setImageUrl(url);
     } catch (err: any) {
-      alert(err.message || 'Không thể tải ảnh lên.');
+      notify(err.message || 'Không thể tải ảnh lên.', 'error');
     } finally {
       setUploadingImage(false);
       setUploadProgress(null);
@@ -328,7 +330,7 @@ export const CreatePost = () => {
         navigate('/posts');
       }
     } catch (err: any) {
-      alert(err.message || 'Không thể tạo bài viết.');
+      notify(err.message || 'Không thể tạo bài viết.', 'error');
     } finally {
       setSubmitting(false);
     }

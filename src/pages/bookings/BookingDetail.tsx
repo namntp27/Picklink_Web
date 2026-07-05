@@ -206,6 +206,7 @@ export const BookingDetail = () => {
         <motion.section
           animate={{ opacity: 1, y: 0 }}
           className="mt-5 overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-[0_16px_40px_rgba(25,29,20,0.08)]"
+          data-motion-managed
           initial={revealInitial}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
         >
@@ -261,7 +262,7 @@ export const BookingDetail = () => {
           <div className="grid border-t border-outline-variant bg-surface-container-lowest sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-outline-variant">
             {[
               { icon: CalendarDays, label: 'Ngày chơi', value: playDate(booking.startTime) },
-              { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)}–${time(booking.endTime)}` },
+              { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)} - ${time(booking.endTime)}` },
               { icon: Building2, label: 'Sân con', value: `Sân ${booking.courtNumber}` },
               { icon: CreditCard, label: 'Thanh toán', value: paymentStatusLabels[booking.paymentStatus] ?? booking.paymentStatus },
               { icon: TicketCheck, label: 'Check-in', value: checkInStatusLabels[booking.checkInStatus] ?? booking.checkInStatus },

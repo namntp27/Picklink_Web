@@ -26,6 +26,7 @@ import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { CancelBookingDialog } from './components/CancelBookingDialog';
+import './my-bookings.css';
 
 type BookingFilter = 'all' | 'upcoming' | 'pending' | 'paid' | 'cancelled';
 
@@ -84,7 +85,7 @@ const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
   return booking.status === 'Cancelled' || booking.status === 'Expired';
 };
 
-const linkButtonBase = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[13px] font-semibold transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]';
+const linkButtonBase = 'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]';
 const primaryLinkButton = `${linkButtonBase} border border-primary-container bg-primary-container text-on-primary-container shadow-[0_5px_14px_rgba(152,217,81,0.18)] hover:border-primary-fixed-dim hover:bg-primary-fixed-dim hover:shadow-[0_7px_16px_rgba(152,217,81,0.24)]`;
 const outlineLinkButton = `${linkButtonBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary-container hover:bg-surface-container-low hover:text-primary`;
 
@@ -171,8 +172,8 @@ export const MyBookings = () => {
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 12 };
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-background text-on-surface">
-      <section className="hero-gradient relative overflow-hidden px-4 py-10 text-on-primary sm:px-6 md:py-14">
+    <div className="min-h-dvh overflow-x-clip bg-background text-on-surface" data-bookings-ui>
+      <section className="hero-gradient relative overflow-hidden px-4 py-5 text-on-primary sm:px-6 md:py-6">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-black/50" />
           <div className="absolute inset-0 opacity-15">
@@ -186,7 +187,7 @@ export const MyBookings = () => {
 
         <motion.div
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 mx-auto grid max-w-[1280px] gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end"
+          className="relative z-10 mx-auto grid max-w-[1120px] gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end"
           initial={revealInitial}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
         >
@@ -220,7 +221,7 @@ export const MyBookings = () => {
         </motion.div>
       </section>
 
-      <main className="mx-auto grid max-w-[1280px] gap-6 px-4 py-8 sm:px-6 md:py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <main className="mx-auto grid max-w-[1180px] gap-4 px-4 py-4 sm:px-6 md:py-6 lg:grid-cols-[minmax(0,1fr)_288px]">
         <div className="min-w-0 space-y-5">
           {error && (
             <div className="flex gap-2 rounded-lg border border-error/25 bg-error-container p-4 text-[14px] font-bold text-error" role="alert">
@@ -272,7 +273,8 @@ export const MyBookings = () => {
                 return (
                   <motion.article
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]"
+                    className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]"
+                    data-motion-managed
                     initial={revealInitial}
                     key={booking.bookingId}
                     transition={{ duration: shouldReduceMotion ? 0.01 : 0.25, ease: [0.2, 0.8, 0.2, 1] }}
@@ -287,7 +289,7 @@ export const MyBookings = () => {
                           ))}
                         </div>
                         <Link
-                          className="mt-3 block min-w-0 break-words text-[21px] font-extrabold leading-tight transition-colors hover:text-primary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
+                          className="mt-2.5 block min-w-0 break-words text-[17px] font-extrabold leading-tight transition-colors hover:text-primary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
                           to={`/bookings/${booking.bookingId}`}
                         >
                           {booking.venueName} · Sân {booking.courtNumber}
@@ -296,7 +298,7 @@ export const MyBookings = () => {
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
                           {[
                             { icon: CalendarDays, label: 'Ngày chơi', value: date(booking.startTime) },
-                            { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)}–${time(booking.endTime)}` },
+                            { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)} - ${time(booking.endTime)}` },
                             { icon: MapPin, label: 'Địa chỉ', value: booking.address },
                           ].map((item) => (
                             <div className="flex min-w-0 gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3" key={item.label}>
@@ -311,7 +313,7 @@ export const MyBookings = () => {
                       </div>
                       <div className="h-fit shrink-0 rounded-xl border border-outline-variant bg-surface-container-low p-4 xl:w-[220px]">
                         <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">Tổng tiền</p>
-                        <p className="mt-1 break-words text-[23px] font-extrabold text-primary">{currency.format(booking.totalAmount)}</p>
+                        <p className="mt-1 break-words text-[19px] font-extrabold text-primary">{currency.format(booking.totalAmount)}</p>
                       </div>
                     </div>
 
@@ -363,8 +365,8 @@ export const MyBookings = () => {
           )}
         </div>
 
-        <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
-          <section className="rounded-2xl border border-primary-container bg-surface-container-lowest p-5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
+          <section className="rounded-2xl border border-primary-container bg-surface-container-lowest p-3.5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
             <h2 className="flex items-center gap-2 text-[20px] font-extrabold">
               <ShieldCheck className="h-5 w-5 text-primary" /> Lịch gần nhất
             </h2>
@@ -372,7 +374,7 @@ export const MyBookings = () => {
               <div className="mt-4">
                 <p className="break-words font-bold">{nextBooking.venueName} · Sân {nextBooking.courtNumber}</p>
                 <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
-                  {date(nextBooking.startTime)} · {time(nextBooking.startTime)}–{time(nextBooking.endTime)}
+                  {date(nextBooking.startTime)} · {time(nextBooking.startTime)} - {time(nextBooking.endTime)}
                 </p>
                 <Link className={`mt-4 w-full ${primaryLinkButton}`} to={`/bookings/${nextBooking.bookingId}`}>
                   Xem booking
@@ -383,7 +385,7 @@ export const MyBookings = () => {
             )}
           </section>
 
-          <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
+          <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
             <h2 className="flex items-center gap-2 text-[18px] font-extrabold">
               <TicketCheck className="h-5 w-5 text-primary" /> Trạng thái realtime
             </h2>

@@ -42,7 +42,7 @@ const TournamentCard = ({ tournament }: { tournament: TournamentSummary }) => {
     : 0;
 
   return (
-    <article className="flex overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl">
+    <article className="picklink-glow-surface flex overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white shadow-[0_12px_30px_rgba(8,29,36,0.055)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <Link className="relative block h-52 overflow-hidden" to={`/tournaments/${tournament.slug}`}>
           <img
@@ -156,12 +156,12 @@ export const Tournaments = () => {
   }, [cityFilter, searchTerm, statusFilter, tournaments]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-on-background">
+    <div className="flex min-h-dvh flex-col bg-background text-on-background">
       <div className="h-[72px] w-full bg-primary" />
 
-      <section className="relative overflow-hidden bg-[#101820]">
+      <section className="relative overflow-hidden bg-[#081d24]">
         <img alt="Giải đấu Pickleball" className="absolute inset-0 h-full w-full object-cover opacity-38" src="https://images.unsplash.com/photo-1626245465352-87ff55a6d0ab?q=80&w=1800&auto=format&fit=crop" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#101820] via-[#101820]/82 to-primary/60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#081d24] via-[#081d24]/82 to-primary/60" />
         <div className="relative z-10 mx-auto max-w-container-max-width px-gutter py-20 text-white">
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-[13px] font-bold backdrop-blur">

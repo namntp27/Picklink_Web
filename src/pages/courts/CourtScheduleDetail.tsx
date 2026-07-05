@@ -211,6 +211,7 @@ export const CourtScheduleDetail = () => {
         <motion.section
           {...motionProps}
           className="rounded-2xl border border-[#dbe8d3] bg-white p-3 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
+          data-motion-managed
         >
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:items-end">
             <div className="min-w-0">
@@ -309,6 +310,7 @@ export const CourtScheduleDetail = () => {
                   <motion.article
                     animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                     className="grid min-w-0 gap-3 border-b border-[#dbe8d3] p-4 lg:grid-cols-[180px_minmax(0,1fr)]"
+                    data-motion-managed
                     initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
                     key={court.courtId}
                     transition={{ delay: index * 0.025, duration: 0.22 }}

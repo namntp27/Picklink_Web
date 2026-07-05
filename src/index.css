@@ -14,8 +14,8 @@
   --color-surface-tint: #98d951;
   --color-form-heading: #477313;
 
-  --color-background: #ffffff;
-  --color-on-background: #161a12;
+  --color-background: #f8fbf4;
+  --color-on-background: #0b2228;
   --color-surface: #ffffff;
   --color-surface-bright: #ffffff;
   --color-surface-container-lowest: #ffffff;
@@ -54,6 +54,14 @@
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
   --color-on-error-container: #93000a;
+
+  --color-brand-ink: #0b2228;
+  --color-brand-navy: #081d24;
+  --color-brand-court: #276b3f;
+  --color-brand-accent: #e2ff57;
+  --color-brand-canvas: #f8fbf4;
+  --color-brand-line: #d8e4d4;
+  --color-brand-muted: #66766d;
 
   --spacing-margin-desktop: 40px;
   --spacing-container-max-width: 1200px;
@@ -100,11 +108,22 @@
   --font-weight-headline-sm: 700;
 }
 
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  background: var(--color-brand-canvas);
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-background);
   color: var(--color-on-background);
   overflow-x: hidden;
+}
+
+::selection {
+  background: rgb(226 255 87 / 0.82);
+  color: var(--color-brand-ink);
 }
 
 .bg-\[\#f9f9ff\] { background-color: var(--color-background) !important; }
@@ -119,6 +138,230 @@ body {
 .border-\[\#c2c9b3\] { border-color: var(--color-outline-variant) !important; }
 .hero-gradient { background: linear-gradient(135deg, #477313 0%, #5f8f20 48%, #98d951 100%); }
 
+.picklink-app-shell {
+  min-height: 100dvh;
+  min-width: 0;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 88% 2%, rgb(226 255 87 / 0.055), transparent 26rem),
+    var(--color-brand-canvas);
+}
+
+.picklink-route-stage {
+  isolation: isolate;
+  min-width: 0;
+  transform-origin: 50% 0%;
+}
+
+.picklink-glow-control,
+.picklink-glow-surface {
+  position: relative;
+  isolation: isolate;
+}
+
+[data-motion-scope] :where(
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [role="tab"],
+  a[class*="rounded"]
+):not(.picklink-no-glow) {
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-motion-scope] :where(
+  button,
+  [role="button"],
+  [role="tab"],
+  a[class*="rounded"]
+):not(.picklink-no-glow):not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+[data-motion-scope] :where(
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [role="tab"],
+  a[class*="rounded"]
+):not(.picklink-no-glow):focus-visible {
+  outline: 3px solid rgb(226 255 87 / 0.76);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-motion-scope] :where(
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [role="button"],
+    [role="tab"],
+    a[class*="rounded"]
+  ):not(.picklink-no-glow):not(:disabled):hover,
+  .picklink-glow-control:hover {
+    outline: 1px solid rgb(226 255 87 / 0.62);
+    outline-offset: 1px;
+    box-shadow:
+      0 0 0 1px rgb(226 255 87 / 0.28),
+      0 0 2px rgb(152 217 81 / 0.34),
+      0 10px 28px rgb(8 29 36 / 0.1);
+  }
+
+  :where(
+    .picklink-glow-surface,
+    .community-card,
+    .community-panel,
+    .match-panel,
+    .match-side-panel,
+    .owner-stat-card,
+    .owner-panel,
+    .staff-command,
+    .staff-metric,
+    .staff-panel,
+    .staff-booking-row,
+    .profile-form-surface,
+    .profile-identity
+  ):hover,
+  [data-motion-scope="product"] :where(
+    section[class*="rounded"],
+    article[class*="rounded"]
+  ):hover {
+    outline: 1px solid rgb(226 255 87 / 0.48);
+    outline-offset: 1px;
+    box-shadow:
+      0 0 0 1px rgb(226 255 87 / 0.22),
+      0 0 2px rgb(152 217 81 / 0.3),
+      0 18px 42px rgb(8 29 36 / 0.1);
+  }
+}
+
+@keyframes picklink-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.996);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes picklink-view-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes picklink-soft-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes picklink-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes picklink-skeleton-shimmer {
+  from {
+    transform: translateX(-115%);
+  }
+  to {
+    transform: translateX(115%);
+  }
+}
+
+.picklink-app-shell > :first-child {
+  animation: picklink-page-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+[data-motion-scope] [role="dialog"]:not([data-motion-managed]) {
+  animation: picklink-dialog-enter 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: 50% 12%;
+}
+
+[data-motion-scope] .animate-pulse {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-motion-scope] .animate-pulse::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgb(226 255 87 / 0.12) 44%,
+    rgb(255 255 255 / 0.46) 50%,
+    rgb(152 217 81 / 0.1) 56%,
+    transparent 80%
+  );
+  content: "";
+  pointer-events: none;
+  transform: translateX(-115%);
+  animation: picklink-skeleton-shimmer 1.45s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+@supports (animation-timeline: view()) {
+  [data-motion-scope="rich"]
+    :where(section, article):not([data-no-reveal]):not([role="dialog"]):not([data-motion-managed]) {
+    animation-name: picklink-view-reveal;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation-timeline: view();
+    animation-range: entry 0% cover 22%;
+  }
+
+  [data-motion-scope="product"] :where(
+    .owner-stat-card,
+    .owner-panel,
+    .staff-metric,
+    .staff-panel,
+    .profile-form-section,
+    .community-card,
+    section[class*="rounded"]:not([role="dialog"]):not([data-motion-managed]),
+    article[class*="rounded"]:not([role="dialog"]):not([data-motion-managed])
+  ) {
+    animation-name: picklink-view-reveal;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation-timeline: view();
+    animation-range: entry 0% cover 16%;
+  }
+}
+
+.picklink-live-pulse {
+  animation: picklink-soft-pulse 2.2s ease-in-out infinite;
+}
+
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #dde5d5; border-radius: 10px; }
@@ -128,4 +371,29 @@ body {
     0% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.2); opacity: 0.7; }
     100% { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .picklink-app-shell > :first-child,
+  [data-motion-scope] :where(section, article),
+  [data-motion-scope] [role="dialog"],
+  [data-motion-scope] .animate-pulse::after,
+  .picklink-live-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

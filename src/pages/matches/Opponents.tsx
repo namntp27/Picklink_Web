@@ -151,14 +151,14 @@ const locationErrorMessage = (error: GeolocationPositionError) => {
 
 const markerIcon = (selected: boolean) => divIcon({
   className: '',
-  html: `<div style="width:${selected ? 36 : 30}px;height:${selected ? 36 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#c5221f' : '#ea4335'};border:3px solid white;box-shadow:0 4px 12px rgba(60,64,67,.32);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:white"></div></div>`,
+  html: `<div style="width:${selected ? 36 : 30}px;height:${selected ? 36 : 30}px;border-radius:50% 50% 50% 0;background:${selected ? '#0b2228' : '#477313'};border:3px solid white;box-shadow:0 0 0 1px rgba(226,255,87,.4),0 5px 14px rgba(8,29,36,.28);transform:rotate(-45deg);display:grid;place-items:center"><div style="width:8px;height:8px;border-radius:50%;background:#e2ff57"></div></div>`,
   iconAnchor: selected ? [18, 36] : [15, 30],
   popupAnchor: [0, selected ? -36 : -30],
 });
 
 const playerLocationIcon = divIcon({
   className: '',
-  html: '<div style="width:22px;height:22px;border-radius:50%;background:#1a73e8;border:4px solid white;box-shadow:0 0 0 6px rgba(26,115,232,.2),0 3px 10px rgba(60,64,67,.32)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50%;background:#e2ff57;border:4px solid white;box-shadow:0 0 0 6px rgba(152,217,81,.22),0 3px 12px rgba(8,29,36,.28)"></div>',
   iconAnchor: [11, 11],
   popupAnchor: [0, -14],
 });
@@ -860,7 +860,7 @@ export const Opponents = () => {
               <p className="mt-1 text-[11px] font-semibold leading-5 text-[#718077]">Bản đồ dùng để chọn danh sách mong muốn. Chưa có sân hoặc khung giờ nào được giữ.</p>
             </div>
             <button
-              className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg bg-[#1a73e8] px-3 text-[11px] font-bold text-white transition-colors hover:bg-[#1765cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a73e8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg bg-[#0b2228] px-3 text-[11px] font-bold text-[#e2ff57] transition-[background-color,transform,box-shadow] hover:-translate-y-px hover:bg-[#14333a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={preferredVenueOptions.length === 0}
               onClick={() => setShowRouteMap(true)}
               type="button"
@@ -876,7 +876,7 @@ export const Opponents = () => {
               {location && (
                 <Circle
                   center={[location.latitude, location.longitude]}
-                  pathOptions={{ color: '#1a73e8', fillColor: '#1a73e8', fillOpacity: 0.1, opacity: 0.9, weight: 2 }}
+                  pathOptions={{ color: '#477313', fillColor: '#98d951', fillOpacity: 0.1, opacity: 0.9, weight: 2 }}
                   radius={radiusKm * 1_000}
                 />
               )}
