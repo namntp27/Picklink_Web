@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
@@ -10,113 +10,30 @@ import {
   Clock,
   CreditCard,
   MapPin,
-  Settings,
   ShieldCheck,
   Trash2,
-  Trophy,
   UserPlus,
   Users,
   X,
 } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import { PaginationControls } from '../../components/PaginationControls';
+import { useToast } from '../../components/ui/ToastRegion';
+import {
+  deleteNotification,
+  deleteReadNotifications,
+  getUnreadNotificationCount,
+  listNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  type NotificationFilter,
+  type NotificationItem,
+  type NotificationTone,
+  type NotificationType,
+} from '../../api/notifications';
+import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 
-type NotificationType = 'match' | 'payment' | 'court' | 'club' | 'tournament' | 'system';
-type NotificationFilter = 'all' | 'unread' | NotificationType;
-type NotificationTone = 'default' | 'urgent' | 'success';
-
-type NotificationItem = {
-  id: number;
-  type: NotificationType;
-  tone: NotificationTone;
-  title: string;
-  message: string;
-  createdAt: string;
-  read: boolean;
-  meta: string;
-  linkTo?: string;
-  linkLabel?: string;
-};
-
-type NotificationPreference = {
-  id: NotificationType;
-  label: string;
-  description: string;
-  enabled: boolean;
-};
-
-const initialNotifications: NotificationItem[] = [
-  {
-    id: 1,
-    type: 'match',
-    tone: 'urgent',
-    title: 'Có người muốn tham gia trận của bạn',
-    message: 'Minh Tuấn đã bấm tham gia trận đôi tại Pickleball Pro Duy Tân. Trận còn thiếu 1 người để đủ đội hình.',
-    createdAt: '2026-06-18T08:20:00',
-    read: false,
-    meta: 'Ghép trận',
-    linkTo: '/matches/1',
-    linkLabel: 'Xem trận',
-  },
-  {
-    id: 2,
-    type: 'payment',
-    tone: 'urgent',
-    title: 'Đến lượt bạn thanh toán tiền sân',
-    message: 'Trận tối Thủ Đức đã đủ người. Bạn cần thanh toán 94.000 đ để giữ lịch sân.',
-    createdAt: '2026-06-18T07:45:00',
-    read: false,
-    meta: 'Thanh toán',
-    linkTo: '/my-matches',
-    linkLabel: 'Thanh toán',
-  },
-  {
-    id: 3,
-    type: 'court',
-    tone: 'default',
-    title: 'Lịch sân đã được giữ tạm',
-    message: 'C.Lông 1, ngày 18/06/2026 lúc 7:00 - 8:00 đang được giữ trong 10 phút.',
-    createdAt: '2026-06-18T07:10:00',
-    read: false,
-    meta: 'Đặt sân',
-    linkTo: '/court/1/schedule',
-    linkLabel: 'Xem lịch sân',
-  },
-  {
-    id: 4,
-    type: 'club',
-    tone: 'success',
-    title: 'Yêu cầu vào câu lạc bộ đã được duyệt',
-    message: 'Câu lạc bộ PickleHub Mỹ Đình đã chấp nhận bạn làm thành viên.',
-    createdAt: '2026-06-17T20:30:00',
-    read: true,
-    meta: 'Câu lạc bộ',
-    linkTo: '/clubs/2',
-    linkLabel: 'Xem CLB',
-  },
-  {
-    id: 5,
-    type: 'tournament',
-    tone: 'default',
-    title: 'Giải đấu mới gần bạn',
-    message: 'Hanoi Summer Pickleball Open mở đăng ký hạng 3.0 - 3.5 đến hết tuần này.',
-    createdAt: '2026-06-17T16:15:00',
-    read: true,
-    meta: 'Giải đấu',
-    linkTo: '/tournaments',
-    linkLabel: 'Xem giải đấu',
-  },
-  {
-    id: 6,
-    type: 'system',
-    tone: 'success',
-    title: 'Hồ sơ thi đấu đã được cập nhật',
-    message: 'Trình độ hiện tại của bạn đã được lưu là 3.0 - 3.5. Picklink sẽ dùng dữ liệu này để gợi ý trận phù hợp hơn.',
-    createdAt: '2026-06-16T21:00:00',
-    read: true,
-    meta: 'Tài khoản',
-    linkTo: '/my-matches',
-    linkLabel: 'Xem trận của tôi',
-  },
-];
+const pageSize = 10;
 
 const filterOptions: Array<{ label: string; value: NotificationFilter }> = [
   { label: 'Tất cả', value: 'all' },
@@ -125,13 +42,21 @@ const filterOptions: Array<{ label: string; value: NotificationFilter }> = [
   { label: 'Thanh toán', value: 'payment' },
   { label: 'Đặt sân', value: 'court' },
   { label: 'CLB', value: 'club' },
-  { label: 'Giải đấu', value: 'tournament' },
+  { label: 'Hệ thống', value: 'system' },
 ];
+
+const typeLabels: Record<NotificationType, string> = {
+  match: 'Ghép trận',
+  payment: 'Thanh toán',
+  court: 'Đặt sân',
+  club: 'Câu lạc bộ',
+  system: 'Hệ thống',
+};
 
 const notificationTypeConfig: Record<
   NotificationType,
   {
-    icon: React.ElementType;
+    icon: typeof Bell;
     className: string;
   }
 > = {
@@ -151,10 +76,6 @@ const notificationTypeConfig: Record<
     icon: Users,
     className: 'bg-[#edf5e9] text-[#477313]',
   },
-  tournament: {
-    icon: Trophy,
-    className: 'bg-[#e2ff57] text-[#102414]',
-  },
   system: {
     icon: ShieldCheck,
     className: 'bg-[#e8ece7] text-[#53645b]',
@@ -166,33 +87,6 @@ const toneClassNames: Record<NotificationTone, string> = {
   urgent: 'border-l-[#eab526]',
   success: 'border-l-[#98d951]',
 };
-
-const initialPreferences: NotificationPreference[] = [
-  {
-    id: 'match',
-    label: 'Ghép trận',
-    description: 'Lời mời, người tham gia và thay đổi trạng thái trận',
-    enabled: true,
-  },
-  {
-    id: 'payment',
-    label: 'Thanh toán',
-    description: 'Nhắc thanh toán và xác nhận giao dịch',
-    enabled: true,
-  },
-  {
-    id: 'court',
-    label: 'Lịch sân',
-    description: 'Giữ sân, đổi giờ và cập nhật sân trống',
-    enabled: true,
-  },
-  {
-    id: 'club',
-    label: 'Câu lạc bộ',
-    description: 'Duyệt thành viên, bài đăng và hoạt động CLB',
-    enabled: false,
-  },
-];
 
 const formatNotificationTime = (value: string) => {
   const date = new Date(value);
@@ -206,73 +100,118 @@ const formatNotificationTime = (value: string) => {
   }).format(date);
 };
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export const Notifications = () => {
   const shouldReduceMotion = useReducedMotion();
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const { token } = useAuth();
+  const notify = useToast();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
-  const [preferences, setPreferences] = useState<NotificationPreference[]>(initialPreferences);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize,
+    totalCount: 0,
+    totalPages: 1,
+  });
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(Boolean(token));
+  const [error, setError] = useState('');
 
-  const filteredNotifications = useMemo(
-    () =>
-      notifications.filter((notification) => {
-        if (activeFilter === 'all') {
-          return true;
-        }
+  const loadNotifications = useCallback(async () => {
+    if (!token) {
+      setNotifications([]);
+      setPagination({ page: 1, pageSize, totalCount: 0, totalPages: 1 });
+      setUnreadCount(0);
+      setError('Vui lòng đăng nhập để xem thông báo.');
+      setIsLoading(false);
+      return;
+    }
 
-        if (activeFilter === 'unread') {
-          return !notification.read;
-        }
-
-        return notification.type === activeFilter;
-      }),
-    [activeFilter, notifications],
-  );
-
-  const counts = useMemo(
-    () =>
-      notifications.reduce(
-        (currentCounts, notification) => ({
-          ...currentCounts,
-          all: currentCounts.all + 1,
-          unread: currentCounts.unread + (notification.read ? 0 : 1),
-          [notification.type]: currentCounts[notification.type] + 1,
+    setIsLoading(true);
+    try {
+      const [result, unreadResult] = await Promise.all([
+        listNotifications(token, {
+          page,
+          pageSize,
+          unreadOnly: activeFilter === 'unread',
+          type: activeFilter !== 'all' && activeFilter !== 'unread' ? activeFilter : undefined,
         }),
-        { all: 0, unread: 0, match: 0, payment: 0, court: 0, club: 0, tournament: 0, system: 0 } as Record<
-          NotificationFilter | 'system',
-          number
-        >,
-      ),
+        getUnreadNotificationCount(token),
+      ]);
+      setNotifications(result.items);
+      setPagination(result);
+      setUnreadCount(unreadResult.count);
+      setError('');
+    } catch (requestError) {
+      const message = getErrorMessage(requestError, 'Không thể tải thông báo.');
+      setError(message);
+      notify(message, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeFilter, notify, page, token]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  useNotificationRealtime(token, () => {
+    void loadNotifications();
+  });
+
+  const urgentNotifications = useMemo(
+    () => notifications.filter((notification) => !notification.isRead && notification.tone === 'urgent'),
     [notifications],
   );
+  const latestUnreadNotification = notifications.find((notification) => !notification.isRead);
+  const hasReadNotifications = notifications.some((notification) => notification.isRead);
 
-  const unreadNotifications = notifications.filter((notification) => !notification.read);
-  const urgentNotifications = unreadNotifications.filter((notification) => notification.tone === 'urgent');
-  const latestUnreadNotification = unreadNotifications[0];
-
-  const markAsRead = (notificationId: number) => {
-    setNotifications((current) =>
-      current.map((notification) => (notification.id === notificationId ? { ...notification, read: true } : notification)),
-    );
+  const switchFilter = (filter: NotificationFilter) => {
+    setActiveFilter(filter);
+    setPage(1);
   };
 
-  const markAllAsRead = () => {
-    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+  const markAsRead = async (notificationId: number) => {
+    if (!token) return;
+    try {
+      await markNotificationAsRead(token, notificationId);
+      await loadNotifications();
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể đánh dấu đã đọc.'), 'error');
+    }
   };
 
-  const removeNotification = (notificationId: number) => {
-    setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
+  const markAllAsRead = async () => {
+    if (!token || unreadCount === 0) return;
+    try {
+      await markAllNotificationsAsRead(token);
+      await loadNotifications();
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể đánh dấu tất cả đã đọc.'), 'error');
+    }
   };
 
-  const clearReadNotifications = () => {
-    setNotifications((current) => current.filter((notification) => !notification.read));
+  const removeNotification = async (notificationId: number) => {
+    if (!token) return;
+    try {
+      await deleteNotification(token, notificationId);
+      await loadNotifications();
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể xóa thông báo.'), 'error');
+    }
   };
 
-  const togglePreference = (preferenceId: NotificationType) => {
-    setPreferences((current) =>
-      current.map((preference) =>
-        preference.id === preferenceId ? { ...preference, enabled: !preference.enabled } : preference,
-      ),
-    );
+  const clearReadNotifications = async () => {
+    if (!token || !hasReadNotifications) return;
+    try {
+      await deleteReadNotifications(token);
+      await loadNotifications();
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể xóa thông báo đã đọc.'), 'error');
+    }
   };
 
   return (
@@ -293,7 +232,7 @@ export const Notifications = () => {
 
           <div className="grid w-full grid-cols-2 overflow-hidden rounded-xl border border-white/12 bg-white/8 sm:w-auto sm:min-w-[250px]">
             <div className="px-4 py-2.5">
-              <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">{counts.unread}</p>
+              <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">{unreadCount}</p>
               <p className="mt-1 text-[11px] font-medium text-white/62">chưa đọc</p>
             </div>
             <div className="border-l border-white/12 px-4 py-2.5">
@@ -317,10 +256,10 @@ export const Notifications = () => {
                         : 'bg-[#edf5e9] text-[#53645b] hover:bg-[#e2ff57] hover:text-[#102414]'
                     }`}
                     key={filter.value}
-                    onClick={() => setActiveFilter(filter.value)}
+                    onClick={() => switchFilter(filter.value)}
                     type="button"
                   >
-                    {filter.label} ({counts[filter.value]})
+                    {filter.label}
                   </button>
                 ))}
               </div>
@@ -328,8 +267,8 @@ export const Notifications = () => {
               <div className="flex items-center gap-1.5 border-t border-[#e0e9dc] pt-2 xl:border-l xl:border-t-0 xl:pl-2 xl:pt-0">
                 <button
                   className="picklink-glow-control inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#b9cbb3] px-2.5 text-[12px] font-bold text-[#477313] hover:border-[#98d951] hover:bg-[#edf5e9] disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={counts.unread === 0}
-                  onClick={markAllAsRead}
+                  disabled={unreadCount === 0}
+                  onClick={() => void markAllAsRead()}
                   type="button"
                 >
                   <CheckCheck aria-hidden="true" className="h-3.5 w-3.5" />
@@ -337,8 +276,8 @@ export const Notifications = () => {
                 </button>
                 <button
                   className="picklink-glow-control inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#d8e4d4] px-2.5 text-[12px] font-bold text-[#64736a] hover:bg-[#edf5e9] disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={notifications.every((notification) => !notification.read)}
-                  onClick={clearReadNotifications}
+                  disabled={!hasReadNotifications}
+                  onClick={() => void clearReadNotifications()}
                   type="button"
                 >
                   <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
@@ -349,89 +288,105 @@ export const Notifications = () => {
           </section>
 
           <section className="picklink-glow-surface overflow-hidden rounded-xl border border-[#d8e4d4] bg-white shadow-[0_10px_28px_rgba(8,29,36,0.05)]">
-            <AnimatePresence initial={false}>
-              {filteredNotifications.map((notification) => {
-                const config = notificationTypeConfig[notification.type];
-                const NotificationIcon = config.icon;
+            {isLoading && (
+              <div className="p-6 text-center text-[13px] font-bold text-[#53645b]">Đang tải thông báo...</div>
+            )}
 
-                return (
-                  <motion.article
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`border-b border-l-2 border-b-[#e0e9dc] transition-colors last:border-b-0 hover:bg-[#f4f9ef] ${toneClassNames[notification.tone]} ${
-                      notification.read ? 'bg-white' : 'bg-[#fbfdf8]'
-                    }`}
-                    data-motion-managed
-                    exit={shouldReduceMotion ? undefined : { opacity: 0, y: -5 }}
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
-                    key={notification.id}
-                    layout
-                    transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: [0.2, 0.8, 0.2, 1] }}
-                  >
-                    <div className="flex min-w-0 items-start gap-2.5 px-3 py-2.5 sm:px-3.5">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.className}`}>
-                        <NotificationIcon aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
-                      </div>
+            {!isLoading && error && (
+              <div className="p-6 text-center">
+                <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#edf5e9] text-[#477313]">
+                  <Bell aria-hidden="true" className="h-5 w-5" />
+                </span>
+                <h2 className="mt-3 text-[16px] font-bold">Chưa thể tải thông báo</h2>
+                <p className="mt-1 text-[12px] leading-5 text-[#64736a]">{error}</p>
+              </div>
+            )}
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          {!notification.read && (
-                            <span aria-label="Chưa đọc" className="h-1.5 w-1.5 rounded-full bg-[#d69e00]" role="img" />
-                          )}
-                          <span className="rounded-md bg-[#edf5e9] px-1.5 py-0.5 text-[10px] font-bold text-[#53645b]">
-                            {notification.meta}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#7a887e]">
-                            <Clock aria-hidden="true" className="h-3 w-3" />
-                            {formatNotificationTime(notification.createdAt)}
-                          </span>
+            {!isLoading && !error && (
+              <AnimatePresence initial={false}>
+                {notifications.map((notification) => {
+                  const config = notificationTypeConfig[notification.type];
+                  const NotificationIcon = config.icon;
+
+                  return (
+                    <motion.article
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`border-b border-l-2 border-b-[#e0e9dc] transition-colors last:border-b-0 hover:bg-[#f4f9ef] ${toneClassNames[notification.tone]} ${
+                        notification.isRead ? 'bg-white' : 'bg-[#fbfdf8]'
+                      }`}
+                      data-motion-managed
+                      exit={shouldReduceMotion ? undefined : { opacity: 0, y: -5 }}
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
+                      key={notification.notificationId}
+                      layout
+                      transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+                    >
+                      <div className="flex min-w-0 items-start gap-2.5 px-3 py-2.5 sm:px-3.5">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.className}`}>
+                          <NotificationIcon aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
                         </div>
 
-                        <div className="mt-1.5 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <h2 className="text-[14px] font-bold leading-5 tracking-[-0.01em]">{notification.title}</h2>
-                            <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#64736a]">{notification.message}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            {!notification.isRead && (
+                              <span aria-label="Chưa đọc" className="h-1.5 w-1.5 rounded-full bg-[#d69e00]" role="img" />
+                            )}
+                            <span className="rounded-md bg-[#edf5e9] px-1.5 py-0.5 text-[10px] font-bold text-[#53645b]">
+                              {typeLabels[notification.type]}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#7a887e]">
+                              <Clock aria-hidden="true" className="h-3 w-3" />
+                              {formatNotificationTime(notification.createdAt)}
+                            </span>
                           </div>
 
-                          <div className="flex shrink-0 items-center gap-1">
-                            {notification.linkTo && notification.linkLabel && (
-                              <Link
-                                className="picklink-glow-control inline-flex h-8 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34]"
-                                onClick={() => markAsRead(notification.id)}
-                                to={notification.linkTo}
-                              >
-                                {notification.linkLabel}
-                              </Link>
-                            )}
-                            {!notification.read && (
+                          <div className="mt-1.5 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <h2 className="text-[14px] font-bold leading-5 tracking-[-0.01em]">{notification.title}</h2>
+                              <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#64736a]">{notification.message}</p>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-1">
+                              {notification.linkTo && notification.linkLabel && (
+                                <Link
+                                  className="picklink-glow-control inline-flex h-8 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34]"
+                                  onClick={() => void markAsRead(notification.notificationId)}
+                                  to={notification.linkTo}
+                                >
+                                  {notification.linkLabel}
+                                </Link>
+                              )}
+                              {!notification.isRead && (
+                                <button
+                                  aria-label={`Đánh dấu đã đọc: ${notification.title}`}
+                                  className="picklink-glow-control inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8e4d4] text-[#477313] hover:border-[#98d951] hover:bg-[#edf5e9]"
+                                  onClick={() => void markAsRead(notification.notificationId)}
+                                  title="Đánh dấu đã đọc"
+                                  type="button"
+                                >
+                                  <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
-                                aria-label={`Đánh dấu đã đọc: ${notification.title}`}
-                                className="picklink-glow-control inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8e4d4] text-[#477313] hover:border-[#98d951] hover:bg-[#edf5e9]"
-                                onClick={() => markAsRead(notification.id)}
-                                title="Đánh dấu đã đọc"
+                                aria-label={`Xóa thông báo ${notification.title}`}
+                                className="picklink-glow-control inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8e4d4] text-[#718077] hover:border-[#e7c8c4] hover:bg-[#fff1ef] hover:text-[#a33535]"
+                                onClick={() => void removeNotification(notification.notificationId)}
+                                title="Xóa thông báo"
                                 type="button"
                               >
-                                <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                                <X aria-hidden="true" className="h-4 w-4" />
                               </button>
-                            )}
-                            <button
-                              aria-label={`Xóa thông báo ${notification.title}`}
-                              className="picklink-glow-control inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8e4d4] text-[#718077] hover:border-[#e7c8c4] hover:bg-[#fff1ef] hover:text-[#a33535]"
-                              onClick={() => removeNotification(notification.id)}
-                              title="Xóa thông báo"
-                              type="button"
-                            >
-                              <X aria-hidden="true" className="h-4 w-4" />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.article>
-                );
-              })}
-            </AnimatePresence>
+                    </motion.article>
+                  );
+                })}
+              </AnimatePresence>
+            )}
 
-            {filteredNotifications.length === 0 && (
+            {!isLoading && !error && notifications.length === 0 && (
               <div className="p-6 text-center">
                 <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#edf5e9] text-[#477313]">
                   <Bell aria-hidden="true" className="h-5 w-5" />
@@ -441,6 +396,8 @@ export const Notifications = () => {
               </div>
             )}
           </section>
+
+          <PaginationControls page={pagination} onPageChange={setPage} />
         </div>
 
         <aside className="space-y-3 lg:sticky lg:top-24 lg:self-start">
@@ -453,13 +410,13 @@ export const Notifications = () => {
             <div className="mt-2.5 divide-y divide-[#e0e9dc]">
               {urgentNotifications.length > 0 ? (
                 urgentNotifications.map((notification) => (
-                  <div className="py-2.5 first:pt-0 last:pb-0" key={notification.id}>
+                  <div className="py-2.5 first:pt-0 last:pb-0" key={notification.notificationId}>
                     <p className="text-[12px] font-bold leading-4">{notification.title}</p>
                     <p className="mt-1 line-clamp-2 text-[11px] leading-[18px] text-[#64736a]">{notification.message}</p>
                     {notification.linkTo && notification.linkLabel && (
                       <Link
                         className="picklink-glow-control mt-2 inline-flex h-7 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[10px] font-bold text-white hover:bg-[#143f34]"
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={() => void markAsRead(notification.notificationId)}
                         to={notification.linkTo}
                       >
                         {notification.linkLabel}
@@ -470,44 +427,6 @@ export const Notifications = () => {
               ) : (
                 <p className="rounded-lg bg-[#edf5e9] px-3 py-2.5 text-[11px] font-bold text-[#477313]">Không có việc khẩn cấp.</p>
               )}
-            </div>
-          </section>
-
-          <section className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-3.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
-            <h2 className="flex items-center gap-2 text-[15px] font-bold">
-              <Settings aria-hidden="true" className="h-4 w-4 text-[#477313]" />
-              Cài đặt nhận tin
-            </h2>
-
-            <div className="mt-2.5 divide-y divide-[#e0e9dc]">
-              {preferences.map((preference) => (
-                <div
-                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                  key={preference.id}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[12px] font-bold">{preference.label}</span>
-                    <span className="mt-0.5 block text-[10px] leading-4 text-[#718077]">{preference.description}</span>
-                  </span>
-                  <button
-                    aria-checked={preference.enabled}
-                    aria-label={`${preference.enabled ? 'Tắt' : 'Bật'} thông báo ${preference.label}`}
-                    className={`picklink-glow-control relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                      preference.enabled ? 'bg-[#477313]' : 'bg-[#cbd6c7]'
-                    }`}
-                    onClick={() => togglePreference(preference.id)}
-                    role="switch"
-                    type="button"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`absolute top-[3px] h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                        preference.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                      }`}
-                    />
-                  </button>
-                </div>
-              ))}
             </div>
           </section>
 

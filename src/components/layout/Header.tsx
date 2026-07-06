@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
+import { getUnreadNotificationCount } from '../../api/notifications';
+import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 import { Button } from '../ui/Button';
 
 const navItems = [
@@ -31,13 +33,14 @@ const navItems = [
 const utilityItems = [
   { path: '/my-bookings', label: 'Lịch sử đặt sân', icon: CalendarClock },
   { path: '/messages', label: 'Tin nhắn', icon: MessageCircle },
-  { path: '/notifications', label: 'Thông báo', icon: Bell, badge: '3' },
+  { path: '/notifications', label: 'Thông báo', icon: Bell },
 ];
 
 export const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { logout, user } = useAuth();
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const { logout, token, user } = useAuth();
   const location = useLocation();
   const mobileMenuId = useId();
   const shouldReduceMotion = useReducedMotion();
@@ -53,6 +56,28 @@ export const Header = () => {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
+
+  const loadUnreadNotificationCount = async () => {
+    if (!token) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    try {
+      const result = await getUnreadNotificationCount(token);
+      setUnreadNotificationCount(result.count);
+    } catch {
+      setUnreadNotificationCount(0);
+    }
+  };
+
+  useEffect(() => {
+    void loadUnreadNotificationCount();
+  }, [token]);
+
+  useNotificationRealtime(token, () => {
+    void loadUnreadNotificationCount();
+  });
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -152,9 +177,9 @@ export const Header = () => {
                   to={item.path}
                 >
                   <Icon aria-hidden="true" className="h-5 w-5" />
-                  {item.badge && (
+                  {item.path === '/notifications' && unreadNotificationCount > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e2ff57] px-1 text-[11px] font-black text-[#102414] ring-2 ring-white">
-                      {item.badge}
+                      {Math.min(unreadNotificationCount, 99)}
                     </span>
                   )}
                 </Link>
@@ -295,9 +320,9 @@ export const Header = () => {
                         <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />
                         {item.label}
                       </span>
-                      {item.badge && (
+                      {item.path === '/notifications' && unreadNotificationCount > 0 && (
                         <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#e2ff57] px-1.5 text-[11px] font-black text-[#102414]">
-                          {item.badge}
+                          {Math.min(unreadNotificationCount, 99)}
                         </span>
                       )}
                     </Link>
