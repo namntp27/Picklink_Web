@@ -25,6 +25,25 @@ npm run dev
 
 Mở `http://localhost:3000`. Trong môi trường dev, Vite tự chuyển tiếp `/api` và `/uploads` sang backend nên không cần tạo `.env`.
 
+## Cấu trúc source
+
+Mã nguồn chính nằm trong `src`.
+
+- `src/pages`: route-level pages. Mỗi file ở đây nên tương ứng với một màn hình
+  hoặc một route chính.
+- `src/components`: component dùng lại giữa nhiều page.
+- `src/components/ui`: UI primitive như button, input, dropdown, toast.
+- `src/api`: client gọi backend và type response/request gắn với API.
+- `src/auth`: context đăng nhập và route guard.
+- `src/hooks`: hook dùng chung, đặc biệt là realtime/SSE hooks.
+- `src/data`: dữ liệu mock, formatter hoặc helper dữ liệu phía giao diện.
+- `src/types`: type domain dùng chung.
+- `src/utils`: helper thuần không phụ thuộc UI.
+
+Project đã cấu hình alias `@`, nên khi chỉnh file có thể ưu tiên import kiểu
+`@/api/client` hoặc `@/components/ui/Button` thay vì relative path quá sâu.
+Không cần rewrite toàn bộ import trong một lần.
+
 ## Cấu hình Google
 
 Trong Google Cloud Console, tạo OAuth 2.0 Client ID loại **Web application** và thêm JavaScript origin:
@@ -62,3 +81,18 @@ Domain frontend cũng cần được cho phép trong CORS của backend.
 npm run lint
 npm run build
 ```
+
+## Ứng viên dọn cấu trúc Phase 2
+
+Các page lớn nên được tách dần thành container + component/hook nhỏ hơn khi có
+thay đổi nghiệp vụ liên quan:
+
+- `src/pages/clubs/ClubDashboard.tsx`
+- `src/pages/messages/Messages.tsx`
+- `src/pages/matches/MatchDetail.tsx`
+- `src/pages/matches/Opponents.tsx`
+- `src/pages/community/CreatePost.tsx`
+- `src/pages/community/PostDetail.tsx`
+
+Ưu tiên đặt component chỉ dùng trong một feature vào `components/` bên trong
+feature đó trước khi đưa lên `src/components`.
