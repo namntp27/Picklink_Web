@@ -8,7 +8,7 @@
     "build": "vite build --configLoader runner",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "test": "tsx --test src/pages/owner/components/OpenStreetMapLocationPicker.test.tsx src/pages/owner/components/OwnerMatchTransactionReviewModal.test.ts src/pages/owner/OwnerBookings.test.ts src/pages/matches/MatchDetail.test.ts src/pages/matches/MyMatches.test.ts src/pages/matches/PendingInvites.test.ts src/pages/admin/AdminCourts.test.ts src/api/adminVenues.test.ts src/api/cloudinary.test.ts src/api/notifications.test.ts src/hooks/useNotificationRealtime.test.ts src/pages/notifications/Notifications.test.ts src/components/layout/Header.test.ts",
+    "test": "tsx --test src/pages/owner/components/OpenStreetMapLocationPicker.test.tsx src/pages/owner/components/OwnerMatchTransactionReviewModal.test.ts src/pages/owner/OwnerBookings.test.ts src/pages/owner/OwnerVenueListingFee.test.ts src/pages/matches/MatchDetail.test.ts src/pages/matches/MyMatches.test.ts src/pages/matches/PendingInvites.test.ts src/pages/admin/AdminCourts.test.ts src/pages/admin/AdminUsers.test.ts src/pages/admin/AdminTransactions.test.ts src/api/adminVenues.test.ts src/api/adminUsers.test.ts src/api/listingFees.test.ts src/api/cloudinary.test.ts src/api/notifications.test.ts src/hooks/useNotificationRealtime.test.ts src/pages/notifications/Notifications.test.ts src/components/layout/Header.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

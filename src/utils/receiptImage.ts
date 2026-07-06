@@ -36,6 +36,7 @@ const receiptFileName = (fileName: string) => {
 
 export const optimizeReceiptImage = async (file: File) => {
   if (!file.type.startsWith('image/')) return file;
+  if (typeof document === 'undefined' || typeof Image === 'undefined') return file;
 
   const image = await loadImage(file);
   const largestSide = Math.max(image.naturalWidth, image.naturalHeight);

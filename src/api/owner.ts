@@ -1,4 +1,5 @@
 import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
+import type { ListingFeePayment, ListingFeeStatus } from './listingFees';
 
 export type OwnerCourt = {
   courtId: number;
@@ -33,6 +34,9 @@ export type OwnerVenue = {
   isOpen: boolean;
   approvalStatus: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
   rejectionReason?: string | null;
+  listingStatus: ListingFeeStatus;
+  listingExpiresAt?: string | null;
+  latestListingPayment?: ListingFeePayment | null;
   amenities: string[];
   images: OwnerVenueImage[];
   courts: OwnerCourt[];
@@ -217,6 +221,9 @@ const normalizeOwnerVenue = (venue: OwnerVenue): OwnerVenue => ({
   isOpen: venue.isOpen ?? true,
   approvalStatus: venue.approvalStatus ?? 'Draft',
   rejectionReason: venue.rejectionReason ?? null,
+  listingStatus: venue.listingStatus ?? 'Unpaid',
+  listingExpiresAt: venue.listingExpiresAt ?? null,
+  latestListingPayment: venue.latestListingPayment ?? null,
   amenities: venue.amenities ?? [],
   images: venue.images ?? [],
   courts: (venue.courts ?? []).map((court) => ({

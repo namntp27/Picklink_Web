@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Building2, Camera, Check, Edit3, MapPin, Save, Send, Star, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Banknote, Building2, Camera, Check, Edit3, MapPin, Save, Send, Star, Trash2, Upload, X } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
+import { previewOwnerListingFee, submitOwnerListingFeePayment, type OwnerListingFeePreview } from '../../api/listingFees';
 import {
   deleteOwnerVenueImage,
   getOwnerVenue,
@@ -17,6 +18,14 @@ import { OwnerShell } from './components/OwnerShell';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const statusLabel: Record<OwnerVenue['approvalStatus'], string> = { Draft: 'Bản nháp', Pending: 'Chờ Admin duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' };
+const listingStatusLabel: Record<string, string> = {
+  Unpaid: 'Chưa thanh toán phí lên sàn',
+  PendingReview: 'Biên lai đang chờ Admin duyệt',
+  Paid: 'Đã thanh toán phí lên sàn',
+  Confirmed: 'Đã xác nhận',
+  Rejected: 'Biên lai bị từ chối',
+  Expired: 'Đã hết hạn phí lên sàn',
+};
 
 const CourtPriceEditor = ({
   court,
@@ -130,6 +139,9 @@ export const OwnerVenueDetail = () => {
   const [venue, setVenue] = useState<OwnerVenue | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [caption, setCaption] = useState('');
+  const [listingMonths, setListingMonths] = useState(1);
+  const [listingReceipt, setListingReceipt] = useState<File | null>(null);
+  const [listingPreview, setListingPreview] = useState<OwnerListingFeePreview | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -141,6 +153,13 @@ export const OwnerVenueDetail = () => {
   };
 
   useEffect(() => { void load(); }, [token, venueId]);
+
+  useEffect(() => {
+    if (!token || !venue || !Number.isInteger(venueId)) return;
+    void previewOwnerListingFee(token, venueId, listingMonths)
+      .then(setListingPreview)
+      .catch(() => setListingPreview(null));
+  }, [listingMonths, token, venue, venueId]);
 
   const run = async (action: () => Promise<unknown>) => {
     setIsBusy(true);
@@ -155,6 +174,12 @@ export const OwnerVenueDetail = () => {
     await run(() => uploadOwnerVenueImage(token, venueId, imageFile, caption));
     setImageFile(null);
     setCaption('');
+  };
+
+  const submitListingFee = async () => {
+    if (!token || !listingReceipt) return;
+    await run(() => submitOwnerListingFeePayment(token, venueId, listingMonths, listingReceipt));
+    setListingReceipt(null);
   };
 
   const saveCourtPrice = async (court: OwnerCourt, hourlyPrice: number) => {
@@ -198,6 +223,72 @@ export const OwnerVenueDetail = () => {
             <div className="grid grid-cols-2 gap-3 text-center"><div className="rounded-lg bg-surface-container-low p-4"><p className="text-[24px] font-bold text-primary">{venue.courts.length}</p><p className="text-[12px] font-bold">Sân con</p></div><div className="rounded-lg bg-surface-container-low p-4"><p className="text-[24px] font-bold text-primary">{venue.images.length}</p><p className="text-[12px] font-bold">Hình ảnh</p></div></div>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">{venue.amenities.length ? venue.amenities.map((amenity) => <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[12px] font-bold text-primary" key={amenity}>{amenity}</span>) : <span className="text-[13px] text-on-surface-variant">Chưa thiết lập tiện ích.</span>}</div>
+        </section>
+
+        <section className="owner-panel p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <Banknote className="h-6 w-6 text-primary" />
+            <div>
+              <h2 className="text-[21px] font-bold">Phí lên sàn Picklink</h2>
+              <p className="text-[13px] text-on-surface-variant">Sân chỉ hiển thị cho người chơi khi đã được duyệt và phí lên sàn còn hạn.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4">
+              <p className="text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</p>
+              <p className="mt-2 text-[18px] font-black text-primary">{listingStatusLabel[venue.listingStatus] ?? venue.listingStatus}</p>
+              <p className="mt-2 text-[13px] text-on-surface-variant">
+                Hạn hiển thị: {venue.listingExpiresAt ? new Date(venue.listingExpiresAt).toLocaleDateString('vi-VN') : 'Chưa có'}
+              </p>
+              {venue.latestListingPayment?.rejectionReason && (
+                <p className="mt-3 rounded-lg bg-red-50 p-3 text-[13px] font-bold text-red-700">
+                  Lý do từ chối: {venue.latestListingPayment.rejectionReason}
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
+              <div className="grid gap-3 md:grid-cols-[140px_1fr]">
+                <label>
+                  <span className="mb-1.5 block text-[12px] font-bold">Số tháng</span>
+                  <input
+                    className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-[13px] font-bold outline-none focus:border-primary"
+                    max={24}
+                    min={1}
+                    onChange={(event) => setListingMonths(Math.max(1, Math.min(24, Number(event.target.value) || 1)))}
+                    type="number"
+                    value={listingMonths}
+                  />
+                </label>
+                <div>
+                  <p className="text-[12px] font-bold uppercase text-on-surface-variant">Số tiền tạm tính</p>
+                  <p className="mt-1 text-[22px] font-black text-primary">{currency.format(listingPreview?.amount ?? 0)}</p>
+                  <p className="text-[12px] text-on-surface-variant">
+                    {(listingPreview?.activeCourtCount ?? venue.courts.filter((court) => court.availabilityStatus !== 'Inactive').length)} sân con × {currency.format(listingPreview?.pricePerCourtPerMonth ?? 0)} × {listingMonths} tháng
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                <label>
+                  <span className="mb-1.5 block text-[12px] font-bold">Biên lai thanh toán phí lên sàn</span>
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    className="block w-full text-[13px] file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-bold file:text-white"
+                    onChange={(event) => setListingReceipt(event.target.files?.[0] ?? null)}
+                    type="file"
+                  />
+                </label>
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50"
+                  disabled={!listingReceipt || isBusy || !listingPreview}
+                  onClick={() => void submitListingFee()}
+                  type="button"
+                >
+                  <Upload className="h-4 w-4" /> Gửi biên lai
+                </button>
+              </div>
+              {listingReceipt && <p className="mt-2 text-[12px] font-bold text-primary">Đã chọn: {listingReceipt.name}</p>}
+            </div>
+          </div>
         </section>
 
         <section className="owner-panel p-5">
