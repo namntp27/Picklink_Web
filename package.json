@@ -8,7 +8,7 @@
     "build": "vite build --configLoader runner",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "test": "tsx --test src/api/adminDashboard.test.ts src/api/adminBookings.test.ts src/api/adminReports.test.ts src/api/adminReviews.test.ts src/api/adminSettings.test.ts src/api/adminVenues.test.ts src/api/adminUsers.test.ts src/api/listingFees.test.ts src/api/cloudinary.test.ts src/api/notifications.test.ts src/hooks/useNotificationRealtime.test.ts src/components/layout/Header.test.ts",
+    "test": "tsx --test tests/api/adminDashboard.test.ts tests/api/adminBookings.test.ts tests/api/adminReports.test.ts tests/api/adminReviews.test.ts tests/api/adminSettings.test.ts tests/api/adminVenues.test.ts tests/api/adminUsers.test.ts tests/api/listingFees.test.ts tests/api/cloudinary.test.ts tests/api/notifications.test.ts src/hooks/useNotificationRealtime.test.ts src/components/layout/Header.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

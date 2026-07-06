@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
 import { createServer } from 'vite';
 
-let adminReports: typeof import('./adminReports');
+let adminReviews: typeof import('../../src/api/adminReviews');
 let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
@@ -10,7 +10,7 @@ beforeEach(async () => {
     configFile: false,
     server: { middlewareMode: true },
   });
-  adminReports = await vite.ssrLoadModule('/src/api/adminReports.ts') as typeof adminReports;
+  adminReviews = await vite.ssrLoadModule('/src/api/adminReviews.ts') as typeof adminReviews;
   await vite.close();
 
   calls = [];
@@ -29,20 +29,21 @@ beforeEach(async () => {
   }) as typeof fetch;
 });
 
-test('admin reports API lists and reviews real reports', async () => {
-  await adminReports.listAdminReports('token', {
+test('admin reviews API lists and moderates real reviews', async () => {
+  await adminReviews.listAdminReviews('token', {
     search: 'spam',
-    status: 'Open',
+    moderationStatus: 'Visible',
     targetType: 'Venue',
     page: 2,
     pageSize: 10,
   });
-  await adminReports.reviewAdminReport('token', 5, {
-    status: 'Resolved',
-    resolutionNote: 'Đã xử lý',
+  await adminReviews.moderateAdminReview('token', 7, {
+    isHidden: true,
+    moderationStatus: 'Hidden',
+    moderationNote: 'Spam',
   });
 
-  assert.equal(calls[0].url, '/api/admin/reports?search=spam&status=Open&targetType=Venue&page=2&pageSize=10');
-  assert.equal(calls[1].url, '/api/admin/reports/5/review');
+  assert.equal(calls[0].url, '/api/admin/reviews?search=spam&moderationStatus=Visible&targetType=Venue&page=2&pageSize=10');
+  assert.equal(calls[1].url, '/api/admin/reviews/7/moderate');
   assert.equal(calls[1].init?.method, 'POST');
 });

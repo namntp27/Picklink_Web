@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer, type ViteDevServer } from 'vite';
 
-let cloudinary: typeof import('./cloudinary');
+let cloudinary: typeof import('../../src/api/cloudinary');
 let vite: ViteDevServer;
 
 before(async () => {

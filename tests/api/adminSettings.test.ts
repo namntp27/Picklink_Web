@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
 import { createServer } from 'vite';
 
-let adminSettings: typeof import('./adminSettings');
+let adminSettings: typeof import('../../src/api/adminSettings');
 let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {

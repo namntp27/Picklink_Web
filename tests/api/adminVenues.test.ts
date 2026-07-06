@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer, type ViteDevServer } from 'vite';
 
-let adminVenues: typeof import('./adminVenues');
+let adminVenues: typeof import('../../src/api/adminVenues');
 let vite: ViteDevServer;
 
 before(async () => {
