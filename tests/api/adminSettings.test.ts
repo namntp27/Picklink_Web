@@ -7,8 +7,10 @@ let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
   const vite = await createServer({
+    appType: 'custom',
     configFile: false,
-    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   adminSettings = await vite.ssrLoadModule('/src/api/adminSettings.ts') as typeof adminSettings;
   await vite.close();
@@ -32,3 +34,4 @@ test('admin settings API reads and updates protected real settings', async () =>
   assert.equal(calls[1].init?.method, 'PUT');
   assert.equal(calls[1].init?.body, JSON.stringify({ settingValue: '10' }));
 });
+

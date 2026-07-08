@@ -7,8 +7,10 @@ let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
   const vite = await createServer({
+    appType: 'custom',
     configFile: false,
-    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   adminUsers = await vite.ssrLoadModule('/src/api/adminUsers.ts') as typeof adminUsers;
   await vite.close();
@@ -53,3 +55,4 @@ test('lock and unlock user call real admin endpoints', async () => {
   assert.equal(calls[1].url, '/api/admin/users/12/unlock');
   assert.equal(calls[1].init?.method, 'POST');
 });
+

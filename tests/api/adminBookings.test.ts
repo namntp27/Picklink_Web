@@ -7,8 +7,10 @@ let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
   const vite = await createServer({
+    appType: 'custom',
     configFile: false,
-    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   adminBookings = await vite.ssrLoadModule('/src/api/adminBookings.ts') as typeof adminBookings;
   await vite.close();
@@ -40,3 +42,4 @@ test('admin bookings API lists real bookings with filters', async () => {
 
   assert.equal(calls[0].url, '/api/admin/bookings?search=BK-01&status=Confirmed&paymentStatus=Verified&page=2&pageSize=10');
 });
+

@@ -1,4 +1,4 @@
-export interface Court {
+﻿export interface Court {
   id: string;
   name: string;
   image: string;
@@ -11,16 +11,6 @@ export interface Court {
 
 export type UserRole = 'player' | 'admin' | 'owner' | 'staff';
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  level: string;
-  role: UserRole;
-}
-
-
 export interface Club {
   id: string;
   name: string;
@@ -28,14 +18,4 @@ export interface Club {
   members: number;
   description: string;
   image: string;
-}
-
-export interface Booking {
-  id: string;
-  courtId: string;
-  userId: string;
-  date: string;
-  timeSlot: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-  totalAmount: number;
 }

@@ -10,7 +10,7 @@ before(async () => {
     appType: 'custom',
     configFile: false,
     optimizeDeps: { noDiscovery: true },
-    server: { hmr: { port: 24680 }, middlewareMode: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   notificationsApi = await vite.ssrLoadModule('/src/api/notifications.ts') as typeof notificationsApi;
 });
@@ -109,3 +109,5 @@ test('notification commands use the backend contract', async (context) => {
     { path: '/api/notifications/read', method: 'DELETE' },
   ]);
 });
+
+

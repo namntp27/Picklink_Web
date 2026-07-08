@@ -7,8 +7,10 @@ let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
   const vite = await createServer({
+    appType: 'custom',
     configFile: false,
-    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   listingFees = await vite.ssrLoadModule('/src/api/listingFees.ts') as typeof listingFees;
   await vite.close();
@@ -57,3 +59,4 @@ test('owner listing fee APIs preview and submit receipt for a venue', async () =
   assert.equal(calls[1].init?.method, 'POST');
   assert.ok(calls[1].init?.body instanceof FormData);
 });
+

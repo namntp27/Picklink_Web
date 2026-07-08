@@ -26,31 +26,31 @@ import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 
 const courts = [
   {
-    name: 'SÃ¢n Pickleball Cáº§u Giáº¥y',
+    name: 'Sân Pickleball Cầu Giấy',
     distance: '2 km',
-    price: '150.000Ä‘/h',
-    badge: 'Phá»• biáº¿n',
+    price: '150.000đ/h',
+    badge: 'Phổ biến',
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuB0Qdw2Wmc_-W51c5ZoezQXI8dFBTxZg5wTzPgKauVrDI9FNgRvtd04Pgr-Q_Uom1Eqlz8mjN4fzoxj2VM9DWnQRjRF82hs4uQpBlWtKNhsZWlmXSZz1sobyvCLuz1PwuTKP9wLYkPdfn6zUG5ZXHXclJfxArhp5k3KUp0pZvcOzsL2qefgGju6XRJDOYYfSl3yZyJaaBL0z7OBxte0cyN0nQOqAH_Tmy6ZX1gZoHh-MRxhdFR6w3zl77fEcxuJlez1-ixxK8zTvBk-',
   },
   {
-    name: 'Pickleball Center Quáº­n 1',
+    name: 'Pickleball Center Quận 1',
     distance: '5.4 km',
-    price: '200.000Ä‘/h',
+    price: '200.000đ/h',
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBMENrky29olry-WOw1suBc_m2BMckEAfiOk6u-pHO-DC1znwLqcbZyY7T6l2tE2D6E0CP3iurktwUDtIagWzKvCdzFyXKXLC5LNRjLKvv9LftTSv20zf-MBnjaffJKDmCbhSVIZVwJl8CIsLTU0fZFidDW0e5uuf3oomlC7M6YWmakT0IdFi8iS8smBS6Rh7xDTyfwkIFaMz-WH4jVaMfGxF16iGlxUM9V7_lGIvNIMmvh50a9EODXtgUmOtwkm9gTkxKFARvHiDG5',
   },
   {
-    name: 'SÃ¢n Westlake Club',
+    name: 'Sân Westlake Club',
     distance: '1.2 km',
-    price: '180.000Ä‘/h',
+    price: '180.000đ/h',
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAQ__wr2AqzwI-e_CvZ1r-pZ7sC7ap_deQqmkqnaLvO-PugpHFI8TSyBnUVgF2hFYuEAUbpHYMw2HWDI-es2yjQUxUg7awHiLfZVjwiJk24Ppr0IFMVom-De5B6Qzs6M33NyARSiyAgI4HZjWMmklKmB-RdI1g-IGeUtKn9C2y6s5KQjOkNtHLXoZohYdUREt07P-alDBQP4strFeSFmXFdGe9nVZgmouxdocYskOOFoIBk--ueSvWixaIFBLa7E4B9qP1QclxWctFx',
   },
   {
-    name: 'SÃ¢n Thá»ƒ Thao Má»¹ ÄÃ¬nh',
+    name: 'Sân Thể Thao Mỹ Đình',
     distance: '3.5 km',
-    price: '120.000Ä‘/h',
+    price: '120.000đ/h',
     image:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAhNBoyqg4ux058JbthhhCf5oWz4Iz_fuEFvBV6R1tmJLVyEi7pQPdcfdAvB4m82pwbSxyVwQpOSEHpKxexl71bfc5Zx-Oq7KCjyUM1J6GDTCuckE2Gk4cCFIUyC_-02FL8wbz0Qr0nkKKhi1-LRZTkGrwd29KmfycgN72bn_qRgX-biTgOWW-0mYF8KCE9AtIXSQ48sxGwt6lCmFHTZvNPVn27FdFUi_puh3gp6PYeUFqlrILDzDYSCvKwnSlGpJUD_xBY7wnSeY9a',
   },
@@ -58,45 +58,45 @@ const courts = [
 
 const clubs = [
   {
-    name: 'CLB Pickleball HÃ  Ná»™i',
+    name: 'CLB Pickleball Hà Nội',
     description:
-      'Cá»™ng Ä‘á»“ng hÆ¡n 500 thÃ nh viÃªn, sinh hoáº¡t hÃ ng tuáº§n quanh Cáº§u Giáº¥y, TÃ¢y Há»“ vÃ  Má»¹ ÄÃ¬nh.',
-    members: '524 thÃ nh viÃªn',
+      'Cộng đồng hơn 500 thành viên, sinh hoạt hàng tuần quanh Cầu Giấy, Tây Hồ và Mỹ Đình.',
+    members: '524 thành viên',
     icon: Users,
   },
   {
-    name: 'CLB SÃ i GÃ²n Smash',
+    name: 'CLB Sài Gòn Smash',
     description:
-      'NhÃ³m chÆ¡i nÄƒng Ä‘á»™ng táº¡i TP. Há»“ ChÃ­ Minh vá»›i lá»‹ch giao lÆ°u Ä‘á»u vÃ  nhiá»u tráº­n phÃ¢n háº¡ng.',
-    members: '312 thÃ nh viÃªn',
+      'Nhóm chơi năng động tại TP. Hồ Chí Minh với lịch giao lưu đều và nhiều trận phân hạng.',
+    members: '312 thành viên',
     icon: Activity,
   },
   {
-    name: 'Pickleball Miá»n TÃ¢y',
+    name: 'Pickleball Miền Tây',
     description:
-      'CÃ¢u láº¡c bá»™ má»›i ná»•i dÃ nh cho ngÆ°á»i chÆ¡i thÃ­ch khÃ´ng khÃ­ thÃ¢n thiá»‡n vÃ  lá»‹ch chÆ¡i linh hoáº¡t.',
-    members: '185 thÃ nh viÃªn',
+      'Câu lạc bộ mới nổi dành cho người chơi thích không khí thân thiện và lịch chơi linh hoạt.',
+    members: '185 thành viên',
     icon: Flame,
   },
 ];
 
 const benefits = [
-  { label: 'Äáº·t sÃ¢n nhanh', icon: Zap },
-  { label: 'TÃ¬m há»™i cÃ¹ng trÃ¬nh', icon: Network },
-  { label: 'Quáº£n lÃ½ CLB', icon: Shield },
-  { label: 'VÃ o giáº£i Ä‘áº¥u', icon: Trophy },
+  { label: 'Đặt sân nhanh', icon: Zap },
+  { label: 'Tìm hội cùng trình', icon: Network },
+  { label: 'Quản lý CLB', icon: Shield },
+  { label: 'Vào giải đấu', icon: Trophy },
 ];
 
 const heroStats = [
-  { value: '48', label: 'sÃ¢n Ä‘ang má»Ÿ' },
-  { value: '1.2k', label: 'ngÆ°á»i chÆ¡i hoáº¡t Ä‘á»™ng' },
-  { value: '27', label: 'giáº£i trong thÃ¡ng' },
+  { value: '48', label: 'sân đang mở' },
+  { value: '1.2k', label: 'người chơi hoạt động' },
+  { value: '27', label: 'giải trong tháng' },
 ];
 
 const quickMoves = [
-  { label: 'TÃ¬m sÃ¢n gáº§n báº¡n', to: '/book-court', icon: Compass },
-  { label: 'GhÃ©p tráº­n hÃ´m nay', to: '/opponents', icon: Radio },
-  { label: 'Xem lá»‹ch giáº£i', to: '/posts', icon: Calendar },
+  { label: 'Tìm sân gần bạn', to: '/book-court', icon: Compass },
+  { label: 'Ghép trận hôm nay', to: '/opponents', icon: Radio },
+  { label: 'Xem lịch giải', to: '/posts', icon: Calendar },
 ];
 
 const interactiveLinkClass =
@@ -150,7 +150,7 @@ export const Home = () => {
       setOpenInvitationCount(result.totalCount);
       setInvitationError('');
     } catch (reason) {
-      setInvitationError(reason instanceof Error ? reason.message : 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch lá»i má»i.');
+      setInvitationError(reason instanceof Error ? reason.message : 'Không thể tải danh sách lời mời.');
     } finally {
       setIsLoadingInvitations(false);
     }
@@ -188,13 +188,13 @@ export const Home = () => {
           >
             <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/14 bg-white/8 px-3 py-2 text-[13px] font-semibold text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur">
               <Zap aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
-              Cá»™ng Ä‘á»“ng pickleball cho ngÆ°á»i chÆ¡i tháº­t
+              Cộng đồng pickleball cho người chơi thật
             </p>
             <h1 className="mt-5 max-w-[12ch] text-[clamp(2.35rem,6vw,4.9rem)] font-bold leading-[0.98] tracking-[-0.04em] text-balance">
-              ChÆ¡i Ä‘á»u hÆ¡n. Káº¿t ná»‘i nhanh hÆ¡n.
+              Chơi đều hơn. Kết nối nhanh hơn.
             </h1>
             <p className="mt-5 max-w-[58ch] text-[15px] leading-7 text-white/76 md:text-[17px] md:leading-8">
-              Picklink giÃºp báº¡n tÃ¬m sÃ¢n, ghÃ©p há»™i, tham gia cÃ¢u láº¡c bá»™ vÃ  Ä‘Äƒng kÃ½ giáº£i Ä‘áº¥u trong má»™t ná»n táº£ng gá»n gÃ ng.
+              Picklink giúp bạn tìm sân, ghép hội, tham gia câu lạc bộ và đăng ký giải đấu trong một nền tảng gọn gàng.
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -202,14 +202,14 @@ export const Home = () => {
                 className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#e2ff57] px-5 py-3 text-[15px] font-bold text-[#102414] shadow-[0_14px_30px_rgba(152,217,81,0.24)] hover:bg-[#d6f64d] ${interactiveLinkClass}`}
                 to="/book-court"
               >
-                TÃ¬m sÃ¢n ngay
+                Tìm sân ngay
                 <Compass aria-hidden="true" className="h-5 w-5" />
               </Link>
               <Link
                 className={`inline-flex min-h-12 items-center justify-center rounded-lg border border-white/28 bg-white/6 px-5 py-3 text-[15px] font-bold text-white hover:border-white/48 hover:bg-white/12 ${interactiveLinkClass}`}
                 to="/opponents"
               >
-                Xem giáº£i Ä‘áº¥u
+                Xem giải đấu
               </Link>
             </div>
 
@@ -248,41 +248,41 @@ export const Home = () => {
                   <div className="flex min-w-0 flex-col gap-2">
                     <label className="flex items-center gap-2 text-[13px] font-semibold text-on-surface-variant" htmlFor="home-area">
                       <MapPin aria-hidden="true" className="h-4 w-4 text-primary" />
-                      Khu vá»±c
+                      Khu vực
                     </label>
                     <select
                       className="h-11 w-full min-w-0 rounded-lg border border-outline-variant bg-surface-container px-3 text-[14px] text-on-surface transition-[border-color,box-shadow] duration-200 hover:border-outline focus:border-primary-container focus:outline-none focus:ring-1 focus:ring-primary-container/30"
                       id="home-area"
                     >
-                      <option>HÃ  Ná»™i</option>
-                      <option>TP. Há»“ ChÃ­ Minh</option>
-                      <option>ÄÃ  Náºµng</option>
+                      <option>Hà Nội</option>
+                      <option>TP. Hồ Chí Minh</option>
+                      <option>Đà Nẵng</option>
                     </select>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <label className="flex items-center gap-2 text-[13px] font-semibold text-on-surface-variant" htmlFor="home-time">
                       <Clock aria-hidden="true" className="h-4 w-4 text-primary" />
-                      Khung giá»
+                      Khung giờ
                     </label>
                     <select
                       className="h-11 w-full min-w-0 rounded-lg border border-outline-variant bg-surface-container px-3 text-[14px] text-on-surface transition-[border-color,box-shadow] duration-200 hover:border-outline focus:border-primary-container focus:outline-none focus:ring-1 focus:ring-primary-container/30"
                       id="home-time"
                     >
-                      <option>SÃ¡ng 06:00 - 12:00</option>
-                      <option>Chiá»u 12:00 - 18:00</option>
-                      <option>Tá»‘i 18:00 - 22:00</option>
+                      <option>Sáng 06:00 - 12:00</option>
+                      <option>Chiều 12:00 - 18:00</option>
+                      <option>Tối 18:00 - 22:00</option>
                     </select>
                   </div>
                 </div>
                 <div className="flex min-w-0 flex-col gap-2">
                   <label className="flex items-center gap-2 text-[13px] font-semibold text-on-surface-variant" htmlFor="home-date">
                     <Calendar aria-hidden="true" className="h-4 w-4 text-primary" />
-                    NgÃ y chÆ¡i
+                    Ngày chơi
                   </label>
                   <Input className="h-11" id="home-date" type="date" />
                 </div>
                 <Button className="h-12 w-full justify-center bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]" onClick={() => navigate('/book-court')} type="button">
-                  TÃ¬m sÃ¢n phÃ¹ há»£p
+                  Tìm sân phù hợp
                   <Search aria-hidden="true" className="h-5 w-5" />
                 </Button>
               </div>
@@ -323,12 +323,12 @@ export const Home = () => {
                 className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold text-primary hover:bg-primary/5 ${interactiveLinkClass}`}
                 to="/book-court"
               >
-                Xem táº¥t cáº£
+                Xem tất cả
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             )}
-            label="SÃ¢n táº­p hÃ ng Ä‘áº§u"
-            title="SÃ¢n Ä‘áº¹p, giá» chÆ¡i rÃµ rÃ ng"
+            label="Sân tập hàng đầu"
+            title="Sân đẹp, giờ chơi rõ ràng"
           />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.1fr_0.95fr_0.95fr]">
@@ -367,11 +367,11 @@ export const Home = () => {
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Clock aria-hidden="true" className="h-4 w-4 text-primary" />
-                      cÃ²n giá» Ä‘áº¹p
+                      còn giờ đẹp
                     </span>
                   </div>
                   <Button className="w-full" onClick={() => navigate('/book-court')} type="button" variant="outline">
-                    Äáº·t sÃ¢n
+                    Đặt sân
                   </Button>
                 </div>
               </motion.article>
@@ -384,12 +384,12 @@ export const Home = () => {
         <div className="mx-auto grid max-w-[1180px] gap-5 rounded-2xl bg-[#0b2228] p-4 text-white shadow-[0_20px_60px_rgba(8,29,36,0.14)] md:p-6 lg:grid-cols-[0.68fr_1.32fr] lg:p-8">
           <div className="flex min-w-0 flex-col justify-between gap-6 rounded-xl border border-white/12 bg-white/7 p-5">
             <div>
-              <p className="text-[13px] font-bold text-[#e2ff57]">Lá»i má»i Ä‘ang má»Ÿ</p>
+              <p className="text-[13px] font-bold text-[#e2ff57]">Lời mời đang mở</p>
               <h2 className="mt-2 max-w-[11ch] text-[clamp(1.7rem,3vw,2.45rem)] font-bold leading-[1.06] tracking-[-0.025em]">
-                CÃ³ há»™i Ä‘ang chá» báº¡n vÃ o sÃ¢n
+                Có hội đang chờ bạn vào sân
               </h2>
               <p className="mt-4 max-w-[34ch] text-[13px] leading-6 text-white/68">
-                Chá»n phÃ²ng phÃ¹ há»£p vá»›i khu vá»±c, thá»i gian vÃ  trÃ¬nh Ä‘á»™ cá»§a báº¡n.
+                Chọn phòng phù hợp với khu vực, thời gian và trình độ của bạn.
               </p>
             </div>
 
@@ -397,18 +397,18 @@ export const Home = () => {
               <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/12 bg-white/12">
                 <div className="bg-white/5 p-3">
                   <p className="font-mono text-[22px] font-bold text-[#e2ff57]">{openInvitationCount}</p>
-                  <p className="mt-1 text-[11px] font-semibold text-white/58">lá»i má»i Ä‘ang má»Ÿ</p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/58">lời mời đang mở</p>
                 </div>
                 <div className="bg-white/5 p-3">
                   <p className="font-mono text-[22px] font-bold text-[#e2ff57]">{availableInvitationSlots}</p>
-                  <p className="mt-1 text-[11px] font-semibold text-white/58">chá»— trá»‘ng Ä‘ang xem</p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/58">chỗ trống đang xem</p>
                 </div>
               </div>
               <Link
                 className={`inline-flex min-h-11 w-fit items-center gap-2 rounded-lg bg-[#e2ff57] px-4 py-2.5 text-[14px] font-bold text-[#102414] hover:bg-[#d6f64d] ${interactiveLinkClass}`}
                 to="/opponents"
               >
-                Xem táº¥t cáº£ lá»i má»i
+                Xem tất cả lời mời
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>
@@ -427,16 +427,16 @@ export const Home = () => {
               <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-red-200/20 bg-red-950/20 p-6 text-center">
                 <div>
                   <AlertTriangle aria-hidden="true" className="mx-auto h-6 w-6 text-[#e2ff57]" />
-                  <p className="mt-3 text-[14px] font-bold">ChÆ°a thá»ƒ táº£i lá»i má»i</p>
-                  <p className="mt-1 text-[12px] text-white/62">Má»Ÿ trang ghÃ©p tráº­n Ä‘á»ƒ thá»­ láº¡i.</p>
+                  <p className="mt-3 text-[14px] font-bold">Chưa thể tải lời mời</p>
+                  <p className="mt-1 text-[12px] text-white/62">Mở trang ghép trận để thử lại.</p>
                 </div>
               </div>
             ) : openInvitations.length === 0 ? (
               <div className="flex min-h-[250px] items-center justify-center rounded-xl border border-dashed border-white/18 bg-white/5 p-6 text-center">
                 <div>
                   <Users aria-hidden="true" className="mx-auto h-7 w-7 text-[#e2ff57]" />
-                  <p className="mt-3 text-[14px] font-bold">ChÆ°a cÃ³ lá»i má»i Ä‘ang má»Ÿ</p>
-                  <p className="mt-1 text-[12px] text-white/62">Báº¡n cÃ³ thá»ƒ táº¡o phÃ²ng má»›i trÃªn trang tÃ¬m Ä‘á»‘i thá»§.</p>
+                  <p className="mt-3 text-[14px] font-bold">Chưa có lời mời đang mở</p>
+                  <p className="mt-1 text-[12px] text-white/62">Bạn có thể tạo phòng mới trên trang tìm đối thủ.</p>
                 </div>
               </div>
             ) : (
@@ -457,7 +457,7 @@ export const Home = () => {
                       <div className="flex min-w-0 items-start gap-3">
                         {invitation.hostAvatarUrl ? (
                           <img
-                            alt={`áº¢nh Ä‘áº¡i diá»‡n cá»§a ${invitation.hostName}`}
+                            alt={`Ảnh đại diện của ${invitation.hostName}`}
                             className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-white/18"
                             src={invitation.hostAvatarUrl}
                           />
@@ -476,7 +476,7 @@ export const Home = () => {
                             </span>
                             {invitation.isHost && (
                               <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-bold text-[#e2ff57]">
-                                Cá»§a báº¡n
+                                Của bạn
                               </span>
                             )}
                           </div>
@@ -484,7 +484,7 @@ export const Home = () => {
                             {invitation.title}
                           </h3>
                           <p className="mt-1 text-[11px] font-semibold text-white/56">
-                            Chá»§ phÃ²ng: {invitation.isHost ? 'Báº¡n' : invitation.hostName}
+                            Chủ phòng: {invitation.isHost ? 'Bạn' : invitation.hostName}
                           </p>
                         </div>
                       </div>
@@ -511,7 +511,7 @@ export const Home = () => {
                     <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 sm:block sm:min-w-20 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 sm:text-right">
                       <div>
                         <p className="font-mono text-[20px] font-bold text-[#e2ff57]">{invitation.availableSlotCount}</p>
-                        <p className="text-[10px] font-semibold text-white/56">chá»— cÃ²n láº¡i</p>
+                        <p className="text-[10px] font-semibold text-white/56">chỗ còn lại</p>
                       </div>
                       <ArrowRight aria-hidden="true" className="h-4 w-4 text-white/58 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-[#e2ff57] sm:ml-auto sm:mt-3" />
                     </div>
@@ -525,7 +525,7 @@ export const Home = () => {
 
       <section className="px-4 py-10 sm:px-6 md:py-12 lg:px-8">
         <div className="mx-auto max-w-[1180px]">
-          <SectionHeader label="CÃ¢u láº¡c bá»™" title="TÃ¬m há»™i chÆ¡i Ä‘Ãºng nhá»‹p cá»§a báº¡n" />
+          <SectionHeader label="Câu lạc bộ" title="Tìm hội chơi đúng nhịp của bạn" />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {clubs.map((club, index) => {
               const Icon = club.icon;

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-const source = readFileSync(new URL('./Header.tsx', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../../src/components/layout/Header.tsx', import.meta.url), 'utf8');
 
 test('header notification badge is loaded from the real notification API', () => {
   assert.match(source, /getUnreadNotificationCount/);

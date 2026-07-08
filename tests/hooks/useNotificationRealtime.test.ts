@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-const source = readFileSync(new URL('./useNotificationRealtime.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../src/hooks/useNotificationRealtime.ts', import.meta.url), 'utf8');
 
 test('notification realtime hook uses authenticated fetch SSE instead of EventSource', () => {
   assert.match(source, /fetch\(`\$\{API_BASE_URL\}\/api\/realtime\/notifications`/);

@@ -7,8 +7,10 @@ let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
   const vite = await createServer({
+    appType: 'custom',
     configFile: false,
-    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   adminDashboard = await vite.ssrLoadModule('/src/api/adminDashboard.ts') as typeof adminDashboard;
   await vite.close();
@@ -43,3 +45,4 @@ test('admin dashboard API calls the protected real dashboard endpoint', async ()
   assert.equal(response.pendingListingPaymentCount, 1);
   assert.equal(response.listingRevenueThisMonth, 450000);
 });
+

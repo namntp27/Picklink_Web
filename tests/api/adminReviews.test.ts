@@ -7,8 +7,10 @@ let calls: Array<{ url: string; init?: RequestInit }> = [];
 
 beforeEach(async () => {
   const vite = await createServer({
+    appType: 'custom',
     configFile: false,
-    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   adminReviews = await vite.ssrLoadModule('/src/api/adminReviews.ts') as typeof adminReviews;
   await vite.close();
@@ -47,3 +49,4 @@ test('admin reviews API lists and moderates real reviews', async () => {
   assert.equal(calls[1].url, '/api/admin/reviews/7/moderate');
   assert.equal(calls[1].init?.method, 'POST');
 });
+

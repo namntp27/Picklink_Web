@@ -10,7 +10,7 @@ before(async () => {
     appType: 'custom',
     configFile: false,
     optimizeDeps: { noDiscovery: true },
-    server: { middlewareMode: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   cloudinary = await vite.ssrLoadModule('/src/api/cloudinary.ts') as typeof cloudinary;
 });
@@ -78,3 +78,5 @@ test('upload signs only the folder and uses the server timestamp', async (contex
 test('client does not expose a direct Cloudinary destroy operation', () => {
   assert.equal('deleteFromCloudinary' in cloudinary, false);
 });
+
+

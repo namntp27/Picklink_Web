@@ -10,7 +10,7 @@ before(async () => {
     appType: 'custom',
     configFile: false,
     optimizeDeps: { noDiscovery: true },
-    server: { hmr: { port: 24679 }, middlewareMode: true },
+    server: { hmr: false, ws: false, middlewareMode: true },
   });
   adminVenues = await vite.ssrLoadModule('/src/api/adminVenues.ts') as typeof adminVenues;
 });
@@ -91,3 +91,4 @@ test('admin venue rejection posts the mandatory reason', async (context) => {
   assert.equal(requestMethod, 'POST');
   assert.deepEqual(JSON.parse(requestBody), { reason: 'Ảnh sân chưa đầy đủ.' });
 });
+
