@@ -20,7 +20,6 @@ export const MainLayout = () => {
   const isProductWorkspace = (
     isCommunityWorkspace
     || pathname === '/my-bookings'
-    || pathname === '/my-tournaments'
     || pathname === '/profile'
     || pathname === '/messages'
     || pathname === '/notifications'

@@ -37,7 +37,6 @@ import { AdminPosts } from './pages/admin/AdminPosts';
 import { AdminReports } from './pages/admin/AdminReports';
 import { AdminReviews } from './pages/admin/AdminReviews';
 import { AdminSettings } from './pages/admin/AdminSettings';
-import { AdminTournaments } from './pages/admin/AdminTournaments';
 import { AdminTransactions } from './pages/admin/AdminTransactions';
 import { AdminUsers } from './pages/admin/AdminUsers';
 import { OwnerBookingDetail } from './pages/owner/OwnerBookingDetail';
@@ -56,9 +55,6 @@ import { Messages } from './pages/messages/Messages';
 import { Notifications } from './pages/notifications/Notifications';
 import { Profile } from './pages/profile/Profile';
 import { CreateReview } from './pages/reviews/CreateReview';
-import { MyTournaments } from './pages/tournaments/MyTournaments';
-import { TournamentDetail } from './pages/tournaments/TournamentDetail';
-import { Tournaments } from './pages/tournaments/Tournaments';
 
 function App() {
   const { pathname } = useLocation();
@@ -97,8 +93,6 @@ function App() {
           <Route path="posts/:id" element={<PostDetail />} />
           <Route path="clubs/:id/members" element={<ClubMembers />} />
           <Route path="clubs/:id" element={<ClubDetail />} />
-          <Route path="tournaments" element={<Tournaments />} />
-          <Route path="tournaments/:id" element={<TournamentDetail />} />
           <Route element={<ProtectedRoute allowedRoles={['player']} />}>
             <Route path="opponents" element={<PendingInvites />} />
             <Route path="opponents/pending" element={<PendingInvites />} />
@@ -106,7 +100,6 @@ function App() {
             <Route path="matches/:id" element={<MatchDetail />} />
             <Route path="my-matches" element={<MyMatches />} />
             <Route path="my-bookings" element={<MyBookings />} />
-            <Route path="my-tournaments" element={<MyTournaments />} />
             <Route path="profile" element={<Profile />} />
             <Route path="messages" element={<Messages />} />
             <Route path="notifications" element={<Notifications />} />
@@ -131,7 +124,6 @@ function App() {
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/posts" element={<AdminPosts />} />
           <Route path="/admin/reviews" element={<AdminReviews />} />
-          <Route path="/admin/tournaments" element={<AdminTournaments />} />
           <Route path="/admin/transactions" element={<AdminTransactions />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
         </Route>

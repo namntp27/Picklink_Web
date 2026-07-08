@@ -53,14 +53,14 @@ export type PublicPlayerProfile = {
   matchesPlayed: number;
 };
 
-export const getMyProfile = (token: string) => apiRequest<PlayerProfile>('/api/Profile/me', {}, token);
+export const getMyProfile = (token: string) => apiRequest<PlayerProfile>('/api/profile/me', {}, token);
 
 export const getPublicPlayerProfile = (
   playerId: number,
   options: Pick<RequestInit, 'signal'> = {},
-) => apiRequest<PublicPlayerProfile>(`/api/Profile/players/${playerId}`, options);
+) => apiRequest<PublicPlayerProfile>(`/api/profile/players/${playerId}`, options);
 
-export const updateMyProfile = (token: string, input: UpdatePlayerProfile) => apiRequest<PlayerProfile>('/api/Profile/me', {
+export const updateMyProfile = (token: string, input: UpdatePlayerProfile) => apiRequest<PlayerProfile>('/api/profile/me', {
   method: 'PUT',
   body: JSON.stringify(input),
 }, token);
@@ -68,5 +68,5 @@ export const updateMyProfile = (token: string, input: UpdatePlayerProfile) => ap
 export const uploadMyAvatar = (token: string, avatar: File) => {
   const formData = new FormData();
   formData.append('avatar', avatar);
-  return apiRequest<PlayerProfile>('/api/Profile/me/avatar', { method: 'POST', body: formData }, token);
+  return apiRequest<PlayerProfile>('/api/profile/me/avatar', { method: 'POST', body: formData }, token);
 };

@@ -190,7 +190,7 @@ export const searchMatchVenues = (input: {
   radiusKm: number;
   latitude?: number;
   longitude?: number;
-}) => apiRequest<MatchPreferredVenue[]>(`/api/Match/venues${queryString(input)}`);
+}) => apiRequest<MatchPreferredVenue[]>(`/api/matches/venues${queryString(input)}`);
 
 export const getMatchPlayerRecommendations = (token: string, input: {
   radiusKm: number;
@@ -202,7 +202,7 @@ export const getMatchPlayerRecommendations = (token: string, input: {
   maxSkillLevel: number;
   limit?: number;
 }) => apiRequest<MatchPlayerRecommendation[]>(
-  `/api/Match/player-recommendations${queryString(input)}`,
+  `/api/matches/player-recommendations${queryString(input)}`,
   {},
   token,
 );
@@ -211,16 +211,16 @@ export const getOpenMatches = (
   token?: string,
   filters: MatchSearchFilters = {},
   options: Pick<RequestInit, 'signal'> = {},
-) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/open${queryString(filters)}`, options, token);
+) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/matches/open${queryString(filters)}`, options, token);
 
 export const getMyMatches = (
   token: string,
   pagination: PaginationParams = {},
   options: Pick<RequestInit, 'signal'> = {},
-) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/Match/mine${queryString(pagination)}`, options, token);
+) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/matches/mine${queryString(pagination)}`, options, token);
 
 export const getMatchDetail = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}`, {}, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}`, {}, token);
 
 export const createMatch = (token: string, input: {
   title: string;
@@ -245,7 +245,7 @@ export const createMatch = (token: string, input: {
   note?: string;
 }) => {
   const normalizeTime = (value: string) => /^\d{2}:\d{2}$/.test(value) ? `${value}:00` : value;
-  return apiRequest<MatchDetailResponse>('/api/Match', {
+  return apiRequest<MatchDetailResponse>('/api/matches/open', {
     method: 'POST',
     body: JSON.stringify({
       ...input,
@@ -261,34 +261,34 @@ export const createMatch = (token: string, input: {
 };
 
 export const joinMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/join`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/join`, { method: 'POST' }, token);
 export const inviteMatchPlayers = (
   token: string,
   matchId: number,
   input: { automatic: boolean; playerIds?: number[] },
-) => apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/invitations`, {
+) => apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/invitations`, {
   method: 'POST',
   body: JSON.stringify({ automatic: input.automatic, playerIds: input.playerIds ?? [] }),
 }, token);
 export const acceptMatchInvitation = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/invitation/accept`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/invitation/accept`, { method: 'POST' }, token);
 export const declineMatchInvitation = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/invitation/decline`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/invitation/decline`, { method: 'POST' }, token);
 export const leaveMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/leave`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/leave`, { method: 'POST' }, token);
 export const acceptParticipant = (token: string, matchId: number, participantId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/participants/${participantId}/accept`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/participants/${participantId}/accept`, { method: 'POST' }, token);
 export const rejectParticipant = (token: string, matchId: number, participantId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/participants/${participantId}/reject`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/participants/${participantId}/reject`, { method: 'POST' }, token);
 export const removeParticipant = (token: string, matchId: number, participantId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/participants/${participantId}`, { method: 'DELETE' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/participants/${participantId}`, { method: 'DELETE' }, token);
 export const markMatchReadyToBook = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/ready`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/ready`, { method: 'POST' }, token);
 export const createMatchBooking = (token: string, matchId: number, input: {
   courtId: number;
   startTime: string;
   endTime: string;
-}) => apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/booking`, {
+}) => apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/booking`, {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
@@ -298,43 +298,43 @@ export const getMatchSlotOptions = (
   venueId: number,
   date: string,
 ) => apiRequest<MatchSlotOption[]>(
-  `/api/Match/${matchId}/slot-options${queryString({ venueId, date })}`,
+  `/api/matches/${matchId}/slot-options${queryString({ venueId, date })}`,
   {},
   token,
 );
 export const voteMatchSlot = (token: string, matchId: number, input: MatchSlotVoteInput) =>
-  apiRequest<MatchSlotOption[]>(`/api/Match/${matchId}/slot-votes`, {
+  apiRequest<MatchSlotOption[]>(`/api/matches/${matchId}/slot-votes`, {
     method: 'POST',
     body: JSON.stringify(input),
   }, token);
 export const unvoteMatchSlot = (token: string, matchId: number, input: MatchSlotVoteInput) =>
-  apiRequest<MatchSlotOption[]>(`/api/Match/${matchId}/slot-votes`, {
+  apiRequest<MatchSlotOption[]>(`/api/matches/${matchId}/slot-votes`, {
     method: 'DELETE',
     body: JSON.stringify(input),
   }, token);
 export const cancelMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/cancel`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/cancel`, { method: 'POST' }, token);
 export const reopenMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/reopen`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/reopen`, { method: 'POST' }, token);
 export const completeMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/Match/${matchId}/complete`, { method: 'POST' }, token);
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/complete`, { method: 'POST' }, token);
 
 export const getMatchMessages = (token: string, matchId: number) =>
-  apiRequest<MatchMessage[]>(`/api/Match/${matchId}/messages`, {}, token);
+  apiRequest<MatchMessage[]>(`/api/matches/${matchId}/messages`, {}, token);
 export const sendMatchMessage = (token: string, matchId: number, content: string) =>
-  apiRequest<MatchMessage>(`/api/Match/${matchId}/messages`, {
+  apiRequest<MatchMessage>(`/api/matches/${matchId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content }),
   }, token);
 
 export const getMatchReviews = (token: string, matchId: number) =>
-  apiRequest<MatchPlayerReview[]>(`/api/Match/${matchId}/reviews`, {}, token);
+  apiRequest<MatchPlayerReview[]>(`/api/matches/${matchId}/reviews`, {}, token);
 export const reviewPlayer = (
   token: string,
   matchId: number,
   playerId: number,
   input: { score: number; comment?: string },
-) => apiRequest<MatchPlayerReview>(`/api/Match/${matchId}/reviews/${playerId}`, {
+) => apiRequest<MatchPlayerReview>(`/api/matches/${matchId}/reviews/${playerId}`, {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);

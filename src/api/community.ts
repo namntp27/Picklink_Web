@@ -1,6 +1,6 @@
 import { apiRequest } from './client';
 
-// ────────────────────────────── Response types ──────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Response types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type GroupImage = {
   groupImageId: number;
@@ -87,7 +87,7 @@ export type CommunityComment = {
   likedByMe: boolean;
 };
 
-// ────────────────────────────── Request types ───────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Request types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type CreateGroupInput = {
   groupName: string;
@@ -119,7 +119,7 @@ export type CreatePostInput = {
   mediaUrls?: string[];
 };
 
-// ────────────────────────────── API functions ───────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ API functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const getGroups = (
   token?: string | null,
@@ -136,128 +136,128 @@ export const getGroups = (
   if (page !== undefined) searchParams.append('page', page.toString());
   if (pageSize !== undefined) searchParams.append('pageSize', pageSize.toString());
 
-  return apiRequest<CommunityGroup[]>(`/api/Community/groups?${searchParams.toString()}`, {}, token || undefined);
+  return apiRequest<CommunityGroup[]>(`/api/community/groups?${searchParams.toString()}`, {}, token || undefined);
 };
 
 export const getGroup = (groupId: number, token?: string | null) =>
-  apiRequest<CommunityGroup>(`/api/Community/groups/${groupId}`, {}, token || undefined);
+  apiRequest<CommunityGroup>(`/api/community/groups/${groupId}`, {}, token || undefined);
 
 export const createGroup = (token: string, input: CreateGroupInput) =>
-  apiRequest<CommunityGroup>('/api/Community/groups', { method: 'POST', body: JSON.stringify(input) }, token);
+  apiRequest<CommunityGroup>('/api/community/groups', { method: 'POST', body: JSON.stringify(input) }, token);
 
 export const updateGroup = (token: string, groupId: number, input: UpdateGroupInput) =>
-  apiRequest<CommunityGroup>(`/api/Community/groups/${groupId}`, { method: 'PUT', body: JSON.stringify(input) }, token);
+  apiRequest<CommunityGroup>(`/api/community/groups/${groupId}`, { method: 'PUT', body: JSON.stringify(input) }, token);
 
 export const joinGroup = (token: string, groupId: number) =>
-  apiRequest<CommunityGroup>(`/api/Community/groups/${groupId}/join`, { method: 'POST' }, token);
+  apiRequest<CommunityGroup>(`/api/community/groups/${groupId}/join`, { method: 'POST' }, token);
 
 export const leaveGroup = (token: string, groupId: number) =>
-  apiRequest<CommunityGroup>(`/api/Community/groups/${groupId}/leave`, { method: 'POST' }, token);
+  apiRequest<CommunityGroup>(`/api/community/groups/${groupId}/leave`, { method: 'POST' }, token);
 
 // Members
 export const getGroupMembers = (token: string, groupId: number) =>
-  apiRequest<CommunityMember[]>(`/api/Community/groups/${groupId}/members`, {}, token);
+  apiRequest<CommunityMember[]>(`/api/community/groups/${groupId}/members`, {}, token);
 
 export const getGroupMessages = (token: string, groupId: number, beforeMessageId?: number, limit = 8) => {
   const url = beforeMessageId
-    ? `/api/Community/groups/${groupId}/messages?beforeMessageId=${beforeMessageId}&limit=${limit}`
-    : `/api/Community/groups/${groupId}/messages?limit=${limit}`;
+    ? `/api/community/groups/${groupId}/messages?beforeMessageId=${beforeMessageId}&limit=${limit}`
+    : `/api/community/groups/${groupId}/messages?limit=${limit}`;
   return apiRequest<CommunityMessage[]>(url, {}, token);
 };
 
 export const getPinnedGroupMessages = (token: string, groupId: number) =>
-  apiRequest<CommunityMessage[]>(`/api/Community/groups/${groupId}/messages/pinned`, {}, token);
+  apiRequest<CommunityMessage[]>(`/api/community/groups/${groupId}/messages/pinned`, {}, token);
 
 export const sendGroupMessage = (token: string, groupId: number, input: SendMessageInput) =>
-  apiRequest<CommunityMessage>(`/api/Community/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify(input) }, token);
+  apiRequest<CommunityMessage>(`/api/community/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify(input) }, token);
 
 // Posts
 export const getGroupPosts = (token: string, groupId: number) =>
-  apiRequest<CommunityPost[]>(`/api/Community/groups/${groupId}/posts`, {}, token);
+  apiRequest<CommunityPost[]>(`/api/community/groups/${groupId}/posts`, {}, token);
 
 export const createGroupPost = (token: string, groupId: number, input: CreatePostInput) =>
-  apiRequest<CommunityPost>(`/api/Community/groups/${groupId}/posts`, { method: 'POST', body: JSON.stringify(input) }, token);
+  apiRequest<CommunityPost>(`/api/community/groups/${groupId}/posts`, { method: 'POST', body: JSON.stringify(input) }, token);
 
 // Member management
 export const approveMember = (token: string, groupId: number, memberUserId: number) =>
-  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/approve`, { method: 'POST' }, token);
+  apiRequest<CommunityMember>(`/api/community/groups/${groupId}/members/${memberUserId}/approve`, { method: 'POST' }, token);
 
 export const removeMember = (token: string, groupId: number, memberUserId: number) =>
-  apiRequest<void>(`/api/Community/groups/${groupId}/members/${memberUserId}`, { method: 'DELETE' }, token);
+  apiRequest<void>(`/api/community/groups/${groupId}/members/${memberUserId}`, { method: 'DELETE' }, token);
 
 export const declineMember = (token: string, groupId: number, memberUserId: number) =>
-  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/decline`, { method: 'POST' }, token);
+  apiRequest<CommunityMember>(`/api/community/groups/${groupId}/members/${memberUserId}/decline`, { method: 'POST' }, token);
 
 export const banMember = (token: string, groupId: number, memberUserId: number) =>
-  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/ban`, { method: 'POST' }, token);
+  apiRequest<CommunityMember>(`/api/community/groups/${groupId}/members/${memberUserId}/ban`, { method: 'POST' }, token);
 
 export const unbanMember = (token: string, groupId: number, memberUserId: number) =>
-  apiRequest<void>(`/api/Community/groups/${groupId}/members/${memberUserId}/unban`, { method: 'POST' }, token);
+  apiRequest<void>(`/api/community/groups/${groupId}/members/${memberUserId}/unban`, { method: 'POST' }, token);
 
 export const changeMemberRole = (token: string, groupId: number, memberUserId: number, role: string) =>
-  apiRequest<CommunityMember>(`/api/Community/groups/${groupId}/members/${memberUserId}/role`, {
+  apiRequest<CommunityMember>(`/api/community/groups/${groupId}/members/${memberUserId}/role`, {
     method: 'PUT',
     body: JSON.stringify({ role }),
   }, token);
 
 // Group images
 export const addGroupImage = (token: string, groupId: number, imageUrl: string, caption?: string) =>
-  apiRequest<GroupImage>(`/api/Community/groups/${groupId}/images`, {
+  apiRequest<GroupImage>(`/api/community/groups/${groupId}/images`, {
     method: 'POST',
     body: JSON.stringify({ imageUrl, caption: caption ?? null }),
   }, token);
 
 export const removeGroupImage = (token: string, groupId: number, imageId: number) =>
-  apiRequest<void>(`/api/Community/groups/${groupId}/images/${imageId}`, { method: 'DELETE' }, token);
+  apiRequest<void>(`/api/community/groups/${groupId}/images/${imageId}`, { method: 'DELETE' }, token);
 
 // Global feed posts
 export const getGlobalPosts = (token?: string | null) =>
-  apiRequest<CommunityPost[]>('/api/Community/posts', {}, token || undefined);
+  apiRequest<CommunityPost[]>('/api/community/posts', {}, token || undefined);
 
 export const createGlobalPost = (token: string, input: { content: string; mediaUrls?: string[] }) =>
-  apiRequest<CommunityPost>('/api/Community/posts', {
+  apiRequest<CommunityPost>('/api/community/posts', {
     method: 'POST',
     body: JSON.stringify(input),
   }, token);
 
 export const reactToPost = (token: string, postId: number, reactionType = 'Like') =>
-  apiRequest<CommunityPost>(`/api/Community/posts/${postId}/reaction`, {
+  apiRequest<CommunityPost>(`/api/community/posts/${postId}/reaction`, {
     method: 'POST',
     body: JSON.stringify({ reactionType }),
   }, token);
 
 export const removeReaction = (token: string, postId: number) =>
-  apiRequest<CommunityPost>(`/api/Community/posts/${postId}/reaction`, { method: 'DELETE' }, token);
+  apiRequest<CommunityPost>(`/api/community/posts/${postId}/reaction`, { method: 'DELETE' }, token);
 
 export const getGlobalPost = (postId: number, token?: string | null) =>
-  apiRequest<CommunityPost>(`/api/Community/posts/${postId}`, {}, token || undefined);
+  apiRequest<CommunityPost>(`/api/community/posts/${postId}`, {}, token || undefined);
 
 export const getPostComments = (postId: number, token: string) =>
-  apiRequest<CommunityComment[]>(`/api/Community/posts/${postId}/comments`, {}, token);
+  apiRequest<CommunityComment[]>(`/api/community/posts/${postId}/comments`, {}, token);
 
 export const createComment = (token: string, postId: number, content: string, parentCommentId?: number | null) =>
-  apiRequest<CommunityComment>(`/api/Community/posts/${postId}/comments`, {
+  apiRequest<CommunityComment>(`/api/community/posts/${postId}/comments`, {
     method: 'POST',
     body: JSON.stringify({ content, parentCommentId: parentCommentId ?? null }),
   }, token);
 
 export const approveGroupPost = (token: string, postId: number) =>
-  apiRequest<CommunityPost>(`/api/Community/posts/${postId}/approve`, { method: 'POST' }, token);
+  apiRequest<CommunityPost>(`/api/community/posts/${postId}/approve`, { method: 'POST' }, token);
 
 export const deletePost = (token: string, postId: number) =>
-  apiRequest<void>(`/api/Community/posts/${postId}`, { method: 'DELETE' }, token);
+  apiRequest<void>(`/api/community/posts/${postId}`, { method: 'DELETE' }, token);
 
 export const deleteGroupMessage = (token: string, groupId: number, messageId: number) =>
-  apiRequest<void>(`/api/Community/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' }, token);
+  apiRequest<void>(`/api/community/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' }, token);
 
 export const pinGroupMessage = (token: string, groupId: number, messageId: number, pin: boolean) =>
-  apiRequest<CommunityMessage>(`/api/Community/groups/${groupId}/messages/${messageId}/pin?pin=${pin}`, { method: 'PUT' }, token);
+  apiRequest<CommunityMessage>(`/api/community/groups/${groupId}/messages/${messageId}/pin?pin=${pin}`, { method: 'PUT' }, token);
 
 export const reactToComment = (token: string, commentId: number) =>
-  apiRequest<void>(`/api/Community/comments/${commentId}/like`, { method: 'POST' }, token);
+  apiRequest<void>(`/api/community/comments/${commentId}/like`, { method: 'POST' }, token);
 
 export const removeCommentReaction = (token: string, commentId: number) =>
-  apiRequest<void>(`/api/Community/comments/${commentId}/like`, { method: 'DELETE' }, token);
+  apiRequest<void>(`/api/community/comments/${commentId}/like`, { method: 'DELETE' }, token);
 
 export type OutstandingPlayer = {
   userId: number;
@@ -267,7 +267,7 @@ export type OutstandingPlayer = {
 };
 
 export const getOutstandingPlayers = (token?: string | null) =>
-  apiRequest<OutstandingPlayer[]>(`/api/Community/players/outstanding`, {}, token || undefined);
+  apiRequest<OutstandingPlayer[]>(`/api/community/players/outstanding`, {}, token || undefined);
 
 export type DirectConversation = {
   conversationId: number;
@@ -280,20 +280,20 @@ export type DirectConversation = {
 };
 
 export const startDirectConversation = (token: string, targetUserId: number) =>
-  apiRequest<DirectConversation>(`/api/Community/conversations/direct/start?targetUserId=${targetUserId}`, {
+  apiRequest<DirectConversation>(`/api/community/conversations/direct/start?targetUserId=${targetUserId}`, {
     method: 'POST',
   }, token);
 
 export const getDirectConversations = (token: string) =>
-  apiRequest<DirectConversation[]>(`/api/Community/conversations/direct`, {}, token);
+  apiRequest<DirectConversation[]>(`/api/community/conversations/direct`, {}, token);
 
 export const getDirectMessages = (token: string, conversationId: number, beforeMessageId?: number, limit = 8) => {
   const query = beforeMessageId ? `?beforeMessageId=${beforeMessageId}&limit=${limit}` : `?limit=${limit}`;
-  return apiRequest<CommunityMessage[]>(`/api/Community/conversations/direct/${conversationId}/messages${query}`, {}, token);
+  return apiRequest<CommunityMessage[]>(`/api/community/conversations/direct/${conversationId}/messages${query}`, {}, token);
 };
 
 export const sendDirectMessage = (token: string, conversationId: number, content: string, mediaUrl?: string) =>
-  apiRequest<CommunityMessage>(`/api/Community/conversations/direct/${conversationId}/messages`, {
+  apiRequest<CommunityMessage>(`/api/community/conversations/direct/${conversationId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content, mediaUrl }),
   }, token);
@@ -305,4 +305,4 @@ export type CommunityFriend = {
 };
 
 export const getFriends = (token: string) =>
-  apiRequest<CommunityFriend[]>('/api/Community/friends', {}, token);
+  apiRequest<CommunityFriend[]>('/api/community/friends', {}, token);

@@ -20,17 +20,6 @@ export interface User {
   role: UserRole;
 }
 
-export interface Tournament {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  prize: string;
-  participants: number;
-  maxParticipants: number;
-  image: string;
-  status: 'upcoming' | 'ongoing' | 'completed';
-}
 
 export interface Club {
   id: string;

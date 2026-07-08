@@ -4,33 +4,31 @@ import { ArrowRight, Facebook, Mail, MapPin, Phone } from 'lucide-react';
 
 const footerGroups = [
   {
-    title: 'Khám phá',
+    title: 'KhÃ¡m phÃ¡',
     links: [
-      { label: 'Tìm sân', to: '/book-court' },
-      { label: 'Giải đấu', to: '/tournaments' },
-      { label: 'Bảng tin', to: '/posts' },
+      { label: 'TÃ¬m sÃ¢n', to: '/book-court' },      { label: 'Báº£ng tin', to: '/posts' },
     ],
   },
   {
-    title: 'Cộng đồng',
+    title: 'Cá»™ng Ä‘á»“ng',
     links: [
-      { label: 'Câu lạc bộ', to: '/clubs' },
-      { label: 'Tìm đối thủ', to: '/opponents' },
-      { label: 'Tin nhắn', to: '/messages' },
+      { label: 'CÃ¢u láº¡c bá»™', to: '/clubs' },
+      { label: 'TÃ¬m Ä‘á»‘i thá»§', to: '/opponents' },
+      { label: 'Tin nháº¯n', to: '/messages' },
     ],
   },
   {
-    title: 'Hỗ trợ',
+    title: 'Há»— trá»£',
     links: [
-      { label: 'Liên hệ', href: '#footer-contact' },
-      { label: 'Chính sách bảo mật', href: '#' },
-      { label: 'Điều khoản dịch vụ', href: '#' },
+      { label: 'LiÃªn há»‡', href: '#footer-contact' },
+      { label: 'ChÃ­nh sÃ¡ch báº£o máº­t', href: '#' },
+      { label: 'Äiá»u khoáº£n dá»‹ch vá»¥', href: '#' },
     ],
   },
 ];
 
 const contactItems = [
-  { label: 'Duy Tân, Cầu Giấy, Hà Nội', icon: MapPin },
+  { label: 'Duy TÃ¢n, Cáº§u Giáº¥y, HÃ  Ná»™i', icon: MapPin },
   { label: '+84 123 456 789', icon: Phone },
   { label: 'contact@picklink.vn', icon: Mail },
 ];
@@ -57,7 +55,7 @@ export const Footer = () => {
           <div className="min-w-0">
             <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Ready to play</p>
             <h2 className="mt-2 max-w-[18ch] text-[clamp(1.35rem,2.4vw,2rem)] font-bold leading-tight tracking-[-0.025em]">
-              Tìm sân đẹp và hội chơi đúng nhịp.
+              TÃ¬m sÃ¢n Ä‘áº¹p vÃ  há»™i chÆ¡i Ä‘Ãºng nhá»‹p.
             </h2>
           </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row md:mt-0">
@@ -65,14 +63,14 @@ export const Footer = () => {
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-4 py-2.5 text-[14px] font-black text-[#102414] shadow-[0_14px_30px_rgba(152,217,81,0.22)] transition-[background-color,transform,box-shadow] duration-200 hover:-translate-y-px hover:bg-[#d6f64d] hover:shadow-[0_16px_34px_rgba(152,217,81,0.28)] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/80 active:translate-y-px"
               to="/book-court"
             >
-              Tìm sân gần bạn
+              TÃ¬m sÃ¢n gáº§n báº¡n
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
             <Link
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/18 bg-white/[0.06] px-4 py-2.5 text-[14px] font-bold text-white transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-white/34 hover:bg-white/[0.12] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/80 active:translate-y-px"
               to="/clubs"
             >
-              Tham gia cộng đồng
+              Tham gia cá»™ng Ä‘á»“ng
             </Link>
           </div>
         </motion.div>
@@ -86,7 +84,7 @@ export const Footer = () => {
             whileInView={{ opacity: 1, y: 0 }}
           >
             <Link
-              aria-label="Picklink - Trang chủ"
+              aria-label="Picklink - Trang chá»§"
               className="inline-flex w-fit items-center gap-3 rounded-xl pr-2 transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-white/[0.06] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/80 active:translate-y-px"
               to="/"
             >
@@ -101,7 +99,7 @@ export const Footer = () => {
               </span>
             </Link>
             <p className="mt-5 max-w-[45ch] text-[15px] leading-7 text-white/70">
-              Một nơi gọn gàng để tìm sân, ghép hội, theo dõi giải và giữ nhịp chơi đều hơn mỗi tuần.
+              Má»™t nÆ¡i gá»n gÃ ng Ä‘á»ƒ tÃ¬m sÃ¢n, ghÃ©p há»™i, theo dÃµi giáº£i vÃ  giá»¯ nhá»‹p chÆ¡i Ä‘á»u hÆ¡n má»—i tuáº§n.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <motion.a
@@ -126,7 +124,7 @@ export const Footer = () => {
           </motion.div>
 
           <motion.nav
-            aria-label="Điều hướng chân trang"
+            aria-label="Äiá»u hÆ°á»›ng chÃ¢n trang"
             className="grid gap-5 sm:grid-cols-3 md:col-span-1 lg:col-span-1"
             initial={revealFrom}
             transition={{ delay: shouldReduceMotion ? 0 : 0.08, duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
@@ -169,7 +167,7 @@ export const Footer = () => {
             viewport={{ amount: 0.2, once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <h3 className="text-[13px] font-black uppercase tracking-[0.12em] text-[#e2ff57]">Kết nối</h3>
+            <h3 className="text-[13px] font-black uppercase tracking-[0.12em] text-[#e2ff57]">Káº¿t ná»‘i</h3>
             <ul className="mt-4 grid gap-3 text-[14px] leading-6 text-white/70">
               {contactItems.map((item) => {
                 const Icon = item.icon;

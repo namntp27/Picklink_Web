@@ -9,7 +9,6 @@ export type AdminSectionId =
   | 'reports'
   | 'posts'
   | 'reviews'
-  | 'tournaments'
   | 'transactions'
   | 'settings';
 

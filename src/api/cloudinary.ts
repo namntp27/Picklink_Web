@@ -8,7 +8,7 @@ export type SignatureResponse = {
 };
 
 export const getUploadSignature = (token: string, parameters: Record<string, string>) => {
-  return apiRequest<SignatureResponse>('/api/Upload/signature', {
+  return apiRequest<SignatureResponse>('/api/upload/signature', {
     method: 'POST',
     body: JSON.stringify({ parameters }),
   }, token);
