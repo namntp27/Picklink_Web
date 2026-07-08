@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
+import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 
 type PlayerLocation = { accuracy: number; latitude: number; longitude: number };
 type InvitationMode = 'automatic' | 'manual' | 'none';
@@ -257,24 +258,36 @@ export const Opponents = () => {
   useEffect(() => {
     let isActive = true;
     const requestId = ++venueRequestId.current;
+    const nextProvince = province.trim();
+    const nextWard = ward.trim();
+
     setIsSearching(true);
-    searchMatchVenues({ radiusKm: 10 })
-      .then((result) => {
-        if (!isActive || requestId !== venueRequestId.current) return;
-        setVenues(result);
+    const timeoutId = window.setTimeout(() => {
+      searchMatchVenues({
+        radiusKm: 10,
+        province: nextProvince || undefined,
+        ward: nextWard || undefined,
       })
-      .catch(() => {
-        if (!isActive || requestId !== venueRequestId.current) return;
-        setError('Không thể tải vị trí các cụm sân trên bản đồ.');
-      })
-      .finally(() => {
-        if (isActive && requestId === venueRequestId.current) setIsSearching(false);
-      });
+        .then((result) => {
+          if (!isActive || requestId !== venueRequestId.current) return;
+          setVenues(result);
+          setSelectedVenueIds((current) => current.filter((id) => result.some((venue) => venue.venueId === id)));
+          setError(result.length === 0 && nextProvince ? 'Chưa có cụm sân nào trong khu vực đã chọn.' : '');
+        })
+        .catch(() => {
+          if (!isActive || requestId !== venueRequestId.current) return;
+          setError('Không thể tải vị trí các cụm sân trên bản đồ.');
+        })
+        .finally(() => {
+          if (isActive && requestId === venueRequestId.current) setIsSearching(false);
+        });
+    }, 250);
+
     return () => {
       isActive = false;
+      window.clearTimeout(timeoutId);
     };
-  }, []);
-
+  }, [province, ward]);
   useEffect(() => {
     const requestId = ++recommendationRequestId.current;
     if (!token || !province.trim() || !ward.trim()) {
@@ -621,8 +634,24 @@ export const Opponents = () => {
           {locationAreaStatus && <p className="text-[11px] font-semibold leading-5 text-[#718077]">{locationAreaStatus}</p>}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tỉnh/thành phố</span><input className={inputClass} maxLength={100} onChange={(event) => setProvince(event.target.value)} placeholder="Hà Nội" value={province} /></label>
-            <label><span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Xã/phường</span><input className={inputClass} maxLength={150} onChange={(event) => setWard(event.target.value)} placeholder="Cầu Giấy" value={ward} /></label>
+            <AdministrativeAreaSelects
+              fieldClassName="block"
+              labelClassName="mb-1.5 block text-[12px] font-extrabold text-[#526158]"
+              onProvinceChange={(value) => {
+                setLocation(null);
+                setLocationAreaStatus('');
+                setProvince(value ?? '');
+                setWard('');
+              }}
+              onWardChange={(value) => {
+                setLocation(null);
+                setLocationAreaStatus('');
+                setWard(value ?? '');
+              }}
+              province={province}
+              selectClassName={inputClass}
+              ward={ward}
+            />
           </div>
 
           <div>

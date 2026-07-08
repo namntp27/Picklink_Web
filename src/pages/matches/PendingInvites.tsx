@@ -21,6 +21,7 @@ import { PaginationControls } from '../../components/PaginationControls';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
+import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 
 type Filters = {
   owner: 'mine' | 'other';
@@ -203,6 +204,19 @@ export const PendingInvites = () => {
               <option value="other">Của người khác</option>
               <option value="mine">Của tôi</option>
             </select>
+            <AdministrativeAreaSelects
+              fieldClassName="min-w-0"
+              labelClassName="sr-only"
+              onProvinceChange={(value) => {
+                update('province', value ?? '');
+                update('ward', '');
+              }}
+              onWardChange={(value) => update('ward', value ?? '')}
+              province={filters.province}
+              selectClassName="community-control"
+              ward={filters.ward}
+            />
+            <input aria-label="Ngày có thể chơi" className="community-control" onChange={(event) => update('date', event.target.value)} type="date" value={filters.date} />
             <select className="community-control" onChange={(event) => update('format', event.target.value)} value={filters.format}>
               <option value="all">Mọi hình thức</option>
               <option value="1vs1">1vs1</option>
@@ -212,9 +226,6 @@ export const PendingInvites = () => {
               <option value="all">Mọi trình độ</option>
               {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}
             </select>
-            <input className="community-control" onChange={(event) => update('province', event.target.value)} placeholder="Tỉnh/thành" value={filters.province} />
-            <input className="community-control" onChange={(event) => update('ward', event.target.value)} placeholder="Xã/phường" value={filters.ward} />
-            <input aria-label="Ngày có thể chơi" className="community-control" onChange={(event) => update('date', event.target.value)} type="date" value={filters.date} />
           </div>
         </section>
 

@@ -21,6 +21,7 @@ import { addFavoriteVenue, getBookingVenues, removeFavoriteVenue, type BookingVe
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
+import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -147,7 +148,8 @@ export const BookCourt = () => {
   const { setShowFooter } = useOutletContext<MainLayoutContext>() ?? {};
   const [venues, setVenues] = useState<BookingVenue[]>([]);
   const [search, setSearch] = useState('');
-  const [area, setArea] = useState('');
+  const [selectedProvince, setSelectedProvince] = useState('');
+  const [selectedWard, setSelectedWard] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(() => new URLSearchParams(window.location.search).get('favorites') === 'true');
@@ -163,6 +165,7 @@ export const BookCourt = () => {
     ? 'Đang dùng vị trí gần nhất và làm mới trong nền.'
     : 'Bấm Vị trí của tôi để xem sân gần bạn.');
   const shouldReduceMotion = useReducedMotion();
+  const areaFilter = [selectedWard, selectedProvince].filter(Boolean).join(' ');
 
   useEffect(() => {
     setShowFooter?.(false);
@@ -174,7 +177,7 @@ export const BookCourt = () => {
       setIsLoading(true);
       getBookingVenues({
         search,
-        area,
+        area: areaFilter,
         minPrice: minPrice ? Number(minPrice) : undefined,
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
         favoritesOnly,
@@ -186,12 +189,12 @@ export const BookCourt = () => {
         .finally(() => setIsLoading(false));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [area, favoritesOnly, maxPrice, minPrice, page, search, token]);
+  }, [areaFilter, favoritesOnly, maxPrice, minPrice, page, search, token]);
 
   useVenueRealtime(() => {
     getBookingVenues({
       search,
-      area,
+      area: areaFilter,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       favoritesOnly,
@@ -284,7 +287,7 @@ export const BookCourt = () => {
   };
 
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 10 };
-  const activeFilterCount = [area, minPrice, maxPrice, favoritesOnly ? 'favorite' : ''].filter(Boolean).length;
+  const activeFilterCount = [areaFilter, minPrice, maxPrice, favoritesOnly ? 'favorite' : ''].filter(Boolean).length;
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] pt-16 text-[#0b2228]">
@@ -331,11 +334,23 @@ export const BookCourt = () => {
             </div>
           </div>
 
-          <div className="relative mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_132px_132px_auto]">
-            <label className="min-w-0">
-              <span className="sr-only">Khu vực</span>
-              <Input className={compactInputClass} onChange={(event) => { setArea(event.target.value); setPage(1); }} placeholder="Khu vực, quận, thành phố" value={area} />
-            </label>
+          <div className="relative mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_132px_132px_auto]">
+            <AdministrativeAreaSelects
+              fieldClassName="min-w-0 flex items-center gap-2"
+              labelClassName="shrink-0 text-[11px] font-bold text-white/70"
+              onProvinceChange={(value) => {
+                setSelectedProvince(value ?? '');
+                setSelectedWard('');
+                setPage(1);
+              }}
+              onWardChange={(value) => {
+                setSelectedWard(value ?? '');
+                setPage(1);
+              }}
+              province={selectedProvince}
+              selectClassName={`${compactInputClass} min-w-0 flex-1`}
+              ward={selectedWard}
+            />
             <label className="min-w-0">
               <span className="sr-only">Giá từ</span>
               <Input className={compactInputClass} min="0" onChange={(event) => { setMinPrice(event.target.value); setPage(1); }} placeholder="Giá từ" type="number" value={minPrice} />

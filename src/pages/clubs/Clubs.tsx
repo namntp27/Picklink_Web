@@ -4,8 +4,6 @@ import { motion, useReducedMotion } from 'motion/react';
 import {
   ArrowRight,
   Search,
-  MapPin,
-  ChevronDown,
   Activity,
   Zap,
   Star,
@@ -28,6 +26,7 @@ import {
   type CommunityGroup,
 } from '../../api/community';
 import { Dropdown, type DropdownOption } from '../../components/ui/Dropdown';
+import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { useToast } from '../../components/ui/ToastRegion';
 import './club-pages.css';
 
@@ -82,13 +81,12 @@ export const Clubs = () => {
   const [sortBy, setSortBy] = useState<'newest' | 'members' | 'active'>('newest');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [selectedCity, setSelectedCity] = useState('Toàn quốc');
+  const [selectedProvince, setSelectedProvince] = useState('');
+  const [selectedWard, setSelectedWard] = useState('');
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const buildSearchQuery = useCallback((search: string, city: string) => {
-    if (city === 'Toàn quốc') return search;
-    return `${search} ${city}`.trim();
-  }, []);
+  const buildSearchQuery = useCallback((search: string, area: string) => `${search} ${area}`.trim(), []);
+  const areaFilter = [selectedWard, selectedProvince].filter(Boolean).join(' ');
 
   const loadClubs = useCallback(
     async (pageNum: number = 1, replace: boolean = false) => {
@@ -99,7 +97,7 @@ export const Clubs = () => {
       }
       setError(null);
       try {
-        const queryVal = buildSearchQuery(searchTerm, selectedCity) || undefined;
+        const queryVal = buildSearchQuery(searchTerm, areaFilter) || undefined;
         const data = await getGroups(token, queryVal, pageNum, 3, typeFilter, sortBy);
         if (replace || pageNum === 1) {
           setClubs(data);
@@ -118,14 +116,14 @@ export const Clubs = () => {
         setLoadingMore(false);
       }
     },
-    [token, typeFilter, sortBy, searchTerm, selectedCity, buildSearchQuery],
+    [token, typeFilter, sortBy, searchTerm, areaFilter, buildSearchQuery],
   );
 
   // Load page 1 on filter or sort change
   useEffect(() => {
     setPage(1);
     loadClubs(1, true);
-  }, [token, typeFilter, sortBy, selectedCity]);
+  }, [token, typeFilter, sortBy, areaFilter]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -253,24 +251,21 @@ export const Clubs = () => {
                   </span>
                 </label>
 
-                <label className="grid gap-2 text-[13px] font-semibold text-[#53645b]" htmlFor="club-city">
-                  Khu vực
-                  <span className="picklink-glow-control relative flex h-12 items-center gap-3 rounded-xl border border-[#d8e4d4] bg-[#fbfdf8] px-3 transition-[border-color,box-shadow] focus-within:border-[#98d951]">
-                    <MapPin aria-hidden="true" className="h-5 w-5 shrink-0 text-[#477313]" />
-                    <select
-                      className="h-full min-w-0 flex-1 appearance-none border-0 bg-transparent pr-8 text-[14px] font-medium text-[#0b2228] outline-none"
-                      id="club-city"
-                      onChange={(event) => setSelectedCity(event.target.value)}
-                      value={selectedCity}
-                    >
-                      <option>Toàn quốc</option>
-                      <option>Hà Nội</option>
-                      <option>TP. Hồ Chí Minh</option>
-                      <option>Đà Nẵng</option>
-                    </select>
-                    <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 text-[#718077]" />
-                  </span>
-                </label>
+                <div className="grid gap-3">
+                  <p className="text-[13px] font-semibold text-[#53645b]">Khu vực</p>
+                  <AdministrativeAreaSelects
+                    fieldClassName="grid gap-2 text-[13px] font-semibold text-[#53645b]"
+                    labelClassName="text-[12px] font-bold text-[#718077]"
+                    onProvinceChange={(value) => {
+                      setSelectedProvince(value ?? '');
+                      setSelectedWard('');
+                    }}
+                    onWardChange={(value) => setSelectedWard(value ?? '')}
+                    province={selectedProvince}
+                    selectClassName="picklink-glow-control h-12 w-full rounded-xl border border-[#d8e4d4] bg-[#fbfdf8] px-3 text-[14px] font-medium text-[#0b2228] outline-none transition-[border-color,box-shadow] focus:border-[#98d951]"
+                    ward={selectedWard}
+                  />
+                </div>
 
                 <button
                   className="picklink-glow-control inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-5 py-3 text-[14px] font-bold text-[#102414] shadow-[0_12px_28px_rgba(152,217,81,0.22)] transition-[background-color,transform] hover:bg-[#d6f64d] active:scale-[0.98]"

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { createGroup } from '../../api/community';
+import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import './club-pages.css';
 
 export const CreateClub = () => {
@@ -24,6 +25,8 @@ export const CreateClub = () => {
   const [descriptionCount, setDescriptionCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [province, setProvince] = useState('');
+  const [ward, setWard] = useState('');
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -33,15 +36,7 @@ export const CreateClub = () => {
     const groupName = (formData.get('club-name') as string)?.trim();
     const description = (formData.get('description') as string)?.trim() || undefined;
     const groupType = (formData.get('group-type') as string) || 'Public';
-    const citySelect = formData.get('city') as string;
-    const districtInput = (formData.get('district') as string)?.trim();
-    const cityMap: Record<string, string> = {
-      hn: 'Hà Nội',
-      hcm: 'Hồ Chí Minh',
-      dn: 'Đà Nẵng',
-    };
-    const cityLabel = cityMap[citySelect] || citySelect;
-    const activeLocation = [districtInput, cityLabel].filter(Boolean).join(', ') || undefined;
+    const activeLocation = [ward, province].filter(Boolean).join(', ') || undefined;
 
     if (!groupName) {
       setError('Vui lòng nhập tên câu lạc bộ.');
@@ -170,24 +165,20 @@ export const CreateClub = () => {
                 </span>
               </label>
 
-              <label className="grid gap-1.5" htmlFor="city">
-                <span className="text-[12px] font-bold text-[#53645b]">Tỉnh / Thành phố <span className="text-[#ba1a1a]">*</span></span>
-                <span className="relative">
-                  <MapPin aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#477313]" />
-                  <select className="h-10 w-full appearance-none rounded-xl border pl-9 pr-8 text-[13px] font-semibold" defaultValue="" id="city" name="city" required>
-                    <option disabled value="">Chọn khu vực</option>
-                    <option value="hn">Hà Nội</option>
-                    <option value="hcm">Hồ Chí Minh</option>
-                    <option value="dn">Đà Nẵng</option>
-                  </select>
-                  <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718077]" />
-                </span>
-              </label>
-
-              <label className="grid gap-1.5 md:col-span-2" htmlFor="district">
-                <span className="text-[12px] font-bold text-[#53645b]">Địa bàn hoạt động <span className="text-[#ba1a1a]">*</span></span>
-                <input className="h-10 w-full rounded-xl border px-3 text-[14px]" id="district" name="district" placeholder="Ví dụ: Quận Cầu Giấy, Sân Nghĩa Tân" required type="text" />
-              </label>
+              <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+                <AdministrativeAreaSelects
+                  fieldClassName="grid gap-1.5"
+                  labelClassName="text-[12px] font-bold text-[#53645b]"
+                  onProvinceChange={(value) => {
+                    setProvince(value ?? '');
+                    setWard('');
+                  }}
+                  onWardChange={(value) => setWard(value ?? '')}
+                  province={province}
+                  selectClassName="h-10 w-full rounded-xl border px-3 text-[14px]"
+                  ward={ward}
+                />
+              </div>
 
               <label className="grid gap-1.5 md:col-span-2" htmlFor="description">
                 <span className="flex items-center justify-between gap-3 text-[12px] font-bold text-[#53645b]">

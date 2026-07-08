@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { getMyProfile, updateMyProfile, uploadMyAvatar, type PlayerProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
+import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import './profile.css';
 
 const emptyProfile: PlayerProfile = {
@@ -40,8 +41,7 @@ export const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
-  useEffect(() => {
+useEffect(() => {
     if (!token) return;
     getMyProfile(token)
       .then(setProfile)
@@ -438,28 +438,18 @@ export const Profile = () => {
                 </div>
 
                 <div className="profile-fields">
-                  <label className="profile-field">
-                    <span className="profile-field-label">Tỉnh hoặc thành phố</span>
-                    <input
-                      autoComplete="address-level1"
-                      className="profile-control"
-                      maxLength={100}
-                      onChange={(event) => setField('city', event.target.value)}
-                      placeholder="Ví dụ: Hà Nội"
-                      value={profile.city ?? ''}
-                    />
-                  </label>
-                  <label className="profile-field">
-                    <span className="profile-field-label">Xã hoặc phường</span>
-                    <input
-                      autoComplete="address-level3"
-                      className="profile-control"
-                      maxLength={150}
-                      onChange={(event) => setField('commune', event.target.value)}
-                      placeholder="Ví dụ: Cầu Giấy"
-                      value={profile.commune ?? ''}
-                    />
-                  </label>
+                  <AdministrativeAreaSelects
+                    fieldClassName="profile-field"
+                    labelClassName="profile-field-label"
+                    onProvinceChange={(value) => {
+                      setField('city', value);
+                      setField('commune', null);
+                    }}
+                    onWardChange={(value) => setField('commune', value)}
+                    province={profile.city}
+                    selectClassName="profile-control"
+                    ward={profile.commune}
+                  />
                 </div>
               </section>
 

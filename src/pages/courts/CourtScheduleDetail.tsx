@@ -3,12 +3,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import {
   ArrowLeft,
   CalendarDays,
-  Clock,
-  Info,
   Loader2,
-  MapPin,
   RefreshCw,
-  ShieldCheck,
 } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
@@ -18,6 +14,7 @@ import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/use
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { CourtTimelineGrid } from './components/CourtTimelineGrid';
 
 const localDate = () => {
   const now = new Date();
@@ -40,21 +37,6 @@ const minuteOfDay = (value: string) => {
   return hour * 60 + minute;
 };
 
-const unavailableLabel: Record<string, string> = {
-  Holding: 'Đang được giữ',
-  Booked: 'Đã đặt',
-  Blocked: 'Đã khóa',
-  Maintenance: 'Bảo trì',
-  Event: 'Sự kiện',
-  Closed: 'Đóng cửa',
-};
-
-const chipStyles: Record<string, string> = {
-  available: 'border-[#b9dca8] bg-[#eef8e6] text-primary',
-  selected: 'border-[#0b2228] bg-[#0b2228] text-white',
-  mine: 'border-[#dbe8d3] bg-[#e2ff57] text-[#102414]',
-  unavailable: 'border-[#dbe8d3] bg-white text-[#8a968f]',
-};
 
 const buttonBase = 'h-10 rounded-xl px-3 text-[13px] font-bold';
 
@@ -205,219 +187,104 @@ export const CourtScheduleDetail = () => {
     setSearchParams({ date: nextDate }, { replace: true });
   };
 
-  return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#f8fbf4] text-[#0b2228]">
-      <main className="mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8">
-        <motion.section
-          {...motionProps}
-          className="rounded-2xl border border-[#dbe8d3] bg-white p-3 shadow-[0_14px_34px_rgba(18,45,34,0.07)]"
-          data-motion-managed
-        >
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:items-end">
-            <div className="min-w-0">
-              <Link
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-[#dbe8d3] bg-white px-3 text-[13px] font-bold text-primary transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#eef8e6] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px"
-                to="/book-court"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Chọn cụm sân khác
-              </Link>
-              <h1 className="mt-3 text-[clamp(1.55rem,2.7vw,2.25rem)] font-extrabold leading-tight tracking-[-0.035em]">
-                {availability?.venueName ?? 'Lịch sân Picklink'}
-              </h1>
-              <p className="mt-1 flex max-w-3xl items-start gap-2 text-[13px] font-semibold leading-5 text-[#66766d]">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span className="break-words">{availability?.address ?? 'Chọn ngày để xem tình trạng sân theo thời gian thực.'}</span>
-              </p>
-            </div>
+  const totalMinutes = selectedSlots.length * 30;
+  const durationLabel = totalMinutes
+    ? `${Math.floor(totalMinutes / 60)}h${String(totalMinutes % 60).padStart(2, '0')}`
+    : '0h00';
+  const bottomBookingBar = true;
 
-            <div className="grid gap-2 rounded-2xl border border-[#dbe8d3] bg-[#f8fbf4] p-2 sm:grid-cols-[1fr_auto]">
-              <Input
-                className="h-10 rounded-xl border-[#dbe8d3] bg-white text-[13px]"
-                icon={<CalendarDays className="h-5 w-5" />}
-                min={localDate()}
-                onChange={(event) => changeDate(event.target.value)}
-                type="date"
-                value={date}
-              />
-              <Button
-                aria-busy={isLoading}
-                className={`${buttonBase} bg-[#0b2228] text-white hover:bg-[#14333a]`}
-                disabled={isLoading}
-                onClick={() => void load()}
-                type="button"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Làm mới
-              </Button>
-            </div>
+  return (
+    <div className="min-h-dvh overflow-hidden bg-[#f8fbf4] text-[#0b2228]">
+      <main className="flex min-h-dvh flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-[linear-gradient(135deg,#081d24_0%,#0f2e32_50%,#143f34_100%)] px-3 py-2 text-white shadow-[0_8px_20px_rgba(8,29,36,0.12)]">
+          <Link
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 text-[13px] font-bold text-white transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-white/16 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57] active:translate-y-px"
+            to="/book-court"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Chọn cụm sân khác
+          </Link>
+
+          <div className="flex min-w-0 flex-1 items-center justify-center px-2 text-center">
+            <h1 className="truncate text-[15px] font-black text-white">
+              {availability?.venueName ?? 'Lịch sân Picklink'}
+            </h1>
           </div>
-        </motion.section>
+
+          <div className="grid grid-cols-[minmax(150px,1fr)_auto] gap-2">
+            <Input
+              className="h-9 rounded-md border-white/20 bg-white/18 text-[13px] font-bold text-white [color-scheme:dark]"
+              icon={<CalendarDays className="h-4 w-4" />}
+              min={localDate()}
+              onChange={(event) => changeDate(event.target.value)}
+              type="date"
+              value={date}
+            />
+            <Button
+              aria-busy={isLoading}
+              className={`${buttonBase} h-9 rounded-md bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]`}
+              disabled={isLoading}
+              onClick={() => void load()}
+              type="button"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
         {error && (
           <motion.div
             {...motionProps}
-            className="rounded-xl border border-error/25 bg-error-container px-4 py-3 text-[13px] font-bold leading-5 text-error"
+            className="border-b border-error/25 bg-error-container px-4 py-3 text-[13px] font-bold leading-5 text-error"
             role="alert"
           >
             {error}
           </motion.div>
         )}
 
-        <section className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <motion.div
-            {...motionProps}
-            className="flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-2xl border border-[#dbe8d3] bg-white shadow-[0_14px_34px_rgba(18,45,34,0.07)] xl:min-h-0"
-          >
-            <div className="flex flex-col gap-3 border-b border-[#dbe8d3] p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-[18px] font-extrabold tracking-[-0.02em]">Slot 30 phút</h2>
-                <p className="mt-1 text-[12px] font-semibold text-[#66766d]">
-                  {availability ? `${availability.openTime} - ${availability.closeTime}` : 'Đang đồng bộ lịch'} - chỉ chọn trên cùng một sân
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-[11px] font-bold">
-                {[
-                  ['available', 'Còn trống'],
-                  ['mine', 'Đang giữ'],
-                  ['unavailable', 'Không khả dụng'],
-                  ['selected', 'Đã chọn'],
-                ].map(([key, label]) => (
-                  <span className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 ${chipStyles[key]}`} key={key}>
-                    {label}
-                  </span>
-                ))}
-              </div>
+        <section className="flex min-h-0 flex-1 flex-col bg-[#eef8e6]">
+          {isLoading && (
+            <div className="flex min-h-[360px] flex-1 items-center justify-center gap-3 p-8 text-[14px] font-bold text-[#66766d]">
+              <Loader2 className="h-5 w-5 animate-spin text-[#276b3f] motion-reduce:animate-none" />
+              Đang kiểm tra slot...
             </div>
+          )}
 
-            {isLoading && (
-              <div className="flex min-h-[360px] flex-1 items-center justify-center gap-3 p-8 text-[14px] font-bold text-[#66766d]">
-                <Loader2 className="h-5 w-5 animate-spin text-primary motion-reduce:animate-none" />
-                Đang kiểm tra slot...
-              </div>
-            )}
-
-            {!isLoading && availability?.courts.length === 0 && (
-              <div className="p-10 text-center">
-                <p className="text-[18px] font-extrabold">Chưa có sân con khả dụng</p>
-                <p className="mt-2 text-[13px] font-medium text-[#66766d]">Vui lòng chọn ngày khác hoặc làm mới lịch.</p>
-              </div>
-            )}
-
-            {!isLoading && availability && availability.courts.length > 0 && (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {availability.courts.map((court, index) => (
-                  <motion.article
-                    animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                    className="grid min-w-0 gap-3 border-b border-[#dbe8d3] p-4 lg:grid-cols-[180px_minmax(0,1fr)]"
-                    data-motion-managed
-                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
-                    key={court.courtId}
-                    transition={{ delay: index * 0.025, duration: 0.22 }}
-                  >
-                    <div className="min-w-0 rounded-xl bg-[#f8fbf4] p-3">
-                      <p className="text-[12px] font-black text-primary">Sân con</p>
-                      <h3 className="mt-1 text-[19px] font-extrabold tracking-[-0.02em]">Sân {court.courtNumber}</h3>
-                      <p className="mt-1 text-[12px] font-semibold text-[#66766d]">
-                        {court.courtType} - {court.isIndoor ? 'Trong nhà' : 'Ngoài trời'}
-                      </p>
-                      <p className="mt-2 text-[14px] font-black text-primary">{currency.format(court.hourlyPrice)}/giờ</p>
-                    </div>
-
-                    <div className="grid min-w-0 grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 2xl:grid-cols-6">
-                      {availability.slots
-                        .filter((slot) => slot.courtId === court.courtId)
-                        .map((slot) => {
-                          const selected = selectedCourtId === court.courtId && selectedStarts.includes(time(slot.startTime));
-                          const past = new Date(slot.startTime).getTime() <= Date.now();
-                          const resumableHolding = slot.status === 'Holding' && Boolean(slot.isOwnedByCurrentUser && slot.bookingId);
-                          const disabled = !resumableHolding && (slot.status !== 'Available' || past);
-                          const slotStyle = selected
-                            ? 'border-[#0b2228] bg-[#0b2228] text-white shadow-[0_10px_20px_rgba(8,29,36,0.16)]'
-                            : resumableHolding
-                              ? 'border-[#dbe8d3] bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]'
-                              : disabled
-                                ? 'cursor-not-allowed border-[#dbe8d3] bg-white text-[#9aa39d]'
-                                : 'border-[#b9dca8] bg-[#eef8e6] text-primary hover:border-primary-container hover:bg-[#e2ff57] hover:text-[#102414]';
-
-                          return (
-                            <button
-                              className={`min-w-0 rounded-xl border px-2 py-2.5 text-[12px] font-black transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-200 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px disabled:opacity-60 ${slotStyle}`}
-                              disabled={disabled}
-                              key={`${court.courtId}-${slot.startTime}`}
-                              onClick={() => selectSlot(slot)}
-                              title={
-                                resumableHolding
-                                  ? 'Tiếp tục thanh toán hoặc xem trạng thái xác nhận'
-                                  : past
-                                    ? 'Đã qua'
-                                    : unavailableLabel[slot.status] ?? 'Còn trống'
-                              }
-                              type="button"
-                            >
-                              <span className="block truncate">{time(slot.startTime)}</span>
-                            </button>
-                          );
-                        })}
-                    </div>
-                  </motion.article>
-                ))}
-              </div>
-            )}
-          </motion.div>
-
-          <motion.aside
-            {...motionProps}
-            className="h-fit min-w-0 rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] xl:sticky xl:top-4"
-          >
-            <div className="rounded-2xl bg-[#0b2228] p-4 text-white">
-              <p className="text-[12px] font-black text-[#e2ff57]">Tóm tắt</p>
-              <h2 className="mt-1 text-[24px] font-extrabold tracking-[-0.035em]">Lựa chọn của bạn</h2>
+          {!isLoading && availability?.courts.length === 0 && (
+            <div className="p-10 text-center">
+              <p className="text-[18px] font-extrabold">Chưa có sân con khả dụng</p>
+              <p className="mt-2 text-[13px] font-medium text-[#66766d]">Vui lòng chọn ngày khác hoặc làm mới lịch.</p>
             </div>
+          )}
 
-            <div className="mt-4 space-y-3 rounded-2xl bg-[#f8fbf4] p-4 text-[13px]">
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-semibold text-[#66766d]">Sân con</span>
-                <strong className="text-right">{selectedCourt ? `Sân ${selectedCourt.courtNumber}` : 'Chưa chọn'}</strong>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-semibold text-[#66766d]">Thời gian</span>
-                <strong className="text-right">
-                  {selectedSlots.length ? `${time(selectedSlots[0].startTime)} - ${time(selectedSlots.at(-1)!.endTime)}` : 'Chưa chọn'}
-                </strong>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-semibold text-[#66766d]">Thời lượng</span>
-                <strong className="text-right">{durationHours} giờ</strong>
-              </div>
-              <div className="flex items-end justify-between gap-4 border-t border-[#dbe8d3] pt-3">
-                <span className="font-semibold text-[#66766d]">Tiền sân</span>
-                <strong className="text-right text-[24px] font-black tracking-[-0.03em] text-primary">{currency.format(estimatedCourtAmount)}</strong>
-              </div>
+          {!isLoading && availability && availability.courts.length > 0 && (
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <CourtTimelineGrid
+                availability={availability}
+                onSelectSlot={selectSlot}
+                selectedCourtId={selectedCourtId}
+                selectedStarts={selectedStarts}
+              />
             </div>
-
-            <div className="mt-3 rounded-2xl border border-[#dbe8d3] bg-[#eef8e6] p-3 text-[12px] font-semibold leading-5 text-[#53645a]">
-              <Info className="mr-1 inline h-4 w-4 text-primary" />
-              Backend sẽ tính lại đơn giá sân nhân với thời lượng. Không có phí dịch vụ hoặc giảm giá.
-            </div>
-
-            <Button
-              aria-busy={isHolding}
-              className="mt-4 h-11 w-full rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] shadow-[0_12px_24px_rgba(152,217,81,0.2)] hover:bg-[#d6f64d]"
-              disabled={!selectedSlots.length || isHolding}
-              onClick={() => void createHold()}
-              type="button"
-            >
-              <ShieldCheck className="h-5 w-5" />
-              {isHolding ? 'Đang giữ slot...' : 'Giữ chỗ 5 phút'}
-            </Button>
-
-            <p className="mt-3 text-center text-[11px] font-semibold leading-5 text-[#66766d]">
-              <Clock className="mr-1 inline h-3.5 w-3.5" />
-              Hệ thống kiểm tra chống trùng trong transaction.
-            </p>
-          </motion.aside>
+          )}
         </section>
+
+        <div className="bottomBookingBar sticky bottom-0 z-20 rounded-t-xl bg-[linear-gradient(135deg,#081d24_0%,#0f2e32_50%,#143f34_100%)] px-3 pb-3 pt-2 text-white shadow-[0_-14px_34px_rgba(8,29,36,0.18)]" data-layout={bottomBookingBar ? 'bottom-booking-bar' : undefined}>
+          <div className="mx-auto mb-3 h-5 w-10 text-center text-[18px] font-black leading-5 text-white/88">⌃</div>
+          <div className="mb-2 flex items-center justify-between gap-4 text-[16px] font-black sm:text-[18px]">
+            <span>Tổng giờ: {durationLabel}</span>
+            <span className="text-right">Tổng tiền: {currency.format(estimatedCourtAmount)}</span>
+          </div>
+          <Button
+            aria-busy={isHolding}
+            className="h-12 w-full rounded-md bg-[#e2ff57] text-[16px] font-black text-[#102414] shadow-none hover:bg-[#d6f64d] disabled:bg-[#aebd5a]"
+            disabled={!selectedSlots.length || isHolding}
+            onClick={() => void createHold()}
+            type="button"
+          >
+            {isHolding ? 'ĐANG GIỮ CHỖ...' : 'TIẾP THEO'}
+          </Button>
+        </div>
       </main>
     </div>
   );
