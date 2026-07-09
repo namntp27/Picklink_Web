@@ -255,7 +255,7 @@
 
 .profile-form-surface {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--profile-line);
   border-radius: 16px;
   background: rgb(255 255 255 / 0.95);

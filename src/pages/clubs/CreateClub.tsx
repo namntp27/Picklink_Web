@@ -108,7 +108,7 @@ export const CreateClub = () => {
       <main className="mx-auto w-full max-w-[1060px] px-4 py-6 sm:px-6 md:py-8 lg:px-8">
         <motion.form
           animate={{ opacity: 1, y: 0 }}
-          className="picklink-glow-surface grid overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white shadow-[0_18px_46px_rgba(8,29,36,0.08)] lg:grid-cols-[300px_minmax(0,1fr)]"
+          className="picklink-glow-surface grid overflow-visible rounded-2xl border border-[#d8e4d4] bg-white shadow-[0_18px_46px_rgba(8,29,36,0.08)] lg:grid-cols-[300px_minmax(0,1fr)]"
           initial={revealInitial}
           onSubmit={handleSubmit}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.36, ease: [0.2, 0.8, 0.2, 1] }}

@@ -226,7 +226,7 @@ export const Clubs = () => {
             
             <motion.form
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="picklink-glow-surface overflow-hidden rounded-2xl border border-white/14 bg-white text-[#0b2228] shadow-[0_24px_80px_rgba(0,0,0,0.24)]"
+              className="picklink-glow-surface overflow-visible rounded-2xl border border-white/14 bg-white text-[#0b2228] shadow-[0_24px_80px_rgba(0,0,0,0.24)]"
               initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.98, y: 22 }}
               onSubmit={handleSearch}
               transition={{ delay: shouldReduceMotion ? 0 : 0.08, duration: shouldReduceMotion ? 0.01 : 0.42, ease: [0.2, 0.8, 0.2, 1] }}

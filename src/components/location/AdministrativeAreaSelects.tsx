@@ -95,7 +95,7 @@ const AdministrativeDropdown = ({
         {isOpen && (
           <div
             aria-labelledby={labelId}
-            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-52 overflow-y-auto rounded-xl border border-[#d8e4d4] bg-white py-1 shadow-[0_14px_30px_rgba(8,29,36,0.16)]"
+            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-[248px] overflow-y-auto rounded-xl border border-[#d8e4d4] bg-white py-1 shadow-[0_14px_30px_rgba(8,29,36,0.16)]"
             id={listboxId}
             role="listbox"
           >

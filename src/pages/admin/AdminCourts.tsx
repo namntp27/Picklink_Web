@@ -27,6 +27,7 @@ import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 
@@ -343,6 +344,18 @@ export const AdminCourts = () => {
   useEffect(() => {
     void loadVenues();
   }, [loadVenues]);
+
+  useVenueRealtime((event) => {
+    if (!token) return;
+    void loadVenues();
+    if (event.venueId === selectedId) {
+      setLoadingDetail(true);
+      void getAdminVenue(event.venueId, token)
+        .then(setSelected)
+        .catch(() => undefined)
+        .finally(() => setLoadingDetail(false));
+    }
+  });
 
   const openDetail = async (venueId: number) => {
     if (!token) return;
