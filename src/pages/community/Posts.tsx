@@ -90,7 +90,7 @@ export const PostCard = ({
   const [, setSearchParams] = useSearchParams();
 
   return (
-    <article className="community-card overflow-hidden">
+    <article className="community-card community-post-card overflow-hidden">
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 gap-3">
@@ -132,7 +132,7 @@ export const PostCard = ({
         </Link>
 
         {post.lookingFor && (
-          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+        <div className="community-post-card__looking-for mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
             <span className="flex items-start gap-2">
               <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{post.lookingFor}</span>
@@ -173,14 +173,14 @@ export const PostCard = ({
     )}
 
     <div className="px-4 pb-3 pt-3 sm:px-5">
-      <div className="flex items-center justify-between gap-3 text-[11px] font-semibold text-[#718077]">
+      <div className="community-post-card__metrics flex items-center justify-between gap-3 text-[11px] font-semibold text-[#718077]">
         <span className="inline-flex items-center gap-1.5">
           <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
           {post.likes} lượt thích
         </span>
         <span>{post.comments} bình luận · {post.shares} chia sẻ</span>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
+      <div className="community-post-card__actions mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
         <button
           className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
           type="button"

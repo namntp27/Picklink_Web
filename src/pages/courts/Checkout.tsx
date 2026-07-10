@@ -19,7 +19,6 @@ import { ApiError } from '../../api/client';
 import { submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
-import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { Button } from '../../components/ui/Button';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -97,10 +96,6 @@ export const Checkout = () => {
 
   usePaymentRealtime((event) => {
     if (!isSubmitting && event.bookingId === bookingId) void loadBooking(true);
-  });
-
-  useScheduleRealtime((event) => {
-    if (!isSubmitting && booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void loadBooking(true);
   });
 
   const remainingSeconds = useMemo(() => booking?.holdExpiresAt

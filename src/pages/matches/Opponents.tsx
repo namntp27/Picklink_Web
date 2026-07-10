@@ -55,6 +55,12 @@ const today = () => {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 const currentTime = () => new Date().toTimeString().slice(0, 5);
+const timeOptions = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minutes = String(totalMinutes % 60).padStart(2, '0');
+  return `${hours}:${minutes}`;
+});
 
 const readCachedPlayerLocation = (): PlayerLocation | null => {
   try {
@@ -733,22 +739,33 @@ export const Opponents = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <label>
                       <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
-                      <input
-                        className={inputClass}
-                        min={dateFrom === today() ? currentTime() : undefined}
+                      <select
+                        aria-label={`Slot ${index + 1} bắt đầu theo hệ 24 giờ`}
+                        className={`${inputClass} font-mono`}
                         onChange={(event) => updateAvailabilitySlot(slot.id, 'timeFrom', event.target.value)}
-                        type="time"
                         value={slot.timeFrom}
-                      />
+                      >
+                        {timeOptions.map((time) => (
+                          <option disabled={dateFrom === today() && time <= currentTime()} key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                     <label>
                       <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
-                      <input
-                        className={inputClass}
+                      <select
+                        aria-label={`Slot ${index + 1} kết thúc theo hệ 24 giờ`}
+                        className={`${inputClass} font-mono`}
                         onChange={(event) => updateAvailabilitySlot(slot.id, 'timeTo', event.target.value)}
-                        type="time"
                         value={slot.timeTo}
-                      />
+                      >
+                        {timeOptions.map((time) => (
+                          <option disabled={time <= slot.timeFrom} key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                   <button

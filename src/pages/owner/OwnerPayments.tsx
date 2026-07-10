@@ -6,7 +6,6 @@ import { ApiError } from '../../api/client';
 import { approveOperatorPayment, getOperatorPayment, getOperatorPayments, rejectOperatorPayment } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
-import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
 import { preloadReceiptImage } from '../../utils/receiptImage';
 import { OwnerShell } from './components/OwnerShell';
@@ -83,7 +82,6 @@ export const OwnerPayments = () => {
         void load(false);
       });
   });
-  useScheduleRealtime(() => { void load(false); });
   useEffect(() => {
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') void load(false);

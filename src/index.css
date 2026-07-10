@@ -2,17 +2,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #477313;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #98d951;
-  --color-on-primary-container: #17310a;
-  --color-primary-fixed: #98d951;
-  --color-primary-fixed-dim: #86c844;
-  --color-on-primary-fixed: #17310a;
-  --color-on-primary-fixed-variant: #31510f;
-  --color-inverse-primary: #98d951;
-  --color-surface-tint: #98d951;
-  --color-form-heading: #477313;
+  --color-primary: #081d24;
+  --color-on-primary: #e2ff57;
+  --color-primary-container: #e2ff57;
+  --color-on-primary-container: #081d24;
+  --color-primary-fixed: #e2ff57;
+  --color-primary-fixed-dim: #d6f64d;
+  --color-on-primary-fixed: #081d24;
+  --color-on-primary-fixed-variant: #0b2228;
+  --color-inverse-primary: #e2ff57;
+  --color-surface-tint: #e2ff57;
+  --color-form-heading: #081d24;
 
   --color-background: #f8fbf4;
   --color-on-background: #0b2228;
@@ -136,7 +136,7 @@ body {
 .text-\[\#315f8f\] { color: var(--color-on-surface-variant) !important; }
 .border-\[\#dce2f3\],
 .border-\[\#c2c9b3\] { border-color: var(--color-outline-variant) !important; }
-.hero-gradient { background: linear-gradient(135deg, #477313 0%, #5f8f20 48%, #98d951 100%); }
+.hero-gradient { background: linear-gradient(135deg, #081d24 0%, #0b2228 58%, #e2ff57 100%); }
 
 .picklink-app-shell {
   min-height: 100dvh;
@@ -212,7 +212,7 @@ body {
     outline-offset: 1px;
     box-shadow:
       0 0 0 1px rgb(226 255 87 / 0.28),
-      0 0 2px rgb(152 217 81 / 0.34),
+      0 0 2px rgb(226 255 87 / 0.34),
       0 10px 28px rgb(8 29 36 / 0.1);
   }
 
@@ -239,7 +239,7 @@ body {
     outline-offset: 1px;
     box-shadow:
       0 0 0 1px rgb(226 255 87 / 0.22),
-      0 0 2px rgb(152 217 81 / 0.3),
+      0 0 2px rgb(226 255 87 / 0.3),
       0 18px 42px rgb(8 29 36 / 0.1);
   }
 }
@@ -321,7 +321,7 @@ body {
     transparent 20%,
     rgb(226 255 87 / 0.12) 44%,
     rgb(255 255 255 / 0.46) 50%,
-    rgb(152 217 81 / 0.1) 56%,
+    rgb(226 255 87 / 0.1) 56%,
     transparent 80%
   );
   content: "";

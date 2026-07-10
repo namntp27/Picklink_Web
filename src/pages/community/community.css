@@ -666,6 +666,101 @@ textarea.community-control {
   color: var(--community-accent);
 }
 
+.community-feed-shell--hero-panels .community-card,
+.community-feed-shell--hero-panels .community-insights .community-panel:not(:first-child) {
+  border-color: rgb(255 255 255 / 0.12);
+  background: #081d24;
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.08) inset,
+    0 14px 34px rgb(8 29 36 / 0.16);
+}
+
+.community-feed-shell--hero-panels .community-insights .community-panel:first-child {
+  background: #081d24;
+}
+
+.community-feed-shell--hero-panels .community-card:hover,
+.community-feed-shell--hero-panels .community-insights .community-panel:hover {
+  border-color: rgb(226 255 87 / 0.5);
+  box-shadow:
+    0 0 0 1px rgb(226 255 87 / 0.2),
+    0 18px 40px rgb(8 29 36 / 0.2);
+}
+
+.community-feed-shell--hero-panels .community-post-card h2,
+.community-feed-shell--hero-panels .community-post-card h3,
+.community-feed-shell--hero-panels .community-insights .community-panel:not(:first-child) h2,
+.community-feed-shell--hero-panels .community-insights .community-panel:not(:first-child) [class*="text-[#0b2228]"] {
+  color: #fff !important;
+}
+
+.community-feed-shell--hero-panels .community-post-card p,
+.community-feed-shell--hero-panels .community-post-card__metrics,
+.community-feed-shell--hero-panels .community-post-card [class*="text-[#718077]"],
+.community-feed-shell--hero-panels .community-post-card [class*="text-[#526158]"],
+.community-feed-shell--hero-panels .community-insights .community-panel:not(:first-child) [class*="text-[#718077]"] {
+  color: rgb(255 255 255 / 0.72) !important;
+}
+
+.community-feed-shell--hero-panels .community-post-card h3:hover {
+  color: var(--community-accent) !important;
+}
+
+.community-feed-shell--hero-panels .community-post-card__actions {
+  border-color: rgb(255 255 255 / 0.12) !important;
+}
+
+.community-feed-shell--hero-panels .community-post-card__looking-for {
+  border-color: rgb(226 255 87 / 0.22) !important;
+  background: rgb(226 255 87 / 0.1) !important;
+  color: rgb(246 255 205 / 0.94) !important;
+}
+
+.community-feed-shell--hero-panels .community-badge {
+  background: rgb(226 255 87 / 0.14);
+  color: var(--community-accent);
+}
+
+.community-feed-shell--hero-panels .community-topic {
+  color: rgb(255 255 255 / 0.72);
+}
+
+.community-feed-shell--hero-panels .community-topic:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+}
+
+.community-feed-shell--hero-panels .community-topic__rank,
+.community-feed-shell--hero-panels .community-post-card .text-primary,
+.community-feed-shell--hero-panels .community-post-card svg[class*="text-[#477313]"],
+.community-feed-shell--hero-panels .community-insights .community-panel:not(:first-child) svg {
+  color: var(--community-accent) !important;
+}
+
+.community-feed-shell--hero-panels .community-button-quiet,
+.community-feed-shell--hero-panels .community-icon-button {
+  color: rgb(255 255 255 / 0.7);
+}
+
+.community-feed-shell--hero-panels .community-button-quiet:hover,
+.community-feed-shell--hero-panels .community-icon-button:hover {
+  border-color: rgb(226 255 87 / 0.28);
+  background: rgb(255 255 255 / 0.08);
+  color: var(--community-accent);
+}
+
+.community-feed-shell--hero-panels .community-post-card .community-button-quiet[class*="!bg-[#edf5e9]"] {
+  background: rgb(226 255 87 / 0.14) !important;
+  color: var(--community-accent) !important;
+}
+
+.community-feed-shell--hero-panels .community-avatar {
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.18),
+    0 0 0 3px rgb(226 255 87 / 0.1);
+}
+
 .community-feed-nav {
   border-color: rgb(255 255 255 / 0.12);
   background:

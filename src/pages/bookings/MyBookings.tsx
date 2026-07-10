@@ -69,7 +69,7 @@ const checkInLabels: Record<string, string> = {
 
 const statusClass = (status: string) => {
   if (status === 'Confirmed' || status === 'Paid' || status === 'Ready' || status === 'CheckedIn') {
-    return 'border-primary-container bg-primary-container/25 text-primary';
+    return 'border-[#e2ff57] bg-[#e2ff57]/25 text-[#081d24]';
   }
   if (status === 'Holding' || status === 'Pending' || status === 'WaitingForConfirmation' || status === 'NotOpen') {
     return 'border-outline-variant bg-surface-container-high text-on-surface-variant';
@@ -85,9 +85,9 @@ const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
   return booking.status === 'Cancelled' || booking.status === 'Expired';
 };
 
-const linkButtonBase = 'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]';
-const primaryLinkButton = `${linkButtonBase} border border-primary-container bg-primary-container text-on-primary-container shadow-[0_5px_14px_rgba(152,217,81,0.18)] hover:border-primary-fixed-dim hover:bg-primary-fixed-dim hover:shadow-[0_7px_16px_rgba(152,217,81,0.24)]`;
-const outlineLinkButton = `${linkButtonBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:border-primary-container hover:bg-surface-container-low hover:text-primary`;
+const linkButtonBase = 'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/75 active:translate-y-px active:scale-[0.99]';
+const primaryLinkButton = `${linkButtonBase} border border-[#e2ff57] bg-[#e2ff57] text-[#081d24] shadow-[0_5px_14px_rgba(226,255,87,0.18)] hover:border-[#d6f64d] hover:bg-[#d6f64d] hover:shadow-[0_7px_16px_rgba(226,255,87,0.24)]`;
+const outlineLinkButton = `${linkButtonBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:border-[#e2ff57] hover:bg-[#081d24] hover:text-[#e2ff57]`;
 
 export const MyBookings = () => {
   const navigate = useNavigate();
@@ -173,56 +173,34 @@ export const MyBookings = () => {
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-background text-on-surface" data-bookings-ui>
-      <section className="hero-gradient relative overflow-hidden px-4 py-5 text-on-primary sm:px-6 md:py-6">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="absolute inset-0 opacity-15">
-            <div className="absolute inset-x-0 top-1/2 h-px bg-on-primary" />
-            <div className="absolute inset-y-0 left-1/4 w-px bg-on-primary" />
-            <div className="absolute inset-y-0 right-1/4 w-px bg-on-primary" />
-            <div className="absolute left-[12%] right-[12%] top-[22%] h-px bg-on-primary/70" />
-            <div className="absolute bottom-[22%] left-[12%] right-[12%] h-px bg-on-primary/70" />
-          </div>
-        </div>
+      <section className="px-4 pt-[88px] sm:px-6 sm:pt-[92px] lg:px-8" data-bookings-summary>
+        <div className="mx-auto grid max-w-[1180px] gap-2 sm:grid-cols-3">
+          {[
+            { label: 'Đã thanh toán', value: paidCount, icon: CreditCard },
+            { label: 'Cần xử lý', value: pendingCount, icon: AlertCircle },
+            { label: 'Có thể check-in', value: readyCount, icon: TicketCheck },
+          ].map((item) => {
+            const Icon = item.icon;
 
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 mx-auto grid max-w-[1120px] gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end"
-          initial={revealInitial}
-          transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-        >
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-on-primary/20 bg-on-primary/12 px-4 py-2 text-[13px] font-bold">
-              <ReceiptText className="h-4 w-4 text-primary-fixed" />
-              Lịch sử đặt sân
-            </p>
-            <h1 className="mt-5 text-[clamp(2rem,4vw,3.2rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
-              Booking{' '}
-              <span className="inline-block text-[1.12em] text-primary-fixed [text-shadow:0_0_8px_rgba(152,217,81,0.65),0_0_18px_rgba(152,217,81,0.38)]">
-                của tôi
-              </span>
-            </h1>
-            <p className="mt-4 max-w-[65ch] text-[15px] font-medium leading-7 text-on-primary/88 md:text-[17px]">
-              Theo dõi booking, thanh toán và trạng thái check-in bằng dữ liệu cập nhật trực tiếp từ hệ thống.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-3 rounded-2xl border border-on-primary/15 bg-on-primary/12 p-4 backdrop-blur-sm">
-            {[
-              ['Đã thanh toán', paidCount],
-              ['Cần xử lý', pendingCount],
-              ['Có thể check-in', readyCount],
-            ].map(([label, value]) => (
-              <div className="min-w-0" key={label}>
-                <p className="text-[26px] font-extrabold text-primary-fixed">{value}</p>
-                <p className="mt-1 text-[11px] font-medium leading-4 text-on-primary/75">{label}</p>
+            return (
+              <div
+                className="flex min-h-14 items-center gap-2.5 rounded-xl bg-[#081d24] px-3 py-2 text-white shadow-[0_8px_20px_rgba(25,29,20,0.05)] ring-1 ring-[#e2ff57]/35"
+                key={item.label}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e2ff57] text-[#081d24]">
+                  <Icon aria-hidden="true" className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-mono text-[18px] font-bold leading-none text-[#e2ff57]">{item.value}</span>
+                  <span className="mt-0.5 block text-[12px] font-bold text-white/72">{item.label}</span>
+                </span>
               </div>
-            ))}
-          </div>
-        </motion.div>
+            );
+          })}
+        </div>
       </section>
-
-      <main className="mx-auto grid max-w-[1180px] gap-4 px-4 py-4 sm:px-6 md:py-6 lg:grid-cols-[minmax(0,1fr)_288px]">
-        <div className="min-w-0 space-y-5">
+      <main className="mx-auto grid max-w-[1180px] gap-3 px-4 py-3 sm:px-6 md:py-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="min-w-0 space-y-3">
           {error && (
             <div className="flex gap-2 rounded-lg border border-error/25 bg-error-container p-4 text-[14px] font-bold text-error" role="alert">
               <AlertCircle className="h-5 w-5 shrink-0" />
@@ -230,8 +208,8 @@ export const MyBookings = () => {
             </div>
           )}
 
-          <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-4 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
-            <div className="flex flex-col gap-4">
+          <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-3 shadow-[0_8px_20px_rgba(25,29,20,0.05)]">
+            <div className="flex flex-col gap-2.5">
               <Input
                 icon={<Search className="h-5 w-5" />}
                 onChange={(event) => setSearch(event.target.value)}
@@ -239,13 +217,13 @@ export const MyBookings = () => {
                 value={search}
               />
               <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
-                <Filter className="h-5 w-5 shrink-0 text-primary" />
+                <Filter className="h-5 w-5 shrink-0 text-[#081d24]" />
                 {filterOptions.map((option) => (
                   <button
-                    className={`shrink-0 rounded-lg border px-3 py-2 text-[13px] font-bold transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${
+                    className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-[12px] font-bold transition-[background-color,border-color,color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${
                       activeFilter === option.value
-                        ? 'border-primary-container bg-primary-container text-on-primary'
-                        : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-primary-container hover:bg-surface-container-low hover:text-primary'
+                        ? 'border-[#e2ff57] bg-[#081d24] text-[#e2ff57]'
+                        : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-[#e2ff57] hover:bg-[#081d24] hover:text-[#e2ff57]'
                     }`}
                     key={option.value}
                     onClick={() => setActiveFilter(option.value)}
@@ -259,11 +237,11 @@ export const MyBookings = () => {
           </section>
 
           {loading ? (
-            <div className="flex justify-center rounded-2xl border border-outline-variant bg-surface-container-lowest py-20 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
-              <Loader2 className="h-8 w-8 animate-spin text-primary motion-reduce:animate-none" />
+            <div className="flex justify-center rounded-xl border border-outline-variant bg-surface-container-lowest py-14 shadow-[0_8px_20px_rgba(25,29,20,0.05)]">
+              <Loader2 className="h-8 w-8 animate-spin text-[#081d24] motion-reduce:animate-none" />
             </div>
           ) : (
-            <section className="space-y-4">
+            <section className="space-y-3">
               {filtered.map((booking) => {
                 const canContinue = booking.status === 'Holding' && ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
                 const canCancel = booking.canCancel;
@@ -273,51 +251,51 @@ export const MyBookings = () => {
                 return (
                   <motion.article
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]"
+                    className="rounded-xl bg-surface-container-lowest p-3 shadow-[0_8px_20px_rgba(25,29,20,0.05)] ring-1 ring-outline-variant/80 transition-[box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(25,29,20,0.08)]"
                     data-motion-managed
                     initial={revealInitial}
                     key={booking.bookingId}
                     transition={{ duration: shouldReduceMotion ? 0.01 : 0.25, ease: [0.2, 0.8, 0.2, 1] }}
                   >
-                    <div className="flex flex-col gap-4 xl:flex-row xl:justify-between">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap gap-2">
                           {[booking.status, booking.paymentStatus, booking.checkInStatus].map((status) => (
-                            <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${statusClass(status)}`} key={status}>
+                            <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${statusClass(status)}`} key={status}>
                               {bookingLabels[status] ?? paymentLabels[status] ?? checkInLabels[status] ?? status}
                             </span>
                           ))}
                         </div>
                         <Link
-                          className="mt-2.5 block min-w-0 break-words text-[17px] font-extrabold leading-tight transition-colors hover:text-primary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
+                          className="mt-2 block min-w-0 break-words text-[15px] font-extrabold leading-tight transition-colors hover:text-[#081d24] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57]/75"
                           to={`/bookings/${booking.bookingId}`}
                         >
                           {booking.venueName} · Sân {booking.courtNumber}
                         </Link>
-                        <p className="mt-1 break-all text-[13px] font-bold text-primary">{booking.bookingCode}</p>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <p className="mt-0.5 break-all text-[12px] font-bold text-[#081d24]">{booking.bookingCode}</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
                           {[
                             { icon: CalendarDays, label: 'Ngày chơi', value: date(booking.startTime) },
                             { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)} - ${time(booking.endTime)}` },
                             { icon: MapPin, label: 'Địa chỉ', value: booking.address },
                           ].map((item) => (
-                            <div className="flex min-w-0 gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3" key={item.label}>
-                              <item.icon className="h-5 w-5 shrink-0 text-primary" />
+                            <div className="flex min-w-0 gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-2" key={item.label}>
+                              <item.icon className="h-4 w-4 shrink-0 text-[#081d24]" />
                               <div className="min-w-0">
-                                <p className="text-[11px] font-bold text-on-surface-variant">{item.label}</p>
-                                <p className="mt-1 break-words text-[13px] font-bold leading-5">{item.value}</p>
+                                <p className="text-[10px] font-bold text-on-surface-variant">{item.label}</p>
+                                <p className="mt-0.5 break-words text-[12px] font-bold leading-5">{item.value}</p>
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
-                      <div className="h-fit shrink-0 rounded-xl border border-outline-variant bg-surface-container-low p-4 xl:w-[220px]">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">Tổng tiền</p>
-                        <p className="mt-1 break-words text-[19px] font-extrabold text-primary">{currency.format(booking.totalAmount)}</p>
+                      <div className="h-fit shrink-0 rounded-lg border border-[#e2ff57]/40 bg-[#081d24] p-3 text-white xl:w-[180px]">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/60">Tổng tiền</p>
+                        <p className="mt-1 break-words text-[17px] font-extrabold text-[#e2ff57]">{currency.format(booking.totalAmount)}</p>
                       </div>
                     </div>
 
-                    <div className="mt-5 flex flex-wrap gap-2 border-t border-outline-variant pt-4">
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-outline-variant pt-3">
                       <Link className={outlineLinkButton} to={`/bookings/${booking.bookingId}`}>
                         <ReceiptText className="h-4 w-4" /> Chi tiết
                       </Link>
@@ -353,8 +331,8 @@ export const MyBookings = () => {
               })}
 
               {filtered.length === 0 && (
-                <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-12 text-center shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
-                  <CalendarDays className="mx-auto h-10 w-10 text-primary" />
+                <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-8 text-center shadow-[0_8px_20px_rgba(25,29,20,0.05)]">
+                  <CalendarDays className="mx-auto h-10 w-10 text-[#081d24]" />
                   <h2 className="mt-3 text-[20px] font-extrabold">Không có booking phù hợp</h2>
                   <p className="mt-2 text-[14px] text-on-surface-variant">Hãy đổi bộ lọc hoặc đặt một sân mới.</p>
                 </div>
@@ -365,31 +343,31 @@ export const MyBookings = () => {
           )}
         </div>
 
-        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
-          <section className="rounded-2xl border border-primary-container bg-surface-container-lowest p-3.5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
-            <h2 className="flex items-center gap-2 text-[20px] font-extrabold">
-              <ShieldCheck className="h-5 w-5 text-primary" /> Lịch gần nhất
+        <aside className="space-y-3 lg:sticky lg:top-[92px] lg:self-start">
+          <section className="rounded-xl border border-[#e2ff57]/60 bg-surface-container-lowest p-3 shadow-[0_8px_20px_rgba(25,29,20,0.05)]">
+            <h2 className="flex items-center gap-2 text-[17px] font-extrabold">
+              <ShieldCheck className="h-5 w-5 text-[#081d24]" /> Lịch gần nhất
             </h2>
             {nextBooking ? (
-              <div className="mt-4">
-                <p className="break-words font-bold">{nextBooking.venueName} · Sân {nextBooking.courtNumber}</p>
-                <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">
+              <div className="mt-3">
+                <p className="break-words text-[14px] font-bold">{nextBooking.venueName} · Sân {nextBooking.courtNumber}</p>
+                <p className="mt-1.5 text-[12px] leading-5 text-on-surface-variant">
                   {date(nextBooking.startTime)} · {time(nextBooking.startTime)} - {time(nextBooking.endTime)}
                 </p>
-                <Link className={`mt-4 w-full ${primaryLinkButton}`} to={`/bookings/${nextBooking.bookingId}`}>
+                <Link className={`mt-3 w-full ${primaryLinkButton}`} to={`/bookings/${nextBooking.bookingId}`}>
                   Xem booking
                 </Link>
               </div>
             ) : (
-              <p className="mt-3 text-[14px] text-on-surface-variant">Bạn chưa có lịch sắp tới.</p>
+              <p className="mt-2 text-[13px] text-on-surface-variant">Bạn chưa có lịch sắp tới.</p>
             )}
           </section>
 
-          <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5 shadow-[0_12px_30px_rgba(25,29,20,0.06)]">
-            <h2 className="flex items-center gap-2 text-[18px] font-extrabold">
-              <TicketCheck className="h-5 w-5 text-primary" /> Trạng thái realtime
+          <section className="rounded-xl bg-surface-container-lowest p-3 shadow-[0_8px_20px_rgba(25,29,20,0.05)] ring-1 ring-outline-variant/80 transition-[box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(25,29,20,0.08)]">
+            <h2 className="flex items-center gap-2 text-[17px] font-extrabold">
+              <TicketCheck className="h-5 w-5 text-[#081d24]" /> Trạng thái realtime
             </h2>
-            <p className="mt-3 text-[13px] leading-6 text-on-surface-variant">
+            <p className="mt-2 text-[12px] leading-5 text-on-surface-variant">
               Khi Owner xác nhận thanh toán, danh sách và trạng thái check-in sẽ tự cập nhật mà không cần F5.
             </p>
           </section>

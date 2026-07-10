@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, Lock, RefreshCw, Settings2, Sparkles, Unlock, Wrench, XCircle } from 'lucide-react';
+import {
+  Banknote,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Eye,
+  Lock,
+  RefreshCw,
+  Sparkles,
+  Unlock,
+  Wrench,
+  XCircle,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import {
@@ -13,19 +27,35 @@ import {
   type OwnerScheduleSlot,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
-import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerTimelineGrid } from './components/OwnerTimelineGrid';
 
 const toLocalDate = (date = new Date()) => {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 };
-const addDays = (value: string, days: number) => { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + days); return toLocalDate(date); };
+
+const addDays = (value: string, days: number) => {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return toLocalDate(date);
+};
+
 const timeValue = (dateTime: string) => dateTime.slice(11, 16);
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
-const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
-const statusLabel: Record<string, string> = { Holding: 'Giữ chỗ', Pending: 'Chờ xác nhận', Confirmed: 'Đã đặt', Blocked: 'Đã khóa', Cancelled: 'Đã hủy' };
+const dateLabel = (value: string) =>
+  new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
+
+const statusLabel: Record<string, string> = {
+  Holding: 'Giữ chỗ',
+  Pending: 'Chờ xác nhận',
+  Confirmed: 'Đã đặt',
+  Blocked: 'Đã khóa',
+  Cancelled: 'Đã hủy',
+};
+
 const paymentStatusLabel: Record<string, string> = {
   Pending: 'Chờ thanh toán',
   WaitingForConfirmation: 'Chờ xác nhận thanh toán',
@@ -35,16 +65,10 @@ const paymentStatusLabel: Record<string, string> = {
   Rejected: 'Đã từ chối',
   Failed: 'Thanh toán lỗi',
 };
-const getPaymentStatusLabel = (status?: string | null) =>
-  status ? paymentStatusLabel[status] ?? status : '-';
-const operationTimeOptions = Array.from({ length: 48 }, (_, index) => {
-  const hours = Math.floor(index / 2).toString().padStart(2, '0');
-  const minutes = index % 2 === 0 ? '00' : '30';
-  return `${hours}:${minutes}`;
-});
+
 const slotStatusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Available: 'Trống',
-  Holding: 'Giữ chỗ',
+  Holding: 'Đang giữ',
   Booked: 'Đã đặt',
   Blocked: 'Đã khóa',
   Maintenance: 'Bảo trì',
@@ -52,22 +76,24 @@ const slotStatusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Closed: 'Đã đóng cửa',
   Inactive: 'Ngừng hoạt động',
 };
-const entryLabel: Record<OwnerScheduleEntryType, string> = { Blocked: 'Khóa khung giờ', Maintenance: 'Bảo trì', Event: 'Sự kiện' };
-const slotClass: Record<OwnerScheduleSlot['status'], string> = {
-  Available: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
-  Holding: 'border-amber-200 bg-amber-100 text-amber-800',
-  Booked: 'border-blue-200 bg-blue-100 text-blue-800',
-  Blocked: 'border-slate-300 bg-slate-200 text-slate-700',
-  Maintenance: 'border-red-200 bg-red-100 text-red-800',
-  Event: 'border-pink-200 bg-pink-100 text-pink-800',
-  Closed: 'border-slate-200 bg-slate-100 text-slate-400',
-  Inactive: 'border-red-100 bg-red-50 text-red-400',
+
+const entryLabel: Record<OwnerScheduleEntryType, string> = {
+  Blocked: 'Khóa khung giờ',
+  Maintenance: 'Bảo trì sân',
+  Event: 'Sự kiện',
 };
+
+const operationTimeOptions = Array.from({ length: 48 }, (_, index) => {
+  const hours = Math.floor(index / 2).toString().padStart(2, '0');
+  const minutes = index % 2 === 0 ? '00' : '30';
+  return `${hours}:${minutes}`;
+});
+
+const getPaymentStatusLabel = (status?: string | null) => status ? paymentStatusLabel[status] ?? status : '-';
 
 export const OwnerDashboard = () => {
   const { token } = useAuth();
   const [date, setDate] = useState(toLocalDate);
-  const [view, setView] = useState<'day' | 'week'>('day');
   const [schedule, setSchedule] = useState<OwnerSchedule | null>(null);
   const [venueFilter, setVenueFilter] = useState('all');
   const [courtId, setCourtId] = useState('');
@@ -85,37 +111,75 @@ export const OwnerDashboard = () => {
     setError('');
     if (showLoading) setIsLoading(true);
     try {
-      const result = await getOwnerSchedule(token, date, view);
+      const result = await getOwnerSchedule(token, date, 'day');
       setSchedule(result);
-      const firstCourt = result.venues.flatMap((venue) => venue.courts).find((court) => court.availabilityStatus !== 'Inactive');
-      setCourtId((current) => result.venues.some((venue) => venue.courts.some((court) => court.courtId.toString() === current)) ? current : firstCourt?.courtId.toString() || '');
+      const firstCourt = result.venues
+        .flatMap((venue) => venue.courts)
+        .find((court) => court.availabilityStatus !== 'Inactive');
+      setCourtId((current) =>
+        result.venues.some((venue) => venue.courts.some((court) => court.courtId.toString() === current))
+          ? current
+          : firstCourt?.courtId.toString() || '',
+      );
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
-    } finally { if (showLoading) setIsLoading(false); }
+    } finally {
+      if (showLoading) setIsLoading(false);
+    }
   };
 
-  useEffect(() => { void load(); }, [token, date, view]);
+  useEffect(() => {
+    void load();
+  }, [token, date]);
+
   useScheduleRealtime((notification) => {
     const visibleVenue = schedule?.venues.some((venue) => venue.venueId === notification.venueId);
-    const endDate = view === 'week' ? addDays(date, 6) : date;
-    const changedDate = notification.startTime.slice(0, 10);
-    if (visibleVenue && changedDate >= date && changedDate <= endDate) void load(false);
+    if (visibleVenue && notification.startTime.slice(0, 10) === date) void load(false);
   });
+
   usePaymentRealtime((notification) => {
     if (schedule?.venues.some((venue) => venue.venueId === notification.venueId)) void load(false);
   });
 
-  const visibleItems = useMemo(() => schedule?.items.filter((item) => venueFilter === 'all' || item.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
-  const visibleSlots = useMemo(() => schedule?.slots.filter((slot) => venueFilter === 'all' || slot.venueId.toString() === venueFilter) ?? [], [schedule, venueFilter]);
-  const days = useMemo(() => [...new Set(visibleSlots.map((slot) => slot.startTime.slice(0, 10)))], [visibleSlots]);
+  const visibleVenueIds = useMemo(
+    () => new Set((schedule?.venues ?? [])
+      .filter((venue) => venueFilter === 'all' || venue.venueId.toString() === venueFilter)
+      .map((venue) => venue.venueId)),
+    [schedule, venueFilter],
+  );
+  const visibleItems = useMemo(
+    () => schedule?.items.filter((item) => visibleVenueIds.has(item.venueId)) ?? [],
+    [schedule, visibleVenueIds],
+  );
+  const visibleSlots = useMemo(
+    () => schedule?.slots.filter((slot) => visibleVenueIds.has(slot.venueId)) ?? [],
+    [schedule, visibleVenueIds],
+  );
   const bookedCount = visibleSlots.filter((slot) => slot.status === 'Booked').length;
   const holdingCount = visibleSlots.filter((slot) => slot.status === 'Holding').length;
   const availableCount = visibleSlots.filter((slot) => slot.status === 'Available').length;
   const operationCount = visibleItems.filter((item) => item.isOwnerEntry).length;
-  const revenue = visibleItems.filter((item) => item.status === 'Confirmed').reduce((sum, item) => sum + item.amount, 0);
+  const revenue = visibleItems
+    .filter((item) => item.status === 'Confirmed')
+    .reduce((sum, item) => sum + item.amount, 0);
 
-  const createEntry = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const selectedSlotItem = selectedSlot?.bookingId
+    ? visibleItems.find((item) => item.bookingId === selectedSlot.bookingId)
+    : undefined;
+
+  const applySlotToForm = (slot: OwnerScheduleSlot) => {
+    setSelectedSlot(slot);
+    setCourtId(slot.courtId.toString());
+    setStartTime(timeValue(slot.startTime));
+    setEndTime(timeValue(slot.endTime));
+    setDate(slot.startTime.slice(0, 10));
+    if (slot.status === 'Event') setEntryType('Event');
+    else if (slot.status === 'Maintenance') setEntryType('Maintenance');
+    else setEntryType('Blocked');
+  };
+
+  const createEntry = async (event?: React.FormEvent) => {
+    event?.preventDefault();
     if (!token || !courtId) return;
     setError('');
     setIsSaving(true);
@@ -128,127 +192,218 @@ export const OwnerDashboard = () => {
         title: title.trim() || undefined,
       });
       setTitle('');
+      setSelectedSlot(null);
       await load();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tạo lịch vận hành.');
-    } finally { setIsSaving(false); }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateStatus = async (item: OwnerScheduleItem, status: 'Confirmed' | 'Cancelled') => {
     if (!token) return;
-    try { await updateOwnerBookingStatus(token, item.bookingId, status); await load(); }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật booking.'); }
+    try {
+      await updateOwnerBookingStatus(token, item.bookingId, status);
+      setSelectedSlot(null);
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật booking.');
+    }
   };
 
   const unlock = async (item: OwnerScheduleItem) => {
     if (!token) return;
-    try { await deleteOwnerScheduleEntry(token, item.bookingId); await load(); }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể mở khóa lịch.'); }
-  };
-
-  const selectSlot = (slot: OwnerScheduleSlot) => {
-    setSelectedSlot(slot);
-    if (slot.status === 'Available') {
-      setDate(slot.startTime.slice(0, 10));
-      setCourtId(slot.courtId.toString());
-      setStartTime(timeValue(slot.startTime));
-      setEndTime(timeValue(slot.endTime));
+    try {
+      await deleteOwnerScheduleEntry(token, item.bookingId);
+      setSelectedSlot(null);
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể mở khóa lịch.');
     }
   };
 
-  const selectedSlotItem = selectedSlot?.bookingId
-    ? visibleItems.find((item) => item.bookingId === selectedSlot.bookingId)
-    : undefined;
-
-  const movePeriod = (direction: number) => setDate((current) => addDays(current, direction * (view === 'week' ? 7 : 1)));
+  const moveDate = (days: number) => setDate((current) => addDays(current, days));
 
   return (
     <OwnerShell activeId="schedule">
       <section className="owner-page-header">
-        <div><p className="owner-kicker"><CalendarDays className="h-4 w-4" /> Lịch vận hành</p><h1 className="mt-2">Lịch sân 30 phút</h1><p className="mt-1">Theo dõi booking, khóa giờ, bảo trì và sự kiện theo ngày hoặc tuần.</p></div>
+        <div>
+          <p className="owner-kicker"><CalendarDays className="h-4 w-4" /> Lịch vận hành</p>
+          <h1 className="mt-2">Quản lý lịch đặt sân</h1>
+          <p className="mt-1">Theo dõi toàn bộ sân con theo trục thời gian 30 phút và thao tác trực tiếp trên từng ô.</p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-outline-variant bg-white p-1"><button className={`rounded-md px-3 py-2 text-[13px] font-bold ${view === 'day' ? 'bg-primary text-white' : ''}`} onClick={() => setView('day')} type="button">Ngày</button><button className={`rounded-md px-3 py-2 text-[13px] font-bold ${view === 'week' ? 'bg-primary text-white' : ''}`} onClick={() => setView('week')} type="button">Tuần</button></div>
-          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => movePeriod(-1)} title="Kỳ trước" type="button"><ChevronLeft className="h-5 w-5" /></button>
-          <input className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold" onChange={(event) => setDate(event.target.value)} type="date" value={date} />
-          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => movePeriod(1)} title="Kỳ sau" type="button"><ChevronRight className="h-5 w-5" /></button>
-          <select className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold" onChange={(event) => setVenueFilter(event.target.value)} value={venueFilter}><option value="all">Tất cả cụm sân</option>{schedule?.venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select>
-          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => void load()} title="Tải lại" type="button"><RefreshCw className="h-5 w-5" /></button>
+          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => moveDate(-1)} title="Ngày trước" type="button">
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <input
+            className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold"
+            onChange={(event) => setDate(event.target.value)}
+            type="date"
+            value={date}
+          />
+          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => moveDate(1)} title="Ngày sau" type="button">
+            <ChevronRight className="h-5 w-5" />
+          </button>
+          <select className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold" onChange={(event) => setVenueFilter(event.target.value)} value={venueFilter}>
+            <option value="all">Tất cả cụm sân</option>
+            {schedule?.venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}
+          </select>
+          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => void load()} title="Tải lại" type="button">
+            <RefreshCw className="h-5 w-5" />
+          </button>
         </div>
       </section>
 
-      <section className="owner-stat-grid sm:grid-cols-2 xl:grid-cols-5">{[
-        { label: 'Slot còn trống', value: availableCount, icon: Clock },
-        { label: 'Slot đang giữ chỗ', value: holdingCount, icon: Clock },
-        { label: 'Slot đã đặt', value: bookedCount, icon: CheckCircle2 },
-        { label: 'Lịch vận hành', value: operationCount, icon: Lock },
-        { label: view === 'week' ? 'Doanh thu trong tuần' : 'Doanh thu trong ngày', value: money.format(revenue), icon: CalendarDays },
-      ].map((item) => <div className="owner-stat-card" key={item.label}><div className="flex items-center justify-between"><p className="text-[12px] font-bold text-on-surface-variant">{item.label}</p><item.icon className="h-5 w-5 text-primary" /></div><p className="mt-2 font-mono text-[22px] font-extrabold">{item.value}</p></div>)}</section>
+      <section className="owner-stat-grid sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          { label: 'Slot còn trống', value: availableCount, icon: Clock },
+          { label: 'Slot đang giữ', value: holdingCount, icon: Clock },
+          { label: 'Slot đã đặt', value: bookedCount, icon: CheckCircle2 },
+          { label: 'Lịch vận hành', value: operationCount, icon: Lock },
+          { label: 'Doanh thu trong ngày', value: money.format(revenue), icon: Banknote },
+        ].map((item) => (
+          <div className="owner-stat-card" key={item.label}>
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-bold text-on-surface-variant">{item.label}</p>
+              <item.icon className="h-5 w-5 text-primary" />
+            </div>
+            <p className="mt-2 font-mono text-[22px] font-extrabold">{item.value}</p>
+          </div>
+        ))}
+      </section>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
 
-      <section className="grid gap-5 xl:grid-cols-[1fr_350px]">
-        <div className="space-y-4">
-          <div className="owner-panel">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4"><div><h2 className="text-[18px] font-bold">Bảng slot {view === 'week' ? 'theo tuần' : 'trong ngày'}</h2><p className="mt-1 text-[12px] text-on-surface-variant">{schedule ? `${dateLabel(schedule.startDate)} - ${dateLabel(schedule.endDate)} · bước ${schedule.slotMinutes} phút` : date}</p></div><div className="flex flex-wrap gap-2 text-[11px] font-bold">{[['bg-emerald-100','Trống'],['bg-amber-100','Giữ chỗ'],['bg-blue-100','Đã đặt'],['bg-slate-200','Đã khóa'],['bg-red-100','Bảo trì'],['bg-violet-100','Sự kiện']].map(([color,label]) => <span className="inline-flex items-center gap-1" key={label}><i className={`h-3 w-3 rounded ${color}`} />{label}</span>)}</div></div>
-            {isLoading && <p className="p-10 text-center font-bold text-on-surface-variant">Đang sinh lịch...</p>}
-            {!isLoading && visibleSlots.length === 0 && <p className="p-10 text-center font-bold text-on-surface-variant">Chưa có sân con hoặc chưa thiết lập giờ mở cửa.</p>}
-            <div className="divide-y divide-outline-variant">
-              {days.map((day) => {
-                const daySlots = visibleSlots.filter((slot) => slot.startTime.startsWith(day));
-                const courts = [...new Map(daySlots.map((slot) => [slot.courtId, slot])).values()];
-                return <div className="p-4" key={day}><h3 className="mb-3 text-[15px] font-bold capitalize">{dateLabel(day)}</h3><div className="space-y-3">{courts.map((court) => { const slots = daySlots.filter((slot) => slot.courtId === court.courtId); return <div className="grid gap-2 lg:grid-cols-[180px_1fr]" key={court.courtId}><div><p className="text-[13px] font-bold">{court.venueName}</p><p className="text-[12px] text-on-surface-variant">Sân {court.courtNumber}</p></div><div className="flex flex-wrap gap-1.5">{slots.map((slot) => <button className={`min-w-[62px] cursor-pointer rounded-md border px-2 py-1.5 text-[11px] font-bold transition hover:ring-2 hover:ring-primary/30 ${slotClass[slot.status]}`} key={`${slot.courtId}-${slot.startTime}`} onClick={() => selectSlot(slot)} title={`Xem thông tin: ${slot.title ?? slotStatusLabel[slot.status]}`} type="button">{timeValue(slot.startTime)}</button>)}</div></div>; })}</div></div>;
-              })}
-            </div>
+      <section className="owner-schedule-stage owner-panel">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4">
+          <div>
+            <h2 className="text-[18px] font-bold">Bảng lịch ngày {dateLabel(date)}</h2>
+            <p className="mt-1 text-[12px] text-on-surface-variant">
+              {schedule ? `${schedule.venues.length} cụm sân · bước ${schedule.slotMinutes} phút` : 'Đang tải lịch'}
+            </p>
           </div>
-
-          <div className="owner-panel"><div className="border-b border-outline-variant p-4"><h2 className="text-[18px] font-bold">Booking và lịch vận hành</h2></div>{!isLoading && visibleItems.length === 0 && <p className="p-8 text-center text-[13px] font-bold text-on-surface-variant">Chưa có booking, khóa giờ, bảo trì hoặc sự kiện.</p>}<div className="divide-y divide-outline-variant">{visibleItems.map((item) => <div className="grid gap-3 p-4 md:grid-cols-[1fr_150px_140px_1fr_auto] md:items-center" key={item.bookingId}><div><p className="text-[14px] font-bold">{item.title || `${item.venueName} · Sân ${item.courtNumber}`}</p><p className="text-[12px] text-on-surface-variant">{item.venueName} · Sân {item.courtNumber} · {item.customerName ?? (item.entryType ? entryLabel[item.entryType] : 'Chủ sân')}</p></div><p className="text-[13px] font-bold">{item.startTime.slice(0, 10)}<br />{timeValue(item.startTime)}-{timeValue(item.endTime)}</p><span className={`w-fit rounded-full px-3 py-1 text-[11px] font-bold ${item.entryType === 'Maintenance' ? 'bg-red-100 text-red-800' : item.entryType === 'Event' ? 'bg-violet-100 text-violet-800' : item.isOwnerEntry ? 'bg-slate-200 text-slate-700' : item.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.entryType ? entryLabel[item.entryType] : statusLabel[item.status] ?? item.status}</span><p className="text-[13px] font-bold">{item.amount ? money.format(item.amount) : '-'}<span className="ml-2 text-[11px] text-on-surface-variant">{getPaymentStatusLabel(item.paymentStatus)}</span></p><div className="flex gap-2">{item.isOwnerEntry ? <button className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold" onClick={() => void unlock(item)} type="button"><Unlock className="h-4 w-4" /> Mở</button> : <>{item.status === 'Pending' && <button className="rounded-lg bg-primary p-2 text-white" onClick={() => void updateStatus(item, 'Confirmed')} title="Xác nhận" type="button"><CheckCircle2 className="h-4 w-4" /></button>}<button className="rounded-lg border border-red-200 p-2 text-red-600" onClick={() => void updateStatus(item, 'Cancelled')} title="Hủy" type="button"><XCircle className="h-4 w-4" /></button></>}</div></div>)}</div></div>
+          <Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold hover:bg-surface-container-low" to="/owner/bookings">
+            <Eye className="h-4 w-4" /> Danh sách đơn
+          </Link>
         </div>
 
-        <div className="space-y-5">
-          <form className="owner-panel space-y-4 p-4" onSubmit={createEntry}>
-            <div><h2 className="text-[20px] font-bold">Tạo lịch vận hành</h2><p className="mt-1 text-[13px] text-on-surface-variant">Thời gian được căn theo bước 30 phút.</p></div>
-            <label><span className="mb-1.5 block text-[13px] font-bold">Loại lịch</span><select className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" onChange={(event) => setEntryType(event.target.value as OwnerScheduleEntryType)} value={entryType}><option value="Blocked">Khóa khung giờ</option><option value="Maintenance">Bảo trì sân</option><option value="Event">Sự kiện</option></select></label>
-            <label><span className="mb-1.5 block text-[13px] font-bold">Sân con</span><select className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" onChange={(event) => setCourtId(event.target.value)} required value={courtId}><option value="">Chọn sân</option>{schedule?.venues.flatMap((venue) => venue.courts.filter((court) => court.availabilityStatus !== 'Inactive').map((court) => <option key={court.courtId} value={court.courtId}>{venue.venueName} · Sân {court.courtNumber}</option>))}</select></label>
-            <label><span className="mb-1.5 block text-[13px] font-bold">Ngày áp dụng</span><input className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setDate(event.target.value)} required type="date" value={date} /></label>
-            <div className="grid grid-cols-2 gap-3"><label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu</span><select className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setStartTime(event.target.value)} required value={startTime}>{operationTimeOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc</span><select className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setEndTime(event.target.value)} required value={endTime}>{operationTimeOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
-            <label><span className="mb-1.5 block text-[13px] font-bold">{entryType === 'Event' ? 'Tên sự kiện *' : 'Ghi chú'}</span><input className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" maxLength={200} onChange={(event) => setTitle(event.target.value)} placeholder={entryType === 'Event' ? 'Giải đấu giao hữu...' : 'Nội dung tùy chọn'} required={entryType === 'Event'} value={title} /></label>
-            <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-60" disabled={isSaving || !courtId} type="submit">{entryType === 'Maintenance' ? <Wrench className="h-4 w-4" /> : entryType === 'Event' ? <Sparkles className="h-4 w-4" /> : <Lock className="h-4 w-4" />}{isSaving ? 'Đang lưu...' : entryLabel[entryType]}</button>
-          </form>
+        {isLoading && <p className="p-10 text-center font-bold text-on-surface-variant">Đang sinh lịch...</p>}
+        {!isLoading && schedule && visibleSlots.length === 0 && (
+          <p className="p-10 text-center font-bold text-on-surface-variant">Chưa có sân con hoặc chưa thiết lập giờ mở cửa.</p>
+        )}
+        {!isLoading && schedule && visibleSlots.length > 0 && (
+          <OwnerTimelineGrid
+            onSelectSlot={applySlotToForm}
+            schedule={schedule}
+            selectedSlot={selectedSlot}
+            venueFilter={venueFilter}
+          />
+        )}
+      </section>
 
-          <section className="owner-panel p-4"><div className="mb-3 flex items-center gap-2"><Settings2 className="h-5 w-5 text-primary" /><h2 className="text-[18px] font-bold">Giờ mở cửa</h2></div><div className="space-y-3">{schedule?.venues.map((venue) => <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-container-low p-3" key={venue.venueId}><div><p className="text-[13px] font-bold">{venue.venueName}</p><p className="text-[12px] text-on-surface-variant">{venue.openTime.slice(0, 5)}-{venue.closeTime.slice(0, 5)}</p></div><Link className="text-[12px] font-bold text-primary hover:underline" to={`/owner/courts/${venue.venueId}/edit`}>Thiết lập</Link></div>)}</div></section>
+      <section className="owner-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[18px] font-bold">Giờ mở cửa</h2>
+            <p className="mt-1 text-[12px] text-on-surface-variant">Thiết lập giờ vận hành tại hồ sơ từng cụm sân.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {schedule?.venues.map((venue) => (
+              <Link className="rounded-lg bg-surface-container-low px-3 py-2 text-[12px] font-bold hover:bg-white" key={venue.venueId} to={`/owner/courts/${venue.venueId}/edit`}>
+                {venue.venueName}: {venue.openTime.slice(0, 5)}-{venue.closeTime.slice(0, 5)}
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
       {selectedSlot && (
         <div className="owner-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedSlot(null)}>
-          <section aria-modal="true" className="owner-modal max-w-lg p-5" role="dialog">
+          <section aria-modal="true" className="owner-modal max-w-2xl p-5" role="dialog">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[12px] font-bold uppercase tracking-wide text-primary">Thông tin khung giờ</p>
                 <h2 className="mt-1 text-[24px] font-bold">{selectedSlot.venueName} · Sân {selectedSlot.courtNumber}</h2>
               </div>
-              <button aria-label="Đóng" className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-low" onClick={() => setSelectedSlot(null)} type="button"><XCircle className="h-6 w-6" /></button>
+              <button aria-label="Đóng" className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-low" onClick={() => setSelectedSlot(null)} type="button">
+                <XCircle className="h-6 w-6" />
+              </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 text-[13px]">
+            <div className="mt-5 grid grid-cols-2 gap-3 text-[13px] md:grid-cols-4">
               <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Ngày</p><p className="mt-1 font-bold">{dateLabel(selectedSlot.startTime.slice(0, 10))}</p></div>
               <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Thời gian</p><p className="mt-1 font-bold">{timeValue(selectedSlot.startTime)}-{timeValue(selectedSlot.endTime)}</p></div>
-              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Trạng thái</p><span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${slotClass[selectedSlot.status]}`}>{slotStatusLabel[selectedSlot.status]}</span></div>
-              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Mã booking</p><p className="mt-1 font-bold">{selectedSlot.bookingId ? `#${selectedSlot.bookingId}` : 'Chưa có'}</p></div>
+              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Trạng thái</p><p className="mt-1 font-bold">{slotStatusLabel[selectedSlot.status]}</p></div>
+              <div className="rounded-lg bg-surface-container-low p-3"><p className="font-bold text-on-surface-variant">Mã booking</p><p className="mt-1 font-bold">{selectedSlot.bookingId ? `#${selectedSlot.bookingId}` : '-'}</p></div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-outline-variant p-4">
-              <p className="flex items-center gap-2 text-[14px] font-bold"><Eye className="h-4 w-4 text-primary" /> Chi tiết</p>
-              <div className="mt-3 space-y-2 text-[13px]">
-                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Nội dung</span><strong className="text-right">{selectedSlot.title || selectedSlotItem?.title || slotStatusLabel[selectedSlot.status]}</strong></div>
-                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Khách hàng</span><strong className="text-right">{selectedSlotItem?.customerName || '-'}</strong></div>
-                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Thanh toán</span><strong className="text-right">{getPaymentStatusLabel(selectedSlotItem?.paymentStatus)}</strong></div>
-                <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Số tiền</span><strong className="text-right">{selectedSlotItem?.amount ? money.format(selectedSlotItem.amount) : '-'}</strong></div>
+            {selectedSlotItem && (
+              <div className="mt-4 rounded-xl border border-outline-variant p-4">
+                <p className="flex items-center gap-2 text-[14px] font-bold"><Eye className="h-4 w-4 text-primary" /> Chi tiết booking</p>
+                <div className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+                  <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Nội dung</span><strong className="text-right">{selectedSlotItem.title || (statusLabel[selectedSlotItem.status] ?? selectedSlotItem.status)}</strong></div>
+                  <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Khách hàng</span><strong className="text-right">{selectedSlotItem.customerName || '-'}</strong></div>
+                  <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Thanh toán</span><strong className="text-right">{getPaymentStatusLabel(selectedSlotItem.paymentStatus)}</strong></div>
+                  <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Số tiền</span><strong className="text-right">{selectedSlotItem.amount ? money.format(selectedSlotItem.amount) : '-'}</strong></div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedSlotItem.isOwnerEntry ? (
+                    <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2 text-[13px] font-bold" onClick={() => void unlock(selectedSlotItem)} type="button">
+                      <Unlock className="h-4 w-4" /> Mở khóa lịch
+                    </button>
+                  ) : (
+                    <>
+                      {selectedSlotItem.status === 'Pending' && (
+                        <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white" onClick={() => void updateStatus(selectedSlotItem, 'Confirmed')} type="button">
+                          <CheckCircle2 className="h-4 w-4" /> Xác nhận đặt sân
+                        </button>
+                      )}
+                      <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600" onClick={() => void updateStatus(selectedSlotItem, 'Cancelled')} type="button">
+                        <XCircle className="h-4 w-4" /> Hủy booking
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
-            {selectedSlot.status === 'Available' && <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-[12px] font-medium text-emerald-800">Khung giờ đang trống và đã được điền vào form “Tạo lịch vận hành”.</p>}
-            <button className="mt-5 w-full rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white" onClick={() => setSelectedSlot(null)} type="button">Đóng</button>
+            {selectedSlot.status === 'Available' && (
+              <form className="mt-4 rounded-xl border border-outline-variant p-4" onSubmit={createEntry}>
+                <p className="text-[14px] font-bold">Tạo lịch vận hành cho khung giờ này</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label>
+                    <span className="mb-1.5 block text-[13px] font-bold">Loại lịch</span>
+                    <select className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" onChange={(event) => setEntryType(event.target.value as OwnerScheduleEntryType)} value={entryType}>
+                      <option value="Blocked">Khóa khung giờ</option>
+                      <option value="Maintenance">Bảo trì sân</option>
+                      <option value="Event">Sự kiện</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span className="mb-1.5 block text-[13px] font-bold">{entryType === 'Event' ? 'Tên sự kiện *' : 'Ghi chú'}</span>
+                    <input className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" maxLength={200} onChange={(event) => setTitle(event.target.value)} required={entryType === 'Event'} value={title} />
+                  </label>
+                  <label>
+                    <span className="mb-1.5 block text-[13px] font-bold">Bắt đầu</span>
+                    <select className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setStartTime(event.target.value)} required value={startTime}>
+                      {operationTimeOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="mb-1.5 block text-[13px] font-bold">Kết thúc</span>
+                    <select className="w-full rounded-lg border border-outline-variant px-3 py-2.5" onChange={(event) => setEndTime(event.target.value)} required value={endTime}>
+                      {operationTimeOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-60" disabled={isSaving || !courtId} type="submit">
+                  {entryType === 'Maintenance' ? <Wrench className="h-4 w-4" /> : entryType === 'Event' ? <Sparkles className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                  {isSaving ? 'Đang lưu...' : entryLabel[entryType]}
+                </button>
+              </form>
+            )}
           </section>
         </div>
       )}
