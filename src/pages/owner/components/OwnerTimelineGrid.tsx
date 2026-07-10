@@ -89,7 +89,7 @@ export const OwnerTimelineGrid = ({
           );
 
           return (
-            <section className="ownerVenueTimelineSection bg-[#f8fbf4]" key={venue.venueId}>
+            <section className="ownerVenueTimelineSection overflow-hidden rounded-[14px] border border-[#dbe8d3] bg-[#f8fbf4] shadow-[0_10px_24px_rgba(8,29,36,0.045)]" key={venue.venueId}>
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#dbe8d3] bg-white px-4 py-3">
                 <div>
                   <h3 className="text-[15px] font-black text-[#0b2228]">{venue.venueName}</h3>

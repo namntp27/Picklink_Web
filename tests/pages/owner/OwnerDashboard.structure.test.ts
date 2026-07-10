@@ -29,6 +29,9 @@ test('owner timeline mirrors the court schedule legend and full-width timetable 
 
 test('owner timeline separates courts by venue instead of merging every court into one grid', () => {
   assert.match(gridSource, /ownerVenueTimelineSection/);
+  assert.match(gridSource, /ownerVenueTimelineSection overflow-hidden rounded-\[14px\]/);
+  assert.match(gridSource, /border border-\[#dbe8d3\]/);
+  assert.match(gridSource, /shadow-\[0_10px_24px_rgba\(8,29,36,0\.045\)\]/);
   assert.match(gridSource, /gap-\[10px\]/);
   assert.match(gridSource, /visibleVenues\.map/);
   assert.match(gridSource, /venue\.courts\.map/);
