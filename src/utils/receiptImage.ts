@@ -1,5 +1,6 @@
 const RECEIPT_MAX_DIMENSION = 1600;
 const RECEIPT_TARGET_BYTES = 1.2 * 1024 * 1024;
+const RECEIPT_UPLOAD_BYTES = 5 * 1024 * 1024;
 const RECEIPT_OUTPUT_TYPE = 'image/jpeg';
 const RECEIPT_QUALITIES = [0.82, 0.74, 0.66, 0.58];
 
@@ -36,6 +37,7 @@ const receiptFileName = (fileName: string) => {
 
 export const optimizeReceiptImage = async (file: File) => {
   if (!file.type.startsWith('image/')) return file;
+  if (file.size <= RECEIPT_UPLOAD_BYTES) return file;
   if (typeof document === 'undefined' || typeof Image === 'undefined') return file;
 
   const image = await loadImage(file);

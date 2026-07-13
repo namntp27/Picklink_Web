@@ -28,7 +28,15 @@ export const BookingSuccess = () => {
   };
 
   useEffect(load, [bookingId, token]);
-  usePaymentRealtime((event) => { if (event.bookingId === bookingId) load(); });
+  usePaymentRealtime((event) => {
+    if (event.bookingId !== bookingId) return;
+    setBooking((current) => current ? {
+      ...current,
+      paymentStatus: event.paymentStatus,
+      status: event.paymentStatus === 'Paid' ? 'Confirmed' : current.status,
+    } : current);
+    load();
+  });
   useScheduleRealtime((event) => {
     if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) load();
   });

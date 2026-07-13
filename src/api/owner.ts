@@ -176,6 +176,8 @@ export type OwnerBookingRecord = {
   playerCommune?: string | null;
   startTime: string;
   endTime: string;
+  slots: Array<{ bookingSlotId: number; courtId: number; courtNumber: number; startTime: string; endTime: string; courtAmount: number }>;
+  checkInGroups: Array<{ bookingCheckInGroupId: number; courtId: number; courtNumber: number; startTime: string; endTime: string; checkInCode: string; checkInStatus: string }>;
   createdAt: string;
   holdExpiresAt?: string | null;
   codeVerifiedAt?: string | null;

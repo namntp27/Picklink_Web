@@ -22,3 +22,35 @@ test('booking detail page uses a compact no-header layout', () => {
   assert.doesNotMatch(source, /booking-detail-court/);
   assert.doesNotMatch(source, /shadow-\[0_24px_80px_rgba\(8,29,36,0\.16\)\]/);
 });
+
+
+test('booking detail puts each check-in code beside its child court and playing time', () => {
+  assert.match(source, /booking\.checkInGroups\.map\(\(group\)/);
+  assert.match(source, /time\(group\.startTime\)/);
+  assert.match(source, /time\(group\.endTime\)/);
+  assert.match(source, /group\.checkInCode/);
+});
+
+
+test('booking detail replaces its redundant overview fields', () => {
+  assert.match(source, /CalendarDays,/);
+  assert.doesNotMatch(source, /icon: CalendarDays/);
+  assert.doesNotMatch(source, /icon: Clock/);
+  assert.doesNotMatch(source, /icon: Building2/);
+  assert.doesNotMatch(source, /S?n \{booking\.courtNumber\}/);
+  assert.match(source, /lg:grid-cols-3/);
+  assert.match(source, /playDate\(booking\.startTime\)/);
+  assert.match(source, /historyReason\(entry\.reason\)/);
+  assert.match(source, /Player tao giu cho/);
+  assert.doesNotMatch(source, /Thao t\u00e1c/);
+  assert.match(source, /booking\.checkInGroups\.map\(\(group\)/);
+  assert.match(source, /group\.checkInCode/);
+});
+
+
+test('booking API normalizes optional child-court arrays', () => {
+  const api = readFileSync(new URL('../../../src/api/booking.ts', import.meta.url), 'utf8');
+  assert.match(api, /slots: booking\.slots \?\? \[\]/);
+  assert.match(api, /checkInGroups: booking\.checkInGroups \?\? \[\]/);
+  assert.match(api, /getBookingHolding[\s\S]*?then\(normalizeBookingHolding\)/);
+});

@@ -20,15 +20,18 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import {
   checkInStaffBooking,
+  checkInStaffCheckInGroup,
   checkInStaffMatchParticipant,
   confirmStaffAtCourtPayment,
   getStaffAssignments,
   getStaffNotifications,
   getTodayStaffBookings,
   markStaffBookingNoShow,
+  markStaffCheckInGroupNoShow,
   markStaffMatchParticipantNoShow,
   searchStaffBooking,
   verifyStaffBookingCode,
+  verifyStaffCheckInGroupCode,
   type StaffAssignment,
   type StaffBooking,
   type StaffNotification,
@@ -119,6 +122,7 @@ export const StaffDashboard = () => {
   const [bookingPagination, setBookingPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [notifications, setNotifications] = useState<StaffNotification[]>([]);
   const [selected, setSelected] = useState<StaffBooking | null>(null);
+  const [selectedCheckInGroupId, setSelectedCheckInGroupId] = useState<number | null>(null);
   const [searchCode, setSearchCode] = useState('');
   const [date, setDate] = useState(todayValue);
   const [bookingTypeFilter, setBookingTypeFilter] = useState<BookingTypeFilter>('all');
@@ -128,9 +132,10 @@ export const StaffDashboard = () => {
   const [success, setSuccess] = useState('');
   const detailPanelRef = useRef<HTMLElement | null>(null);
 
-  const selectBooking = (booking: StaffBooking) => {
+  const selectBooking = (booking: StaffBooking, checkInGroupId?: number) => {
     setSelected(booking);
-    setSearchCode(booking.bookingCode);
+    setSelectedCheckInGroupId(checkInGroupId ?? null);
+    setSearchCode(booking.checkInGroups.find((group) => group.bookingCheckInGroupId === checkInGroupId)?.checkInCode ?? booking.bookingCode);
     setError('');
     setSuccess('');
     window.requestAnimationFrame(() => {
@@ -178,6 +183,9 @@ export const StaffDashboard = () => {
     assignments.find((item) => item.venueId === selected?.venueId)?.permissions ?? [],
   [assignments, selected?.venueId]);
   const hasPermission = (permission: StaffPermission) => selectedPermissions.includes(permission);
+  const selectedCheckInGroup = useMemo(() => selected?.checkInGroups
+    .find((group) => group.bookingCheckInGroupId === selectedCheckInGroupId) ?? null,
+  [selected, selectedCheckInGroupId]);
 
   const searchAndVerify = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -186,9 +194,13 @@ export const StaffDashboard = () => {
     setError('');
     setSuccess('');
     try {
-      const found = await searchStaffBooking(token, searchCode.trim());
-      const verified = await verifyStaffBookingCode(token, found.bookingId, searchCode.trim());
-      selectBooking(verified);
+      const code = searchCode.trim();
+      const found = await searchStaffBooking(token, code);
+      const group = found.checkInGroups.find((item) => item.checkInCode.toUpperCase() === code.toUpperCase());
+      const verified = group
+        ? await verifyStaffCheckInGroupCode(token, found.bookingId, group.bookingCheckInGroupId, code)
+        : await verifyStaffBookingCode(token, found.bookingId, code);
+      selectBooking(verified, group?.bookingCheckInGroupId);
       setSuccess(`Mã ${verified.bookingCode} hợp lệ và đơn thuộc đúng cụm sân được phân công.`);
       await load();
     } catch (reason) {
@@ -208,6 +220,26 @@ export const StaffDashboard = () => {
     setSuccess('');
     try {
       const result = await action(token, selected.bookingId);
+      setSelected(result);
+      setSuccess(successMessage);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Thao tác không thành công.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const runCheckInGroupAction = async (
+    action: (token: string, bookingId: number, checkInGroupId: number) => Promise<StaffBooking>,
+    successMessage: string,
+  ) => {
+    if (!token || !selected || !selectedCheckInGroup) return;
+    setIsBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await action(token, selected.bookingId, selectedCheckInGroup.bookingCheckInGroupId);
       setSelected(result);
       setSuccess(successMessage);
       await load();
@@ -638,6 +670,11 @@ export const StaffDashboard = () => {
                         </div>
                       ) : (
                         <div className="staff-actions">
+                          {selectedCheckInGroup && (
+                            <p className="mb-3 text-[11px] font-semibold text-[#477313]">
+                              Mã {selectedCheckInGroup.checkInCode}: Sân {selectedCheckInGroup.courtNumber}, {time(selectedCheckInGroup.startTime)} - {time(selectedCheckInGroup.endTime)}
+                            </p>
+                          )}
                           {selected.paymentMethod === 'AtCourt' && selected.paymentStatus !== 'Paid' && (
                             <button
                               className="staff-button-secondary"
@@ -654,11 +691,10 @@ export const StaffDashboard = () => {
                           )}
                           <button
                             className="staff-button"
-                            disabled={isBusy || !hasPermission('CheckIn') || !selected.codeVerifiedAt || !selected.isCheckInWindowOpen || selected.paymentStatus !== 'Paid' || selected.checkInStatus === 'CheckedIn'}
-                            onClick={() => void runAction(
-                              checkInStaffBooking,
-                              'Đã xác nhận người chơi vào sân.',
-                            )}
+                            disabled={isBusy || !hasPermission('CheckIn') || !(selectedCheckInGroup?.codeVerifiedAt ?? selected.codeVerifiedAt) || !(selectedCheckInGroup?.isCheckInWindowOpen ?? selected.isCheckInWindowOpen) || selected.paymentStatus !== 'Paid' || (selectedCheckInGroup?.checkInStatus ?? selected.checkInStatus) === 'CheckedIn'}
+                            onClick={() => selectedCheckInGroup
+                              ? void runCheckInGroupAction(checkInStaffCheckInGroup, 'Da xac nhan nguoi choi vao san.')
+                              : void runAction(checkInStaffBooking, 'Da xac nhan nguoi choi vao san.')}
                             type="button"
                           >
                             <UserCheck aria-hidden="true" className="h-4 w-4" />
@@ -666,9 +702,11 @@ export const StaffDashboard = () => {
                           </button>
                           <button
                             className="staff-button-danger"
-                            disabled={isBusy || !hasPermission('MarkNoShow') || !selected.canMarkNoShow || selected.checkInStatus === 'CheckedIn' || selected.checkInStatus === 'NoShow'}
-                            onClick={() => window.confirm('Xác nhận người chơi không đến sân?')
-                              && void runAction(markStaffBookingNoShow, 'Đã đánh dấu vắng mặt.')}
+                            disabled={isBusy || !hasPermission('MarkNoShow') || !(selectedCheckInGroup?.canMarkNoShow ?? selected.canMarkNoShow) || (selectedCheckInGroup?.checkInStatus ?? selected.checkInStatus) === 'CheckedIn' || (selectedCheckInGroup?.checkInStatus ?? selected.checkInStatus) === 'NoShow'}
+                            onClick={() => window.confirm('Xac nhan nguoi choi khong den san?')
+                              && (selectedCheckInGroup
+                                ? void runCheckInGroupAction(markStaffCheckInGroupNoShow, 'Da danh dau vang mat.')
+                                : void runAction(markStaffBookingNoShow, 'Da danh dau vang mat.'))}
                             type="button"
                           >
                             <UserX aria-hidden="true" className="h-4 w-4" />

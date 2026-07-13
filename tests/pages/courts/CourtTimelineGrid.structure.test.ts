@@ -61,3 +61,16 @@ test('court timeline grid aligns time labels over the lime markers', () => {
   assert.match(gridSource, /timeTickLabel absolute bottom-2 left-0 -translate-x-1\/2 whitespace-nowrap text-center text-\[9\.6px\]/);
   assert.match(gridSource, /timeTickMarker absolute bottom-0 left-0/);
 });
+
+test('court schedule limits player booking dates to one month from today', () => {
+  assert.match(scheduleSource, /maxScheduleDate/);
+  assert.match(scheduleSource, /now\.setMonth\(now\.getMonth\(\) \+ 1\)/);
+  assert.match(scheduleSource, /value <= maxScheduleDate\(\)/);
+  assert.match(scheduleSource, /max=\{maxScheduleDate\(\)\}/);
+});
+
+test('court schedule allows non-consecutive slots but one child court per time', () => {
+  assert.doesNotMatch(scheduleSource, /Ch? du?c ch?n c�c slot li�n ti?p/);
+  assert.doesNotMatch(scheduleSource, /const consecutive = candidate\.every/);
+  assert.match(scheduleSource, /current\.filter\(\(item\) => !item\.endsWith\(`:\$\{startTime\}`\)\)/);
+});

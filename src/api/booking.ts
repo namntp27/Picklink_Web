@@ -88,6 +88,12 @@ export type BankTransfer = {
   startTime: string;
   endTime: string;
   playerName: string;
+  slots?: Array<{
+    courtId: number;
+    courtNumber: number;
+    startTime: string;
+    endTime: string;
+  }>;
   history: PaymentHistory[];
 };
 
@@ -118,7 +124,45 @@ export type BookingHolding = {
   hasReviewed: boolean;
   bankTransfer?: BankTransfer | null;
   statusHistory: BookingHistory[];
+  slots: Array<{
+    bookingSlotId: number;
+    courtId: number;
+    courtNumber: number;
+    checkInGroupId?: number | null;
+    startTime: string;
+    endTime: string;
+    hourlyPrice: number;
+    courtAmount: number;
+  }>;
+  checkInGroups: Array<{
+    bookingCheckInGroupId: number;
+    courtId: number;
+    courtNumber: number;
+    startTime: string;
+    endTime: string;
+    checkInCode?: string | null;
+    checkInStatus: string;
+    checkedInAt?: string | null;
+  }>;
 };
+
+export type BookingHoldSlot = {
+  courtId: number;
+  startTime: string;
+};
+
+export type BookingHoldingGroup = {
+  paymentGroupId: string;
+  totalAmount: number;
+  bookings: BookingHolding[];
+};
+
+const normalizeBookingHolding = (booking: BookingHolding): BookingHolding => ({
+  ...booking,
+  slots: booking.slots ?? [],
+  checkInGroups: booking.checkInGroups ?? [],
+  statusHistory: booking.statusHistory ?? [],
+});
 
 export type VenueFilters = PaginationParams & {
   search?: string;
@@ -147,12 +191,16 @@ export const removeFavoriteVenue = (token: string, venueId: number) => apiReques
 
 export const getCourtAvailability = (venueId: number, date: string, token?: string | null) => apiRequest<CourtAvailability>(`/api/player-bookings/venues/${venueId}/availability?date=${encodeURIComponent(date)}`, {}, token ?? undefined);
 
-export const createBookingHolding = (token: string, input: { courtId: number; date: string; slotStarts: string[] }) => apiRequest<BookingHolding>('/api/player-bookings/hold', {
+export const createBookingHolding = (token: string, input: { date: string; slots: BookingHoldSlot[] }) => apiRequest<BookingHolding>('/api/player-bookings/hold', {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
 
-export const getBookingHolding = (token: string, bookingId: number) => apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}`, {}, token);
+export const getBookingHolding = (token: string, bookingId: number) =>
+  apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}`, {}, token).then(normalizeBookingHolding);
+
+export const getBookingHoldingGroup = (token: string, paymentGroupId: string) =>
+  apiRequest<BookingHoldingGroup>(`/api/player-bookings/payment-groups/${paymentGroupId}`, {}, token);
 
 export const getMyBookingHistory = (token: string, pagination: PaginationParams = {}) => {
   const params = new URLSearchParams();

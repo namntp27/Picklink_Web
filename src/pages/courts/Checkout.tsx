@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { cancelBookingHolding, getBookingHolding, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
-import { submitBankTransfer } from '../../api/payment';
+import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { Button } from '../../components/ui/Button';
@@ -37,6 +37,34 @@ const utcTimestamp = (value: string) => {
   const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`;
   return new Date(normalized).getTime();
 };
+
+type CheckoutSlotSummary = {
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+};
+
+const buildSlotSummaries = (booking: BookingHolding) => {
+  const slots: CheckoutSlotSummary[] = booking.slots.length
+    ? booking.slots.map((slot) => ({ courtId: slot.courtId, courtNumber: slot.courtNumber, startTime: slot.startTime, endTime: slot.endTime }))
+    : [{ courtId: booking.courtId, courtNumber: booking.courtNumber, startTime: booking.startTime, endTime: booking.endTime }];
+
+  return [...slots]
+    .sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId)
+    .reduce<CheckoutSlotSummary[]>((summaries, slot) => {
+      const previous = summaries[summaries.length - 1];
+      if (previous && previous.courtId === slot.courtId && previous.endTime === slot.startTime) {
+        previous.endTime = slot.endTime;
+        return summaries;
+      }
+
+      summaries.push({ ...slot });
+      return summaries;
+    }, []);
+};
+
+const hoursText = (hours: number) => Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, '');
 
 export const Checkout = () => {
   const [params] = useSearchParams();
@@ -66,15 +94,18 @@ export const Checkout = () => {
     }
   };
 
+  const isHoldCountdownActive = booking?.status === 'Holding' && booking.paymentStatus === 'Pending';
   useEffect(() => {
     if (initialBooking) return;
     void loadBooking();
   }, [bookingId, token]);
 
   useEffect(() => {
+    if (!isHoldCountdownActive) return;
+    setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [isHoldCountdownActive]);
 
   useEffect(() => {
     if (!receipt) { setReceiptPreview(''); return; }
@@ -95,7 +126,23 @@ export const Checkout = () => {
   }, [receipt]);
 
   usePaymentRealtime((event) => {
-    if (!isSubmitting && event.bookingId === bookingId) void loadBooking(true);
+    if (event.bookingId === bookingId && !isSubmitting) {
+      setBooking((current) => current ? {
+        ...current,
+        paymentStatus: event.paymentStatus,
+        status: event.paymentStatus === 'Paid' ? 'Confirmed' : current.status,
+      } : current);
+      if (!token) return;
+      void getPlayerBookingPayment(token, bookingId)
+        .then((payment) => setBooking((current) => current ? {
+          ...current,
+          paymentStatus: payment.paymentStatus,
+          status: payment.bookingStatus as BookingHolding['status'],
+          holdExpiresAt: payment.holdExpiresAt,
+          bankTransfer: payment,
+        } : current))
+        .catch(() => undefined);
+    }
   });
 
   const remainingSeconds = useMemo(() => booking?.holdExpiresAt
@@ -158,6 +205,9 @@ export const Checkout = () => {
   const scheduleDate = params.get('date') ?? booking.startTime.slice(0, 10);
   const schedulePath = `/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`;
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 10 };
+  const slotSummaries = buildSlotSummaries(booking);
+  const selectedCourtNumbers = Array.from(new Set(slotSummaries.map((slot) => slot.courtNumber))).sort((left, right) => left - right);
+  const selectedDurationHours = booking.slots.length ? booking.slots.length * 0.5 : booking.durationHours;
 
   const returnToSchedule = async () => {
     if (!token) { navigate(schedulePath); return; }
@@ -205,7 +255,7 @@ export const Checkout = () => {
             </div>
             <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right">
               <p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p>
-              <p className="font-mono text-[32px] font-black leading-none text-[#e2ff57]">{booking.status === 'Holding' ? countdown : '--:--'}</p>
+              <p className="font-mono text-[32px] font-black leading-none text-[#e2ff57]">{isHoldCountdownActive ? countdown : '--:--'}</p>
               <p className="mt-1 text-[13px] font-bold text-white/82">{statusText[status] ?? status}</p>
             </div>
           </div>
@@ -325,7 +375,7 @@ export const Checkout = () => {
                 <Building2 className="h-5 w-5 shrink-0 text-primary" />
                 <div>
                   <strong>{booking.venueName}</strong>
-                  <p className="mt-1 text-[#66766d]">Sân {booking.courtNumber}</p>
+                  <p className="mt-1 text-[#66766d]">{selectedCourtNumbers.map((courtNumber) => `Sân ${courtNumber}`).join(', ')}</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -335,8 +385,15 @@ export const Checkout = () => {
               <div className="flex gap-3">
                 <Clock className="h-5 w-5 shrink-0 text-primary" />
                 <div>
-                  <strong>{dateText(booking.startTime)}</strong>
-                  <p className="mt-1 text-[#66766d]">{timeText(booking.startTime)} - {timeText(booking.endTime)}. {booking.durationHours} giờ</p>
+                  <strong>{dateText(slotSummaries[0]?.startTime ?? booking.startTime)}</strong>
+                  <div className="mt-1 space-y-1 text-[#66766d]">
+                    {slotSummaries.map((slot) => (
+                      <p key={`${slot.courtId}-${slot.startTime}`}>
+                        {slotSummaries.length > 1 ? `Sân ${slot.courtNumber}: ` : ''}{timeText(slot.startTime)} - {timeText(slot.endTime)}
+                      </p>
+                    ))}
+                    <p>{hoursText(selectedDurationHours)} giờ</p>
+                  </div>
                 </div>
               </div>
             </div>

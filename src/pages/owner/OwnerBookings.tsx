@@ -81,11 +81,10 @@ const bookingStateFilterOptions: Array<{ label: string; value: BookingStateFilte
   { label: 'Sẵn sàng check-in', value: 'ready_checkin' },
 ];
 
-const getLocalDateValue = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
+const getLocalDateValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
@@ -124,7 +123,7 @@ const getBookingStatusClassName = (booking: BookingDetail) => {
   }
 
   if (booking.bookingStatus === 'confirmed') {
-    return 'bg-[#F6F8F3] text-primary';
+    return 'bg-green-100 text-green-700';
   }
 
   return 'bg-[#fff4d8] text-[#7a5600]';
@@ -144,7 +143,7 @@ const getPaymentLabel = (paymentStatus: BookingDetail['paymentStatus']) => {
 
 const getPaymentClassName = (paymentStatus: BookingDetail['paymentStatus']) => {
   if (paymentStatus === 'paid') {
-    return 'bg-[#F6F8F3] text-primary';
+    return 'bg-green-100 text-green-700';
   }
 
   if (paymentStatus === 'failed') {
@@ -153,6 +152,12 @@ const getPaymentClassName = (paymentStatus: BookingDetail['paymentStatus']) => {
 
   return 'bg-[#fff4d8] text-[#7a5600]';
 };
+
+const normalizePaymentStatus = (status: string): BookingPaymentStatus =>
+  status === 'Paid' ? 'paid' : status === 'Cancelled' || status === 'Expired' ? 'failed' : 'pending';
+
+const normalizeBookingStatus = (status: string): BookingStatus =>
+  status === 'Confirmed' ? 'confirmed' : status === 'Cancelled' || status === 'Expired' ? 'cancelled' : 'holding';
 
 export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind }) => {
   const { token } = useAuth();
@@ -180,6 +185,18 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const paymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedPayment>());
   const matchPaymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedMatchPayments>());
   const realtimeReloadTimer = useRef<number | null>(null);
+
+  const applyPaymentUpdate = useCallback((payment: BankTransfer) => {
+    setBookings((current) => current.map((booking) => Number(booking.id) === payment.bookingId
+      ? {
+          ...booking,
+          paymentId: payment.paymentId,
+          paymentStatus: normalizePaymentStatus(payment.paymentStatus),
+          bookingStatus: normalizeBookingStatus(payment.bookingStatus),
+          holdExpiresAt: payment.holdExpiresAt ?? booking.holdExpiresAt,
+        }
+      : booking));
+  }, []);
 
   const prefetchPayment = useCallback((paymentId: number) => {
     if (!token) return null;
@@ -282,7 +299,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
 
     return bookings
       .filter((booking) => {
-        const matchesSelectedDate = booking.date === selectedDate;
+        const matchesSelectedDate = getLocalDateValue(new Date(booking.createdAt)) === selectedDate;
         const matchesKeyword =
           !keyword ||
           booking.code.toLowerCase().includes(keyword) ||
@@ -389,7 +406,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       : isMatchBooking ? 'Đơn ghép trận theo ngày chơi' : 'Đơn đặt sân theo ngày'}
                   </h2>
                   <p className="mt-1 text-[13px] text-on-surface-variant">
-                    Có {pagination.totalCount} {isMatchBooking ? 'đơn ghép trận có lịch chơi' : 'đơn có thời gian chơi'} ngày {formatBookingDate(selectedDate)}.
+                    Có {pagination.totalCount} {isMatchBooking ? '\u0111\u01a1n gh\u00e9p tr\u1eadn \u0111\u01b0\u1ee3c \u0111\u1eb7t' : '\u0111\u01a1n \u0111\u01b0\u1ee3c \u0111\u1eb7t'} ngày {formatBookingDate(selectedDate)}.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
@@ -512,12 +529,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                         </td>
                         <td className="px-5 py-4">
                           <p className="text-[14px] font-bold">{booking.courtName}</p>
-                          <p className="mt-1 text-[12px] text-on-surface-variant">{booking.subCourt}</p>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-[14px] font-bold">
-                            {booking.startTime} - {booking.endTime}
-                          </p>
+                          {booking.slots?.length ? booking.slots.map((slot) => (
+                            <p className="text-[14px] font-bold" key={`${slot.courtId}-${slot.startTime}`}>Sân {slot.courtNumber}: {slot.startTime} - {slot.endTime}</p>
+                          )) : <p className="text-[14px] font-bold">{booking.startTime} - {booking.endTime}</p>}
                           <p className="mt-1 text-[12px] text-on-surface-variant">{formatPlayDate(booking.date)}</p>
                           <p className="mt-1 text-[12px] text-on-surface-variant">{booking.durationHours} giờ</p>
                         </td>
@@ -603,9 +619,9 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                 initialPayment={transactionTarget.prefetched.data}
                 initialPaymentRequest={transactionTarget.prefetched.promise}
                 onClose={() => setTransactionTarget(null)}
-                onUpdated={() => {
+                onUpdated={(payment) => {
                   paymentPrefetchCache.current.delete(transactionTarget.paymentId);
-                  return load(false);
+                  applyPaymentUpdate(payment);
                 }}
                 paymentId={transactionTarget.paymentId}
               />

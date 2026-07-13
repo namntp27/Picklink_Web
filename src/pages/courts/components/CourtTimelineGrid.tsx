@@ -2,8 +2,7 @@ import type { AvailabilitySlot, CourtAvailability } from '../../../api/booking';
 
 type CourtTimelineGridProps = {
   availability: CourtAvailability;
-  selectedCourtId: number | null;
-  selectedStarts: string[];
+  selectedSlotKeys: string[];
   onSelectSlot: (slot: AvailabilitySlot) => void;
 };
 
@@ -29,6 +28,7 @@ export const buildTimelineTicks = (openTime: string, closeTime: string, slotMinu
 };
 
 const slotTime = (value: string) => value.slice(11, 16);
+const slotKey = (courtId: number, startTime: string) => `${courtId}:${startTime}`;
 
 const statusLabel: Record<AvailabilitySlot['status'], string> = {
   Available: 'Trống',
@@ -58,8 +58,7 @@ const legendItems = [
 
 export const CourtTimelineGrid = ({
   availability,
-  selectedCourtId,
-  selectedStarts,
+  selectedSlotKeys,
   onSelectSlot,
 }: CourtTimelineGridProps) => {
   const ticks = buildTimelineTicks(availability.openTime, availability.closeTime, availability.slotMinutes);
@@ -113,7 +112,7 @@ export const CourtTimelineGrid = ({
               </div>
               {slotStarts.map((tick) => {
                 const slot = slotsByCourtAndStart.get(`${court.courtId}-${tick}`);
-                const selected = selectedCourtId === court.courtId && selectedStarts.includes(tick);
+                const selected = selectedSlotKeys.includes(slotKey(court.courtId, tick));
                 const past = slot ? new Date(slot.startTime).getTime() <= Date.now() : false;
                 const resumableHolding = Boolean(slot?.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId);
                 const disabled = !slot || (!resumableHolding && (slot.status !== 'Available' || past));

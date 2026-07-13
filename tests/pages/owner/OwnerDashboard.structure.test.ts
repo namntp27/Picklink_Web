@@ -41,3 +41,8 @@ test('owner timeline separates courts by venue instead of merging every court in
 test('frontend test script includes the owner schedule timeline contract', () => {
   assert.match(packageSource, /tests\/pages\/owner\/OwnerDashboard\.structure\.test\.ts/);
 });
+
+test('owner schedule can confirm a held player booking from the slot drawer', () => {
+  assert.match(dashboardSource, /selectedSlotItem\.status === 'Holding'/);
+  assert.doesNotMatch(dashboardSource, /selectedSlotItem\.status === 'Pending'/);
+});

@@ -39,13 +39,17 @@ const paymentActionLabels: Record<string, string> = {
   BookingCancelled: 'Booking đã hủy',
 };
 
+const paymentHistoryReasons: Record<string, string> = {
+  'Tao yeu cau chuyen khoan': 'T\u1ea1o y\u00eau c\u1ea7u chuy\u1ec3n kho\u1ea3n',
+};
+
 type OwnerTransactionReviewModalProps = {
   paymentId: number;
   bookingCode: string;
   initialPayment?: BankTransfer;
   initialPaymentRequest?: Promise<BankTransfer>;
   onClose: () => void;
-  onUpdated: () => void | Promise<void>;
+  onUpdated: (payment: BankTransfer) => void | Promise<void>;
 };
 
 export const OwnerTransactionReviewModal = ({
@@ -91,7 +95,7 @@ export const OwnerTransactionReviewModal = ({
   }, [isBusy, onClose]);
 
   usePaymentRealtime((event) => {
-    if (event.paymentId === paymentId) void load(true);
+    if (event.paymentId === paymentId && !isBusy) void load(true);
   });
 
   const approve = async () => {
@@ -99,9 +103,9 @@ export const OwnerTransactionReviewModal = ({
     setIsBusy(true);
     setError('');
     try {
-      await approveOperatorPayment(token, payment.paymentId);
-      await onUpdated();
+      const updatedPayment = await approveOperatorPayment(token, payment.paymentId);
       onClose();
+      void onUpdated(updatedPayment);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.');
     } finally {
@@ -114,15 +118,25 @@ export const OwnerTransactionReviewModal = ({
     setIsBusy(true);
     setError('');
     try {
-      await rejectOperatorPayment(token, payment.paymentId, rejectReason.trim());
-      await onUpdated();
+      const updatedPayment = await rejectOperatorPayment(token, payment.paymentId, rejectReason.trim());
       onClose();
+      void onUpdated(updatedPayment);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.');
+
     } finally {
       setIsBusy(false);
+
     }
   };
+
+  const paymentSlots = payment?.slots?.length
+    ? payment.slots
+    : payment ? [{ courtId: 0, courtNumber: payment.courtNumber, startTime: payment.startTime, endTime: payment.endTime }] : [];
+  const paymentHistory = (payment?.history ?? []).map((entry) => ({
+    ...entry,
+    reason: paymentHistoryReasons[entry.reason ?? ''] ?? entry.reason,
+  }));
 
   return (
     <div
@@ -195,12 +209,18 @@ export const OwnerTransactionReviewModal = ({
                   ['Nội dung CK', payment.transferContent ?? '-'],
                   ['Tài khoản nhận', `${payment.bankName ?? '-'} · ${payment.bankAccountNumber ?? '-'}`],
                   ['Hạn giữ chỗ', payment.holdExpiresAt ? dateTime(payment.holdExpiresAt) : '-'],
-                ].map(([label, value]) => (
+                ].filter((_, index) => index !== 1 && index !== 2).map(([label, value]) => (
                   <div className="rounded-lg bg-surface-container-low p-3" key={label}>
                     <p className="text-[11px] font-bold uppercase text-on-surface-variant">{label}</p>
                     <p className="mt-1 text-[14px] font-bold">{value}</p>
                   </div>
                 ))}
+                <div className="rounded-lg bg-surface-container-low p-3">
+                  <p className="text-[11px] font-bold uppercase text-on-surface-variant">{'S\u00e2n v\u00e0 gi\u1edd ch\u01a1i'}</p>
+                  <div className="mt-1 space-y-1 text-[14px] font-bold">
+                    {paymentSlots.map((slot) => <p key={`${slot.courtId}-${slot.startTime}`}>{`S\u00e2n ${slot.courtNumber}: ${playTime(slot.startTime)} - ${playTime(slot.endTime)} \u00b7 ${playDate(slot.startTime)}`}</p>)}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -245,7 +265,7 @@ export const OwnerTransactionReviewModal = ({
                 Lịch sử
               </h3>
               <div className="mt-3 space-y-2">
-                {payment.history.map((entry, index) => (
+                {paymentHistory.map((entry, index) => (
                   <div className="text-[13px]" key={`${entry.createdAt}-${index}`}>
                     <strong>{paymentActionLabels[entry.action] ?? entry.action}</strong> ·{' '}
                     {paymentStatusLabels[entry.toStatus] ?? entry.toStatus}
@@ -255,7 +275,7 @@ export const OwnerTransactionReviewModal = ({
                     </span>
                   </div>
                 ))}
-                {payment.history.length === 0 && (
+                {paymentHistory.length === 0 && (
                   <p className="text-[13px] text-on-surface-variant">Chưa có lịch sử giao dịch.</p>
                 )}
               </div>

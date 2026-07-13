@@ -62,6 +62,11 @@ export const OwnerPayments = () => {
   useEffect(() => { void load(); }, [page, token]);
   usePaymentRealtime((event) => {
     if (!token) return;
+    if (event.paymentStatus !== 'WaitingForConfirmation') {
+      setPayments((current) => current.filter((item) => item.paymentId !== event.paymentId));
+      setSelected((current) => current?.paymentId === event.paymentId ? null : current);
+      return;
+    }
     void getOperatorPayment(token, event.paymentId)
       .then((updated) => {
         setPayments((current) => {
@@ -88,7 +93,7 @@ export const OwnerPayments = () => {
     };
     const fallbackTimer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void load(false);
-    }, 15_000);
+    }, 2_000);
     window.addEventListener('focus', refreshWhenVisible);
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
@@ -117,7 +122,7 @@ export const OwnerPayments = () => {
   const approve = async (payment: BankTransfer) => {
     if (!token) return;
     setBusyId(payment.paymentId); setError('');
-    try { await approveOperatorPayment(token, payment.paymentId); setSelected(null); await load(); }
+    try { const updated = await approveOperatorPayment(token, payment.paymentId); setPayments((current) => current.filter((item) => item.paymentId !== payment.paymentId && (!updated.paymentGroupId || item.paymentGroupId !== updated.paymentGroupId))); setSelected(null); void load(false); }
     catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.'); }
     finally { setBusyId(null); }
   };
@@ -125,7 +130,7 @@ export const OwnerPayments = () => {
   const reject = async (payment: BankTransfer) => {
     if (!token || rejectReason.trim().length < 3) return;
     setBusyId(payment.paymentId); setError('');
-    try { await rejectOperatorPayment(token, payment.paymentId, rejectReason.trim()); setSelected(null); setRejectReason(''); await load(); }
+    try { const updated = await rejectOperatorPayment(token, payment.paymentId, rejectReason.trim()); setPayments((current) => current.filter((item) => item.paymentId !== payment.paymentId && (!updated.paymentGroupId || item.paymentGroupId !== updated.paymentGroupId))); setSelected(null); setRejectReason(''); void load(false); }
     catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.'); }
     finally { setBusyId(null); }
   };

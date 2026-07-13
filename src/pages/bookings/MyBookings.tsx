@@ -69,7 +69,7 @@ const checkInLabels: Record<string, string> = {
 
 const statusClass = (status: string) => {
   if (status === 'Confirmed' || status === 'Paid' || status === 'Ready' || status === 'CheckedIn') {
-    return 'border-[#e2ff57] bg-[#e2ff57]/25 text-[#081d24]';
+    return 'border-green-200 bg-green-100 text-green-700';
   }
   if (status === 'Holding' || status === 'Pending' || status === 'WaitingForConfirmation' || status === 'NotOpen') {
     return 'border-outline-variant bg-surface-container-high text-on-surface-variant';
@@ -120,7 +120,16 @@ export const MyBookings = () => {
 
   useEffect(() => { void load(); }, [page, token]);
   useScheduleRealtime(() => { void load(false); });
-  usePaymentRealtime(() => { void load(false); });
+  usePaymentRealtime((event) => {
+    setBookings((current) => current.map((booking) => event.bookingId === booking.bookingId
+      ? {
+        ...booking,
+        paymentStatus: event.paymentStatus,
+        status: event.paymentStatus === 'Paid' ? 'Confirmed' : booking.status,
+      }
+      : booking));
+    void load(false);
+  });
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -244,7 +253,7 @@ export const MyBookings = () => {
             <section className="space-y-3">
               {filtered.map((booking) => {
                 const canContinue = booking.status === 'Holding' && ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
-                const canCancel = booking.canCancel;
+                const canCancel = booking.canCancel && booking.paymentStatus !== 'Paid';
                 const scheduleDate = booking.startTime.slice(0, 10);
                 const isBusy = busyId === booking.bookingId;
 
@@ -289,6 +298,7 @@ export const MyBookings = () => {
                           ))}
                         </div>
                       </div>
+
                       <div className="h-fit shrink-0 rounded-lg border border-[#e2ff57]/40 bg-[#081d24] p-3 text-white xl:w-[180px]">
                         <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/60">Tổng tiền</p>
                         <p className="mt-1 break-words text-[17px] font-extrabold text-[#e2ff57]">{currency.format(booking.totalAmount)}</p>

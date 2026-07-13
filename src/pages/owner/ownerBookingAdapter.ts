@@ -13,18 +13,21 @@ export const ownerBookingToDetail = (record: OwnerBookingRecord): BookingDetail 
   };
   const start = new Date(record.startTime);
   const end = new Date(record.endTime);
-  const durationHours = Math.max(0, (end.getTime() - start.getTime()) / 3_600_000);
+  const durationHours = record.slots.length
+    ? record.slots.reduce((total, slot) => total + (new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 3_600_000, 0)
+    : Math.max(0, (end.getTime() - start.getTime()) / 3_600_000);
   return {
     id: String(record.bookingId),
     code: record.bookingCode,
     courtId: String(record.courtId),
     courtName: record.venueName,
-    subCourt: `Sân ${record.courtNumber}`,
+    subCourt: record.slots.length ? Array.from(new Set(record.slots.map((slot) => `Sân ${slot.courtNumber}`))).join(', ') : `Sân ${record.courtNumber}`,
     address: record.address,
     area: record.address,
     date: record.startTime.slice(0, 10),
     startTime: record.startTime.slice(11, 16),
     endTime: record.endTime.slice(11, 16),
+    slots: record.slots,
     durationHours,
     pricePerHour: record.hourlyPrice,
     serviceFee: Math.max(0, record.totalAmount - record.hourlyPrice * durationHours),

@@ -355,7 +355,7 @@ export const OwnerDashboard = () => {
                     </button>
                   ) : (
                     <>
-                      {selectedSlotItem.status === 'Pending' && (
+                      {selectedSlotItem.status === 'Holding' && (
                         <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white" onClick={() => void updateStatus(selectedSlotItem, 'Confirmed')} type="button">
                           <CheckCircle2 className="h-4 w-4" /> Xác nhận đặt sân
                         </button>

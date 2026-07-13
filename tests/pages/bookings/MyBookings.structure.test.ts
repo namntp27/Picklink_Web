@@ -35,3 +35,14 @@ test('my bookings page keeps only compact status summary above the list', () => 
   assert.doesNotMatch(source, /Booking c\u1ee7a b\u1ea1n\. Tr\u1ea1ng th\u00e1i r\u00f5 r\u00e0ng\./);
   assert.doesNotMatch(css, /width: min\(calc\(100% - 24px\), 1180px\)/);
 });
+
+
+test('confirmed, paid, and checked-in booking statuses are green', () => {
+  assert.match(source, /status === 'Confirmed' \|\| status === 'Paid' \|\| status === 'Ready' \|\| status === 'CheckedIn'/);
+  assert.match(source, /border-green-200 bg-green-100 text-green-700/);
+});
+
+
+test('paid booking has no cancel action', () => {
+  assert.match(source, /const canCancel = booking\.canCancel && booking\.paymentStatus !== 'Paid';/);
+});

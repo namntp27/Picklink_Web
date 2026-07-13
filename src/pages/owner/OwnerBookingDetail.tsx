@@ -110,6 +110,9 @@ export const OwnerBookingDetail = () => {
   if (!booking) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700"><AlertCircle className="mx-auto h-7 w-7" /><p className="mt-3 font-bold">{error || 'Không tìm thấy booking.'}</p><Link className="mt-4 inline-flex font-bold underline" to="/owner/bookings">Quay lại danh sách</Link></div></OwnerShell>;
 
   const serviceFee = Math.max(0, booking.totalAmount - booking.courtAmount);
+  const bookingSlots = booking.slots.length ? booking.slots : [{ bookingSlotId: booking.bookingId, courtId: booking.courtId, courtNumber: booking.courtNumber, startTime: booking.startTime, endTime: booking.endTime, courtAmount: booking.courtAmount }];
+  const courts = Array.from(new Set(bookingSlots.map((slot) => `Sân ${slot.courtNumber}`))).join(', ');
+  const playTime = bookingSlots.map((slot) => `Sân ${slot.courtNumber}: ${time(slot.startTime)} - ${time(slot.endTime)}`).join(' · ');
   const playerLocation = [booking.playerCommune, booking.playerCity].filter(Boolean).join(', ') || 'Chưa cập nhật';
 
   return (
@@ -124,9 +127,9 @@ export const OwnerBookingDetail = () => {
       <section className="owner-panel overflow-hidden">
         <div className="bg-primary p-6 text-white"><p className="text-[11px] font-bold uppercase text-white/70">Mã booking</p><div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-[30px] font-bold">{booking.bookingCode}</h2><div className="flex flex-wrap gap-2">{[booking.bookingStatus, booking.paymentStatus, booking.checkInStatus].map((status) => <span className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold" key={status}>{statusLabel[status] ?? status}</span>)}</div></div></div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">{[
-          { icon: CalendarDays, label: 'Ngày chơi', value: dateTime(booking.startTime) },
-          { icon: Clock3, label: 'Khung giờ', value: `${time(booking.startTime)} - ${time(booking.endTime)}` },
-          { icon: MapPin, label: 'Sân', value: `${booking.venueName} · Sân ${booking.courtNumber}` },
+          { icon: CalendarDays, label: 'Ngày chơi', value: dateTime(bookingSlots[0].startTime) },
+          { icon: Clock3, label: 'Khung giờ', value: playTime },
+          { icon: MapPin, label: 'Sân', value: `${booking.venueName} · ${courts}` },
           { icon: ReceiptText, label: 'Tổng tiền', value: currency.format(booking.totalAmount) },
         ].map((item) => <div className="rounded-lg bg-surface-container-low p-4" key={item.label}><item.icon className="h-5 w-5 text-primary" /><p className="mt-3 text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p><p className="mt-1 text-[14px] font-bold">{item.value}</p></div>)}</div>
       </section>
@@ -139,7 +142,29 @@ export const OwnerBookingDetail = () => {
               { label: 'Email', value: booking.playerEmail || 'Chưa cập nhật' },
               { label: 'Khu vực', value: playerLocation },
             ].map((item) => <div className="rounded-lg bg-surface-container-low p-3" key={item.label}><p className="text-[11px] font-bold uppercase text-on-surface-variant">{item.label}</p><p className="mt-1 break-words text-[13px] font-bold">{item.value}</p></div>)}</div>{booking.playerEmail && <a className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-primary" href={`mailto:${booking.playerEmail}`}><Mail className="h-4 w-4" /> Gửi email cho Player</a>}</div>
-            <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><MapPin className="h-5 w-5 text-primary" /> Thông tin sân</h2><div className="mt-4 space-y-3"><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Cụm sân</p><p className="mt-1 text-[13px] font-bold">{booking.venueName}</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Sân con</p><p className="mt-1 text-[13px] font-bold">Sân {booking.courtNumber}</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Địa chỉ</p><p className="mt-1 text-[13px] font-bold">{booking.address}</p></div></div></div>
+            <div className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><MapPin className="h-5 w-5 text-primary" /> Thông tin sân</h2><div className="mt-4 space-y-3"><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Cụm sân</p><p className="mt-1 text-[13px] font-bold">{booking.venueName}</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Sân con</p><p className="mt-1 text-[13px] font-bold">{courts}</p></div><div className="rounded-lg bg-surface-container-low p-3"><p className="text-[11px] font-bold uppercase text-on-surface-variant">Địa chỉ</p><p className="mt-1 text-[13px] font-bold">{booking.address}</p></div></div></div>
+          </section>
+
+          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+            <h2 className="flex items-center gap-2 text-[18px] font-bold"><CalendarDays className="h-5 w-5 text-primary" /> Sân con và mã check-in</h2>
+            <div className="mt-4 space-y-3">
+              {booking.slots.map((slot) => (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-container-low p-3" key={slot.bookingSlotId}>
+                  <span className="text-[13px] font-bold">Sân {slot.courtNumber}</span>
+                  <span className="text-[12px] text-on-surface-variant">{time(slot.startTime)} - {time(slot.endTime)}</span>
+                </div>
+              ))}
+            </div>
+            {booking.checkInGroups.length > 0 && (
+              <div className="mt-4 space-y-2 border-t border-outline-variant pt-4">
+                {booking.checkInGroups.map((group) => (
+                  <div className="flex items-center justify-between gap-3 text-[12px]" key={group.bookingCheckInGroupId}>
+                    <span>Sân {group.courtNumber}: {time(group.startTime)} - {time(group.endTime)}</span>
+                    <span className="font-bold text-primary">{group.checkInCode} · {group.checkInStatus}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[18px] font-bold"><History className="h-5 w-5 text-primary" /> Lịch sử booking</h2><div className="mt-5 space-y-4">{timeline.map((item, index) => <div className="grid grid-cols-[28px_1fr] gap-3" key={`${item.label}-${item.at}-${index}`}><div className="flex flex-col items-center"><span className="mt-1 h-3 w-3 rounded-full bg-primary" />{index < timeline.length - 1 && <span className="mt-1 h-full min-h-10 w-px bg-outline-variant" />}</div><div className="pb-2"><p className="text-[13px] font-bold">{item.label}</p><p className="mt-1 text-[12px] text-on-surface-variant">{item.detail}</p><p className="mt-1 text-[11px] font-bold text-on-surface-variant">{dateTime(item.at)}{item.actor ? ` · ${item.actor}` : ''}</p></div></div>)}</div></section>
