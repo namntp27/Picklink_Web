@@ -29,9 +29,7 @@ import {
   markStaffBookingNoShow,
   markStaffCheckInGroupNoShow,
   markStaffMatchParticipantNoShow,
-  searchStaffBooking,
-  verifyStaffBookingCode,
-  verifyStaffCheckInGroupCode,
+  verifyStaffBookingCodeByCode,
   type StaffAssignment,
   type StaffBooking,
   type StaffNotification,
@@ -146,12 +144,20 @@ export const StaffDashboard = () => {
     });
   };
 
+  const updateBooking = (booking: StaffBooking) => {
+    setSelected(booking);
+    setBookings((current) => current.map((item) => item.bookingId === booking.bookingId ? booking : item));
+  };
+
   const load = useCallback(async () => {
     if (!token) return;
     setIsLoading(true);
     setError('');
     try {
-      const [assignmentResult, bookingResult, notificationResult] = await Promise.all([
+      void getStaffNotifications(token)
+        .then(setNotifications)
+        .catch(() => setNotifications([]));
+      const [assignmentResult, bookingResult] = await Promise.all([
         getStaffAssignments(token),
         getTodayStaffBookings(
           token,
@@ -159,12 +165,10 @@ export const StaffDashboard = () => {
           { page: bookingsPage, pageSize: 10 },
           bookingTypeFilter === 'all' ? undefined : bookingTypeFilter,
         ),
-        getStaffNotifications(token),
       ]);
       setAssignments(assignmentResult);
       setBookings(bookingResult.items);
       setBookingPagination(bookingResult);
-      setNotifications(notificationResult);
       setSelected((current) => current
         ? bookingResult.items.find((item) => item.bookingId === current.bookingId) ?? current
         : null);
@@ -195,14 +199,10 @@ export const StaffDashboard = () => {
     setSuccess('');
     try {
       const code = searchCode.trim();
-      const found = await searchStaffBooking(token, code);
-      const group = found.checkInGroups.find((item) => item.checkInCode.toUpperCase() === code.toUpperCase());
-      const verified = group
-        ? await verifyStaffCheckInGroupCode(token, found.bookingId, group.bookingCheckInGroupId, code)
-        : await verifyStaffBookingCode(token, found.bookingId, code);
+      const verified = await verifyStaffBookingCodeByCode(token, code);
+      const group = verified.checkInGroups.find((item) => item.checkInCode.toUpperCase() === code.toUpperCase());
       selectBooking(verified, group?.bookingCheckInGroupId);
       setSuccess(`Mã ${verified.bookingCode} hợp lệ và đơn thuộc đúng cụm sân được phân công.`);
-      await load();
     } catch (reason) {
       setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể xác minh mã đơn.');
     } finally {
@@ -220,9 +220,8 @@ export const StaffDashboard = () => {
     setSuccess('');
     try {
       const result = await action(token, selected.bookingId);
-      setSelected(result);
+      updateBooking(result);
       setSuccess(successMessage);
-      await load();
     } catch (reason) {
       setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Thao tác không thành công.');
     } finally {
@@ -240,9 +239,8 @@ export const StaffDashboard = () => {
     setSuccess('');
     try {
       const result = await action(token, selected.bookingId, selectedCheckInGroup.bookingCheckInGroupId);
-      setSelected(result);
+      updateBooking(result);
       setSuccess(successMessage);
-      await load();
     } catch (reason) {
       setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Thao tác không thành công.');
     } finally {
@@ -261,9 +259,8 @@ export const StaffDashboard = () => {
     setSuccess('');
     try {
       const result = await action(token, selected.bookingId, playerId);
-      setSelected(result);
+      updateBooking(result);
       setSuccess(successMessage);
-      await load();
     } catch (reason) {
       setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Thao tác không thành công.');
     } finally {

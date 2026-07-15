@@ -149,6 +149,17 @@ export const Checkout = () => {
     ? Math.max(0, Math.floor((utcTimestamp(booking.holdExpiresAt) - now) / 1000)) : 0, [booking?.holdExpiresAt, now]);
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
   const transfer = booking?.bankTransfer;
+  const scheduleDate = params.get('date') ?? booking?.startTime.slice(0, 10) ?? '';
+  const schedulePath = booking ? `/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}` : '/book-court';
+  const isPaymentExpired = booking?.status === 'Expired' || booking?.paymentStatus === 'Expired' ||
+    Boolean(booking && isHoldCountdownActive && remainingSeconds <= 0);
+
+  useEffect(() => {
+    if (!isPaymentExpired) return;
+    setError('Thời gian thanh toán đã hết hạn. Đang chuyển về lịch sân...');
+    const timer = window.setTimeout(() => navigate(schedulePath, { replace: true }), 1500);
+    return () => window.clearTimeout(timer);
+  }, [isPaymentExpired, navigate, schedulePath]);
 
   const copyContent = async () => {
     if (!transfer?.transferContent) return;
@@ -202,8 +213,6 @@ export const Checkout = () => {
   const status = booking.paymentStatus;
   const isPaid = status === 'Paid';
   const isWaiting = status === 'WaitingForConfirmation';
-  const scheduleDate = params.get('date') ?? booking.startTime.slice(0, 10);
-  const schedulePath = `/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}`;
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 10 };
   const slotSummaries = buildSlotSummaries(booking);
   const selectedCourtNumbers = Array.from(new Set(slotSummaries.map((slot) => slot.courtNumber))).sort((left, right) => left - right);

@@ -16,3 +16,9 @@ test('notification realtime hook parses notification-updated events', () => {
   assert.match(source, /JSON\.parse/);
   assert.match(source, /AbortController/);
 });
+
+test('notification realtime hook reconnects after the authenticated stream ends', () => {
+  assert.match(source, /while \(isActive\)/);
+  assert.match(source, /waitToReconnect/);
+  assert.match(source, /window\.setTimeout\(resolve, 3000\)/);
+});

@@ -87,6 +87,7 @@ export const getTodayStaffBookings = (
   return apiRequest<PaginatedResponse<StaffBooking>>(`/api/staff/bookings/today${query ? `?${query}` : ''}`, {}, token);
 };
 export const searchStaffBooking = (token: string, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/search?code=${encodeURIComponent(code)}`, {}, token);
+export const verifyStaffBookingCodeByCode = (token: string, code: string) => apiRequest<StaffBooking>('/api/staff/bookings/verify-code', { method: 'POST', body: JSON.stringify({ code }) }, token);
 export const getStaffBooking = (token: string, bookingId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}`, {}, token);
 export const verifyStaffBookingCode = (token: string, bookingId: number, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/verify-code`, { method: 'POST', body: JSON.stringify({ code }) }, token);
 export const verifyStaffCheckInGroupCode = (token: string, bookingId: number, checkInGroupId: number, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/check-in-groups/${checkInGroupId}/verify-code`, { method: 'POST', body: JSON.stringify({ code }) }, token);

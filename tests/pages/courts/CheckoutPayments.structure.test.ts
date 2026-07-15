@@ -23,6 +23,12 @@ test('checkout pauses its countdown while a receipt is awaiting owner review', (
   assert.match(checkout, /\{isHoldCountdownActive \? countdown : '--:--'\}/);
 });
 
+test('expired checkout notifies the player and returns to the court schedule', () => {
+  assert.match(checkout, /booking\?\.status === 'Expired' \|\| booking\?\.paymentStatus === 'Expired'/);
+  assert.match(checkout, /setError\('Thời gian thanh toán đã hết hạn\. Đang chuyển về lịch sân\.\.\.'\)/);
+  assert.match(checkout, /window\.setTimeout\(\(\) => navigate\(schedulePath, \{ replace: true \}\), 1500\)/);
+});
+
 test('owner payment queue avoids schedule reloads while waiting for submitted receipts', () => {
   assert.match(ownerPayments, /usePaymentRealtime\(\(event\) => \{/);
   assert.match(ownerPayments, /getOperatorPayment\(token, event\.paymentId\)/);

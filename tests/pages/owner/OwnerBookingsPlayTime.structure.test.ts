@@ -26,3 +26,13 @@ test('regular owner bookings retain and render every selected child-court slot',
 test('owner booking detail summarizes child-court slots', () => {
   assert.match(detailSource, /const bookingSlots = booking\.slots\.length/);
 });
+
+test('owner booking tables show price and booking status without payment filters', () => {
+  assert.doesNotMatch(source, /\bPaymentFilter\b|\bpaymentFilter\b|matchesPayment/);
+  assert.match(source, /bookingStateFilterOptions/);
+  assert.doesNotMatch(source, /getPaymentLabel\(booking\.paymentStatus\)/);
+  assert.match(source, /getBookingStatusLabel\(booking\)/);
+  assert.match(source, />Giá tiền<\/th>/);
+  assert.match(source, /formatBookingCurrency\(booking\.totalAmount\)/);
+  assert.match(source, /colSpan=\{8\}/);
+});
