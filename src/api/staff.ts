@@ -71,12 +71,16 @@ export type StaffNotification = {
   startTime: string;
 };
 
-export const getStaffAssignments = (token: string) => apiRequest<StaffAssignment[]>('/api/staff/assignments', {}, token);
+export const getStaffAssignments = (
+  token: string,
+  options: Pick<RequestInit, 'signal'> = {},
+) => apiRequest<StaffAssignment[]>('/api/staff/assignments', options, token);
 export const getTodayStaffBookings = (
   token: string,
   date?: string,
   pagination: PaginationParams = {},
   bookingType?: 'Court' | 'Match',
+  options: Pick<RequestInit, 'signal'> = {},
 ) => {
   const params = new URLSearchParams();
   if (date) params.set('date', date);
@@ -84,7 +88,7 @@ export const getTodayStaffBookings = (
   if (pagination.page) params.set('page', String(pagination.page));
   if (pagination.pageSize) params.set('pageSize', String(pagination.pageSize));
   const query = params.toString();
-  return apiRequest<PaginatedResponse<StaffBooking>>(`/api/staff/bookings/today${query ? `?${query}` : ''}`, {}, token);
+  return apiRequest<PaginatedResponse<StaffBooking>>(`/api/staff/bookings/today${query ? `?${query}` : ''}`, options, token);
 };
 export const searchStaffBooking = (token: string, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/search?code=${encodeURIComponent(code)}`, {}, token);
 export const verifyStaffBookingCodeByCode = (token: string, code: string) => apiRequest<StaffBooking>('/api/staff/bookings/verify-code', { method: 'POST', body: JSON.stringify({ code }) }, token);
@@ -98,4 +102,7 @@ export const markStaffBookingNoShow = (token: string, bookingId: number) => apiR
 export const markStaffCheckInGroupNoShow = (token: string, bookingId: number, checkInGroupId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/check-in-groups/${checkInGroupId}/no-show`, { method: 'POST' }, token);
 export const checkInStaffMatchParticipant = (token: string, bookingId: number, playerId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/participants/${playerId}/check-in`, { method: 'POST' }, token);
 export const markStaffMatchParticipantNoShow = (token: string, bookingId: number, playerId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/participants/${playerId}/no-show`, { method: 'POST' }, token);
-export const getStaffNotifications = (token: string) => apiRequest<StaffNotification[]>('/api/staff/notifications', {}, token);
+export const getStaffNotifications = (
+  token: string,
+  options: Pick<RequestInit, 'signal'> = {},
+) => apiRequest<StaffNotification[]>('/api/staff/notifications', options, token);

@@ -149,38 +149,47 @@ export const StaffDashboard = () => {
     setBookings((current) => current.map((item) => item.bookingId === booking.bookingId ? booking : item));
   };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal: AbortSignal) => {
     if (!token) return;
     setIsLoading(true);
     setError('');
     try {
-      void getStaffNotifications(token)
-        .then(setNotifications)
-        .catch(() => setNotifications([]));
+      void getStaffNotifications(token, { signal })
+        .then((result) => {
+          if (!signal.aborted) setNotifications(result);
+        })
+        .catch(() => {
+          if (!signal.aborted) setNotifications([]);
+        });
       const [assignmentResult, bookingResult] = await Promise.all([
-        getStaffAssignments(token),
+        getStaffAssignments(token, { signal }),
         getTodayStaffBookings(
           token,
           date,
           { page: bookingsPage, pageSize: 10 },
           bookingTypeFilter === 'all' ? undefined : bookingTypeFilter,
+          { signal },
         ),
       ]);
+      if (signal.aborted) return;
       setAssignments(assignmentResult);
       setBookings(bookingResult.items);
       setBookingPagination(bookingResult);
       setSelected((current) => current
-        ? bookingResult.items.find((item) => item.bookingId === current.bookingId) ?? current
+        ? bookingResult.items.find((item) => item.bookingId === current.bookingId) ?? null
         : null);
     } catch (reason) {
+      if (signal.aborted) return;
       setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể tải ca vận hành.');
     } finally {
-      setIsLoading(false);
+      if (!signal.aborted) setIsLoading(false);
     }
   }, [bookingTypeFilter, bookingsPage, date, token]);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   const selectedPermissions = useMemo(() =>
@@ -190,6 +199,14 @@ export const StaffDashboard = () => {
   const selectedCheckInGroup = useMemo(() => selected?.checkInGroups
     .find((group) => group.bookingCheckInGroupId === selectedCheckInGroupId) ?? null,
   [selected, selectedCheckInGroupId]);
+  const hasCheckInGroups = Boolean(selected?.checkInGroups.length);
+  const missingCheckInGroup = hasCheckInGroups && !selectedCheckInGroup;
+  const currentCheckInStatus = selectedCheckInGroup?.checkInStatus ?? selected?.checkInStatus;
+  const currentCodeVerifiedAt = selectedCheckInGroup
+    ? selectedCheckInGroup.codeVerifiedAt
+    : selected?.codeVerifiedAt;
+  const currentCheckInWindowOpen = selectedCheckInGroup?.isCheckInWindowOpen ?? selected?.isCheckInWindowOpen;
+  const currentCanMarkNoShow = selectedCheckInGroup?.canMarkNoShow ?? selected?.canMarkNoShow;
 
   const searchAndVerify = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -449,7 +466,7 @@ export const StaffDashboard = () => {
 
               {isLoading ? (
                 <div aria-busy="true" aria-label="Đang tải danh sách đơn" role="status">
-                  {Array.from({ length: 4 }).map((_, index) => (
+                  {Array.from({ length: 10 }).map((_, index) => (
                     <div className="staff-skeleton-row" key={index} />
                   ))}
                 </div>
@@ -473,7 +490,9 @@ export const StaffDashboard = () => {
                       onClick={() => selectBooking(booking)}
                       type="button"
                     >
-                      <span className="staff-booking-index">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="staff-booking-index">
+                        {String((bookingPagination.page - 1) * bookingPagination.pageSize + index + 1).padStart(2, '0')}
+                      </span>
                       <div className="min-w-0">
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                           <p className="staff-booking-code">{booking.bookingCode}</p>
@@ -515,7 +534,14 @@ export const StaffDashboard = () => {
 
             {bookingPagination.totalPages > 1 && (
               <div className="staff-pagination">
-                <PaginationControls page={bookingPagination} onPageChange={setBookingsPage} />
+                <PaginationControls
+                  page={bookingPagination}
+                  onPageChange={(nextPage) => {
+                    setBookingsPage(nextPage);
+                    setSelected(null);
+                    setSelectedCheckInGroupId(null);
+                  }}
+                />
               </div>
             )}
           </section>
@@ -556,7 +582,7 @@ export const StaffDashboard = () => {
                           {viLabel(bookingStatusLabel, selected.bookingStatus)}
                         </span>
                         <span className="staff-status">
-                          {viLabel(checkInStatusLabel, selected.checkInStatus)}
+                          {viLabel(checkInStatusLabel, currentCheckInStatus)}
                         </span>
                       </div>
                     </div>
@@ -634,8 +660,9 @@ export const StaffDashboard = () => {
                                   <div className="staff-participant__actions">
                                     <button
                                       className="staff-button"
-                                      disabled={isBusy || !hasPermission('CheckIn') || !selected.codeVerifiedAt || !selected.isCheckInWindowOpen || participant.paymentStatus !== 'Paid'}
-                                      onClick={() => void runParticipantAction(
+                                      disabled={isBusy || !hasPermission('CheckIn') || selected.bookingStatus !== 'Confirmed' || !selected.codeVerifiedAt || !selected.isCheckInWindowOpen || participant.paymentStatus !== 'Paid'}
+                                      onClick={() => window.confirm(`Xác nhận ${participant.playerName} đã vào sân?`)
+                                        && void runParticipantAction(
                                         checkInStaffMatchParticipant,
                                         participant.playerId,
                                         `Đã xác nhận ${participant.playerName} vào sân.`,
@@ -643,11 +670,11 @@ export const StaffDashboard = () => {
                                       type="button"
                                     >
                                       <UserCheck aria-hidden="true" className="h-3.5 w-3.5" />
-                                      Xác nhận
+                                      Xác nhận vào sân
                                     </button>
                                     <button
                                       className="staff-button-danger"
-                                      disabled={isBusy || !hasPermission('MarkNoShow') || !selected.codeVerifiedAt || !selected.canMarkNoShow || participant.paymentStatus !== 'Paid'}
+                                      disabled={isBusy || !hasPermission('MarkNoShow') || selected.bookingStatus !== 'Confirmed' || !selected.canMarkNoShow || participant.paymentStatus !== 'Paid'}
                                       onClick={() => window.confirm(`Xác nhận ${participant.playerName} vắng mặt?`)
                                         && void runParticipantAction(
                                           markStaffMatchParticipantNoShow,
@@ -657,7 +684,7 @@ export const StaffDashboard = () => {
                                       type="button"
                                     >
                                       <UserX aria-hidden="true" className="h-3.5 w-3.5" />
-                                      Vắng mặt
+                                      Đánh dấu vắng mặt
                                     </button>
                                   </div>
                                 )}
@@ -667,6 +694,33 @@ export const StaffDashboard = () => {
                         </div>
                       ) : (
                         <div className="staff-actions">
+                          {hasCheckInGroups && (
+                            <label>
+                              <span className="staff-label">Sân và khung giờ cần xử lý</span>
+                              <select
+                                className="staff-control"
+                                onChange={(event) => {
+                                  setSelectedCheckInGroupId(event.target.value ? Number(event.target.value) : null);
+                                  setSearchCode('');
+                                  setError('');
+                                  setSuccess('');
+                                }}
+                                value={selectedCheckInGroupId ?? ''}
+                              >
+                                <option value="">Chọn sân / khung giờ</option>
+                                {selected.checkInGroups.map((group) => (
+                                  <option key={group.bookingCheckInGroupId} value={group.bookingCheckInGroupId}>
+                                    Sân {group.courtNumber}, {time(group.startTime)} - {time(group.endTime)} · {viLabel(checkInStatusLabel, group.checkInStatus)}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+                          {missingCheckInGroup && (
+                            <p className="text-[11px] font-semibold text-[#8a5b0f]">
+                              Chọn sân / khung giờ hoặc quét đúng mã check-in trước khi thao tác.
+                            </p>
+                          )}
                           {selectedCheckInGroup && (
                             <p className="mb-3 text-[11px] font-semibold text-[#477313]">
                               Mã {selectedCheckInGroup.checkInCode}: Sân {selectedCheckInGroup.courtNumber}, {time(selectedCheckInGroup.startTime)} - {time(selectedCheckInGroup.endTime)}
@@ -688,10 +742,11 @@ export const StaffDashboard = () => {
                           )}
                           <button
                             className="staff-button"
-                            disabled={isBusy || !hasPermission('CheckIn') || !(selectedCheckInGroup?.codeVerifiedAt ?? selected.codeVerifiedAt) || !(selectedCheckInGroup?.isCheckInWindowOpen ?? selected.isCheckInWindowOpen) || selected.paymentStatus !== 'Paid' || (selectedCheckInGroup?.checkInStatus ?? selected.checkInStatus) === 'CheckedIn'}
-                            onClick={() => selectedCheckInGroup
-                              ? void runCheckInGroupAction(checkInStaffCheckInGroup, 'Da xac nhan nguoi choi vao san.')
-                              : void runAction(checkInStaffBooking, 'Da xac nhan nguoi choi vao san.')}
+                            disabled={isBusy || !hasPermission('CheckIn') || selected.bookingStatus !== 'Confirmed' || missingCheckInGroup || !currentCodeVerifiedAt || !currentCheckInWindowOpen || selected.paymentStatus !== 'Paid' || currentCheckInStatus !== 'Ready'}
+                            onClick={() => window.confirm('Xác nhận người chơi đã vào sân?')
+                              && (selectedCheckInGroup
+                                ? void runCheckInGroupAction(checkInStaffCheckInGroup, 'Đã xác nhận người chơi vào sân.')
+                                : void runAction(checkInStaffBooking, 'Đã xác nhận người chơi vào sân.'))}
                             type="button"
                           >
                             <UserCheck aria-hidden="true" className="h-4 w-4" />
@@ -699,11 +754,11 @@ export const StaffDashboard = () => {
                           </button>
                           <button
                             className="staff-button-danger"
-                            disabled={isBusy || !hasPermission('MarkNoShow') || !(selectedCheckInGroup?.canMarkNoShow ?? selected.canMarkNoShow) || (selectedCheckInGroup?.checkInStatus ?? selected.checkInStatus) === 'CheckedIn' || (selectedCheckInGroup?.checkInStatus ?? selected.checkInStatus) === 'NoShow'}
-                            onClick={() => window.confirm('Xac nhan nguoi choi khong den san?')
+                            disabled={isBusy || !hasPermission('MarkNoShow') || selected.bookingStatus !== 'Confirmed' || missingCheckInGroup || !currentCanMarkNoShow || currentCheckInStatus !== 'Ready'}
+                            onClick={() => window.confirm('Xác nhận người chơi không đến sân?')
                               && (selectedCheckInGroup
-                                ? void runCheckInGroupAction(markStaffCheckInGroupNoShow, 'Da danh dau vang mat.')
-                                : void runAction(markStaffBookingNoShow, 'Da danh dau vang mat.'))}
+                                ? void runCheckInGroupAction(markStaffCheckInGroupNoShow, 'Đã đánh dấu vắng mặt.')
+                                : void runAction(markStaffBookingNoShow, 'Đã đánh dấu vắng mặt.'))}
                             type="button"
                           >
                             <UserX aria-hidden="true" className="h-4 w-4" />
@@ -721,7 +776,7 @@ export const StaffDashboard = () => {
                       <h3 className="staff-detail-title">Tiến trình tại quầy</h3>
                       <div className="staff-progress">
                         {[
-                          { label: 'Xác minh mã', done: Boolean(selected.codeVerifiedAt), at: selected.codeVerifiedAt },
+                          { label: 'Xác minh mã', done: Boolean(currentCodeVerifiedAt), at: currentCodeVerifiedAt },
                           {
                             label: selected.bookingType === 'Match' ? 'Thanh toán cả nhóm' : 'Thanh toán tại sân',
                             done: selected.paymentMethod !== 'AtCourt' || selected.paymentStatus === 'Paid',
@@ -729,8 +784,8 @@ export const StaffDashboard = () => {
                           },
                           {
                             label: 'Xác nhận vào sân',
-                            done: selected.checkInStatus === 'CheckedIn',
-                            at: selected.checkedInAt,
+                            done: currentCheckInStatus === 'CheckedIn',
+                            at: selectedCheckInGroup?.checkedInAt ?? selected.checkedInAt,
                           },
                         ].map((step) => (
                           <div className="staff-progress__item" key={step.label}>

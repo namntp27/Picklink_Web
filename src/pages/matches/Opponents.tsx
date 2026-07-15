@@ -576,8 +576,8 @@ export const Opponents = () => {
       setError('Vui lòng nhập đủ nội dung và chọn ít nhất một cụm sân mong muốn.');
       return;
     }
-    if (!Number.isInteger(neededPlayers) || neededPlayers < 1) {
-      setError('Số người cần tìm phải là số nguyên từ 1 trở lên.');
+    if (!Number.isInteger(neededPlayers) || neededPlayers < 1 || neededPlayers > 8) {
+      setError('Số người cần tìm phải là số nguyên từ 1 đến 8.');
       return;
     }
     const hasMissingSlotTime = orderedAvailabilitySlots.some((slot) =>
@@ -891,6 +891,7 @@ export const Opponents = () => {
               <span className="mb-2 block text-[12px] font-extrabold text-[#526158]">Số người cần tìm</span>
               <input
                 className={inputClass}
+                max={8}
                 min={1}
                 onChange={(event) => setNeededPlayers(Number(event.target.value))}
                 step={1}

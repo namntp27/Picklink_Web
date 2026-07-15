@@ -89,11 +89,15 @@ export const apiRequest = async <T>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  } catch {
+    const timeoutSignal = AbortSignal.timeout(30_000);
+    const signal = options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal;
+    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal });
+  } catch (error) {
     throw new ApiError(
       0,
-      'Không thể kết nối tới máy chủ. Hãy kiểm tra backend đang chạy tại cổng 5209.',
+      error instanceof DOMException && error.name === 'TimeoutError'
+        ? 'Máy chủ phản hồi quá lâu. Hãy kiểm tra backend đang chạy tại cổng 5209.'
+        : 'Không thể kết nối tới máy chủ. Hãy kiểm tra backend đang chạy tại cổng 5209.',
     );
   }
 

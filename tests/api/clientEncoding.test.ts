@@ -40,3 +40,17 @@ test('apiRequest repairs mojibake strings in nested JSON responses', async () =>
   assert.equal(response.history[1].reason, 'sai tiền');
   assert.equal(response.history[1].amount, 120000);
 });
+test('apiRequest applies a shared timeout signal', async () => {
+  let requestSignal: AbortSignal | null | undefined;
+  global.fetch = (async (_input, init) => {
+    requestSignal = init?.signal;
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  await client.apiRequest('/api/example');
+
+  assert.ok(requestSignal instanceof AbortSignal);
+});
