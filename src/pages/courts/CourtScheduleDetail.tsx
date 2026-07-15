@@ -102,6 +102,7 @@ export const CourtScheduleDetail = () => {
 
   useScheduleRealtime((notification) => {
     if (notification.venueId !== venueId || notification.startTime.slice(0, 10) !== date) return;
+    if (isHolding && notification.entryType === 'Holding' && notification.action === 'Created') return;
     if (notification.action !== 'Deleted' && notificationTouchesSelection(notification)) {
       setSelectedSlotKeys((current) => current.filter((key) => !key.startsWith(`${notification.courtId}:`) || key.slice(notification.courtId.toString().length + 1) < notification.startTime.slice(11, 16) || key.slice(notification.courtId.toString().length + 1) >= notification.endTime.slice(11, 16)));
       setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');

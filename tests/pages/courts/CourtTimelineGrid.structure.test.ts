@@ -74,3 +74,7 @@ test('court schedule allows non-consecutive slots but one child court per time',
   assert.doesNotMatch(scheduleSource, /const consecutive = candidate\.every/);
   assert.match(scheduleSource, /current\.filter\(\(item\) => !item\.endsWith\(`:\$\{startTime\}`\)\)/);
 });
+
+test('court schedule ignores its own realtime holding event before checkout navigation', () => {
+  assert.match(scheduleSource, /isHolding && notification\.entryType === 'Holding' && notification\.action === 'Created'/);
+});
