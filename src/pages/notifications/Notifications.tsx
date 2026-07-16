@@ -305,13 +305,13 @@ export const Notifications = () => {
             {!isLoading && !error && (
               <AnimatePresence initial={false}>
                 {notifications.map((notification) => {
-                  const config = notificationTypeConfig[notification.type];
+                  const config = notificationTypeConfig[notification.type] ?? notificationTypeConfig.system;
                   const NotificationIcon = config.icon;
 
                   return (
                     <motion.article
                       animate={{ opacity: 1, y: 0 }}
-                      className={`border-b border-l-2 border-b-[#e0e9dc] transition-colors last:border-b-0 hover:bg-[#f4f9ef] ${toneClassNames[notification.tone]} ${
+                      className={`border-b border-l-2 border-b-[#e0e9dc] transition-colors last:border-b-0 hover:bg-[#f4f9ef] ${toneClassNames[notification.tone] ?? toneClassNames.default} ${
                         notification.isRead ? 'bg-white' : 'bg-[#fbfdf8]'
                       }`}
                       data-motion-managed
@@ -332,7 +332,7 @@ export const Notifications = () => {
                               <span aria-label="Chưa đọc" className="h-1.5 w-1.5 rounded-full bg-[#d69e00]" role="img" />
                             )}
                             <span className="rounded-md bg-[#edf5e9] px-1.5 py-0.5 text-[10px] font-bold text-[#53645b]">
-                              {typeLabels[notification.type]}
+                              {typeLabels[notification.type] ?? 'Khác'}
                             </span>
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#7a887e]">
                               <Clock aria-hidden="true" className="h-3 w-3" />

@@ -814,15 +814,6 @@
     align-items: start;
   }
 
-  .staff-list-scroll {
-    max-height: calc(100dvh - 345px);
-    min-height: 300px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-color: #bdccba transparent;
-    scrollbar-width: thin;
-  }
-
   .staff-detail-column {
     position: sticky;
     top: 74px;

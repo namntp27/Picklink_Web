@@ -2,9 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import {
   AnimatePresence,
   motion,
-  useMotionValueEvent,
   useReducedMotion,
-  useScroll,
 } from 'motion/react';
 import {
   Bell,
@@ -37,21 +35,23 @@ const utilityItems = [
 ];
 
 export const Header = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const { logout, token, user } = useAuth();
   const location = useLocation();
   const mobileMenuId = useId();
   const shouldReduceMotion = useReducedMotion();
-  const { scrollY } = useScroll();
   const dashboardPath = user ? getDefaultPathForRole(user.role) : '/';
   const dashboardLabel = user?.role === 'admin' ? 'Admin' : user?.role === 'owner' ? 'Chủ sân' : 'Nhân viên';
   const isPlayer = user?.role === 'player';
-
-  useMotionValueEvent(scrollY, 'change', (latest) => {
-    setIsScrolled(latest > 50);
-  });
+  const activeHeaderLinkClass = 'bg-[#e2ff57] text-[#102414] shadow-[0_10px_22px_rgba(226,255,87,0.18)]';
+  const passiveHeaderLinkClass = 'text-white/72 hover:-translate-y-px hover:bg-white/10 hover:text-white';
+  const headerSurfaceClass = 'border-[#143f34] bg-[#081d24]/98 shadow-[0_12px_30px_rgba(0,0,0,0.2)]';
+  const headerGroupClass = 'border-white/12 bg-white/[0.07]';
+  const logoLinkClass = 'hover:bg-white/10';
+  const brandNameClass = 'text-white';
+  const brandMetaClass = 'text-[#e2ff57]';
+  const quietActionClass = 'text-white/72 hover:-translate-y-px hover:bg-white/10 hover:text-white';
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -99,8 +99,8 @@ export const Header = () => {
 
     return `relative inline-flex h-9 items-center rounded-lg px-3 text-[13px] font-bold transition-[color,background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px ${
       isActive
-        ? 'bg-[#0b2228] text-white shadow-[0_10px_24px_rgba(8,29,36,0.16)]'
-        : 'text-[#53645a] hover:-translate-y-px hover:bg-[#eef8e6] hover:text-[#0b2228]'
+        ? activeHeaderLinkClass
+        : passiveHeaderLinkClass
     }`;
   };
 
@@ -109,8 +109,8 @@ export const Header = () => {
 
     return `relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-[color,background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px ${
       isActive
-        ? 'bg-[#0b2228] text-white shadow-[0_10px_22px_rgba(8,29,36,0.14)]'
-        : 'text-[#53645a] hover:-translate-y-px hover:bg-[#eef8e6] hover:text-[#0b2228]'
+        ? activeHeaderLinkClass
+        : passiveHeaderLinkClass
     }`;
   };
 
@@ -124,15 +124,13 @@ export const Header = () => {
 
   return (
     <header className={`fixed inset-x-0 top-0 z-50 h-16 border-b transition-[box-shadow,background-color,border-color] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] supports-[backdrop-filter]:backdrop-blur-xl ${
-      isScrolled
-        ? 'border-[#dbe8d3] bg-white/95 shadow-[0_14px_34px_rgba(8,29,36,0.08)]'
-        : 'border-white/40 bg-white/86 shadow-[0_1px_0_rgba(8,29,36,0.04)]'
+      headerSurfaceClass
     }`}>
       <div className="mx-auto flex h-full w-full max-w-[1180px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             aria-label="Picklink - Trang chủ"
-            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl pr-2 transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#eef8e6] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px"
+            className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-xl pr-2 transition-[background-color,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px ${logoLinkClass}`}
             to="/"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0b2228] shadow-[0_12px_24px_rgba(8,29,36,0.16)]">
@@ -141,14 +139,14 @@ export const Header = () => {
               </span>
             </span>
             <span className="hidden leading-none min-[420px]:block">
-              <span className="block text-[17px] font-extrabold tracking-[-0.03em] text-[#0b2228]">Picklink</span>
-              <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
+              <span className={`block text-[17px] font-extrabold tracking-[-0.03em] ${brandNameClass}`}>Picklink</span>
+              <span className={`mt-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] ${brandMetaClass}`}>
                 pickleball
               </span>
             </span>
           </Link>
 
-          <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 rounded-2xl border border-[#dbe8d3] bg-white/72 p-1 min-[1180px]:flex">
+          <nav aria-label="Điều hướng chính" className={`hidden items-center gap-1 rounded-2xl border p-1 min-[1180px]:flex ${headerGroupClass}`}>
             {navItems.map((item) => (
               <Link
                 aria-current={isActivePath(item.path) ? 'page' : undefined}
@@ -163,7 +161,7 @@ export const Header = () => {
         </div>
 
         <div className="hidden shrink-0 items-center gap-1 min-[1180px]:flex">
-          <div className="flex items-center gap-1 rounded-2xl border border-[#dbe8d3] bg-white/72 p-1">
+          <div className={`flex items-center gap-1 rounded-2xl border p-1 ${headerGroupClass}`}>
             {utilityItems.map((item) => {
               const Icon = item.icon;
 
@@ -215,7 +213,7 @@ export const Header = () => {
               )}
               <Button
                 aria-label="Đăng xuất"
-                className="h-10 gap-2 rounded-xl px-3 text-[#53645a] transition-[color,background-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px hover:bg-[#eef8e6] hover:text-[#0b2228] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px"
+                className={`h-10 gap-2 rounded-xl px-3 transition-[color,background-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px ${quietActionClass}`}
                 onClick={logout}
                 type="button"
                 variant="ghost"
@@ -227,7 +225,7 @@ export const Header = () => {
           ) : (
             <div className="flex items-center gap-1">
               <Link
-                className="inline-flex h-10 items-center rounded-xl px-4 text-[14px] font-bold text-[#53645a] transition-[color,background-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px hover:bg-[#eef8e6] hover:text-[#0b2228] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px"
+                className={`inline-flex h-10 items-center rounded-xl px-4 text-[14px] font-bold transition-[color,background-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px ${quietActionClass}`}
                 to="/login"
               >
                 Đăng nhập
@@ -261,7 +259,7 @@ export const Header = () => {
             aria-controls={mobileMenuId}
             aria-expanded={isMobileMenuOpen}
             aria-label={isMobileMenuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
-            className="h-11 w-11 rounded-xl border border-[#dbe8d3] bg-white p-0 text-[#0b2228] transition-[background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px hover:border-primary-container hover:bg-[#eef8e6] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px"
+            className="h-11 w-11 rounded-xl border border-white/12 bg-white/[0.08] p-0 text-white transition-[background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px hover:border-[#e2ff57]/50 hover:bg-white/[0.12] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px"
             onClick={() => setIsMobileMenuOpen((isOpen) => !isOpen)}
             size="icon"
             type="button"

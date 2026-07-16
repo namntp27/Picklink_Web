@@ -20,11 +20,17 @@ const localDate = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
+const maxScheduleDate = () => {
+  const now = new Date();
+  now.setMonth(now.getMonth() + 1);
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+};
 
 const validScheduleDate = (value: string | null) =>
-  value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localDate() ? value : localDate();
+  value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localDate() && value <= maxScheduleDate() ? value : localDate();
 
 const time = (value: string) => value.slice(11, 16);
+const slotKey = (courtId: number, startTime: string) => `${courtId}:${startTime}`;
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -48,8 +54,7 @@ export const CourtScheduleDetail = () => {
   const prefersReducedMotion = useReducedMotion();
   const [date, setDate] = useState(() => validScheduleDate(searchParams.get('date')));
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
-  const [selectedCourtId, setSelectedCourtId] = useState<number | null>(null);
-  const [selectedStarts, setSelectedStarts] = useState<string[]>([]);
+  const [selectedSlotKeys, setSelectedSlotKeys] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isHolding, setIsHolding] = useState(false);
   const [error, setError] = useState('');
@@ -69,8 +74,7 @@ export const CourtScheduleDetail = () => {
     try {
       setAvailability(await getCourtAvailability(venueId, date, token));
       if (resetSelection) {
-        setSelectedCourtId(null);
-        setSelectedStarts([]);
+        setSelectedSlotKeys([]);
       }
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
@@ -84,22 +88,23 @@ export const CourtScheduleDetail = () => {
   }, [venueId, date, token]);
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
-    if (!selectedCourtId || !selectedStarts.length) return false;
-    if (notification.venueId !== venueId || notification.courtId !== selectedCourtId || notification.startTime.slice(0, 10) !== date) return false;
+    if (!selectedSlotKeys.length) return false;
+    if (notification.venueId !== venueId || notification.startTime.slice(0, 10) !== date) return false;
 
     const changedStart = minuteOfDay(notification.startTime.slice(11, 16));
     const changedEnd = minuteOfDay(notification.endTime.slice(11, 16));
-    return selectedStarts.some((slotStart) => {
+    return selectedSlotKeys.some((selectedKey) => {
+      const [, slotStart] = selectedKey.split(':');
       const selectedStart = minuteOfDay(slotStart);
-      return selectedStart < changedEnd && selectedStart + 30 > changedStart;
+      return selectedKey.startsWith(`${notification.courtId}:`) && selectedStart < changedEnd && selectedStart + 30 > changedStart;
     });
   };
 
   useScheduleRealtime((notification) => {
     if (notification.venueId !== venueId || notification.startTime.slice(0, 10) !== date) return;
+    if (isHolding && notification.entryType === 'Holding' && notification.action === 'Created') return;
     if (notification.action !== 'Deleted' && notificationTouchesSelection(notification)) {
-      setSelectedCourtId(null);
-      setSelectedStarts([]);
+      setSelectedSlotKeys((current) => current.filter((key) => !key.startsWith(`${notification.courtId}:`) || key.slice(notification.courtId.toString().length + 1) < notification.startTime.slice(11, 16) || key.slice(notification.courtId.toString().length + 1) >= notification.endTime.slice(11, 16)));
       setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');
     }
     void load(false, false);
@@ -109,26 +114,30 @@ export const CourtScheduleDetail = () => {
     if (notification.venueId === venueId) void load(false, false);
   });
 
-  const selectedCourt = availability?.courts.find((court) => court.courtId === selectedCourtId);
   const selectedSlots = useMemo(
     () =>
       availability?.slots
-        .filter((slot) => slot.courtId === selectedCourtId && selectedStarts.includes(time(slot.startTime)))
-        .sort((first, second) => first.startTime.localeCompare(second.startTime)) ?? [],
-    [availability, selectedCourtId, selectedStarts],
+        .filter((slot) => selectedSlotKeys.includes(slotKey(slot.courtId, time(slot.startTime))))
+        .sort((first, second) => first.startTime.localeCompare(second.startTime) || first.courtId - second.courtId) ?? [],
+    [availability, selectedSlotKeys],
   );
+  const resumableHoldingBookingId = availability?.slots.find((slot) =>
+    slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId,
+  )?.bookingId;
   const durationHours = selectedSlots.length * 0.5;
-  const estimatedCourtAmount = (selectedCourt?.hourlyPrice ?? 0) * durationHours;
+  const estimatedCourtAmount = selectedSlots.reduce((total, slot) => {
+    const court = availability?.courts.find((item) => item.courtId === slot.courtId);
+    return total + (court?.hourlyPrice ?? 0) * 0.5;
+  }, 0);
 
   useEffect(() => {
-    if (!selectedStarts.length || isLoading) return;
-    const hasInvalidSelection = selectedSlots.length !== selectedStarts.length
+    if (!selectedSlotKeys.length || isLoading) return;
+    const hasInvalidSelection = selectedSlots.length !== selectedSlotKeys.length
       || selectedSlots.some((slot) => slot.status !== 'Available' || new Date(slot.startTime).getTime() <= Date.now());
     if (!hasInvalidSelection) return;
-    setSelectedCourtId(null);
-    setSelectedStarts([]);
+    setSelectedSlotKeys([]);
     setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');
-  }, [isLoading, selectedSlots, selectedStarts.length]);
+  }, [isLoading, selectedSlots, selectedSlotKeys.length]);
 
   const selectSlot = (slot: AvailabilitySlot) => {
     if (slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId) {
@@ -136,42 +145,34 @@ export const CourtScheduleDetail = () => {
       return;
     }
     if (slot.status !== 'Available' || new Date(slot.startTime).getTime() <= Date.now()) return;
-    const slotTime = time(slot.startTime);
-    if (selectedCourtId !== slot.courtId) {
-      setSelectedCourtId(slot.courtId);
-      setSelectedStarts([slotTime]);
-      setError('');
-      return;
-    }
-    if (selectedStarts.includes(slotTime)) {
-      const sorted = [...selectedStarts].sort();
-      setSelectedStarts(slotTime === sorted[0] || slotTime === sorted.at(-1) ? sorted.filter((item) => item !== slotTime) : [slotTime]);
-      return;
-    }
-    const candidate = [...selectedStarts, slotTime].sort();
-    const consecutive = candidate.every((item, index) => index === 0 || minuteOfDay(item) - minuteOfDay(candidate[index - 1]) === 30);
-    if (consecutive) {
-      setSelectedStarts(candidate);
-      setError('');
-    } else {
-      setSelectedStarts([slotTime]);
-      setError('Chỉ được chọn các slot liên tiếp. Hệ thống đã bắt đầu một lựa chọn mới.');
-    }
+    const key = slotKey(slot.courtId, time(slot.startTime));
+    const startTime = time(slot.startTime);
+    setSelectedSlotKeys((current) => current.includes(key)
+      ? current.filter((item) => item !== key)
+      : [...current.filter((item) => !item.endsWith(`:${startTime}`)), key].sort());
+    setError('');
   };
 
   const createHold = async () => {
+    if (resumableHoldingBookingId) {
+      navigate(`/checkout?bookingId=${resumableHoldingBookingId}&date=${encodeURIComponent(date)}`);
+      return;
+    }
     if (!token) {
       navigate('/login');
       return;
     }
-    if (!selectedCourtId || selectedStarts.length === 0) return;
+    if (selectedSlots.length === 0) return;
+    if (date > maxScheduleDate()) {
+      setError('Ch\u1ec9 \u0111\u01b0\u1ee3c \u0111\u1eb7t s\u00e2n trong v\u00f2ng 1 th\u00e1ng k\u1ec3 t\u1eeb h\u00f4m nay.');
+      return;
+    }
     setIsHolding(true);
     setError('');
     try {
       const booking = await createBookingHolding(token, {
-        courtId: selectedCourtId,
         date,
-        slotStarts: selectedStarts.map((item) => `${item}:00`),
+        slots: selectedSlots.map((slot) => ({ courtId: slot.courtId, startTime: `${time(slot.startTime)}:00` })),
       });
       navigate(`/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(date)}`, { state: { booking } });
     } catch (requestError) {
@@ -183,8 +184,9 @@ export const CourtScheduleDetail = () => {
   };
 
   const changeDate = (nextDate: string) => {
-    setDate(nextDate);
-    setSearchParams({ date: nextDate }, { replace: true });
+    const nextValidDate = validScheduleDate(nextDate);
+    setDate(nextValidDate);
+    setSearchParams({ date: nextValidDate }, { replace: true });
   };
 
   const totalMinutes = selectedSlots.length * 30;
@@ -216,6 +218,7 @@ export const CourtScheduleDetail = () => {
               className="h-9 rounded-md border-white/20 bg-white/18 text-[13px] font-bold text-white [color-scheme:dark]"
               icon={<CalendarDays className="h-4 w-4" />}
               min={localDate()}
+              max={maxScheduleDate()}
               onChange={(event) => changeDate(event.target.value)}
               type="date"
               value={date}
@@ -262,15 +265,14 @@ export const CourtScheduleDetail = () => {
               <CourtTimelineGrid
                 availability={availability}
                 onSelectSlot={selectSlot}
-                selectedCourtId={selectedCourtId}
-                selectedStarts={selectedStarts}
+                selectedSlotKeys={selectedSlotKeys}
               />
             </div>
           )}
         </section>
 
         <div className="bottomBookingBar sticky bottom-0 z-20 rounded-t-xl bg-[linear-gradient(135deg,#081d24_0%,#0f2e32_50%,#143f34_100%)] px-3 pb-3 pt-2 text-white shadow-[0_-14px_34px_rgba(8,29,36,0.18)]" data-layout={bottomBookingBar ? 'bottom-booking-bar' : undefined}>
-          <div className="mx-auto mb-3 h-5 w-10 text-center text-[18px] font-black leading-5 text-white/88">⌃</div>
+          <div className="mx-auto mb-3 h-5 w-10 text-center text-[18px] font-black leading-5 text-white/88">âŒƒ</div>
           <div className="mb-2 flex items-center justify-between gap-4 text-[16px] font-black sm:text-[18px]">
             <span>Tổng giờ: {durationLabel}</span>
             <span className="text-right">Tổng tiền: {currency.format(estimatedCourtAmount)}</span>
@@ -278,11 +280,11 @@ export const CourtScheduleDetail = () => {
           <Button
             aria-busy={isHolding}
             className="h-12 w-full rounded-md bg-[#e2ff57] text-[16px] font-black text-[#102414] shadow-none hover:bg-[#d6f64d] disabled:bg-[#aebd5a]"
-            disabled={!selectedSlots.length || isHolding}
+            disabled={(!selectedSlots.length && !resumableHoldingBookingId) || isHolding}
             onClick={() => void createHold()}
             type="button"
           >
-            {isHolding ? 'ĐANG GIỮ CHỖ...' : 'TIẾP THEO'}
+            {isHolding ? 'ĐANG GIỮ CHỖ...' : resumableHoldingBookingId ? 'TIẾP TỤC THANH TOÁN' : 'TIẾP THEO'}
           </Button>
         </div>
       </main>

@@ -56,7 +56,105 @@ const today = () => {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 const currentTime = () => new Date().toTimeString().slice(0, 5);
+const timeOptions = Array.from({ length: 48 }, (_, index) => {
+  const totalMinutes = index * 30;
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minutes = String(totalMinutes % 60).padStart(2, '0');
+  return `${hours}:${minutes}`;
+});
 
+const timeValuePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const isValidTimeValue = (value: string) => timeValuePattern.test(value);
+const normalizeTimeInput = (value: string) => {
+  const cleaned = value.replace(/[^\d:]/g, '').slice(0, 5);
+  if (/^\d{3,4}$/.test(cleaned)) return `${cleaned.slice(0, 2)}:${cleaned.slice(2)}`;
+  return cleaned;
+};
+
+type TimeDropdownInputProps = {
+  ariaLabel: string;
+  inputClass: string;
+  label: string;
+  minTime?: string;
+  onChange: (value: string) => void;
+  options: string[];
+  value: string;
+};
+
+const TimeDropdownInput = ({
+  ariaLabel,
+  inputClass,
+  label,
+  minTime,
+  onChange,
+  options,
+  value,
+}: TimeDropdownInputProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const visibleOptions = useMemo(
+    () => options.filter((time) => !minTime || time > minTime),
+    [minTime, options],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <label>
+        <span className="mb-1 block text-[11px] font-bold text-[#718077]">{label}</span>
+        <input
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label={ariaLabel}
+          className={`${inputClass} font-mono`}
+          inputMode="numeric"
+          maxLength={5}
+          onChange={(event) => onChange(normalizeTimeInput(event.target.value))}
+          onFocus={() => setIsOpen(true)}
+          onClick={() => setIsOpen(true)}
+          placeholder="HH:mm"
+          type="text"
+          value={value}
+        />
+      </label>
+      {isOpen && (
+        <div className="community-scroll absolute left-0 right-0 top-[calc(100%+4px)] z-[1300] max-h-[240px] overflow-y-auto rounded-[10px] border border-[#d8e4d4] bg-white shadow-[0_12px_28px_rgba(8,29,36,0.16)]" role="listbox">
+          {visibleOptions.map((time) => (
+            <button
+              aria-selected={time === value}
+              className={`flex h-10 w-full items-center px-3 font-mono text-[13px] font-bold transition-colors ${time === value ? 'bg-[#edf5e9] text-[#0b2228]' : 'text-[#526158] hover:bg-[#f4f8f2]'}`}
+              key={time}
+              onClick={() => {
+                onChange(time);
+                setIsOpen(false);
+              }}
+              onMouseDown={(event) => event.preventDefault()}
+              role="option"
+              type="button"
+            >
+              {time}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 const readCachedPlayerLocation = (): PlayerLocation | null => {
   try {
     const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
@@ -950,7 +1048,14 @@ export const Opponents = () => {
             <p className="mb-2 text-[13px] font-bold">Hình thức lời mời</p>
             <div className="grid grid-cols-2 gap-2">
               {(['1vs1', '2vs2'] as const).map((value) => (
-                <button className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`} key={value} onClick={() => changeFormat(value)} type="button">{value}</button>
+                <button
+                  className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`}
+                  key={value}
+                  onClick={() => changeFormat(value)}
+                  type="button"
+                >
+                  {value}
+                </button>
               ))}
             </div>
           </div>

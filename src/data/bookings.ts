@@ -19,6 +19,7 @@ export type BookingDetail = {
   date: string;
   startTime: string;
   endTime: string;
+  slots?: Array<{ courtId: number | string; courtNumber: number; startTime: string; endTime: string }>
   durationHours: number;
   pricePerHour: number;
   serviceFee: number;

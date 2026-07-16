@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { ApiError, apiRequest } from './client';
 
 export type SignatureResponse = {
   signature: string;
@@ -12,6 +12,10 @@ export const getUploadSignature = (token: string, parameters: Record<string, str
     method: 'POST',
     body: JSON.stringify({ parameters }),
   }, token);
+};
+
+type LocalUploadResponse = {
+  url: string;
 };
 
 const getResourceType = (file: File): string => {
@@ -29,9 +33,24 @@ export const uploadToCloudinary = async (
   const folder = 'picklink_clubs';
 
   // Request signature from backend
-  const sigData = await getUploadSignature(token, {
-    folder,
-  });
+  let sigData: SignatureResponse;
+  try {
+    sigData = await getUploadSignature(token, {
+      folder,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.message === 'Cloudinary is not configured on the server.') {
+      const formData = new FormData();
+      formData.append('image', file);
+      const localUpload = await apiRequest<LocalUploadResponse>('/api/upload/club-cover', {
+        method: 'POST',
+        body: formData,
+      }, token);
+      onProgress?.(100);
+      return { url: localUpload.url, publicId: 'local-club-cover' };
+    }
+    throw error;
+  }
 
   const formData = new FormData();
   formData.append('file', file);

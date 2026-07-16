@@ -294,7 +294,7 @@ export const BookCourt = () => {
       <main className="relative z-0 mx-auto grid w-full max-w-[1500px] gap-3 px-3 py-3 sm:px-4 lg:px-5">
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 overflow-hidden rounded-2xl border border-white/15 bg-[#081d24] p-3 text-white shadow-[0_18px_44px_rgba(8,29,36,0.22)] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_8%_0%,rgba(226,255,87,0.14),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_42%)]"
+          className="relative z-10 overflow-visible rounded-2xl border border-white/15 bg-[#081d24] p-3 text-white shadow-[0_18px_44px_rgba(8,29,36,0.22)] before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:bg-[radial-gradient(circle_at_8%_0%,rgba(226,255,87,0.14),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_42%)]"
           data-motion-managed
           initial={revealInitial}
           transition={{ duration: shouldReduceMotion ? 0.01 : 0.28, ease: [0.2, 0.8, 0.2, 1] }}
@@ -334,7 +334,7 @@ export const BookCourt = () => {
             </div>
           </div>
 
-          <div className="relative mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_132px_132px_auto]">
+          <div className="relative z-30 mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_132px_132px_auto]">
             <AdministrativeAreaSelects
               fieldClassName="min-w-0 flex items-center gap-2"
               labelClassName="shrink-0 text-[11px] font-bold text-white/70"

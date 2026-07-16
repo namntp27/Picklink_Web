@@ -39,6 +39,18 @@ export const submitBankTransfer = async (token: string, bookingId: number, recei
   }, token);
 };
 
+export const getPlayerBookingPayment = (token: string, bookingId: number) =>
+  apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}`, {}, token);
+
+export const submitBookingHoldingGroupTransfer = async (token: string, paymentGroupId: string, receipt: File) => {
+  const formData = new FormData();
+  formData.append('receipt', await optimizeReceiptImage(receipt));
+  return apiRequest<BatchPaymentResponse>(`/api/payments/payment-groups/${paymentGroupId}/submit`, {
+    method: 'POST',
+    body: formData,
+  }, token);
+};
+
 export const previewBatchPayment = (
   token: string,
   bookingId: number,

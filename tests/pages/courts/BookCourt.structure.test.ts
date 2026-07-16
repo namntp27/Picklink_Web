@@ -21,3 +21,9 @@ test('book court uses shared province and ward dropdowns for area filtering', ()
   assert.doesNotMatch(source, /placeholder="Khu v/);
   assert.doesNotMatch(source, /labelClassName=\"sr-only\"/);
 });
+
+test('book court filter hero allows province and ward menus to escape the card', () => {
+  assert.match(source, /className="relative z-10 overflow-visible rounded-2xl/);
+  assert.match(source, /<div className="relative z-30 mt-2 grid gap-2/);
+  assert.doesNotMatch(source, /className="relative z-10 overflow-hidden rounded-2xl border border-white\/15 bg-\[#081d24\]/);
+});

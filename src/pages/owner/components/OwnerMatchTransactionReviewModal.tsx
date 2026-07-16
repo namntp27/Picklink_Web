@@ -114,8 +114,11 @@ export const OwnerMatchTransactionReviewModal = ({
     setBusyId(payment.paymentId);
     setError('');
     try {
-      await approveOperatorPayment(token, payment.paymentId);
-      await Promise.all([load(true), onUpdated()]);
+      const updated = await approveOperatorPayment(token, payment.paymentId);
+      setPayments((current) => current.map((item) => item.paymentId === updated.paymentId || (
+        updated.paymentGroupId && item.paymentGroupId === updated.paymentGroupId
+      ) ? { ...item, paymentStatus: updated.paymentStatus, verifiedAt: updated.verifiedAt } : item));
+      void onUpdated();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.');
     } finally {
@@ -129,9 +132,12 @@ export const OwnerMatchTransactionReviewModal = ({
     setBusyId(payment.paymentId);
     setError('');
     try {
-      await rejectOperatorPayment(token, payment.paymentId, reason);
+      const updated = await rejectOperatorPayment(token, payment.paymentId, reason);
       setRejectReasons((current) => ({ ...current, [payment.paymentId]: '' }));
-      await Promise.all([load(true), onUpdated()]);
+      setPayments((current) => current.map((item) => item.paymentId === updated.paymentId || (
+        updated.paymentGroupId && item.paymentGroupId === updated.paymentGroupId
+      ) ? { ...item, paymentStatus: updated.paymentStatus, rejectionReason: updated.rejectionReason } : item));
+      void onUpdated();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.');
     } finally {

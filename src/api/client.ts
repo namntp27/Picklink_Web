@@ -1,3 +1,5 @@
+import { repairMojibake } from '../utils/textEncoding';
+
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? '';
 
 export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, '');
@@ -20,6 +22,17 @@ type ApiErrorBody = {
   errors?: Record<string, string[]>;
   message?: string;
   title?: string;
+};
+
+const repairResponseText = (value: unknown): unknown => {
+  if (typeof value === 'string') return repairMojibake(value);
+  if (Array.isArray(value)) return value.map(repairResponseText);
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, entry]) => [key, repairResponseText(entry)]),
+  );
 };
 
 export class ApiError extends Error {
@@ -76,17 +89,21 @@ export const apiRequest = async <T>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  } catch {
+    const timeoutSignal = AbortSignal.timeout(30_000);
+    const signal = options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal;
+    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal });
+  } catch (error) {
     throw new ApiError(
       0,
-      'Không thể kết nối tới máy chủ. Hãy kiểm tra backend đang chạy tại cổng 5209.',
+      error instanceof DOMException && error.name === 'TimeoutError'
+        ? 'Máy chủ phản hồi quá lâu. Hãy kiểm tra backend đang chạy tại cổng 5209.'
+        : 'Không thể kết nối tới máy chủ. Hãy kiểm tra backend đang chạy tại cổng 5209.',
     );
   }
 
   const contentType = response.headers.get('content-type') ?? '';
   const body = contentType.includes('json')
-    ? await response.json() as T | ApiErrorBody
+    ? repairResponseText(await response.json()) as T | ApiErrorBody
     : undefined;
 
   if (!response.ok) {

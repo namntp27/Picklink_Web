@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -6,15 +6,18 @@ import {
   Building2,
   ChevronDown,
   Globe2,
+  ImagePlus,
   Loader2,
   MapPin,
   Plus,
   ShieldCheck,
   Sparkles,
+  UploadCloud,
   Users,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { createGroup } from '../../api/community';
+import { uploadToCloudinary } from '../../api/cloudinary';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import './club-pages.css';
 
@@ -27,6 +30,40 @@ export const CreateClub = () => {
   const [error, setError] = useState<string | null>(null);
   const [province, setProvince] = useState('');
   const [ward, setWard] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreviewUrl(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(coverFile);
+    setCoverPreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [coverFile]);
+
+  const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setUploadProgress(null);
+
+    if (!file) {
+      setCoverFile(null);
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      event.target.value = '';
+      setCoverFile(null);
+      setError('Vui lòng chọn tệp ảnh cho nền câu lạc bộ.');
+      return;
+    }
+
+    setError(null);
+    setCoverFile(file);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,10 +84,14 @@ export const CreateClub = () => {
     setError(null);
 
     try {
+      const uploadedCover = coverFile
+        ? await uploadToCloudinary(token, coverFile, setUploadProgress)
+        : null;
       const group = await createGroup(token, {
         groupName,
         description,
         groupType,
+        coverImageUrl: uploadedCover?.url,
         activeLocation,
       });
       navigate(`/clubs/${group.groupId}/dashboard`);
@@ -180,6 +221,49 @@ export const CreateClub = () => {
                 />
               </div>
 
+              <div className="grid gap-2 md:col-span-2">
+                <span className="text-[12px] font-bold text-[#53645b]">Ảnh nền CLB</span>
+                <label
+                  className="group grid cursor-pointer overflow-hidden rounded-xl border border-dashed border-[#b7c9b0] bg-[#f8fbf4] transition hover:border-[#8fbf3d] md:grid-cols-[220px_minmax(0,1fr)]"
+                  htmlFor="club-cover-image"
+                >
+                  <span className="relative block h-36 bg-[#dfeadc] md:h-full">
+                    {coverPreviewUrl ? (
+                      <img alt="Ảnh nền CLB xem trước" className="h-full w-full object-cover" src={coverPreviewUrl} />
+                    ) : (
+                      <span className="flex h-full min-h-36 items-center justify-center text-[#477313]">
+                        <ImagePlus aria-hidden="true" className="h-8 w-8" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex min-h-36 flex-col justify-center gap-2 px-4 py-3">
+                    <span className="inline-flex items-center gap-2 text-[13px] font-bold text-[#0b2228]">
+                      <UploadCloud aria-hidden="true" className="h-4 w-4 text-[#477313]" />
+                      Chọn ảnh từ máy
+                    </span>
+                    <span className="text-[12px] leading-5 text-[#64736a]">
+                      Dùng JPG, PNG hoặc WEBP để làm ảnh đại diện trên danh sách và trang CLB.
+                    </span>
+                    {coverFile && (
+                      <span className="truncate text-[11px] font-semibold text-[#477313]">
+                        {coverFile.name}
+                      </span>
+                    )}
+                    {uploadProgress !== null && submitting && (
+                      <span className="text-[11px] font-bold text-[#477313]">Đang tải ảnh {uploadProgress}%</span>
+                    )}
+                  </span>
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={submitting}
+                    id="club-cover-image"
+                    onChange={handleCoverFileChange}
+                    type="file"
+                  />
+                </label>
+              </div>
+
               <label className="grid gap-1.5 md:col-span-2" htmlFor="description">
                 <span className="flex items-center justify-between gap-3 text-[12px] font-bold text-[#53645b]">
                   Giới thiệu CLB
@@ -203,7 +287,7 @@ export const CreateClub = () => {
               </button>
               <button className="picklink-glow-control inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-5 text-[13px] font-bold text-[#102414] shadow-[0_10px_24px_rgba(152,217,81,0.2)] hover:bg-[#d6f64d] disabled:cursor-not-allowed disabled:opacity-60" disabled={submitting} type="submit">
                 {submitting ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Plus aria-hidden="true" className="h-4 w-4" />}
-                {submitting ? 'Đang tạo...' : 'Tạo câu lạc bộ'}
+                {submitting && uploadProgress !== null ? 'Đang tải ảnh...' : submitting ? 'Đang tạo...' : 'Tạo câu lạc bộ'}
               </button>
             </div>
           </div>
