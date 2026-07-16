@@ -1,5 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   administrativeNamesEqual,
   listProvinces,
@@ -20,119 +19,53 @@ type AdministrativeAreaSelectsProps = {
   disabled?: boolean;
 };
 
-type AdministrativeOption = {
-  code: string;
-  name: string;
-};
+type AdministrativeOption = { code: string; name: string };
 
-type AdministrativeDropdownProps = {
-  label: string;
-  placeholder: string;
-  options: AdministrativeOption[];
-  selectedCode?: string;
-  disabled?: boolean;
-  fieldClassName: string;
-  labelClassName: string;
-  selectClassName: string;
-  onSelect: (code: string | null) => void;
-};
-
-const AdministrativeDropdown = ({
-  label,
-  placeholder,
-  options,
-  selectedCode,
-  disabled = false,
+const AdministrativeSelect = ({
+  disabled,
+  error,
   fieldClassName,
+  label,
   labelClassName,
-  selectClassName,
+  onRetry,
   onSelect,
-}: AdministrativeDropdownProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const labelId = useId();
-  const listboxId = useId();
-  const selectedOption = options.find((item) => item.code === selectedCode) ?? null;
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
-    };
-
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (disabled) setIsOpen(false);
-  }, [disabled]);
-
-  const choose = (code: string | null) => {
-    onSelect(code);
-    setIsOpen(false);
-  };
-
-  return (
-    <div className={`${fieldClassName} relative`} ref={rootRef}>
-      <span className={labelClassName} id={labelId}>{label}</span>
-      <div className="relative min-w-0 flex-1 w-full">
-        <button
-          aria-controls={isOpen ? listboxId : undefined}
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-label={label}
-          className={`${selectClassName} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60`}
-          disabled={disabled}
-          onClick={() => setIsOpen((current) => !current)}
-          type="button"
-        >
-          <span className="min-w-0 truncate">{selectedOption?.name ?? placeholder}</span>
-          <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {isOpen && (
-          <div
-            aria-labelledby={labelId}
-            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-[248px] overflow-y-auto rounded-xl border border-[#d8e4d4] bg-white py-1 shadow-[0_14px_30px_rgba(8,29,36,0.16)]"
-            id={listboxId}
-            role="listbox"
-          >
-            <button
-              aria-selected={!selectedCode}
-              className="block min-h-10 w-full px-3 py-2 text-left text-[13px] font-semibold text-[#718077] hover:bg-[#edf5e9]"
-              onClick={() => choose(null)}
-              role="option"
-              type="button"
-            >
-              {placeholder}
-            </button>
-            {options.map((item) => (
-              <button
-                aria-selected={item.code === selectedCode}
-                className={`block min-h-10 w-full px-3 py-2 text-left text-[13px] font-semibold hover:bg-[#edf5e9] ${item.code === selectedCode ? 'bg-[#edf5e9] text-[#0b2228]' : 'text-[#26342d]'}`}
-                key={item.code}
-                onClick={() => choose(item.code)}
-                role="option"
-                type="button"
-              >
-                {item.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+  options,
+  placeholder,
+  selectClassName,
+  selectedCode,
+}: {
+  disabled: boolean;
+  error: string;
+  fieldClassName: string;
+  label: string;
+  labelClassName: string;
+  onRetry: () => void;
+  onSelect: (code: string | null) => void;
+  options: AdministrativeOption[];
+  placeholder: string;
+  selectClassName: string;
+  selectedCode?: string;
+}) => (
+  <label className={fieldClassName}>
+    <span className={labelClassName}>{label}</span>
+    <select
+      aria-label={label}
+      className={[selectClassName, 'disabled:cursor-not-allowed disabled:opacity-60'].filter(Boolean).join(' ')}
+      disabled={disabled}
+      onChange={(event) => onSelect(event.target.value || null)}
+      value={selectedCode ?? ''}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+    </select>
+    {error && (
+      <span className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-error" role="alert">
+        {error}
+        <button className="underline" onClick={onRetry} type="button">Thử lại</button>
+      </span>
+    )}
+  </label>
+);
 
 export const AdministrativeAreaSelects = ({
   province,
@@ -149,6 +82,10 @@ export const AdministrativeAreaSelects = ({
   const [wards, setWards] = useState<WardOption[]>([]);
   const [isLoadingProvinces, setIsLoadingProvinces] = useState(false);
   const [isLoadingWards, setIsLoadingWards] = useState(false);
+  const [provinceError, setProvinceError] = useState('');
+  const [wardError, setWardError] = useState('');
+  const [provinceRetry, setProvinceRetry] = useState(0);
+  const [wardRetry, setWardRetry] = useState(0);
 
   const selectedProvince = useMemo(
     () => provinces.find((item) => province && (
@@ -165,61 +102,55 @@ export const AdministrativeAreaSelects = ({
     [ward, wards],
   );
   const selectedProvinceCode = selectedProvince?.code;
-  const provincePlaceholder = isLoadingProvinces ? 'Đang tải...' : 'Tỉnh/thành';
-  const wardPlaceholder = isLoadingWards ? 'Đang tải...' : 'Xã/phường';
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
     setIsLoadingProvinces(true);
-
-    listProvinces()
-      .then((items) => {
-        if (isMounted) setProvinces(items);
-      })
+    setProvinceError('');
+    listProvinces(controller.signal)
+      .then(setProvinces)
       .catch(() => {
-        if (isMounted) setProvinces([]);
+        if (!controller.signal.aborted) {
+          setProvinces([]);
+          setProvinceError('Không thể tải tỉnh/thành.');
+        }
       })
       .finally(() => {
-        if (isMounted) setIsLoadingProvinces(false);
+        if (!controller.signal.aborted) setIsLoadingProvinces(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [provinceRetry]);
 
   useEffect(() => {
+    setWards([]);
+    setWardError('');
     if (!selectedProvinceCode) {
-      setWards([]);
-      return;
+      setIsLoadingWards(false);
+      return undefined;
     }
 
-    let isMounted = true;
+    const controller = new AbortController();
     setIsLoadingWards(true);
-
-    listWards(selectedProvinceCode)
-      .then((items) => {
-        if (isMounted) setWards(items);
-      })
+    listWards(selectedProvinceCode, controller.signal)
+      .then(setWards)
       .catch(() => {
-        if (isMounted) setWards([]);
+        if (!controller.signal.aborted) setWardError('Không thể tải xã/phường.');
       })
       .finally(() => {
-        if (isMounted) setIsLoadingWards(false);
+        if (!controller.signal.aborted) setIsLoadingWards(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedProvinceCode]);
+    return () => controller.abort();
+  }, [selectedProvinceCode, wardRetry]);
 
   return (
     <>
-      <AdministrativeDropdown
+      <AdministrativeSelect
         disabled={disabled || isLoadingProvinces}
+        error={provinceError}
         fieldClassName={fieldClassName}
         label="Tỉnh hoặc thành phố"
         labelClassName={labelClassName}
+        onRetry={() => setProvinceRetry((value) => value + 1)}
         onSelect={(code) => {
           const nextProvince = provinces.find((item) => item.code === code);
           const nextProvinceName = nextProvince?.name ?? null;
@@ -230,15 +161,17 @@ export const AdministrativeAreaSelects = ({
           }
         }}
         options={provinces}
-        placeholder={provincePlaceholder}
+        placeholder={isLoadingProvinces ? 'Đang tải...' : 'Tỉnh/thành'}
         selectClassName={selectClassName}
         selectedCode={selectedProvince?.code}
       />
-      <AdministrativeDropdown
+      <AdministrativeSelect
         disabled={disabled || !selectedProvince || isLoadingWards || wards.length === 0}
+        error={wardError}
         fieldClassName={fieldClassName}
         label="Xã hoặc phường"
         labelClassName={labelClassName}
+        onRetry={() => setWardRetry((value) => value + 1)}
         onSelect={(code) => {
           const nextWard = wards.find((item) => item.code === code);
           const nextWardName = nextWard?.name ?? null;
@@ -246,7 +179,7 @@ export const AdministrativeAreaSelects = ({
           else onWardChange?.(nextWardName);
         }}
         options={wards}
-        placeholder={wardPlaceholder}
+        placeholder={isLoadingWards ? 'Đang tải...' : 'Xã/phường'}
         selectClassName={selectClassName}
         selectedCode={selectedWard?.code}
       />

@@ -19,8 +19,10 @@ test('administrative area selects load options and emit area changes atomically'
     /onAreaChange\(selectedProvince\?\.name \?\? null, nextWardName\)/,
   );
   assert.match(componentSource, /aria-label=\{label\}/);
-  assert.match(componentSource, /aria-expanded=\{isOpen\}/);
-  assert.match(componentSource, /role="listbox"/);
+  assert.match(componentSource, /<select/);
+  assert.match(componentSource, /role="alert"/);
+  assert.match(componentSource, /Thử lại/);
+  assert.doesNotMatch(componentSource, /role="listbox"/);
   assert.match(componentSource, /isLoadingProvinces/);
   assert.match(componentSource, /isLoadingWards/);
   assert.doesNotMatch(componentSource, /administrativeAreas\.map/);

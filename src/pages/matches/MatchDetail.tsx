@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -51,8 +51,12 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
-import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
+
+const MatchVenueMapDialog = lazy(async () => {
+  const module = await import('./components/MatchVenueMapDialog');
+  return { default: module.MatchVenueMapDialog };
+});
 
 const statusLabels: Record<MatchDetailResponse['status'], string> = {
   Recruiting: 'Đang tìm người',
@@ -661,7 +665,7 @@ export const MatchDetail = () => {
                       type="button"
                     >
                       {participant.avatarUrl
-                        ? <img alt="" className="h-full w-full object-cover" src={participant.avatarUrl} />
+                        ? <img alt="" className="h-full w-full object-cover" decoding="async" loading="lazy" src={participant.avatarUrl} />
                         : participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}
                     </button>
                     <div className="min-w-0 flex-1">
@@ -960,11 +964,13 @@ export const MatchDetail = () => {
       </main>
 
       {showVenueMap && (
-        <MatchVenueMapDialog
-          matchTitle={match.title}
-          onClose={() => setShowVenueMap(false)}
-          venues={match.preferredVenues}
-        />
+        <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
+          <MatchVenueMapDialog
+            matchTitle={match.title}
+            onClose={() => setShowVenueMap(false)}
+            venues={match.preferredVenues}
+          />
+        </Suspense>
       )}
 
       {selectedProfilePlayer && (

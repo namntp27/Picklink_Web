@@ -1,5 +1,5 @@
 import React, { Suspense, type ComponentType } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Navigate, Routes, Route, useLocation, useParams } from 'react-router-dom';
 import { ProtectedRoute, PublicOnlyRoute } from './auth/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
 import { ToastProvider } from './components/ui/ToastRegion';
@@ -23,18 +23,14 @@ const BookingSuccess = lazyPage(() => import('./pages/bookings/BookingSuccess'),
 const MyBookings = lazyPage(() => import('./pages/bookings/MyBookings'), 'MyBookings');
 const ClubDashboard = lazyPage(() => import('./pages/clubs/ClubDashboard'), 'ClubDashboard');
 const ClubDetail = lazyPage(() => import('./pages/clubs/ClubDetail'), 'ClubDetail');
-const ClubMembers = lazyPage(() => import('./pages/clubs/ClubMembers'), 'ClubMembers');
 const Clubs = lazyPage(() => import('./pages/clubs/Clubs'), 'Clubs');
 const CreateClub = lazyPage(() => import('./pages/clubs/CreateClub'), 'CreateClub');
 const CreatePost = lazyPage(() => import('./pages/community/CreatePost'), 'CreatePost');
 const ClubPosts = lazyPage(() => import('./pages/community/PostCollections'), 'ClubPosts');
-const SavedPosts = lazyPage(() => import('./pages/community/PostCollections'), 'SavedPosts');
-const TrendingPosts = lazyPage(() => import('./pages/community/PostCollections'), 'TrendingPosts');
 const PostDetail = lazyPage(() => import('./pages/community/PostDetail'), 'PostDetail');
 const Posts = lazyPage(() => import('./pages/community/Posts'), 'Posts');
 const BookCourt = lazyPage(() => import('./pages/courts/BookCourt'), 'BookCourt');
 const Checkout = lazyPage(() => import('./pages/courts/Checkout'), 'Checkout');
-const CourtDetail = lazyPage(() => import('./pages/courts/CourtDetail'), 'CourtDetail');
 const CourtScheduleDetail = lazyPage(() => import('./pages/courts/CourtScheduleDetail'), 'CourtScheduleDetail');
 const Home = lazyPage(() => import('./pages/home/Home'), 'Home');
 const MatchDetail = lazyPage(() => import('./pages/matches/MatchDetail'), 'MatchDetail');
@@ -68,7 +64,14 @@ const OwnerStaff = lazyPage(() => import('./pages/owner/OwnerStaff'), 'OwnerStaf
 const OwnerVenueDetail = lazyPage(() => import('./pages/owner/OwnerVenueDetail'), 'OwnerVenueDetail');
 const StaffDashboard = lazyPage(() => import('./pages/staff/StaffDashboard'), 'StaffDashboard');
 
-const RouteFallback = () => <div aria-label="Dang tai" className="min-h-dvh bg-background" />;
+const RouteFallback = () => (
+  <div aria-label="Đang tải nội dung" className="min-h-dvh bg-background" role="status" />
+);
+
+const LegacyCourtDetailRedirect = () => {
+  const { id } = useParams();
+  return <Navigate replace to={id ? '/court/' + id + '/schedule' : '/book-court'} />;
+};
 
 function App() {
   const { pathname } = useLocation();
@@ -102,11 +105,8 @@ function App() {
               <Route path="clubs" element={<Clubs />} />
               <Route path="listclubs" element={<Clubs />} />
               <Route path="posts" element={<Posts />} />
-              <Route path="posts/trending" element={<TrendingPosts />} />
-              <Route path="posts/saved" element={<SavedPosts />} />
               <Route path="posts/clubs" element={<ClubPosts />} />
               <Route path="posts/:id" element={<PostDetail />} />
-              <Route path="clubs/:id/members" element={<ClubMembers />} />
               <Route path="clubs/:id" element={<ClubDetail />} />
               <Route element={<ProtectedRoute allowedRoles={['player']} />}>
                 <Route path="opponents" element={<PendingInvites />} />
@@ -167,7 +167,7 @@ function App() {
               <Route path="/bookings/:id" element={<BookingDetail />} />
             </Route>
             <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
-            <Route path="/court/:id" element={<CourtDetail />} />
+            <Route path="/court/:id" element={<LegacyCourtDetailRedirect />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

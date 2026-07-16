@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   CalendarRange,
@@ -26,9 +26,13 @@ import { formatQueueSlots } from '../../utils/queueSlotFormatter';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
-import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+
+const MatchVenueMapDialog = lazy(async () => {
+  const module = await import('./components/MatchVenueMapDialog');
+  return { default: module.MatchVenueMapDialog };
+});
 
 type Filters = {
   owner: 'mine' | 'other';
@@ -254,7 +258,7 @@ export const PendingInvites = () => {
       />
 
       <main className="community-container space-y-5">
-        <section className="community-panel sticky top-[72px] z-20 p-4">
+        <section className="community-panel p-4 lg:sticky lg:top-[72px] lg:z-20">
           <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-[#0b2228]">
@@ -272,6 +276,7 @@ export const PendingInvites = () => {
             <div className="flex gap-2 items-center flex-wrap">
               <div className="flex gap-1 bg-[#edf2ea] p-1 rounded-lg shrink-0">
                 <button
+                  aria-pressed={activeTab === 'manual'}
                   type="button"
                   onClick={() => {
                     setActiveTab('manual');
@@ -284,6 +289,7 @@ export const PendingInvites = () => {
                   Lời mời giao lưu
                 </button>
                 <button
+                  aria-pressed={activeTab === 'queue'}
                   type="button"
                   onClick={() => {
                     setActiveTab('queue');
@@ -310,7 +316,7 @@ export const PendingInvites = () => {
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <select className="community-control" onChange={(event) => update('owner', event.target.value)} value={filters.owner}>
+            <select aria-label="Người tạo lời mời" className="community-control" onChange={(event) => update('owner', event.target.value)} value={filters.owner}>
               <option value="other">Của người khác</option>
               <option value="mine">Của tôi</option>
             </select>
@@ -327,12 +333,12 @@ export const PendingInvites = () => {
               ward={filters.ward}
             />
             <input aria-label="Ngày có thể chơi" className="community-control" onChange={(event) => update('date', event.target.value)} type="date" value={filters.date} />
-            <select className="community-control" onChange={(event) => update('format', event.target.value)} value={filters.format}>
+            <select aria-label="Hình thức thi đấu" className="community-control" onChange={(event) => update('format', event.target.value)} value={filters.format}>
               <option value="all">Mọi hình thức</option>
               <option value="1vs1">1vs1</option>
               <option value="2vs2">2vs2</option>
             </select>
-            <select className="community-control" onChange={(event) => update('skill', event.target.value)} value={filters.skill}>
+            <select aria-label="Trình độ" className="community-control" onChange={(event) => update('skill', event.target.value)} value={filters.skill}>
               <option value="all">Mọi trình độ</option>
               {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}
             </select>
@@ -373,6 +379,8 @@ export const PendingInvites = () => {
                             <img
                               alt={`Ảnh đại diện của ${match.hostName}`}
                               className="h-full w-full object-cover"
+                              decoding="async"
+                              loading="lazy"
                               src={match.hostAvatarUrl}
                             />
                           ) : (
@@ -500,6 +508,8 @@ export const PendingInvites = () => {
                                 <img
                                   alt=""
                                   className="h-full w-full object-cover"
+                                  decoding="async"
+                                  loading="lazy"
                                   src={host.avatarUrl}
                                 />
                               ) : (
@@ -623,11 +633,13 @@ export const PendingInvites = () => {
       )}
 
       {mappedMatch && (
-        <MatchVenueMapDialog
-          matchTitle={mappedMatch.title}
-          onClose={() => setMappedMatch(null)}
-          venues={mappedMatch.preferredVenues}
-        />
+        <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
+          <MatchVenueMapDialog
+            matchTitle={mappedMatch.title}
+            onClose={() => setMappedMatch(null)}
+            venues={mappedMatch.preferredVenues}
+          />
+        </Suspense>
       )}
     </CommunityPage>
   );

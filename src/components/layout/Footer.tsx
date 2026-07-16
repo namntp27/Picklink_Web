@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Facebook, Mail, MapPin, Phone } from 'lucide-react';
+import { ArrowRight, Mail } from 'lucide-react';
 
 const footerGroups = [
   {
@@ -20,17 +20,13 @@ const footerGroups = [
   {
     title: 'Hỗ trợ',
     links: [
-      { label: 'Liên hệ', href: '#footer-contact' },
-      { label: 'Chính sách bảo mật', href: '#' },
-      { label: 'Điều khoản dịch vụ', href: '#' },
+      { label: 'Liên hệ', href: 'mailto:contact@picklink.vn' },
     ],
   },
 ];
 
 const contactItems = [
-  { label: 'Duy Tân, Cầu Giấy, Hà Nội', icon: MapPin },
-  { label: '+84 123 456 789', icon: Phone },
-  { label: 'contact@picklink.vn', icon: Mail },
+  { label: 'contact@picklink.vn', href: 'mailto:contact@picklink.vn', icon: Mail },
 ];
 
 export const Footer = () => {
@@ -99,18 +95,9 @@ export const Footer = () => {
               </span>
             </Link>
             <p className="mt-5 max-w-[45ch] text-[15px] leading-7 text-white/70">
-              Một nơi gọn gàng để tìm sân, ghép hội, theo dõi giải và giữ nhịp chơi đều hơn mỗi tuần.
+              Một nơi gọn gàng để tìm sân, ghép hội, theo dõi lịch chơi và giữ nhịp đều hơn mỗi tuần.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <motion.a
-                aria-label="Facebook"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/14 bg-white/[0.06] text-white/76 transition-[color,background-color,border-color] duration-200 hover:border-[#e2ff57]/60 hover:bg-[#e2ff57]/12 hover:text-[#e2ff57] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/80"
-                href="#"
-                whileHover={shouldReduceMotion ? undefined : { y: -1 }}
-                whileTap={shouldReduceMotion ? undefined : { y: 1, scale: 0.99 }}
-              >
-                <Facebook aria-hidden="true" className="h-5 w-5" />
-              </motion.a>
               <motion.a
                 aria-label="Email"
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/14 bg-white/[0.06] text-white/76 transition-[color,background-color,border-color] duration-200 hover:border-[#e2ff57]/60 hover:bg-[#e2ff57]/12 hover:text-[#e2ff57] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/80"
@@ -173,11 +160,16 @@ export const Footer = () => {
                 const Icon = item.icon;
 
                 return (
-                  <li className="flex min-w-0 items-start gap-3" key={item.label}>
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e2ff57]/12 text-[#e2ff57]">
-                      <Icon aria-hidden="true" className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 pt-1.5">{item.label}</span>
+                  <li key={item.label}>
+                    <a
+                      className="flex min-w-0 items-start gap-3 rounded-xl transition-colors hover:text-white focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/80"
+                      href={item.href}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e2ff57]/12 text-[#e2ff57]">
+                        <Icon aria-hidden="true" className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0 pt-1.5">{item.label}</span>
+                    </a>
                   </li>
                 );
               })}

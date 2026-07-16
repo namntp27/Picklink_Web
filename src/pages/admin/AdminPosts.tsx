@@ -1,3 +1,3 @@
-import { AdminDataPage } from './components/AdminDataPage';
+import { AdminUnavailable } from './components/AdminUnavailable';
 
-export const AdminPosts = () => <AdminDataPage sectionId="posts" />;
+export const AdminPosts = () => <AdminUnavailable activeId="posts" title="Quản lý bài viết" />;

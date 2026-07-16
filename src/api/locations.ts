@@ -13,6 +13,9 @@ export type WardOption = {
   fullName: string;
 };
 
+let provinceCache: ProvinceOption[] | null = null;
+const wardCache = new Map<string, WardOption[]>();
+
 const normalizeAdministrativeName = (value: string) => value
   .normalize('NFD')
   .replace(/\p{M}/gu, '')
@@ -25,14 +28,23 @@ const normalizeAdministrativeName = (value: string) => value
 export const administrativeNamesEqual = (left: string, right: string) =>
   normalizeAdministrativeName(left) === normalizeAdministrativeName(right);
 
-export const listProvinces = (signal?: AbortSignal) =>
-  apiRequest<ProvinceOption[]>('/api/locations/provinces', signal ? { signal } : {});
+export const listProvinces = async (signal?: AbortSignal) => {
+  if (provinceCache) return provinceCache;
+  const provinces = await apiRequest<ProvinceOption[]>('/api/locations/provinces', signal ? { signal } : {});
+  provinceCache = provinces;
+  return provinces;
+};
 
-export const listWards = (provinceCode: string, signal?: AbortSignal) =>
-  apiRequest<WardOption[]>(
-    `/api/locations/provinces/${encodeURIComponent(provinceCode)}/wards`,
+export const listWards = async (provinceCode: string, signal?: AbortSignal) => {
+  const cached = wardCache.get(provinceCode);
+  if (cached) return cached;
+  const wards = await apiRequest<WardOption[]>(
+    '/api/locations/provinces/' + encodeURIComponent(provinceCode) + '/wards',
     signal ? { signal } : {},
   );
+  wardCache.set(provinceCode, wards);
+  return wards;
+};
 
 export const resolveAdministrativeArea = async (
   province: string,

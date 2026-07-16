@@ -29,6 +29,7 @@ import { searchMatchVenues, type MatchPreferredVenue } from '../../api/matches';
 import { getFriends, type CommunityFriend } from '../../api/community';
 import { getMyProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
+import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { CommunityPage } from '../community/CommunityUI';
 import { getCourtAvailability, type CourtAvailability } from '../../api/booking';
@@ -723,6 +724,8 @@ export const QueueDetail = () => {
                           <img
                             src={player.avatarUrl}
                             alt=""
+                            decoding="async"
+                            loading="lazy"
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -791,12 +794,19 @@ export const QueueDetail = () => {
 
       {/* Friends Invite Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <ModalDialog
+          aria-labelledby="queue-invite-title"
+          className="w-[calc(100%-2rem)] max-w-md bg-transparent shadow-none animate-in fade-in duration-200 backdrop:bg-black/60"
+          closeOnBackdrop={false}
+          onRequestClose={() => setShowInviteModal(false)}
+        >
           <div className="w-full max-w-md rounded-2xl border border-[#d8e4d4] bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-[#e2eae0]">
-              <h3 className="text-[16px] font-extrabold text-[#0b2228]">Mời bạn bè</h3>
+              <h3 className="text-[16px] font-extrabold text-[#0b2228]" id="queue-invite-title">Mời bạn bè</h3>
               <button
+                aria-label="Đóng danh sách mời bạn bè"
                 onClick={() => setShowInviteModal(false)}
+                type="button"
                 className="text-slate-400 hover:text-slate-650 p-1"
               >
                 <X className="h-5 w-5" />
@@ -820,6 +830,8 @@ export const QueueDetail = () => {
                           <img
                             src={friend.profileImageUrl}
                             alt=""
+                            decoding="async"
+                            loading="lazy"
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -841,19 +853,25 @@ export const QueueDetail = () => {
               )}
             </div>
           </div>
-        </div>
+        </ModalDialog>
       )}
 
       {/* Venue Detail Popup Dialog */}
       {selectedPopupVenue && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <ModalDialog
+          aria-labelledby="queue-venue-title"
+          className="w-[calc(100%-2rem)] max-w-2xl bg-transparent shadow-none animate-in fade-in duration-200 backdrop:bg-black/60"
+          closeOnBackdrop={false}
+          onRequestClose={() => setSelectedPopupVenue(null)}
+        >
           <div className="w-full max-w-2xl rounded-2xl border border-[#d8e4d4] bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between pb-3 border-b border-[#e2eae0] shrink-0">
               <div>
-                <h3 className="text-[16px] font-extrabold text-[#0b2228]">{selectedPopupVenue.venueName}</h3>
+                <h3 className="text-[16px] font-extrabold text-[#0b2228]" id="queue-venue-title">{selectedPopupVenue.venueName}</h3>
                 <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{selectedPopupVenue.address}</p>
               </div>
               <button
+                aria-label="Đóng chi tiết cụm sân"
                 type="button"
                 onClick={() => setSelectedPopupVenue(null)}
                 className="text-[#718077] hover:bg-[#edf5e9] hover:text-[#0b2228] p-1 rounded-lg transition-colors"
@@ -964,6 +982,7 @@ export const QueueDetail = () => {
               </a>
 
               <button
+                aria-label="Đóng chi tiết cụm sân"
                 type="button"
                 onClick={() => setSelectedPopupVenue(null)}
                 className="community-button-secondary !min-h-9 !px-4"
@@ -972,7 +991,7 @@ export const QueueDetail = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ModalDialog>
       )}
     </CommunityPage>
   );

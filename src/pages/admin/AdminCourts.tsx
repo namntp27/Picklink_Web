@@ -26,6 +26,7 @@ import {
 import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
+import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { AdminShell } from './components/AdminShell';
@@ -103,8 +104,13 @@ const ReviewDialog = ({
   const [rejectionReason, setRejectionReason] = useState('');
 
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4" role="presentation">
-      <div aria-labelledby="reject-venue-title" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white shadow-2xl" role="dialog">
+    <ModalDialog
+      aria-labelledby="reject-venue-title"
+      canClose={!busy}
+      className="w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-none"
+      closeOnBackdrop={false}
+      onRequestClose={onClose}
+    >
         <div className="flex items-start justify-between gap-4 border-b border-outline-variant p-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-error">Từ chối hồ sơ sân</p>
@@ -144,8 +150,7 @@ const ReviewDialog = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   );
 };
 
@@ -167,14 +172,19 @@ const VenueDetailDrawer = ({
   if (!venue && !loading) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] bg-black/35" role="presentation">
-      <aside aria-label="Chi tiết sân" className="absolute inset-y-0 right-0 w-full max-w-2xl overflow-y-auto bg-[#f8fbf4] shadow-2xl">
+    <ModalDialog
+      aria-label="Chi tiết sân"
+      canClose={!busy}
+      className="my-0 ml-auto mr-0 h-dvh max-h-dvh w-full max-w-2xl overflow-y-auto bg-[#f8fbf4] shadow-2xl backdrop:bg-black/35 backdrop:backdrop-blur-none"
+      closeOnBackdrop={false}
+      onRequestClose={onClose}
+    >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant bg-white/95 p-4 backdrop-blur">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-primary">Hồ sơ sân</p>
             <h2 className="mt-1 text-xl font-bold">{venue?.venueName ?? 'Đang tải...'}</h2>
           </div>
-          <button aria-label="Đóng" className="rounded-lg p-2 hover:bg-surface-container-low" onClick={onClose} type="button">
+          <button aria-label="Đóng" className="rounded-lg p-2 hover:bg-surface-container-low disabled:opacity-50" disabled={busy} onClick={onClose} type="button">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -263,7 +273,7 @@ const VenueDetailDrawer = ({
                 <h3 className="font-bold">Hình ảnh ({venue.images.length})</h3>
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {venue.images.map((image) => (
-                    <img alt={image.caption || venue.venueName} className="h-28 w-full rounded-lg object-cover" key={image.venueImageId} src={image.imageUrl} />
+                    <img alt={image.caption || venue.venueName} className="h-28 w-full rounded-lg object-cover" decoding="async" key={image.venueImageId} loading="lazy" src={image.imageUrl} />
                   ))}
                 </div>
               </section>
@@ -294,8 +304,7 @@ const VenueDetailDrawer = ({
             </button>
           </div>
         )}
-      </aside>
-    </div>
+    </ModalDialog>
   );
 };
 
@@ -481,7 +490,7 @@ export const AdminCourts = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {venue.primaryImageUrl ? (
-                        <img alt={venue.venueName} className="h-11 w-14 rounded-lg object-cover" src={venue.primaryImageUrl} />
+                        <img alt="" className="h-11 w-14 rounded-lg object-cover" decoding="async" loading="lazy" src={venue.primaryImageUrl} />
                       ) : (
                         <span className="grid h-11 w-14 place-items-center rounded-lg bg-surface-container text-on-surface-variant"><Building2 className="h-5 w-5" /></span>
                       )}

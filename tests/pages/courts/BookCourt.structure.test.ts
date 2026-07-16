@@ -6,7 +6,7 @@ const source = readFileSync(new URL('../../../src/pages/courts/BookCourt.tsx', i
 
 test('book court uses shared province and ward dropdowns for area filtering', () => {
   assert.match(source, /from '..\/..\/components\/location\/AdministrativeAreaSelects';/);
-  assert.match(source, /const \[selectedProvince, setSelectedProvince\] = useState\(''\);/);
+  assert.match(source, /const \[selectedProvince, setSelectedProvince\] = useState\(\(\) => new URLSearchParams\(window\.location\.search\)\.get\('area'\) \?\? ''\);/);
   assert.match(source, /const \[selectedWard, setSelectedWard\] = useState\(''\);/);
   assert.match(source, /const areaFilter = \[selectedWard, selectedProvince\]\.filter\(Boolean\)\.join\(' '\);/);
   assert.match(source, /area: areaFilter,/);

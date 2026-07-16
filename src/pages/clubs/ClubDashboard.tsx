@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '../../components/ui/ToastRegion';
 import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import {
-  CalendarDays,
   CheckCircle2,
   ChevronRight,
   Crown,
@@ -12,11 +11,8 @@ import {
   LayoutDashboard,
   LockKeyhole,
   LogOut,
-  Megaphone,
   MessageCircle,
-  MoreVertical,
   Pin,
-  Plus,
   Search,
   Send,
   Settings,
@@ -37,6 +33,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import './club-pages.css';
 import {
   getGroup,
@@ -66,9 +63,8 @@ import {
 } from '../../api/community';
 import { uploadToCloudinary } from '../../api/cloudinary';
 
-type DashboardTab = 'overview' | 'members' | 'events' | 'posts' | 'chat' | 'settings';
+type DashboardTab = 'overview' | 'members' | 'posts' | 'chat' | 'settings';
 type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Huấn luyện viên' | 'Thành viên';
-type EventStatus = 'Đang mở' | 'Sắp diễn ra' | 'Đã khóa';
 type PostStatus = 'Đã đăng' | 'Chờ duyệt' | 'Nháp';
 
 type JoinRequest = {
@@ -92,28 +88,7 @@ type ClubMember = {
   permissions: string[];
 };
 
-type ClubEvent = {
-  id: number;
-  title: string;
-  type: string;
-  date: string;
-  time: string;
-  court: string;
-  capacity: number;
-  registered: number;
-  status: EventStatus;
-};
 
-type ClubPost = {
-  id: number;
-  title: string;
-  author: string;
-  status: PostStatus;
-  createdAt: string;
-  views: number;
-  comments: number;
-  pinned: boolean;
-};
 
 type ClubChatMessage = {
   id: number;
@@ -126,211 +101,22 @@ type ClubChatMessage = {
   senderId: number;
 };
 
-type EventForm = {
-  title: string;
-  type: string;
-  date: string;
-  time: string;
-  court: string;
-  capacity: string;
-};
-
-const initialRequests: JoinRequest[] = [
-  {
-    id: 1,
-    name: 'Nguyễn Linh',
-    avatar: 'NL',
-    level: '3.5',
-    area: 'Cầu Giấy',
-    requestedAt: '18/06/2026',
-    note: 'Muốn tham gia nhóm đánh đôi buổi tối.',
-  },
-  {
-    id: 2,
-    name: 'Trần Anh',
-    avatar: 'TA',
-    level: '4.0',
-    area: 'Nam Từ Liêm',
-    requestedAt: '17/06/2026',
-    note: 'Có kinh nghiệm tổ chức ladder nội bộ.',
-  },
-  {
-    id: 3,
-    name: 'Lê Minh',
-    avatar: 'LM',
-    level: '2.5',
-    area: 'Thanh Xuân',
-    requestedAt: '16/06/2026',
-    note: 'Người mới, muốn tham gia lớp cơ bản.',
-  },
-];
-
-const initialMembers: ClubMember[] = [
-  {
-    id: 11,
-    name: 'Nguyễn Văn An',
-    avatar: 'NA',
-    level: '4.5',
-    role: 'Chủ nhiệm',
-    joinedAt: '12/03/2022',
-    status: 'Đang hoạt động',
-    permissions: ['Toàn quyền', 'Duyệt thành viên', 'Quản lý bài viết'],
-  },
-  {
-    id: 12,
-    name: 'Linh Nguyễn',
-    avatar: 'LN',
-    level: '4.0',
-    role: 'Quản trị viên',
-    joinedAt: '02/08/2023',
-    status: 'Đang hoạt động',
-    permissions: ['Duyệt thành viên', 'Tạo sự kiện'],
-  },
-  {
-    id: 13,
-    name: 'Tuấn Trần',
-    avatar: 'TT',
-    level: '3.5',
-    role: 'Huấn luyện viên',
-    joinedAt: '18/11/2023',
-    status: 'Đang hoạt động',
-    permissions: ['Tạo sự kiện', 'Chat CLB'],
-  },
-  {
-    id: 14,
-    name: 'Mai Phạm',
-    avatar: 'MP',
-    level: '3.0',
-    role: 'Thành viên',
-    joinedAt: '09/01/2024',
-    status: 'Đang hoạt động',
-    permissions: ['Chat CLB'],
-  },
-];
-
-const initialEvents: ClubEvent[] = [
-  {
-    id: 21,
-    title: 'Open play trình 3.0 - 3.5',
-    type: 'Open play',
-    date: '20/06/2026',
-    time: '18:00 - 20:00',
-    court: 'Sân 1 & 2',
-    capacity: 24,
-    registered: 18,
-    status: 'Đang mở',
-  },
-  {
-    id: 22,
-    title: 'Ladder nội bộ tháng 6',
-    type: 'Giải nội bộ',
-    date: '22/06/2026',
-    time: '07:30 - 11:30',
-    court: 'Cụm sân A',
-    capacity: 48,
-    registered: 42,
-    status: 'Sắp diễn ra',
-  },
-  {
-    id: 23,
-    title: 'Lớp kỹ thuật dink và reset',
-    type: 'Lớp học',
-    date: '24/06/2026',
-    time: '19:00 - 21:00',
-    court: 'Sân trung tâm',
-    capacity: 16,
-    registered: 16,
-    status: 'Đã khóa',
-  },
-];
-
-const initialPosts: ClubPost[] = [
-  {
-    id: 31,
-    title: 'Kết quả ladder tuần này',
-    author: 'Nguyễn Văn An',
-    status: 'Đã đăng',
-    createdAt: '18/06/2026',
-    views: 428,
-    comments: 32,
-    pinned: true,
-  },
-  {
-    id: 32,
-    title: 'Mở đăng ký lớp beginner tối thứ 5',
-    author: 'Linh Nguyễn',
-    status: 'Chờ duyệt',
-    createdAt: '17/06/2026',
-    views: 96,
-    comments: 8,
-    pinned: false,
-  },
-  {
-    id: 33,
-    title: 'Quy định check-in khi tham gia open play',
-    author: 'Tuấn Trần',
-    status: 'Nháp',
-    createdAt: '15/06/2026',
-    views: 0,
-    comments: 0,
-    pinned: false,
-  },
-];
-
-const initialChatMessages: ClubChatMessage[] = [
-  {
-    id: 41,
-    author: 'Linh Nguyễn',
-    avatar: 'LN',
-    text: 'Tối nay nhóm 3.0 còn thiếu 2 người, ai hỗ trợ ghép đội giúp mình nhé.',
-    time: '09:12',
-    isPinned: false,
-    senderId: 0,
-  },
-  {
-    id: 42,
-    author: 'Tuấn Trần',
-    avatar: 'TT',
-    text: 'Mình sẽ đứng lớp kỹ thuật ở sân trung tâm. Bạn nào mới tham gia cứ nhắn mình trước.',
-    time: '09:35',
-    isPinned: false,
-    senderId: 0,
-  },
-  {
-    id: 43,
-    author: 'Bạn',
-    avatar: 'B',
-    text: 'Mình đã ghim thông báo lịch ladder cuối tuần trong bảng tin.',
-    time: '10:05',
-    mine: true,
-    isPinned: false,
-    senderId: 0,
-  },
-];
 
 const roleOptions: MemberRole[] = ['Chủ nhiệm', 'Quản trị viên', 'Huấn luyện viên', 'Thành viên'];
 
 const permissionByRole: Record<MemberRole, string[]> = {
-  'Chủ nhiệm': ['Toàn quyền', 'Duyệt thành viên', 'Tạo sự kiện', 'Quản lý bài viết', 'Chat CLB'],
-  'Quản trị viên': ['Duyệt thành viên', 'Tạo sự kiện', 'Quản lý bài viết', 'Chat CLB'],
-  'Huấn luyện viên': ['Tạo sự kiện', 'Chat CLB'],
+  'Chủ nhiệm': ['Toàn quyền', 'Duyệt thành viên', 'Quản lý bài viết', 'Chat CLB'],
+  'Quản trị viên': ['Duyệt thành viên', 'Quản lý bài viết', 'Chat CLB'],
+  'Huấn luyện viên': ['Chat CLB'],
   'Thành viên': ['Chat CLB'],
 };
 
-const statusClassNames: Record<EventStatus | PostStatus, string> = {
-  'Đang mở': 'bg-[#eaf7df] text-primary',
-  'Sắp diễn ra': 'bg-[#fff4d8] text-[#7a5600]',
-  'Đã khóa': 'bg-surface-container-low text-on-surface-variant',
+const statusClassNames: Record<PostStatus, string> = {
   'Đã đăng': 'bg-[#eaf7df] text-primary',
   'Chờ duyệt': 'bg-[#fff4d8] text-[#7a5600]',
   Nháp: 'bg-surface-container-low text-on-surface-variant',
 };
 
-const getCurrentTime = () =>
-  new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
 
 const getRoleClassName = (role: MemberRole) => {
   if (role === 'Chủ nhiệm') {
@@ -353,7 +139,9 @@ const renderAvatar = (avatar: string, sizeClass = "h-10 w-10") => {
     return (
       <img
         src={avatar}
-        alt="Avatar"
+        alt=""
+        decoding="async"
+        loading="lazy"
         className={`${sizeClass} rounded-full object-cover shrink-0`}
       />
     );
@@ -368,7 +156,7 @@ const renderAvatar = (avatar: string, sizeClass = "h-10 w-10") => {
 export const ClubDashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { token, user } = useAuth();
+  const { logout, token, user } = useAuth();
   const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
@@ -386,11 +174,11 @@ export const ClubDashboard = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [members, setMembers] = useState<ClubMember[]>([]);
-  const [events, setEvents] = useState(initialEvents);
 
   const [actualPosts, setActualPosts] = useState<CommunityPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
+  const [postFilter, setPostFilter] = useState<PostStatus | 'Tất cả'>('Tất cả');
   const postLoadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const posts = useMemo(() => {
@@ -413,10 +201,13 @@ export const ClubDashboard = () => {
         }).format(new Date(post.createdAt)),
         views: 0,
         comments: post.commentCount,
-        pinned: false,
       };
     });
   }, [actualPosts]);
+
+  const filteredPosts = postFilter === 'Tất cả'
+    ? posts
+    : posts.filter((post) => post.status === postFilter);
 
   const [chatMessages, setChatMessages] = useState<ClubChatMessage[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<ClubChatMessage[]>([]);
@@ -426,17 +217,10 @@ export const ClubDashboard = () => {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const lastMessageIdRef = useRef<number | null>(null);
   const [memberSearch, setMemberSearch] = useState('');
-  const [eventForm, setEventForm] = useState<EventForm>({
-    title: '',
-    type: 'Open play',
-    date: '2026-06-25',
-    time: '18:00 - 20:00',
-    court: 'Sân 1 & 2',
-    capacity: '24',
-  });
 
   const [groupInfo, setGroupInfo] = useState<CommunityGroup | null>(null);
   const [loadingGroup, setLoadingGroup] = useState(true);
+  const groupLoadIdRef = useRef(0);
 
   const groupId = Number(id);
   const isNumericGroupId = !isNaN(groupId) && groupId > 0;
@@ -533,17 +317,25 @@ export const ClubDashboard = () => {
 
   // Load group details
   const loadGroupInfo = useCallback(async () => {
+    const loadId = ++groupLoadIdRef.current;
+    setLoadingGroup(true);
+    setGroupInfo(null);
+
     if (!token || !isNumericGroupId) {
       setLoadingGroup(false);
       return;
     }
+
     try {
       const data = await getGroup(groupId, token);
-      setGroupInfo(data);
+      if (groupLoadIdRef.current === loadId) setGroupInfo(data);
     } catch (err) {
-      console.error('Failed to load group details', err);
+      if (groupLoadIdRef.current === loadId) {
+        setGroupInfo(null);
+        console.error('Failed to load group details', err);
+      }
     } finally {
-      setLoadingGroup(false);
+      if (groupLoadIdRef.current === loadId) setLoadingGroup(false);
     }
   }, [token, groupId, isNumericGroupId]);
 
@@ -560,8 +352,8 @@ export const ClubDashboard = () => {
           id: m.userId,
           name: m.username,
           avatar: m.profileImageUrl || (m.username[0]?.toUpperCase() ?? '?'),
-          level: '3.5',
-          area: 'Hà Nội',
+          level: 'Chưa cập nhật',
+          area: 'Chưa cập nhật',
           requestedAt: new Date(m.joinedAt).toLocaleDateString('vi-VN'),
           note: 'Yêu cầu tham gia câu lạc bộ qua hệ thống Picklink.',
         }));
@@ -584,7 +376,7 @@ export const ClubDashboard = () => {
             id: m.userId,
             name: m.username,
             avatar: m.profileImageUrl || (m.username[0]?.toUpperCase() ?? '?'),
-            level: '3.5',
+            level: 'Chưa cập nhật',
             role: uiRole,
             joinedAt: new Date(m.joinedAt).toLocaleDateString('vi-VN'),
             status: uiStatus,
@@ -753,18 +545,14 @@ export const ClubDashboard = () => {
     return () => observer.disconnect();
   }, [activeTab, actualPosts.length, visibleCount]);
 
-  // Poll for chat messages when on chat tab
-  useEffect(() => {
-    if (activeTab !== 'chat' || !isNumericGroupId) return;
-    const interval = setInterval(() => {
-      loadChatMessages(true);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [activeTab, isNumericGroupId, loadChatMessages]);
+  useVisiblePolling(
+    () => loadChatMessages(true),
+    8000,
+    activeTab === 'chat' && isNumericGroupId,
+  );
 
-  const clubCode = groupInfo ? groupInfo.groupName : (id?.replace(/-/g, ' ') || 'hanoi elite');
+  const clubCode = groupInfo?.groupName ?? '';
   const pendingPosts = posts.filter((post) => post.status === 'Chờ duyệt').length;
-  const openEvents = events.filter((event) => event.status !== 'Đã khóa').length;
   const filteredMembers = members.filter((member) => {
     const keyword = memberSearch.trim().toLowerCase();
 
@@ -779,7 +567,6 @@ export const ClubDashboard = () => {
   const sideNavItems: Array<{ id: DashboardTab; label: string; icon: LucideIcon; badge?: number }> = [
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'members', label: 'Thành viên', icon: Users, badge: requests.length },
-    { id: 'events', label: 'Sự kiện', icon: CalendarDays, badge: openEvents },
     { id: 'posts', label: 'Bài viết', icon: FileText, badge: pendingPosts },
     { id: 'chat', label: 'Chat CLB', icon: MessageCircle },
     ...(isGroupManager ? [{ id: 'settings' as const, label: 'Cài đặt CLB', icon: Settings }] : []),
@@ -794,12 +581,6 @@ export const ClubDashboard = () => {
         icon: Users,
       },
       {
-        label: 'Sự kiện đang quản lý',
-        value: events.length.toString(),
-        helper: `${openEvents} sự kiện còn mở`,
-        icon: CalendarDays,
-      },
-      {
         label: 'Bài viết chờ duyệt',
         value: pendingPosts.toString(),
         helper: `${posts.length} bài trong bảng tin`,
@@ -812,47 +593,26 @@ export const ClubDashboard = () => {
         icon: MessageCircle,
       },
     ],
-    [chatMessages.length, events.length, members.length, openEvents, pendingPosts, posts.length, requests.length],
+    [chatMessages.length, members.length, pendingPosts, posts.length, requests.length],
   );
 
   const approveRequest = async (request: JoinRequest) => {
-    if (isNumericGroupId && token) {
-      try {
-        await approveMember(token, groupId, request.id);
-        loadMembers();
-      } catch (err: any) {
-        notify(err.message || 'Không thể phê duyệt thành viên.', 'error');
-      }
-    } else {
-      // Mock fallback
-      setRequests((currentRequests) => currentRequests.filter((item) => item.id !== request.id));
-      setMembers((currentMembers) => [
-        ...currentMembers,
-        {
-          id: Date.now(),
-          name: request.name,
-          avatar: request.avatar,
-          level: request.level,
-          role: 'Thành viên',
-          joinedAt: '18/06/2026',
-          status: 'Đang hoạt động',
-          permissions: permissionByRole['Thành viên'],
-        },
-      ]);
+    if (!token || !isNumericGroupId) return;
+    try {
+      await approveMember(token, groupId, request.id);
+      await loadMembers();
+    } catch (err: any) {
+      notify(err.message || 'Không thể phê duyệt thành viên.', 'error');
     }
   };
 
   const rejectRequest = async (requestId: number) => {
-    if (isNumericGroupId && token) {
-      try {
-        await declineMember(token, groupId, requestId);
-        loadMembers();
-      } catch (err: any) {
-        notify(err.message || 'Không thể từ chối thành viên.', 'error');
-      }
-    } else {
-      // Mock fallback
-      setRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
+    if (!token || !isNumericGroupId) return;
+    try {
+      await declineMember(token, groupId, requestId);
+      await loadMembers();
+    } catch (err: any) {
+      notify(err.message || 'Không thể từ chối thành viên.', 'error');
     }
   };
 
@@ -865,17 +625,7 @@ export const ClubDashboard = () => {
   };
 
   const updateMemberRole = async (memberId: number, role: MemberRole) => {
-    if (!token || !isNumericGroupId) {
-      // Fallback to local-only update
-      setMembers((currentMembers) =>
-        currentMembers.map((member) =>
-          member.id === memberId
-            ? { ...member, role, permissions: permissionByRole[role] }
-            : member,
-        ),
-      );
-      return;
-    }
+    if (!token || !isNumericGroupId) return;
 
     const backendRole = uiRoleToBackendRole[role];
     try {
@@ -888,63 +638,31 @@ export const ClubDashboard = () => {
   };
 
   const toggleMemberStatus = async (memberId: number) => {
-    const targetMember = members.find((m) => m.id === memberId);
+    if (!token || !isNumericGroupId) return;
+    const targetMember = members.find((member) => member.id === memberId);
     if (!targetMember) return;
 
-    if (isNumericGroupId && token) {
-      if (targetMember.status === 'Bị cấm') {
-        // Unban
-        if (!confirm('Bạn có chắc chắn muốn bỏ cấm thành viên này?')) return;
-        try {
-          await unbanMember(token, groupId, memberId);
-          loadMembers();
-        } catch (err: any) {
-          notify(err.message || 'Không thể bỏ cấm thành viên.', 'error');
-        }
+    const isBanned = targetMember.status === 'Bị cấm';
+    const message = isBanned
+      ? 'Bạn có chắc chắn muốn bỏ cấm thành viên này?'
+      : 'Bạn có chắc chắn muốn cấm thành viên này khỏi câu lạc bộ?';
+    if (!confirm(message)) return;
+
+    try {
+      if (isBanned) {
+        await unbanMember(token, groupId, memberId);
       } else {
-        // Ban
-        if (!confirm('Bạn có chắc chắn muốn cấm thành viên này khỏi câu lạc bộ?')) return;
-        try {
-          await banMember(token, groupId, memberId);
-          loadMembers();
-        } catch (err: any) {
-          notify(err.message || 'Không thể cấm thành viên.', 'error');
-        }
+        await banMember(token, groupId, memberId);
       }
-    } else {
-      setMembers((currentMembers) =>
-        currentMembers.map((member) =>
-          member.id === memberId
-            ? {
-                ...member,
-                status: member.status === 'Đang hoạt động' ? 'Bị cấm' : 'Đang hoạt động',
-              }
-            : member,
-        ),
+      await loadMembers();
+    } catch (err: any) {
+      notify(
+        err.message || (isBanned ? 'Không thể bỏ cấm thành viên.' : 'Không thể cấm thành viên.'),
+        'error',
       );
     }
   };
 
-  const createEvent = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const capacity = Number(eventForm.capacity) || 16;
-
-    setEvents((currentEvents) => [
-      {
-        id: Date.now(),
-        title: eventForm.title || 'Sự kiện CLB mới',
-        type: eventForm.type,
-        date: new Intl.DateTimeFormat('vi-VN').format(new Date(`${eventForm.date}T00:00:00`)),
-        time: eventForm.time,
-        court: eventForm.court,
-        capacity,
-        registered: 0,
-        status: 'Đang mở',
-      },
-      ...currentEvents,
-    ]);
-    setEventForm((currentForm) => ({ ...currentForm, title: '', capacity: '24' }));
-  };
 
   const approvePost = async (postId: number) => {
     if (!token) return;
@@ -956,9 +674,6 @@ export const ClubDashboard = () => {
     }
   };
 
-  const togglePinPost = (postId: number) => {
-    // Pin feature client-only mock or stub as needed
-  };
 
   const deletePost = async (postId: number) => {
     if (!token) return;
@@ -973,44 +688,26 @@ export const ClubDashboard = () => {
 
   const sendChatMessage = async () => {
     const text = chatDraft.trim();
-    if (!text) return;
+    if (!text || !token || !isNumericGroupId) return;
 
-    if (isNumericGroupId && token) {
-      try {
-        const newMsg = await sendGroupMessage(token, groupId, { content: text });
-        setChatMessages((currentMessages) => [
-          ...currentMessages,
-          {
-            id: newMsg.messageId,
-            author: 'Bạn',
-            avatar: newMsg.senderAvatarUrl || (newMsg.senderName[0]?.toUpperCase() ?? '?'),
-            text: newMsg.content || '',
-            time: new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date()),
-            mine: true,
-            isPinned: false,
-            senderId: newMsg.senderId,
-          },
-        ]);
-        setChatDraft('');
-      } catch (err: any) {
-        notify(err.message || 'Không thể gửi tin nhắn.', 'error');
-      }
-    } else {
-      // Mock fallback
+    try {
+      const newMsg = await sendGroupMessage(token, groupId, { content: text });
       setChatMessages((currentMessages) => [
         ...currentMessages,
         {
-          id: Date.now(),
+          id: newMsg.messageId,
           author: 'Bạn',
-          avatar: 'B',
-          text,
-          time: getCurrentTime(),
+          avatar: newMsg.senderAvatarUrl || (newMsg.senderName[0]?.toUpperCase() ?? '?'),
+          text: newMsg.content || '',
+          time: new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(newMsg.sentAt)),
           mine: true,
-          isPinned: false,
-          senderId: 0,
+          isPinned: newMsg.isPinned,
+          senderId: newMsg.senderId,
         },
       ]);
       setChatDraft('');
+    } catch (err: any) {
+      notify(err.message || 'Không thể gửi tin nhắn.', 'error');
     }
   };
 
@@ -1090,13 +787,6 @@ export const ClubDashboard = () => {
                 text: 'Yêu cầu tham gia mới cần phản hồi.',
                 icon: UserCheck,
                 tab: 'members' as const,
-              },
-              {
-                title: 'Tạo lịch tuần',
-                value: openEvents,
-                text: 'Sự kiện đang mở hoặc sắp diễn ra.',
-                icon: CalendarDays,
-                tab: 'events' as const,
               },
               {
                 title: 'Duyệt bài viết',
@@ -1337,139 +1027,6 @@ export const ClubDashboard = () => {
     </div>
   );
 
-  const renderEvents = () => (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
-      <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-        <h2 className="flex items-center gap-2 text-[20px] font-bold">
-          <Plus className="h-5 w-5 text-primary" />
-          Tạo sự kiện
-        </h2>
-        <form className="mt-5 space-y-4" onSubmit={createEvent}>
-          <label className="block">
-            <span className="text-[13px] font-bold text-on-surface-variant">Tên sự kiện</span>
-            <input
-              className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setEventForm((form) => ({ ...form, title: event.target.value }))}
-              placeholder="Ví dụ: Open play tối thứ 5"
-              type="text"
-              value={eventForm.title}
-            />
-          </label>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-[13px] font-bold text-on-surface-variant">Hình thức</span>
-              <select
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] outline-none focus:border-primary"
-                onChange={(event) => setEventForm((form) => ({ ...form, type: event.target.value }))}
-                value={eventForm.type}
-              >
-                <option>Open play</option>
-                <option>Giải nội bộ</option>
-                <option>Lớp học</option>
-                <option>Giao lưu CLB</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-[13px] font-bold text-on-surface-variant">Sức chứa</span>
-              <input
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                min="2"
-                onChange={(event) => setEventForm((form) => ({ ...form, capacity: event.target.value }))}
-                type="number"
-                value={eventForm.capacity}
-              />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-[13px] font-bold text-on-surface-variant">Ngày</span>
-              <input
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                onChange={(event) => setEventForm((form) => ({ ...form, date: event.target.value }))}
-                type="date"
-                value={eventForm.date}
-              />
-            </label>
-            <label className="block">
-              <span className="text-[13px] font-bold text-on-surface-variant">Giờ</span>
-              <input
-                className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                onChange={(event) => setEventForm((form) => ({ ...form, time: event.target.value }))}
-                type="text"
-                value={eventForm.time}
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="text-[13px] font-bold text-on-surface-variant">Sân / địa điểm</span>
-            <input
-              className="mt-2 h-11 w-full rounded-lg border border-outline-variant px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              onChange={(event) => setEventForm((form) => ({ ...form, court: event.target.value }))}
-              type="text"
-              value={eventForm.court}
-            />
-          </label>
-
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" type="submit">
-            <CalendarDays className="h-5 w-5" />
-            Tạo và mở đăng ký
-          </button>
-        </form>
-      </section>
-
-      <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-4 border-b border-outline-variant p-5">
-          <div>
-            <h2 className="text-[20px] font-bold">Quản lý sự kiện</h2>
-            <p className="mt-1 text-[13px] text-on-surface-variant">Theo dõi số người đăng ký, trạng thái mở và lịch sắp tới.</p>
-          </div>
-          <button className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" type="button">
-            <MoreVertical className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="divide-y divide-outline-variant">
-          {events.map((event) => (
-            <article className="p-5" key={event.id}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[16px] font-bold">{event.title}</h3>
-                    <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${statusClassNames[event.status]}`}>
-                      {event.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[13px] font-medium text-on-surface-variant">
-                    {event.type} · {event.date} · {event.time} · {event.court}
-                  </p>
-                  <div className="mt-3 h-2 w-full max-w-[420px] overflow-hidden rounded-full bg-surface-container-low">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${Math.min((event.registered / event.capacity) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-[12px] font-bold text-on-surface-variant">
-                    {event.registered}/{event.capacity} người đăng ký
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <button className="rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold hover:bg-surface-container-low" type="button">
-                    Chỉnh sửa
-                  </button>
-                  <button className="rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white hover:bg-primary/90" type="button">
-                    Danh sách
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
 
   const renderPosts = () => (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1479,10 +1036,6 @@ export const ClubDashboard = () => {
             <h2 className="text-[20px] font-bold">Quản lý bài viết</h2>
             <p className="mt-1 text-[13px] text-on-surface-variant">Duyệt, ghim, ẩn hoặc xóa nội dung trong bảng tin CLB.</p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-[13px] font-bold text-white hover:bg-primary/90" type="button">
-            <Megaphone className="h-4 w-4" />
-            Tạo thông báo
-          </button>
         </div>
 
         <div className="divide-y divide-outline-variant">
@@ -1491,18 +1044,12 @@ export const ClubDashboard = () => {
               <Loader2 className="h-7 w-7 animate-spin text-primary" />
               <p className="text-[13px] font-bold text-on-surface-variant">Đang tải danh sách bài viết...</p>
             </div>
-          ) : posts.length > 0 ? (
-            posts.slice(0, visibleCount).map((post) => (
+          ) : filteredPosts.length > 0 ? (
+            filteredPosts.slice(0, visibleCount).map((post) => (
               <article className="p-5" key={post.id}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      {post.pinned && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary text-white px-2 py-1 text-[11px] font-bold">
-                          <Pin className="h-3 w-3" />
-                          Đã ghim
-                        </span>
-                      )}
                       <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${statusClassNames[post.status]}`}>
                         {post.status}
                       </span>
@@ -1522,14 +1069,6 @@ export const ClubDashboard = () => {
                         Duyệt
                       </button>
                     )}
-                    <button
-                      aria-label={post.pinned ? 'Bỏ ghim bài viết' : 'Ghim bài viết'}
-                      className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
-                      onClick={() => togglePinPost(post.id)}
-                      type="button"
-                    >
-                      <Pin className="h-4 w-4" />
-                    </button>
                     <Link aria-label="Xem bài viết" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" to={`/posts/${post.id}`}>
                       <Eye className="h-4 w-4" />
                     </Link>
@@ -1551,12 +1090,12 @@ export const ClubDashboard = () => {
             </div>
           )}
         </div>
-        {actualPosts.length > visibleCount && (
+        {filteredPosts.length > visibleCount && (
           <div
             className="border-t border-outline-variant bg-surface-container-low p-4 text-center text-[13px] font-bold text-on-surface-variant"
             ref={postLoadMoreRef}
           >
-            Đang tải thêm bài viết ({Math.min(visibleCount, actualPosts.length)}/{actualPosts.length})
+            Đang tải thêm bài viết ({Math.min(visibleCount, filteredPosts.length)}/{filteredPosts.length})
           </div>
         )}
       </section>
@@ -1565,15 +1104,28 @@ export const ClubDashboard = () => {
         <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
           <h2 className="text-[20px] font-bold">Bộ lọc kiểm duyệt</h2>
           <div className="mt-4 space-y-2">
-            {(['Chờ duyệt', 'Đã đăng', 'Nháp'] as PostStatus[]).map((status) => (
+            {(['Tất cả', 'Chờ duyệt', 'Đã đăng', 'Nháp'] as const).map((status) => (
               <button
-                className="flex w-full items-center justify-between rounded-lg border border-outline-variant px-3 py-3 text-left text-[13px] font-bold hover:bg-surface-container-low"
+                aria-pressed={postFilter === status}
+                className={'flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left text-[13px] font-bold ' + (
+                  postFilter === status
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-outline-variant hover:bg-surface-container-low'
+                )}
                 key={status}
+                onClick={() => {
+                  setPostFilter(status);
+                  setVisibleCount(5);
+                }}
                 type="button"
               >
                 <span>{status}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] ${statusClassNames[status]}`}>
-                  {posts.filter((post) => post.status === status).length}
+                <span className={'rounded-full px-2 py-0.5 text-[11px] ' + (
+                  status === 'Tất cả'
+                    ? 'bg-surface-container-low text-on-surface-variant'
+                    : statusClassNames[status]
+                )}>
+                  {status === 'Tất cả' ? posts.length : posts.filter((post) => post.status === status).length}
                 </span>
               </button>
             ))}
@@ -1609,11 +1161,11 @@ export const ClubDashboard = () => {
                 {groupInfo ? groupInfo.groupName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'HE'}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate text-[17px] font-bold">Chat {groupInfo ? groupInfo.groupName : 'Hanoi Elite Pickleball Club'}</h2>
+                <h2 className="truncate text-[17px] font-bold">Chat {clubCode}</h2>
                 <p className="truncate text-[12px] font-bold text-on-surface-variant">{members.length} thành viên trong nhóm</p>
               </div>
             </div>
-            <button className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" type="button">
+            <button aria-label="Mở cài đặt câu lạc bộ" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" onClick={() => setActiveTab('settings')} type="button">
               <Settings className="h-5 w-5" />
             </button>
           </header>
@@ -1947,8 +1499,8 @@ export const ClubDashboard = () => {
                 <div key={img.groupImageId} className="group relative aspect-video rounded-lg overflow-hidden border border-outline-variant bg-surface-container-low">
                   <img
                     src={img.imageUrl}
-                    alt={img.caption || 'Intro image'}
-                    className="w-full h-full object-cover"
+                    alt={img.caption || 'Ảnh giới thiệu câu lạc bộ'}
+                    className="w-full h-full object-cover" decoding="async" loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button
@@ -2030,9 +1582,6 @@ export const ClubDashboard = () => {
       return renderMembers();
     }
 
-    if (activeTab === 'events') {
-      return renderEvents();
-    }
 
     if (activeTab === 'posts') {
       return renderPosts();
@@ -2048,6 +1597,21 @@ export const ClubDashboard = () => {
 
     return renderOverview();
   };
+
+  if (loadingGroup) {
+    return <div className="grid min-h-dvh place-items-center bg-[#f8fbf4] p-6 font-bold" role="status">Đang tải câu lạc bộ...</div>;
+  }
+
+  if (!isNumericGroupId || !groupInfo) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-[#f8fbf4] p-6 text-center">
+        <div>
+          <p className="font-bold text-error" role="alert">Không thể tải câu lạc bộ này.</p>
+          <Link className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 font-bold text-white" to="/clubs">Về danh sách CLB</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]" data-club-ui>
@@ -2087,16 +1651,11 @@ export const ClubDashboard = () => {
 
         <div className="border-t border-[#e0e9dc] p-3">
           <button
-            className="mb-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-3 text-[12px] font-bold text-[#102414] hover:bg-[#d6f64d]"
-            onClick={() => setActiveTab('events')}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-            Sự kiện mới
-          </button>
-          <button
             className="flex h-9 w-full items-center gap-2.5 rounded-xl px-3 text-[12px] font-bold text-[#a33535] hover:bg-[#fff1ef]"
-            onClick={() => navigate('/')}
+            onClick={() => {
+              logout();
+              navigate('/');
+            }}
             type="button"
           >
             <LogOut className="h-4 w-4" />
@@ -2114,25 +1673,14 @@ export const ClubDashboard = () => {
                   CLB
                 </Link>
                 <ChevronRight className="h-4 w-4" />
-                <span className="text-on-surface">{groupInfo ? groupInfo.groupName : 'Hanoi Elite Pickleball Club'}</span>
+                <span className="text-on-surface">{clubCode}</span>
               </div>
               <h1 className="mt-1.5 text-[23px] font-bold leading-tight tracking-[-0.03em] md:text-[27px]">
                 Quản lý CLB
               </h1>
               <p className="mt-0.5 text-[12px] text-[#64736a]">
-                Mã CLB: {clubCode.toUpperCase()} · Duyệt thành viên, phân quyền, sự kiện, bài viết và chat.
+                Mã CLB: {clubCode.toUpperCase()} · Duyệt thành viên, phân quyền, bài viết và chat.
               </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="relative hidden w-[320px] md:block">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
-                <input
-                  className="h-10 w-full rounded-xl border border-[#cbdac6] bg-white pl-9 pr-3 text-[13px]"
-                  placeholder="Tìm thành viên, bài viết..."
-                  type="text"
-                />
-              </div>
             </div>
           </div>
 

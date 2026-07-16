@@ -27,6 +27,7 @@ import {
   type OwnerScheduleSlot,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { ModalDialog } from '../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
@@ -234,23 +235,24 @@ export const OwnerDashboard = () => {
           <p className="mt-1">Theo dõi toàn bộ sân con theo trục thời gian 30 phút và thao tác trực tiếp trên từng ô.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => moveDate(-1)} title="Ngày trước" type="button">
+          <button aria-label="Ngày trước" className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => moveDate(-1)} title="Ngày trước" type="button">
             <ChevronLeft className="h-5 w-5" />
           </button>
           <input
             className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold"
+            aria-label="Ngày xem lịch"
             onChange={(event) => setDate(event.target.value)}
             type="date"
             value={date}
           />
-          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => moveDate(1)} title="Ngày sau" type="button">
+          <button aria-label="Ngày sau" className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => moveDate(1)} title="Ngày sau" type="button">
             <ChevronRight className="h-5 w-5" />
           </button>
-          <select className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold" onChange={(event) => setVenueFilter(event.target.value)} value={venueFilter}>
+          <select aria-label="Lọc theo cụm sân" className="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px] font-bold" onChange={(event) => setVenueFilter(event.target.value)} value={venueFilter}>
             <option value="all">Tất cả cụm sân</option>
             {schedule?.venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}
           </select>
-          <button className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => void load()} title="Tải lại" type="button">
+          <button aria-label="Tải lại lịch" className="rounded-lg border border-outline-variant bg-white p-2.5" onClick={() => void load()} title="Tải lại" type="button">
             <RefreshCw className="h-5 w-5" />
           </button>
         </div>
@@ -274,7 +276,7 @@ export const OwnerDashboard = () => {
         ))}
       </section>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700">{error}</div>}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700" role="alert">{error}</div>}
 
       <section className="owner-schedule-stage owner-panel">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4">
@@ -320,12 +322,16 @@ export const OwnerDashboard = () => {
       </section>
 
       {selectedSlot && (
-        <div className="owner-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedSlot(null)}>
-          <section aria-modal="true" className="owner-modal max-w-2xl p-5" role="dialog">
+        <ModalDialog
+          aria-labelledby="owner-slot-title"
+          className="owner-modal max-w-2xl p-5"
+          onRequestClose={() => setSelectedSlot(null)}
+          style={{ width: 'calc(100% - 1.75rem)' }}
+        >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[12px] font-bold uppercase tracking-wide text-primary">Thông tin khung giờ</p>
-                <h2 className="mt-1 text-[24px] font-bold">{selectedSlot.venueName} · Sân {selectedSlot.courtNumber}</h2>
+                <h2 className="mt-1 text-[24px] font-bold" id="owner-slot-title">{selectedSlot.venueName} · Sân {selectedSlot.courtNumber}</h2>
               </div>
               <button aria-label="Đóng" className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-low" onClick={() => setSelectedSlot(null)} type="button">
                 <XCircle className="h-6 w-6" />
@@ -404,8 +410,7 @@ export const OwnerDashboard = () => {
                 </button>
               </form>
             )}
-          </section>
-        </div>
+        </ModalDialog>
       )}
     </OwnerShell>
   );

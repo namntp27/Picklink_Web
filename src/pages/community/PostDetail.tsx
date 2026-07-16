@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  Bookmark,
   CheckCircle2,
-  Flag,
   Hash,
   Image as ImageIcon,
   MapPin,
   MessageCircle,
-  MoreHorizontal,
   Send,
   Share2,
   ThumbsUp,
@@ -17,7 +14,6 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { getCommunityPostById } from '../../data/communityPosts';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useAuth } from '../../auth/AuthContext';
@@ -61,9 +57,7 @@ interface DisplayPost {
   lookingFor?: string;
   likes: number;
   comments: number;
-  shares: number;
   liked: boolean;
-  saved: boolean;
   matchId?: number | null;
 }
 
@@ -125,8 +119,8 @@ const buildCommentTree = (flatComments: any[]): DisplayComment[] => {
     commentMap[String(c.commentId)] = {
       id: String(c.commentId),
       authorName: c.username || 'Người chơi',
-      avatar: c.userAvatarUrl || 'https://i.pravatar.cc/150?u=' + c.userId,
-      level: '3.5',
+      avatar: c.userAvatarUrl || '',
+      level: '',
       createdAt: new Intl.DateTimeFormat('vi-VN', {
         day: '2-digit',
         month: '2-digit',
@@ -169,12 +163,18 @@ const CommentItem = ({
 }) => (
   <article className={nested ? 'ml-6 border-l border-[#d8e4d4] pl-3 sm:ml-10 sm:pl-4' : ''}>
     <div className="flex gap-3">
-      <img alt={comment.authorName} className="community-avatar" src={comment.avatar} />
+      {comment.avatar ? (
+        <img alt="" className="community-avatar" decoding="async" loading="lazy" src={comment.avatar} />
+      ) : (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+          <UserRound aria-hidden="true" className="h-5 w-5" />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <div className="rounded-xl bg-[#f0f6ed] p-3 shadow-sm border border-[#e8efe5]">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-[13px] font-extrabold text-[#0b2228]">{comment.authorName}</h3>
-            <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {comment.level}</span>
+            {comment.level && <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {comment.level}</span>}
             {comment.location && (
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#477313] bg-[#edf5e9] px-2 py-0.5 rounded-full">
                 <MapPin className="h-3 w-3" />
@@ -185,13 +185,13 @@ const CommentItem = ({
           <p className="mt-2 text-[13px] leading-6 text-[#405048] whitespace-pre-wrap">{comment.content}</p>
           {comment.imageUrl && (
             <div className="mt-3 overflow-hidden rounded-lg border border-[#d8e4d4] max-w-[280px] bg-white">
-              <img src={comment.imageUrl} alt="Attached attachment" className="max-w-full h-auto object-contain" />
+              <img src={comment.imageUrl} alt="Ảnh đính kèm bình luận" className="max-w-full h-auto object-contain" decoding="async" loading="lazy" />
             </div>
           )}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-3 px-2 text-[11px] font-bold text-[#718077]">
           <span>{comment.createdAt}</span>
-          <button 
+          <button
             onClick={() => onLike && onLike(comment.id)}
             className={`transition-colors font-bold ${comment.liked ? 'text-[#477313]' : 'hover:text-[#477313]'}`}
             type="button"
@@ -199,9 +199,9 @@ const CommentItem = ({
             {comment.liked ? 'Đã thích' : 'Thích'}
           </button>
           {onReply && (
-            <button 
+            <button
               onClick={() => onReply({ id: comment.id, authorName: comment.authorName })}
-              className="transition-colors hover:text-[#477313]" 
+              className="transition-colors hover:text-[#477313]"
               type="button"
             >
               Trả lời
@@ -238,112 +238,56 @@ export const PostDetail = () => {
   const [loading, setLoading] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  const isMock = id?.startsWith('mock-');
-
   const loadPostDetails = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      if (isMock) {
-        const originalId = id.replace('mock-', '');
-        const mockPost = getCommunityPostById(originalId);
-        setPost({
-          id: id,
-          authorName: mockPost.authorName,
-          avatar: mockPost.avatar,
-          level: mockPost.level,
-          location: mockPost.location,
-          createdAt: mockPost.createdAt,
-          title: mockPost.title,
-          content: mockPost.content,
-          image: mockPost.image,
-          tags: mockPost.tags,
-          lookingFor: mockPost.lookingFor,
-          likes: mockPost.likes,
-          comments: mockPost.comments,
-          shares: mockPost.shares,
-          liked: mockPost.liked,
-          saved: mockPost.saved,
-          matchId: null
-        });
-        
-        // Map mock comment structures
-        const mappedMockComments: DisplayComment[] = mockPost.commentList.map((c) => {
-          const parsed = parseCommentContent(c.content);
-          return {
-            id: c.id,
-            authorName: c.authorName,
-            avatar: c.avatar,
-            level: c.level,
-            createdAt: c.createdAt,
-            content: parsed.text,
-            imageUrl: parsed.imageUrl,
-            location: parsed.location,
-            likes: c.likes,
-            liked: false,
-            replies: (c.replies || []).map((r) => {
-              const parsedReply = parseCommentContent(r.content);
-              return {
-                id: r.id,
-                authorName: r.authorName,
-                avatar: r.avatar,
-                level: r.level,
-                createdAt: r.createdAt,
-                content: parsedReply.text,
-                imageUrl: parsedReply.imageUrl,
-                location: parsedReply.location,
-                likes: r.likes,
-                liked: false
-              };
-            })
-          };
-        });
-        setComments(mappedMockComments);
-      } else {
-        const postNumId = Number(id);
-        const backendPost = await getGlobalPost(postNumId, token);
-        const parsed = parsePostContent(backendPost.content);
-        
-        let formattedDate = 'Vừa xong';
-        try {
-          formattedDate = new Intl.DateTimeFormat('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(new Date(backendPost.createdAt));
-        } catch {
-          // ignore date parse issues
-        }
+      const postNumId = Number(id);
+      if (!Number.isInteger(postNumId) || postNumId <= 0) {
+        setPost(null);
+        setComments([]);
+        return;
+      }
+      const backendPost = await getGlobalPost(postNumId, token);
+      const parsed = parsePostContent(backendPost.content);
 
-        setPost({
-          id: String(backendPost.postId),
-          authorName: backendPost.authorName || 'Thành viên Picklink',
-          avatar: backendPost.authorAvatarUrl || 'https://i.pravatar.cc/150?u=' + backendPost.authorId,
-          level: '3.5',
-          location: parsed.location || 'Hà Nội',
-          createdAt: formattedDate,
-          title: parsed.title || 'Bài viết mới',
-          content: parsed.body,
-          image: backendPost.mediaUrls && backendPost.mediaUrls.length > 0 ? backendPost.mediaUrls[0] : undefined,
-          tags: parsed.tags || [],
-          lookingFor: parsed.lookingFor && parsed.slots
-            ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
-            : undefined,
-          likes: backendPost.likeCount || 0,
-          comments: backendPost.commentCount || 0,
-          shares: 0,
-          liked: backendPost.likedByMe || false,
-          saved: false,
-          matchId: parsed.matchId
-        });
+      let formattedDate = 'Vừa xong';
+      try {
+        formattedDate = new Intl.DateTimeFormat('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(new Date(backendPost.createdAt));
+      } catch {
+        // ignore date parse issues
+      }
 
-        // Load comments if authenticated
-        if (token) {
-          const flatComments = await getPostComments(postNumId, token);
-          const commentTree = buildCommentTree(flatComments);
-          setComments(commentTree);
-        }
+      setPost({
+        id: String(backendPost.postId),
+        authorName: backendPost.authorName || 'Thành viên Picklink',
+        avatar: backendPost.authorAvatarUrl || '',
+        level: '',
+        location: parsed.location || '',
+        createdAt: formattedDate,
+        title: parsed.title || 'Bài viết',
+        content: parsed.body,
+        image: backendPost.mediaUrls && backendPost.mediaUrls.length > 0 ? backendPost.mediaUrls[0] : undefined,
+        tags: parsed.tags || [],
+        lookingFor: parsed.lookingFor && parsed.slots
+          ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
+          : undefined,
+        likes: backendPost.likeCount || 0,
+        comments: backendPost.commentCount || 0,
+        liked: backendPost.likedByMe || false,
+        matchId: parsed.matchId
+      });
+
+      // Load comments if authenticated
+      if (token) {
+        const flatComments = await getPostComments(postNumId, token);
+        const commentTree = buildCommentTree(flatComments);
+        setComments(commentTree);
       }
     } catch (err) {
       console.error('Failed to load post details:', err);
@@ -365,7 +309,7 @@ export const PostDetail = () => {
   }, [token]);
 
   const handleLikeToggle = async () => {
-    if (!token || !post || isMock) return;
+    if (!token || !post) return;
 
     const originalLiked = post.liked;
     const originalLikes = post.likes;
@@ -388,7 +332,7 @@ export const PostDetail = () => {
       } else {
         await reactToPost(token, postNumId);
       }
-      
+
       // Silently sync state with server
       const backendPost = await getGlobalPost(postNumId, token);
       setPost((prev) =>
@@ -428,31 +372,6 @@ export const PostDetail = () => {
         imageUrl: commentImageUrl,
         location: commentLocation
       });
-    }
-
-    if (isMock) {
-      // Mock flow comment addition
-      setComments((currentComments) => [
-        {
-          id: `comment-${Date.now()}`,
-          authorName: user?.name || 'Người dùng',
-          avatar: user?.avatar || profile?.profileImageUrl || '',
-          level: '3.5',
-          createdAt: 'Vừa xong',
-          content: text, // Plain text display for mock tree
-          imageUrl: commentImageUrl,
-          location: commentLocation,
-          likes: 0,
-          liked: false,
-          replies: []
-        },
-        ...currentComments,
-      ]);
-      setCommentDraft('');
-      setCommentImageUrl('');
-      setCommentLocation('');
-      setReplyingTo(null);
-      return;
     }
 
     setSubmittingComment(true);
@@ -497,7 +416,7 @@ export const PostDetail = () => {
   };
 
   const handleCommentLikeToggle = async (commentId: string) => {
-    if (!token || isMock) return;
+    if (!token) return;
 
     // Helper function to recursively toggle liked status in comment list
     const updateCommentLikedStatus = (list: DisplayComment[]): DisplayComment[] => {
@@ -603,22 +522,27 @@ export const PostDetail = () => {
             <div className="p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 gap-3">
-                  <img alt={post.authorName} className="community-avatar community-avatar--lg" src={post.avatar} />
+                  {post.avatar ? (
+                    <img alt="" className="community-avatar community-avatar--lg" decoding="async" src={post.avatar} />
+                  ) : (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+                      <UserRound aria-hidden="true" className="h-6 w-6" />
+                    </span>
+                  )}
                   <div className="min-w-0">
                     <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
-                      <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>
+                      {post.level && <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>}
                       <span>{post.createdAt}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin aria-hidden="true" className="h-3 w-3" />
-                        {post.location}
-                      </span>
+                      {post.location && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin aria-hidden="true" className="h-3 w-3" />
+                          {post.location}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <button aria-label="Tùy chọn bài viết" className="community-icon-button" title="Tùy chọn bài viết" type="button">
-                  <MoreHorizontal aria-hidden="true" className="h-[18px] w-[18px]" />
-                </button>
               </div>
 
               <h1 className="mt-5 text-[clamp(1.35rem,3vw,1.75rem)] font-extrabold leading-tight tracking-[-0.025em] text-[#0b2228]">
@@ -654,7 +578,7 @@ export const PostDetail = () => {
             </div>
 
             {post.image && (
-              <img alt={post.title} className="max-h-[520px] w-full bg-[#dfeadc] object-cover" src={post.image} />
+              <img alt={post.title} className="max-h-[520px] w-full bg-[#dfeadc] object-cover" decoding="async" loading="lazy" src={post.image} />
             )}
 
             <div className="px-4 pb-3 pt-3 sm:px-5">
@@ -663,9 +587,9 @@ export const PostDetail = () => {
                   <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
                   {post.likes} lượt thích
                 </span>
-                <span>{visibleCommentCount} bình luận · {post.shares} chia sẻ</span>
+                <span>{visibleCommentCount} bình luận</span>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
+              <div className="mt-3 grid grid-cols-2 gap-1 border-t border-[#e0e9dc] pt-2">
                 <button
                   className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
                   onClick={handleLikeToggle}
@@ -678,10 +602,6 @@ export const PostDetail = () => {
                   <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
                   <span className="hidden sm:inline">Bình luận</span>
                 </a>
-                <button className="community-button-quiet !min-h-9 !px-2" type="button">
-                  <Share2 aria-hidden="true" className="h-[17px] w-[17px]" />
-                  <span className="hidden sm:inline">Chia sẻ</span>
-                </button>
               </div>
             </div>
           </article>
@@ -801,9 +721,9 @@ export const PostDetail = () => {
 
             <div className="mt-6 grid gap-5">
               {comments.map((comment) => (
-                <CommentItem 
-                  comment={comment} 
-                  key={comment.id} 
+                <CommentItem
+                  comment={comment}
+                  key={comment.id}
                   onReply={(target) => {
                     setReplyingTo(target);
                     const el = document.getElementById('post-comment');
@@ -825,24 +745,10 @@ export const PostDetail = () => {
         <aside className="grid gap-4 lg:sticky lg:top-20">
           <section className="community-panel p-4">
             <h2 className="text-[15px] font-extrabold text-[#0b2228]">Thông tin bài viết</h2>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-[#d8e4d4] p-3">
-                <p className="text-[11px] font-bold text-[#718077]">Bình luận</p>
-                <p className="mt-1 font-mono text-[20px] font-extrabold">{visibleCommentCount}</p>
-              </div>
-              <div className="rounded-xl border border-[#d8e4d4] p-3">
-                <p className="text-[11px] font-bold text-[#718077]">Chia sẻ</p>
-                <p className="mt-1 font-mono text-[20px] font-extrabold">{post.shares}</p>
-              </div>
+            <div className="mt-3 rounded-xl border border-[#d8e4d4] p-3">
+              <p className="text-[11px] font-bold text-[#718077]">Bình luận</p>
+              <p className="mt-1 font-mono text-[20px] font-extrabold">{visibleCommentCount}</p>
             </div>
-            <button className="community-button-secondary mt-3 w-full" type="button">
-              <Bookmark aria-hidden="true" className="h-4 w-4" />
-              Lưu bài viết
-            </button>
-            <button className="community-button-quiet mt-1 w-full" type="button">
-              <Flag aria-hidden="true" className="h-4 w-4" />
-              Báo cáo bài viết
-            </button>
           </section>
         </aside>
       </main>

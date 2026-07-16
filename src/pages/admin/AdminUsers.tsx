@@ -232,7 +232,7 @@ export const AdminUsers = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {account.avatarUrl ? (
-                        <img alt={account.name} className="h-11 w-11 rounded-xl object-cover" src={account.avatarUrl} />
+                        <img alt={account.name} className="h-11 w-11 rounded-xl object-cover" decoding="async" loading="lazy" src={account.avatarUrl} />
                       ) : (
                         <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#0b2228] text-sm font-black text-[#e2ff57]">
                           {avatarLabel(account.name)}

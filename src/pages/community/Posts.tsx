@@ -4,7 +4,6 @@ import {
   Image as ImageIcon,
   MapPin,
   MessageCircle,
-  MoreHorizontal,
   Plus,
   Send,
   Share2,
@@ -13,7 +12,6 @@ import {
   UserRound,
   Users,
   Loader2,
-  X,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
@@ -22,10 +20,6 @@ import {
   getGlobalPosts,
   reactToPost,
   removeReaction,
-  getFriends,
-  getGroups,
-  type CommunityFriend,
-  type CommunityGroup,
 } from '../../api/community';
 import { CommunityFeedShell, CommunityPage } from './CommunityUI';
 import { useToast } from '../../components/ui/ToastRegion';
@@ -44,9 +38,7 @@ export interface DisplayPost {
   lookingFor?: string;
   likes: number;
   comments: number;
-  shares: number;
   liked: boolean;
-  saved: boolean;
   matchId?: number | null;
   groupName?: string;
   groupId?: number | null;
@@ -94,34 +86,34 @@ export const PostCard = ({
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 gap-3">
-            <Link to={`/posts/${post.id}`}>
-              <img alt={post.authorName} className="community-avatar" src={post.avatar} />
+            <Link aria-label={'Xem bài viết của ' + post.authorName} to={'/posts/' + post.id}>
+              {post.avatar ? (
+                <img alt="" className="community-avatar" decoding="async" loading="lazy" src={post.avatar} />
+              ) : (
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+                  <UserRound aria-hidden="true" className="h-5 w-5" />
+                </span>
+              )}
             </Link>
             <div className="min-w-0">
               <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
-                <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>
+                {post.level && <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>}
                 {post.groupName && post.groupId && (
                   <Link to={`/clubs/${post.groupId}`} className="community-badge !min-h-5 !px-2 !py-1 !bg-primary/10 !text-primary hover:bg-primary/20 transition-colors font-extrabold">
                     CLB: {post.groupName}
                   </Link>
                 )}
                 <span>{post.createdAt}</span>
-                <span className="inline-flex items-center gap-1">
-                  <MapPin aria-hidden="true" className="h-3 w-3" />
-                  {post.location}
-                </span>
+                {post.location && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin aria-hidden="true" className="h-3 w-3" />
+                    {post.location}
+                  </span>
+                )}
               </div>
             </div>
           </div>
-          <button
-            aria-label="Tùy chọn bài viết"
-            className="community-icon-button"
-            title="Tùy chọn bài viết"
-            type="button"
-          >
-            <MoreHorizontal aria-hidden="true" className="h-[18px] w-[18px]" />
-          </button>
         </div>
 
         <Link className="mt-4 block" to={`/posts/${post.id}`}>
@@ -167,6 +159,8 @@ export const PostCard = ({
         <img
           alt={post.title}
           className="max-h-[420px] w-full object-cover transition-transform duration-300 ease-out hover:scale-[1.015] motion-reduce:transform-none"
+          decoding="async"
+          loading="lazy"
           src={post.image}
         />
       </Link>
@@ -178,7 +172,7 @@ export const PostCard = ({
           <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
           {post.likes} lượt thích
         </span>
-        <span>{post.comments} bình luận · {post.shares} chia sẻ</span>
+        <span>{post.comments} bình luận</span>
       </div>
       <div className="community-post-card__actions mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
         <button
@@ -214,28 +208,29 @@ export const Posts = () => {
   const [posts, setPosts] = useState<DisplayPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
-  const [sharingPost, setSharingPost] = useState<DisplayPost | null>(null);
-  const [friends, setFriends] = useState<CommunityFriend[]>([]);
-  const [groups, setGroups] = useState<CommunityGroup[]>([]);
-  const [loadingShareTargets, setLoadingShareTargets] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (sharingPost && token) {
-      setLoadingShareTargets(true);
-      Promise.all([
-        getFriends(token).catch(() => []),
-        getGroups(token, undefined, undefined, undefined, 'Mine').catch(() => [])
-      ]).then(([friendsData, groupsData]) => {
-        setFriends(friendsData);
-        setGroups(groupsData);
-      }).catch((err) => {
-        console.error("Failed to load share targets:", err);
-      }).finally(() => {
-        setLoadingShareTargets(false);
-      });
+
+  const sharePost = async (post: DisplayPost) => {
+    const url = new URL('/posts/' + post.id, window.location.origin).toString();
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: post.title,
+          text: post.content.slice(0, 160),
+          url,
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        notify('Đã sao chép liên kết bài viết.', 'success');
+      } else {
+        throw new Error('Trình duyệt không hỗ trợ chia sẻ.');
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      notify(error instanceof Error ? error.message : 'Không thể chia sẻ bài viết.', 'error');
     }
-  }, [sharingPost, token]);
+  };
 
   const loadPosts = async () => {
     setLoading(true);
@@ -259,11 +254,11 @@ export const Posts = () => {
         return {
           id: String(post.postId),
           authorName: post.authorName || 'Thành viên Picklink',
-          avatar: post.authorAvatarUrl || 'https://i.pravatar.cc/150?u=' + post.authorId,
-          level: '3.5',
-          location: parsed.location || 'Hà Nội',
+          avatar: post.authorAvatarUrl || '',
+          level: '',
+          location: parsed.location || '',
           createdAt: formattedDate,
-          title: parsed.title || 'Bài viết mới',
+          title: parsed.title || 'Bài viết',
           content: parsed.body,
           image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
           tags: parsed.tags || [],
@@ -272,9 +267,7 @@ export const Posts = () => {
             : undefined,
           likes: post.likeCount || 0,
           comments: post.commentCount || 0,
-          shares: 0,
           liked: post.likedByMe || false,
-          saved: false,
           matchId: parsed.matchId
         };
       });
@@ -317,9 +310,6 @@ export const Posts = () => {
 
   const handleLikeToggle = async (postId: string) => {
     if (!token) return;
-    
-    // Ignore like toggles on static mock posts
-    if (postId.startsWith('mock-')) return;
     
     const postNumId = Number(postId);
     const post = posts.find((p) => p.id === postId);
@@ -469,7 +459,7 @@ export const Posts = () => {
                 key={post.id} 
                 post={post} 
                 onLikeToggle={handleLikeToggle} 
-                onShareClick={setSharingPost}
+                onShareClick={(post) => void sharePost(post)}
               />
             ))
           ) : (
@@ -500,127 +490,6 @@ export const Posts = () => {
           </Link>
         )}
 
-        {sharingPost && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border border-[#cfe0c8] bg-white p-6 shadow-2xl flex flex-col max-h-[85vh]">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#e0e9dc] pb-4">
-                <h2 className="text-[17px] font-extrabold text-[#0b2228]">Chia sẻ bài viết</h2>
-                <button
-                  onClick={() => setSharingPost(null)}
-                  className="rounded-full p-1.5 hover:bg-[#f4f8f2] text-[#718077] transition-colors"
-                  type="button"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="overflow-y-auto py-4 space-y-6 flex-1 pr-1 custom-scrollbar">
-                {/* Repost Options */}
-                <div>
-                  <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[#718077] mb-2">Tùy chọn chia sẻ</h3>
-                  <button
-                    onClick={() => {
-                      notify(`Đã chọn chia sẻ lại bài viết: ${sharingPost.title}`, 'success');
-                      setSharingPost(null);
-                    }}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] hover:bg-[#edf5e9] text-left transition-colors cursor-pointer"
-                    type="button"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Share2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-extrabold text-[#0b2228]">Chia sẻ lại lên Bảng tin</p>
-                      <p className="text-[11px] font-semibold text-[#718077] mt-0.5">Bài viết sẽ xuất hiện trên dòng thời gian của bạn</p>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Send via Message */}
-                <div className="border-t border-[#e0e9dc] pt-4">
-                  <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[#718077] mb-3">Gửi tin nhắn trực tiếp</h3>
-                  
-                  {loadingShareTargets ? (
-                    <div className="flex items-center justify-center py-6">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      <span className="ml-2 text-[12px] text-[#718077]">Đang tải danh sách...</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Groups list */}
-                      <div>
-                        <h4 className="text-[12px] font-extrabold text-[#0b2228] mb-2 flex items-center gap-1.5">
-                          <Users className="h-4 w-4 text-primary" />
-                          Nhóm CLB bạn tham gia ({groups.length})
-                        </h4>
-                        {groups.length > 0 ? (
-                          <div className="grid gap-1.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
-                            {groups.map(g => (
-                              <button
-                                key={g.groupId}
-                                onClick={() => {
-                                  notify(`Đã chọn gửi tới nhóm: ${g.groupName}`, 'success');
-                                  setSharingPost(null);
-                                }}
-                                className="flex w-full items-center gap-3 p-2 rounded-lg border border-[#e0e9dc]/60 hover:bg-[#f4f8f2] text-left transition-colors cursor-pointer"
-                                type="button"
-                              >
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white uppercase">
-                                  {g.groupName.substring(0, 2)}
-                                </div>
-                                <span className="text-[13px] font-bold text-[#0b2228] truncate">{g.groupName}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-[#718077] italic pl-2">Bạn chưa tham gia câu lạc bộ nào.</p>
-                        )}
-                      </div>
-
-                      {/* Friends list (only if user has friends) */}
-                      {friends.length > 0 && (
-                        <div className="border-t border-[#e0e9dc]/60 pt-4">
-                          <h4 className="text-[12px] font-extrabold text-[#0b2228] mb-2 flex items-center gap-1.5">
-                            <UserRound className="h-4 w-4 text-primary" />
-                            Bạn bè ({friends.length})
-                          </h4>
-                          <div className="grid gap-1.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
-                            {friends.map(f => (
-                              <button
-                                key={f.userId}
-                                onClick={() => {
-                                  notify(`Đã chọn gửi tới bạn bè: ${f.username}`, 'success');
-                                  setSharingPost(null);
-                                }}
-                                className="flex w-full items-center gap-3 p-2.5 rounded-lg border border-[#e0e9dc]/60 hover:bg-[#f4f8f2] text-left transition-colors cursor-pointer"
-                                type="button"
-                              >
-                                {f.profileImageUrl ? (
-                                  <img
-                                    src={f.profileImageUrl}
-                                    alt={f.username}
-                                    className="h-7 w-7 shrink-0 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#edf5e9] text-primary text-[11px] font-bold uppercase">
-                                    {f.username.substring(0, 2)}
-                                  </div>
-                                )}
-                                <span className="text-[13px] font-bold text-[#0b2228] truncate">{f.username}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </CommunityFeedShell>
     </CommunityPage>
   );

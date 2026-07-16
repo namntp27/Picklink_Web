@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   AlertCircle,
@@ -25,60 +25,18 @@ import { AdministrativeAreaSelects } from '../../components/location/Administrat
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../utils/playerLocation';
 import { MatchVenueMapDialog } from '../matches/components/MatchVenueMapDialog';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 
 type Coordinates = { latitude: number; longitude: number };
-type PlayerLocation = Coordinates & { accuracy: number };
 type LocatedVenue = BookingVenue & { latitude: number; longitude: number };
 type MainLayoutContext = { setShowFooter?: (value: boolean) => void };
 
-const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
-const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_CACHE_ACCURACY_METERS = 1_000;
-
 const compactButtonClass = 'h-10 rounded-xl px-3 text-[13px] font-bold';
 const compactInputClass = 'h-10 rounded-xl border-white/15 bg-[#102b31]/90 text-[13px] text-white placeholder:text-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-[#e2ff57]/45 focus:border-[#e2ff57] focus:bg-[#102b31] focus:ring-[#e2ff57]/20';
-
-const readCachedPlayerLocation = (): PlayerLocation | null => {
-  try {
-    const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
-    if (!rawValue) return null;
-    const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
-    const isValid = Number.isFinite(cached.accuracy)
-      && cached.accuracy >= 0
-      && cached.accuracy <= MAX_CACHE_ACCURACY_METERS
-      && Number.isFinite(cached.latitude)
-      && cached.latitude >= -90
-      && cached.latitude <= 90
-      && Number.isFinite(cached.longitude)
-      && cached.longitude >= -180
-      && cached.longitude <= 180
-      && Date.now() - cached.cachedAt <= PLAYER_LOCATION_CACHE_TTL_MS;
-    if (!isValid) {
-      window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
-      return null;
-    }
-    return {
-      accuracy: cached.accuracy,
-      latitude: cached.latitude,
-      longitude: cached.longitude,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const cachePlayerLocation = (location: PlayerLocation) => {
-  if (location.accuracy > MAX_CACHE_ACCURACY_METERS) return;
-  try {
-    window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({ ...location, cachedAt: Date.now() }));
-  } catch {
-    // Location sorting still works when storage is unavailable.
-  }
-};
 
 const venueIcon = (selected: boolean) => divIcon({
   className: '',
@@ -147,8 +105,8 @@ export const BookCourt = () => {
   const { token } = useAuth();
   const { setShowFooter } = useOutletContext<MainLayoutContext>() ?? {};
   const [venues, setVenues] = useState<BookingVenue[]>([]);
-  const [search, setSearch] = useState('');
-  const [selectedProvince, setSelectedProvince] = useState('');
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') ?? '');
+  const [selectedProvince, setSelectedProvince] = useState(() => new URLSearchParams(window.location.search).get('area') ?? '');
   const [selectedWard, setSelectedWard] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -166,16 +124,21 @@ export const BookCourt = () => {
     : 'Bấm Vị trí của tôi để xem sân gần bạn.');
   const shouldReduceMotion = useReducedMotion();
   const areaFilter = [selectedWard, selectedProvince].filter(Boolean).join(' ');
+  const venueRequestController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setShowFooter?.(false);
     return () => setShowFooter?.(true);
   }, [setShowFooter]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIsLoading(true);
-      getBookingVenues({
+  const loadVenues = useCallback(async (silent = false) => {
+    venueRequestController.current?.abort();
+    const controller = new AbortController();
+    venueRequestController.current = controller;
+    if (!silent) setIsLoading(true);
+
+    try {
+      const result = await getBookingVenues({
         search,
         area: areaFilter,
         minPrice: minPrice ? Number(minPrice) : undefined,
@@ -183,31 +146,30 @@ export const BookCourt = () => {
         favoritesOnly,
         page,
         pageSize: 10,
-      }, token)
-        .then((result) => { setVenues(result.items); setPagination(result); setError(''); })
-        .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.'))
-        .finally(() => setIsLoading(false));
-    }, 250);
-    return () => window.clearTimeout(timer);
+      }, token, controller.signal);
+      if (controller.signal.aborted) return;
+      setVenues(result.items);
+      setPagination(result);
+      setError('');
+    } catch (requestError) {
+      if (controller.signal.aborted) return;
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.');
+    } finally {
+      if (!controller.signal.aborted && venueRequestController.current === controller) {
+        setIsLoading(false);
+      }
+    }
   }, [areaFilter, favoritesOnly, maxPrice, minPrice, page, search, token]);
 
-  useVenueRealtime(() => {
-    getBookingVenues({
-      search,
-      area: areaFilter,
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      favoritesOnly,
-      page,
-      pageSize: 10,
-    }, token)
-      .then((result) => {
-        setVenues(result.items);
-        setPagination(result);
-        setError('');
-      })
-      .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể đồng bộ danh sách sân.'));
-  });
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadVenues(); }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      venueRequestController.current?.abort();
+    };
+  }, [loadVenues]);
+
+  useVenueRealtime(() => { void loadVenues(true); });
 
   const visibleVenues = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -427,11 +389,10 @@ export const BookCourt = () => {
                 return (
                   <motion.article
                     animate={{ opacity: 1, y: 0 }}
-                    className={`picklink-glow-surface cursor-pointer rounded-xl px-3 py-3 transition-[background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px ${selected ? 'bg-[#0b2228] text-white shadow-[0_12px_28px_rgba(8,29,36,0.16)]' : 'bg-[#fbfdf8] hover:bg-[#eef8e6]'}`}
+                    className={`picklink-glow-surface rounded-xl px-3 py-3 transition-[background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px ${selected ? 'bg-[#0b2228] text-white shadow-[0_12px_28px_rgba(8,29,36,0.16)]' : 'bg-[#fbfdf8] hover:bg-[#eef8e6]'}`}
                     data-motion-managed
                     initial={revealInitial}
                     key={venue.venueId}
-                    onClick={() => setSelectedVenueId(venue.venueId)}
                     transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: [0.2, 0.8, 0.2, 1] }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -469,14 +430,23 @@ export const BookCourt = () => {
                       )}
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <p className={`break-words text-[14px] font-black ${selected ? 'text-[#e2ff57]' : 'text-primary'}`}>{currency.format(venue.fromPrice)}/giờ</p>
-                      <Link
-                        className="inline-flex h-8 items-center rounded-lg bg-[#e2ff57] px-3 text-[12px] font-black text-[#102414] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#d6f64d] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]"
-                        onClick={(event) => event.stopPropagation()}
-                        to={`/court/${venue.venueId}/schedule`}
-                      >
-                        Chọn sân
-                      </Link>
+                      <p className={selected ? 'break-words text-[14px] font-black text-[#e2ff57]' : 'break-words text-[14px] font-black text-primary'}>{currency.format(venue.fromPrice)}/giờ</p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          aria-pressed={selected}
+                          className={selected ? 'inline-flex h-8 items-center rounded-lg bg-white/10 px-3 text-[12px] font-bold text-white' : 'inline-flex h-8 items-center rounded-lg border border-[#dbe8d3] bg-white px-3 text-[12px] font-bold text-[#0b2228] hover:bg-[#eef8e6]'}
+                          onClick={() => setSelectedVenueId(venue.venueId)}
+                          type="button"
+                        >
+                          {selected ? 'Đang xem' : 'Xem bản đồ'}
+                        </button>
+                        <Link
+                          className="inline-flex h-8 items-center rounded-lg bg-[#e2ff57] px-3 text-[12px] font-black text-[#102414] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#d6f64d] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]"
+                          to={'/court/' + venue.venueId + '/schedule'}
+                        >
+                          Chọn sân
+                        </Link>
+                      </div>
                     </div>
                   </motion.article>
                 );

@@ -3,20 +3,19 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
-  Bell,
   CalendarDays,
   CircleGauge,
   CreditCard,
-  HelpCircle,
   Map,
   Settings,
   User,
   UsersRound,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { useAuth } from '../../../auth/AuthContext';
 import '../owner.css';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'matchBookings' | 'payments' | 'courts' | 'revenue' | 'staff' | 'settings';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'matchBookings' | 'courts' | 'revenue' | 'staff' | 'settings';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -46,6 +45,10 @@ export const OwnerShell = ({
   innerClassName?: string;
 }) => {
   const shouldReduceMotion = useReducedMotion();
+  const { user } = useAuth();
+  const initials = user?.name
+    ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+    : '';
 
   return (
     <div className="owner-root">
@@ -73,17 +76,22 @@ export const OwnerShell = ({
               {item.label}
             </Link>
           ))}
-        </nav>
-
-        <div className="flex items-center gap-1.5">
-          <button aria-label="Thông báo chủ sân" className="owner-topbar__action" title="Thông báo" type="button">
-            <Bell aria-hidden="true" className="h-[18px] w-[18px]" />
-          </button>
-          <button aria-label="Trợ giúp" className="owner-topbar__action hidden sm:grid" title="Trợ giúp" type="button">
-            <HelpCircle aria-hidden="true" className="h-[18px] w-[18px]" />
-          </button>
-          <span aria-label="Tài khoản chủ sân" className="owner-topbar__action text-[#e2ff57]" title="Tài khoản chủ sân">
-            <User aria-hidden="true" className="h-[18px] w-[18px]" />
+        </nav>        <div className="flex items-center gap-2">
+          <span className="hidden max-w-40 truncate text-[12px] font-bold text-white/76 sm:block">
+            {user?.name || 'Chủ sân'}
+          </span>
+          <span
+            aria-label={user?.name ? 'Tài khoản ' + user.name : 'Tài khoản chủ sân'}
+            className="owner-topbar__action overflow-hidden text-[#e2ff57]"
+            title={user?.name || 'Tài khoản chủ sân'}
+          >
+            {user?.avatar ? (
+              <img alt="" className="h-full w-full object-cover" src={user.avatar} />
+            ) : initials ? (
+              <span className="text-[11px] font-extrabold">{initials}</span>
+            ) : (
+              <User aria-hidden="true" className="h-[18px] w-[18px]" />
+            )}
           </span>
         </div>
       </header>

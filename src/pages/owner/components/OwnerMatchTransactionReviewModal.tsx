@@ -8,6 +8,7 @@ import {
   rejectOperatorPayment,
 } from '../../../api/payment';
 import { useAuth } from '../../../auth/AuthContext';
+import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
 import { preloadReceiptImage } from '../../../utils/receiptImage';
 
@@ -146,19 +147,13 @@ export const OwnerMatchTransactionReviewModal = ({
   };
 
   return (
-    <div
-      className="owner-modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && busyId === null) onClose();
-      }}
-      role="presentation"
+    <ModalDialog
+      aria-labelledby="match-payment-title"
+      canClose={busyId === null}
+      className="owner-modal max-w-6xl"
+      onRequestClose={onClose}
+      style={{ width: 'calc(100% - 1.75rem)' }}
     >
-      <section
-        aria-labelledby="match-payment-title"
-        aria-modal="true"
-        className="owner-modal max-w-6xl"
-        role="dialog"
-      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[13px] font-bold text-primary">{bookingCode}</p>
@@ -294,7 +289,6 @@ export const OwnerMatchTransactionReviewModal = ({
           </div>
           </>
         )}
-      </section>
-    </div>
+    </ModalDialog>
   );
 };

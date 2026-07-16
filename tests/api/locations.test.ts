@@ -18,10 +18,12 @@ test('locations API client reads and resolves canonical administrative areas', (
   assert.match(locationsSource, /apiRequest<ProvinceOption\[]>\('\/api\/locations\/provinces'/);
   assert.match(
     locationsSource,
-    /\/api\/locations\/provinces\/\$\{encodeURIComponent\(provinceCode\)\}\/wards/,
+    /encodeURIComponent\(provinceCode\).*\/wards/s,
   );
   assert.match(locationsSource, /resolveAdministrativeArea/);
   assert.match(locationsSource, /signal \? \{ signal \} : \{\}/);
+  assert.match(locationsSource, /provinceCache/);
+  assert.match(locationsSource, /wardCache/);
 });
 
 test('geocoding client only calls the backend proxy', () => {

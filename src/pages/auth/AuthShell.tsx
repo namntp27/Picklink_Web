@@ -118,18 +118,6 @@ export const AuthShell = ({
             </div>
             <div className="relative z-10">
               <CourtVisual />
-              <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/12 bg-white/12">
-                {[
-                  ['48', 'sân mở'],
-                  ['1.2k', 'người chơi'],
-                  ['27', 'giải tháng'],
-                ].map(([value, label]) => (
-                  <div className="bg-[#0d2a2f]/88 p-3" key={label}>
-                    <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">{value}</p>
-                    <p className="mt-1 text-[12px] font-medium leading-4 text-white/62">{label}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </motion.aside>
 

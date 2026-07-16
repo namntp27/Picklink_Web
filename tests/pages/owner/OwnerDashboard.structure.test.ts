@@ -38,8 +38,9 @@ test('owner timeline separates courts by venue instead of merging every court in
   assert.doesNotMatch(gridSource, /venues\.flatMap\(\(venue\) => venue\.courts/);
 });
 
-test('frontend test script includes the owner schedule timeline contract', () => {
-  assert.match(packageSource, /tests\/pages\/owner\/OwnerDashboard\.structure\.test\.ts/);
+test('frontend test script discovers all structure contracts', () => {
+  const packageJson = JSON.parse(packageSource) as { scripts?: { test?: string } };
+  assert.equal(packageJson.scripts?.test, 'tsx --test "tests/**/*.test.ts"');
 });
 
 test('owner schedule can confirm a held player booking from the slot drawer', () => {

@@ -1,20 +1,17 @@
-﻿import type { CommunityGroup, DirectConversation } from '../../api/community';
+import type { CommunityGroup, CommunityMessage, DirectConversation } from '../../api/community';
 
-export type ConversationKind = 'match' | 'booking' | 'club' | 'direct';
-export type ConversationStatus = 'online' | 'offline' | 'playing';
-export type ConversationFilter = 'all' | 'unread' | ConversationKind;
+export type ConversationKind = 'club' | 'direct';
+export type ConversationFilter = 'all' | ConversationKind;
 
 export type Conversation = {
   id: string;
   name: string;
   avatar: string;
+  avatarUrl?: string | null;
   level: string;
-  status: ConversationStatus;
   kind: ConversationKind;
   lastMessage: string;
   lastTime: string;
-  unread: number;
-  location: string;
   contextTitle: string;
   contextMeta: string;
   groupId?: number;
@@ -35,92 +32,74 @@ export type ChatMessage = {
   senderId?: number;
 };
 
+export const formatMessageTime = (isoString: string) => {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86_400_000);
+  if (diffDays === 0) return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return 'Hôm qua';
+  if (diffDays < 7) return ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][date.getDay()];
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+};
+
+export const toChatMessage = (message: CommunityMessage): ChatMessage => ({
+  id: message.messageId,
+  author: message.isMine ? 'Bạn' : message.senderName,
+  text: message.content ?? '',
+  time: formatMessageTime(message.sentAt),
+  mine: message.isMine,
+  read: true,
+  avatarUrl: message.senderAvatarUrl,
+  mediaUrl: message.mediaUrl,
+  isPinned: message.isPinned,
+  senderId: message.senderId,
+});
+
 export const filterOptions: Array<{ id: ConversationFilter; label: string }> = [
   { id: 'all', label: 'Tất cả' },
-  { id: 'unread', label: 'Chưa đọc' },
-  { id: 'match', label: 'Ghép trận' },
-  { id: 'booking', label: 'Sân' },
+  { id: 'direct', label: 'Cá nhân' },
   { id: 'club', label: 'CLB' },
 ];
 
 export const kindLabels: Record<ConversationKind, string> = {
-  match: 'Ghép trận',
-  booking: 'Đặt sân',
   club: 'CLB',
   direct: 'Cá nhân',
 };
 
-export const statusLabels: Record<ConversationStatus, string> = {
-  online: 'Đang online',
-  offline: 'Vừa hoạt động',
-  playing: 'Đang ở sân',
+export const getLevelLabel = (conversation: Conversation) => {
+  if (conversation.kind === 'club') return conversation.level;
+  return conversation.level ? 'Trình độ ' + conversation.level : 'Chưa cập nhật trình độ';
 };
-
-export const statusClassNames: Record<ConversationStatus, string> = {
-  online: 'bg-[#2f9e44]',
-  offline: 'bg-[#8a9380]',
-  playing: 'bg-[#eab526]',
-};
-
-export const getCurrentTime = () =>
-  new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
-
-export const formatMessageTime = (isoString: string) => {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  }
-  if (diffDays === 1) return 'Hôm qua';
-  if (diffDays < 7) {
-    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    return dayNames[date.getDay()];
-  }
-  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-};
-
-export const getLevelLabel = (conversation: Conversation) =>
-  conversation.kind === 'booking' || conversation.kind === 'club'
-    ? conversation.level
-    : `Level ${conversation.level}`;
 
 export const groupToConversation = (group: CommunityGroup): Conversation => ({
-  id: `club-group-${group.groupId}`,
+  id: 'club-group-' + group.groupId,
   name: group.groupName,
   avatar: group.groupName.split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase(),
-  level: 'CLB',
-  status: 'online',
+  avatarUrl: group.coverImageUrl,
+  level: 'Câu lạc bộ',
   kind: 'club',
   lastMessage: group.messageCount > 0
-    ? `${group.messageCount} tin nhắn trong nhóm`
+    ? group.messageCount + ' tin nhắn trong nhóm'
     : 'Chưa có tin nhắn',
-  lastTime: formatMessageTime(group.createdAt),
-  unread: 0,
-  location: '',
+  lastTime: '',
   contextTitle: group.groupName,
-  contextMeta: `${group.memberCount} thành viên`,
+  contextMeta: group.memberCount + ' thành viên',
   groupId: group.groupId,
 });
 
 export const directToConversation = (direct: DirectConversation): Conversation => ({
-  id: `direct-conv-${direct.conversationId}`,
+  id: 'direct-conv-' + direct.conversationId,
   name: direct.otherUsername,
-  avatar: direct.otherProfileImageUrl || '',
+  avatar: direct.otherUsername.split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase(),
+  avatarUrl: direct.otherProfileImageUrl,
   level: direct.otherSkillLevel,
-  status: 'online',
   kind: 'direct',
   lastMessage: direct.lastMessage || 'Chưa có tin nhắn',
   lastTime: formatMessageTime(direct.lastMessageAt),
-  unread: 0,
-  location: '',
   contextTitle: 'Trò chuyện cá nhân',
-  contextMeta: `Trình độ ${direct.otherSkillLevel}`,
+  contextMeta: direct.otherSkillLevel ? 'Trình độ ' + direct.otherSkillLevel : 'Chưa cập nhật trình độ',
   conversationId: direct.conversationId,
   otherUserId: direct.otherUserId,
 });

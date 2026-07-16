@@ -153,8 +153,9 @@ export const AdminReports = () => {
       <section className="mb-4 rounded-xl border border-outline-variant bg-white p-4 shadow-sm">
         <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_auto_180px] xl:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
             <input
+              aria-label="Tìm báo cáo"
               className={`${inputClass} pl-9`}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Tìm nội dung, người gửi, đối tượng..."
@@ -164,6 +165,7 @@ export const AdminReports = () => {
           <div className="flex gap-2 overflow-x-auto">
             {statusOptions.map((option) => (
               <button
+                aria-pressed={status === option.value}
                 className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${status === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}
                 key={option.value}
                 onClick={() => { setStatus(option.value); setPage(1); }}
@@ -173,14 +175,14 @@ export const AdminReports = () => {
               </button>
             ))}
           </div>
-          <select className={inputClass} onChange={(event) => { setTargetType(event.target.value); setPage(1); }} value={targetType}>
+          <select aria-label="Lọc theo đối tượng" className={inputClass} onChange={(event) => { setTargetType(event.target.value); setPage(1); }} value={targetType}>
             {targetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </div>
       </section>
 
       {error && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error">
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error" role="alert">
           <AlertTriangle className="h-5 w-5 shrink-0" />{error}
           <button className="ml-auto underline" onClick={() => void loadReports()} type="button">Thử lại</button>
         </div>

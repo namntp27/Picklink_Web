@@ -8,6 +8,7 @@ import {
   rejectOperatorPayment,
 } from '../../../api/payment';
 import { useAuth } from '../../../auth/AuthContext';
+import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -86,14 +87,6 @@ export const OwnerTransactionReviewModal = ({
     if (!initialPayment) void load();
   }, [initialPayment, load]);
 
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isBusy) onClose();
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [isBusy, onClose]);
-
   usePaymentRealtime((event) => {
     if (event.paymentId === paymentId && !isBusy) void load(true);
   });
@@ -139,19 +132,13 @@ export const OwnerTransactionReviewModal = ({
   }));
 
   return (
-    <div
-      className="owner-modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isBusy) onClose();
-      }}
-      role="presentation"
+    <ModalDialog
+      aria-labelledby="transaction-review-title"
+      canClose={!isBusy}
+      className="owner-modal max-w-3xl"
+      onRequestClose={onClose}
+      style={{ width: 'calc(100% - 1.75rem)' }}
     >
-      <div
-        aria-labelledby="transaction-review-title"
-        aria-modal="true"
-        className="owner-modal max-w-3xl"
-        role="dialog"
-      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[13px] font-bold text-primary">{payment?.bookingCode ?? bookingCode}</p>
@@ -171,13 +158,13 @@ export const OwnerTransactionReviewModal = ({
         </div>
 
         {isLoading && (
-          <div className="flex min-h-72 items-center justify-center">
+          <div aria-label="Đang tải giao dịch" className="flex min-h-72 items-center justify-center" role="status">
             <Loader2 className="h-9 w-9 animate-spin text-primary" />
           </div>
         )}
 
         {error && (
-          <div className="mt-5 flex gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="mt-5 flex gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700" role="alert">
             <AlertCircle className="h-5 w-5 shrink-0" />
             <span className="text-[13px] font-bold">{error}</span>
           </div>
@@ -282,7 +269,6 @@ export const OwnerTransactionReviewModal = ({
             </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalDialog>
   );
 };

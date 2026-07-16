@@ -11,7 +11,7 @@ test('court schedule delegates the timetable UI to CourtTimelineGrid', () => {
 });
 
 test('court timeline grid matches the venue timetable states from the reference', () => {
-  for (const label of ['Trống', 'Đã đặt', 'Khoá', 'Sự kiện', 'Xem sân & bảng giá']) {
+  for (const label of ['Trống', 'Đã đặt', 'Khoá', 'Sự kiện']) {
     assert.match(gridSource, new RegExp(label));
   }
 
@@ -20,6 +20,7 @@ test('court timeline grid matches the venue timetable states from the reference'
   assert.match(gridSource, /buildTimelineTicks/);
   assert.match(gridSource, /gridTemplateColumns/);
   assert.match(gridSource, /timeToMinutes/);
+  assert.doesNotMatch(gridSource, /href="#court-pricing"/);
 });
 
 test('court schedule bottom bar follows the Home page palette', () => {

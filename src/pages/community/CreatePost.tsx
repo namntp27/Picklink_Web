@@ -24,7 +24,6 @@ import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import { getMyMatches, type MatchSummary } from '../../api/matches';
 import { OpenStreetMapLocationPicker } from '../owner/components/OpenStreetMapLocationPicker';
 import { uploadToCloudinary } from '../../api/cloudinary';
-import { currentCommunityUser } from '../../data/communityPosts';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';
 import { useToast } from '../../components/ui/ToastRegion';
@@ -398,6 +397,7 @@ export const CreatePost = () => {
               <div className="flex flex-col">
                 <FieldLabel>Chủ đề bài viết</FieldLabel>
                 <Dropdown<PostMode>
+                  ariaLabel="Chủ đề bài viết"
                   options={modeOptions}
                   value={mode}
                   onChange={setMode}
@@ -409,6 +409,7 @@ export const CreatePost = () => {
               <div className="flex flex-col">
                 <FieldLabel>Hiển thị</FieldLabel>
                 <Dropdown<Visibility>
+                  ariaLabel="Phạm vi hiển thị"
                   options={visibilityOptions}
                   value={visibility}
                   onChange={setVisibility}
@@ -429,6 +430,7 @@ export const CreatePost = () => {
                   </div>
                 ) : userGroups.length > 0 ? (
                   <Dropdown<string>
+                    ariaLabel="Chọn câu lạc bộ"
                     options={userGroups.map((g) => ({
                       label: g.groupName,
                       value: String(g.groupId),
@@ -648,6 +650,7 @@ export const CreatePost = () => {
                         <div className="flex flex-col">
                           <FieldLabel>Chọn phòng ghép trận đã tạo</FieldLabel>
                           <Dropdown<string>
+                            ariaLabel="Chọn phòng ghép trận"
                             options={matchOptions}
                             value={selectedMatchId ? String(selectedMatchId) : ''}
                             onChange={handleMatchSelect}
@@ -785,7 +788,7 @@ export const CreatePost = () => {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] font-extrabold">{name || currentCommunityUser.name}</p>
+                    <p className="truncate text-[13px] font-extrabold">{name || 'Người chơi'}</p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
                       <span className="inline-flex items-center gap-1">
                         <VisibilityIcon aria-hidden="true" className="h-3.5 w-3.5" />

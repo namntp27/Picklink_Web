@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { ModalDialog } from '../../../components/ui/ModalDialog';
 
 type CancelBookingDialogProps = {
   bookingCode: string;
@@ -21,21 +22,17 @@ export const CancelBookingDialog = ({
   const normalizedReason = reason.trim();
 
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-inverse-surface/65 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isBusy) onClose();
-      }}
-      role="presentation"
+    <ModalDialog
+      aria-labelledby="cancel-booking-title"
+      canClose={!isBusy}
+      className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto bg-transparent shadow-none backdrop:bg-inverse-surface/65"
+      onRequestClose={onClose}
     >
       <motion.section
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        aria-labelledby="cancel-booking-title"
-        aria-modal="true"
         className="w-full max-w-lg overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-[0_24px_70px_rgba(25,29,20,0.22)]"
         data-motion-managed
         initial={shouldReduceMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
-        role="dialog"
         transition={{ duration: shouldReduceMotion ? 0.01 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
       >
         <div className="border-b border-outline-variant bg-error-container px-6 py-5">
@@ -99,6 +96,6 @@ export const CancelBookingDialog = ({
           </div>
         </div>
       </motion.section>
-    </div>
+    </ModalDialog>
   );
 };

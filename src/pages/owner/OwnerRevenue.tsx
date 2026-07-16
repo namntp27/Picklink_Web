@@ -8,9 +8,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
-  Download,
   Eye,
-  Filter,
   HelpCircle,
   Map as MapIcon,
   ReceiptText,
@@ -304,28 +302,12 @@ export const OwnerRevenue = () => {
                   Theo dõi doanh thu đã nhận, khoản chờ thanh toán, hiệu suất theo sân và lịch sử giao dịch từ các đơn đặt sân.
                 </p>
               </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
-                  type="button"
-                >
-                  <Filter className="h-5 w-5" />
-                  Lọc nâng cao
-                </button>
-                <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
-                  type="button"
-                >
-                  <Download className="h-5 w-5" />
-                  Xuất báo cáo
-                </button>
-              </div>
             </section>
 
             <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {periodOptions.map((option) => (
                 <button
+                  aria-pressed={activePeriod === option.value}
                   className={`rounded-lg border p-4 text-left transition-colors ${
                     activePeriod === option.value
                       ? 'border-primary bg-primary text-white'
@@ -443,8 +425,9 @@ export const OwnerRevenue = () => {
                       <p className="mt-1 text-[13px] text-on-surface-variant">Tra cứu giao dịch theo trạng thái, mã đơn, khách hàng hoặc phương thức thanh toán.</p>
                     </div>
                     <div className="relative w-full lg:w-[360px]">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                      <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
                       <input
+                        aria-label="Tìm giao dịch"
                         className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setSearchTerm(event.target.value)}
                         placeholder="Tìm mã đơn, khách, sân..."
@@ -458,7 +441,8 @@ export const OwnerRevenue = () => {
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {transactionStatusOptions.map((option) => (
                         <button
-                          className={`h-9 shrink-0 rounded-lg px-3 text-[13px] font-bold transition-colors ${
+                          aria-pressed={activeStatus === option.value}
+                        className={`h-9 shrink-0 rounded-lg px-3 text-[13px] font-bold transition-colors ${
                             activeStatus === option.value
                               ? 'bg-primary text-white'
                               : 'border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
@@ -527,13 +511,6 @@ export const OwnerRevenue = () => {
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Link>
-                                  <button
-                                    className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low"
-                                    type="button"
-                                    aria-label="Tải biên nhận"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -557,13 +534,12 @@ export const OwnerRevenue = () => {
                 <section className="owner-panel border-[#b8ccaf] p-4">
                   <h2 className="flex items-center gap-2 text-[20px] font-bold">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    Đối soát kỳ này
+                    Tổng hợp kỳ này
                   </h2>
                   <div className="mt-5 space-y-4">
                     <div className="rounded-lg bg-surface-container-low p-4">
-                      <p className="text-[12px] font-bold uppercase text-on-surface-variant">Có thể rút</p>
+                      <p className="text-[12px] font-bold uppercase text-on-surface-variant">Doanh thu ròng</p>
                       <p className="mt-1 text-[28px] font-bold text-primary">{formatBookingCurrency(netRevenue)}</p>
-                      <p className="mt-2 text-[12px] text-on-surface-variant">Dự kiến chuyển khoản vào 19/06/2026.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg border border-outline-variant p-3">
@@ -575,10 +551,6 @@ export const OwnerRevenue = () => {
                         <p className="mt-1 text-[16px] font-bold">{formatBookingCurrency(serviceFees)}</p>
                       </div>
                     </div>
-                    <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90" type="button">
-                      <Download className="h-5 w-5" />
-                      Tải bảng đối soát
-                    </button>
                   </div>
                 </section>
 

@@ -14,8 +14,10 @@ test('regular owner bookings filter the selected day by creation date', () => {
 });
 
 
-test('owner bookings reload after a payment update', () => {
-  assert.match(source, /usePaymentRealtime\(\(event\) => \{[\s\S]*scheduleRealtimeReload\(\);[\s\S]*\}\);/);
+test('owner bookings patch payment updates without reloading the full page', () => {
+  assert.match(source, /usePaymentRealtime\(\(event\) => \{[\s\S]*setBookings\(\(current\)/);
+  assert.match(source, /paymentStatus: normalizePaymentStatus\(event\.paymentStatus\)/);
+  assert.doesNotMatch(source, /usePaymentRealtime\(\(event\) => \{[\s\S]*scheduleRealtimeReload\(\);[\s\S]*\}\);/);
 });
 
 test('regular owner bookings retain and render every selected child-court slot', () => {

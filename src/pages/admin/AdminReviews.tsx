@@ -155,12 +155,13 @@ export const AdminReviews = () => {
       <section className="mb-4 rounded-xl border border-outline-variant bg-white p-4 shadow-sm">
         <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_auto_160px_120px] xl:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
-            <input className={`${inputClass} pl-9`} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm nội dung, tag, người đánh giá..." value={search} />
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+            <input aria-label="Tìm đánh giá" className={`${inputClass} pl-9`} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm nội dung, tag, người đánh giá..." value={search} />
           </div>
           <div className="flex gap-2 overflow-x-auto">
             {statusOptions.map((option) => (
               <button
+                aria-pressed={moderationStatus === option.value}
                 className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${moderationStatus === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}
                 key={option.value}
                 onClick={() => { setModerationStatus(option.value); setPage(1); }}
@@ -170,10 +171,10 @@ export const AdminReviews = () => {
               </button>
             ))}
           </div>
-          <select className={inputClass} onChange={(event) => { setTargetType(event.target.value); setPage(1); }} value={targetType}>
+          <select aria-label="Lọc theo đối tượng" className={inputClass} onChange={(event) => { setTargetType(event.target.value); setPage(1); }} value={targetType}>
             {targetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
-          <select className={inputClass} onChange={(event) => { setScore(event.target.value === 'all' ? 'all' : Number(event.target.value)); setPage(1); }} value={score}>
+          <select aria-label="Lọc theo số sao" className={inputClass} onChange={(event) => { setScore(event.target.value === 'all' ? 'all' : Number(event.target.value)); setPage(1); }} value={score}>
             <option value="all">Mọi sao</option>
             {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} sao</option>)}
           </select>
@@ -181,7 +182,7 @@ export const AdminReviews = () => {
       </section>
 
       {error && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error">
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error" role="alert">
           <AlertTriangle className="h-5 w-5 shrink-0" />{error}
           <button className="ml-auto underline" onClick={() => void loadReviews()} type="button">Thử lại</button>
         </div>

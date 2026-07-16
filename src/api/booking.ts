@@ -151,12 +151,6 @@ export type BookingHoldSlot = {
   startTime: string;
 };
 
-export type BookingHoldingGroup = {
-  paymentGroupId: string;
-  totalAmount: number;
-  bookings: BookingHolding[];
-};
-
 const normalizeBookingHolding = (booking: BookingHolding): BookingHolding => ({
   ...booking,
   slots: booking.slots ?? [],
@@ -172,7 +166,7 @@ export type VenueFilters = PaginationParams & {
   favoritesOnly?: boolean;
 };
 
-export const getBookingVenues = (filters: VenueFilters = {}, token?: string | null) => {
+export const getBookingVenues = (filters: VenueFilters = {}, token?: string | null, signal?: AbortSignal) => {
   const params = new URLSearchParams();
   if (filters.search?.trim()) params.set('search', filters.search.trim());
   if (filters.area?.trim()) params.set('area', filters.area.trim());
@@ -182,7 +176,7 @@ export const getBookingVenues = (filters: VenueFilters = {}, token?: string | nu
   if (filters.page) params.set('page', String(filters.page));
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
   const query = params.toString();
-  return apiRequest<PaginatedResponse<BookingVenue>>(`/api/player-bookings/venues${query ? `?${query}` : ''}`, {}, token ?? undefined);
+  return apiRequest<PaginatedResponse<BookingVenue>>(`/api/player-bookings/venues${query ? `?${query}` : ''}`, signal ? { signal } : {}, token ?? undefined);
 };
 
 export const addFavoriteVenue = (token: string, venueId: number) => apiRequest<void>(`/api/player-bookings/favorites/${venueId}`, { method: 'PUT' }, token);
@@ -198,9 +192,6 @@ export const createBookingHolding = (token: string, input: { date: string; slots
 
 export const getBookingHolding = (token: string, bookingId: number) =>
   apiRequest<BookingHolding>(`/api/player-bookings/${bookingId}`, {}, token).then(normalizeBookingHolding);
-
-export const getBookingHoldingGroup = (token: string, paymentGroupId: string) =>
-  apiRequest<BookingHoldingGroup>(`/api/player-bookings/payment-groups/${paymentGroupId}`, {}, token);
 
 export const getMyBookingHistory = (token: string, pagination: PaginationParams = {}) => {
   const params = new URLSearchParams();

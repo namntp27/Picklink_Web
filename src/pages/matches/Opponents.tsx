@@ -16,15 +16,11 @@ import { joinSoloQueue, type JoinSoloQueueRequest, type QueueSlotRequest } from 
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../utils/playerLocation';
 
-type PlayerLocation = { accuracy: number; latitude: number; longitude: number };
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
 
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
-const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
-const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_CACHE_ACCURACY_METERS = 1_000;
-
 const distanceBetweenKm = (
   from: PlayerLocation,
   to: { latitude: number; longitude: number },
@@ -52,44 +48,6 @@ const lastOneOffDate = (startDate: string) => {
 };
 
 const isAbortError = (reason: unknown) => reason instanceof Error && reason.name === 'AbortError';
-const readCachedPlayerLocation = (): PlayerLocation | null => {
-  try {
-    const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
-    if (!rawValue) return null;
-    const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
-    const isValid = Number.isFinite(cached.accuracy)
-      && cached.accuracy >= 0
-      && cached.accuracy <= MAX_CACHE_ACCURACY_METERS
-      && Number.isFinite(cached.latitude)
-      && cached.latitude >= -90
-      && cached.latitude <= 90
-      && Number.isFinite(cached.longitude)
-      && cached.longitude >= -180
-      && cached.longitude <= 180
-      && Date.now() - cached.cachedAt <= PLAYER_LOCATION_CACHE_TTL_MS;
-    if (!isValid) {
-      window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
-      return null;
-    }
-    return {
-      accuracy: cached.accuracy,
-      latitude: cached.latitude,
-      longitude: cached.longitude,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const cachePlayerLocation = (location: PlayerLocation) => {
-  if (location.accuracy > MAX_CACHE_ACCURACY_METERS) return;
-  try {
-    window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({ ...location, cachedAt: Date.now() }));
-  } catch {
-    // Searching still works when storage is unavailable.
-  }
-};
-
 const locationErrorMessage = (error: GeolocationPositionError) => {
   if (error.code === error.PERMISSION_DENIED) {
     return 'Bạn chưa cấp quyền vị trí cho trình duyệt. Hãy bấm biểu tượng ổ khóa trên thanh địa chỉ và cho phép Vị trí.';

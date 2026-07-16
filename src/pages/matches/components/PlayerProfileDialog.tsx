@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Clock3,
   MapPin,
@@ -12,6 +12,7 @@ import {
   getPublicPlayerProfile,
   type PublicPlayerProfile,
 } from '../../../api/profile';
+import { ModalDialog } from '../../../components/ui/ModalDialog';
 
 type PlayerProfileDialogProps = {
   fallbackAvatarUrl?: string | null;
@@ -30,7 +31,6 @@ export const PlayerProfileDialog = ({
 }: PlayerProfileDialogProps) => {
   const [profile, setProfile] = useState<PublicPlayerProfile | null>(null);
   const [error, setError] = useState('');
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -47,22 +47,6 @@ export const PlayerProfileDialog = ({
     return () => controller.abort();
   }, [playerId]);
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [onClose]);
-
   const name = profile?.username || fallbackName;
   const avatarUrl = profile?.profileImageUrl || fallbackAvatarUrl;
   const location = [profile?.commune, profile?.city].filter(Boolean).join(', ');
@@ -73,25 +57,16 @@ export const PlayerProfileDialog = ({
   ].filter((item) => item.value);
 
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-[#081d24]/65 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      role="presentation"
+    <ModalDialog
+      aria-labelledby="player-profile-title"
+      className="w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-xl border border-[#d8e4d4] bg-white shadow-[0_24px_70px_rgba(8,29,36,0.24)] backdrop:bg-[#081d24]/65"
+      onRequestClose={onClose}
     >
-      <section
-        aria-labelledby="player-profile-title"
-        aria-modal="true"
-        className="w-full max-w-md overflow-hidden rounded-xl border border-[#d8e4d4] bg-white shadow-[0_24px_70px_rgba(8,29,36,0.24)]"
-        role="dialog"
-      >
         <header className="relative border-b border-[#d8e4d4] bg-[#f3f8f0] px-5 py-5">
           <button
             aria-label="Đóng hồ sơ"
             className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-[#66756b] transition-colors hover:bg-white hover:text-[#0b2228] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#477313]/50"
             onClick={onClose}
-            ref={closeButtonRef}
             title="Đóng"
             type="button"
           >
@@ -181,7 +156,6 @@ export const PlayerProfileDialog = ({
             </>
           )}
         </div>
-      </section>
-    </div>
+    </ModalDialog>
   );
 };

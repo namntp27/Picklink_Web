@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Bell, CircleGauge } from 'lucide-react';
+import { CircleGauge } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { adminNavItems } from '../adminNavigation';
 import type { AdminSectionId } from '../types';
+import { useAuth } from '../../../auth/AuthContext';
 
 export const AdminShell = ({
   activeId,
@@ -13,6 +14,10 @@ export const AdminShell = ({
   children: ReactNode;
 }) => {
   const shouldReduceMotion = useReducedMotion();
+  const { user } = useAuth();
+  const initials = user?.name
+    ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+    : 'AD';
 
   return (
     <div className="min-h-dvh bg-[#f8fbf4] text-[#0b2228]" data-motion-scope="product">
@@ -33,21 +38,12 @@ export const AdminShell = ({
           </span>
         </div>
         <div className="flex items-center gap-2 text-white">
-          <button
-            aria-label="Thông báo quản trị"
-            className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/12 text-white/74 hover:border-[#e2ff57]/50 hover:bg-[#e2ff57]/10 hover:text-[#e2ff57]"
-            title="Thông báo"
-            type="button"
-          >
-            <Bell aria-hidden="true" className="h-[18px] w-[18px]" />
-            <span className="picklink-live-pulse absolute right-2 top-2 h-2 w-2 rounded-full bg-[#e2ff57]" />
-          </button>
-          <div className="hidden border-l border-white/14 pl-4 text-right md:block">
-            <p className="text-[13px] font-extrabold">Quản trị hệ thống</p>
-            <p className="mt-0.5 text-[10px] leading-none text-white/58">admin@picklink.vn</p>
+          <div className="hidden text-right md:block">
+            <p className="text-[13px] font-extrabold">{user?.name || 'Quản trị viên'}</p>
+            {user?.email && <p className="mt-0.5 text-[10px] leading-none text-white/58">{user.email}</p>}
           </div>
-          <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#e2ff57]/45 bg-[#e2ff57]/10 text-[12px] font-extrabold text-[#e2ff57]">
-            AD
+          <div aria-label={user?.name || 'Tài khoản quản trị'} className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-[#e2ff57]/45 bg-[#e2ff57]/10 text-[12px] font-extrabold text-[#e2ff57]">
+            {user?.avatar ? <img alt="" className="h-full w-full object-cover" src={user.avatar} /> : initials}
           </div>
         </div>
       </header>

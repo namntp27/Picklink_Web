@@ -42,7 +42,8 @@ const getStoredSession = (): AuthSession | null => {
     if (!value) return null;
 
     const session = JSON.parse(value) as AuthSession;
-    if (!session.token || !session.user || new Date(session.expiresAt).getTime() <= Date.now()) {
+    const expiryMs = new Date(session.expiresAt).getTime();
+    if (!session.token || !session.user || !Number.isFinite(expiryMs) || expiryMs <= Date.now()) {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
       return null;
     }
@@ -81,6 +82,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    if (!session) return undefined;
+
+    const expiryMs = new Date(session.expiresAt).getTime();
+    if (!Number.isFinite(expiryMs)) {
+      saveSession(null);
+      return undefined;
+    }
+
+    let timer = 0;
+    const expireWhenDue = () => {
+      const remaining = expiryMs - Date.now();
+      if (remaining <= 0) {
+        saveSession(null);
+        return;
+      }
+      timer = window.setTimeout(expireWhenDue, Math.min(remaining, 2_147_483_647));
+    };
+
+    expireWhenDue();
+    return () => window.clearTimeout(timer);
+  }, [saveSession, session]);
+
+  useEffect(() => {
+    const syncSession = (event: StorageEvent) => {
+      if (event.key !== AUTH_STORAGE_KEY) return;
+      setSession(getStoredSession());
+      setIsInitializing(false);
+    };
+    window.addEventListener('storage', syncSession);
+    return () => window.removeEventListener('storage', syncSession);
+  }, []);
+
+  useEffect(() => {
     if (!session) {
       setIsInitializing(false);
       return;
@@ -101,7 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [saveSession, session?.token]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user: session?.user ?? null,

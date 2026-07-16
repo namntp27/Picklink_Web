@@ -182,19 +182,9 @@ export const Register = () => {
           />
           <span>
             Tôi đồng ý với{' '}
-            <Link
-              className="font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
-              to="#"
-            >
-              Điều khoản dịch vụ
-            </Link>{' '}
+            <strong className="font-bold text-on-surface">Điều khoản dịch vụ</strong>{' '}
             và{' '}
-            <Link
-              className="font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
-              to="#"
-            >
-              Chính sách bảo mật
-            </Link>{' '}
+            <strong className="font-bold text-on-surface">Chính sách bảo mật</strong>{' '}
             của Picklink.
           </span>
         </label>

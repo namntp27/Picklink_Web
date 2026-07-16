@@ -288,6 +288,7 @@ export const Clubs = () => {
           <div className="relative z-40 grid gap-1 text-[12px] font-bold text-[#53645b]">
             Sắp xếp
             <Dropdown<'newest' | 'members' | 'active'>
+              ariaLabel="Sắp xếp câu lạc bộ"
               onChange={setSortBy}
               options={sortOptions}
               value={sortBy}

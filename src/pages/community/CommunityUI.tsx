@@ -13,11 +13,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import {
-  activeCommunityPlayers,
-  currentCommunityUser,
-  trendingTopics,
-} from '../../data/communityPosts';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import { getOutstandingPlayers, type OutstandingPlayer } from '../../api/community';
@@ -40,9 +35,7 @@ type CommunityHeroProps = {
 
 const feedLinks: Array<{ label: string; icon: LucideIcon; to: string }> = [
   { label: 'Bảng tin', icon: Home, to: '/posts' },
-  { label: 'Xu hướng', icon: TrendingUp, to: '/posts/trending' },
   { label: 'Câu lạc bộ', icon: Users, to: '/posts/clubs' },
-  { label: 'Đã lưu', icon: Bookmark, to: '/posts/saved' },
   { label: 'Cài đặt', icon: Settings, to: '/profile' },
 ];
 
@@ -150,18 +143,14 @@ export const CommunityFeedNav = ({ activePath }: { activePath: string }) => {
         </div>
       ) : (
         <div className="community-profile-chip">
-          <img
-            alt={currentCommunityUser.name}
-            className="community-avatar community-avatar--lg"
-            src={currentCommunityUser.avatar}
-          />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+            <UserRound aria-hidden="true" className="h-6 w-6" />
+          </div>
           <div className="min-w-0">
-            <p className="truncate text-[14px] font-extrabold text-[#0b2228]">
-              {currentCommunityUser.name}
-            </p>
-            <p className="mt-0.5 text-[12px] font-semibold text-[#66756b]">
-              Trình độ {currentCommunityUser.level}
-            </p>
+            <p className="truncate text-[14px] font-extrabold text-[#0b2228]">Khách</p>
+            <Link className="mt-0.5 block text-[12px] font-semibold text-[#477313] hover:underline" to="/login">
+              Đăng nhập để tham gia
+            </Link>
           </div>
         </div>
       )}
@@ -208,20 +197,12 @@ export const CommunityInsights = () => {
     };
   }, [token]);
 
-  // Fallback to activeCommunityPlayers mock if API returned empty
-  const displayPlayers = players.length > 0
-    ? players.map(p => ({
-        userId: p.userId,
-        name: p.name,
-        level: p.level,
-        avatar: p.avatar
-      }))
-    : activeCommunityPlayers.map((p, idx) => ({
-        userId: 1000 + idx, // mock ID for fallback
-        name: p.name,
-        level: p.level,
-        avatar: p.avatar
-      }));
+  const displayPlayers = players.map((player) => ({
+    userId: player.userId,
+    name: player.name,
+    level: player.level,
+    avatar: player.avatar,
+  }));
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -229,8 +210,9 @@ export const CommunityInsights = () => {
     <aside className="community-insights">
       <section className="community-panel p-4 mb-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718077]" />
+          <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#718077]" />
           <input
+            aria-label="Tìm bài viết"
             className="w-full h-10 pl-9 pr-3 rounded-xl border border-[#d8e4d4] bg-[#f4f8f2] text-[13px] font-semibold text-[#0b2228] placeholder-[#718077]/70 outline-none focus:border-[#477313] focus:ring-1 focus:ring-[#477313]"
             onChange={(e) => {
               const val = e.target.value;
@@ -247,26 +229,6 @@ export const CommunityInsights = () => {
         </div>
       </section>
 
-      <section className="community-panel p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-extrabold text-[#0b2228]">Đang được quan tâm</h2>
-          <Flame aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
-        </div>
-        <div className="grid gap-1">
-          {trendingTopics.map((topic, index) => (
-            <button className="community-topic" key={topic.title} type="button">
-              <span className="community-topic__rank">{String(index + 1).padStart(2, '0')}</span>
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold text-[#718077]">{topic.category}</span>
-                <span className="mt-0.5 block text-[13px] font-extrabold leading-5 text-[#0b2228]">
-                  {topic.title}
-                </span>
-                <span className="mt-0.5 block text-[11px] font-semibold text-[#718077]">{topic.posts}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <section className="community-panel p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -274,10 +236,13 @@ export const CommunityInsights = () => {
           <Users aria-hidden="true" className="h-[18px] w-[18px] text-[#477313]" />
         </div>
         <div className="grid gap-3">
+          {displayPlayers.length === 0 && (
+            <p className="text-[12px] font-semibold text-[#718077]">Chưa có dữ liệu người chơi nổi bật.</p>
+          )}
           {displayPlayers.map((player) => (
             <div className="flex items-center gap-3" key={player.userId}>
               {player.avatar ? (
-                <img alt={player.name} className="community-avatar" src={player.avatar} />
+                <img alt={player.name} className="community-avatar" decoding="async" loading="lazy" src={player.avatar} />
               ) : (
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
                   <UserRound className="h-5 w-5" />

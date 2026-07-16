@@ -79,9 +79,6 @@ export const CourtTimelineGrid = ({
             {item.label}
           </span>
         ))}
-        <a className="text-[#e2ff57] underline decoration-2 underline-offset-4" href="#court-pricing">
-          Xem sân & bảng giá
-        </a>
       </div>
 
       <p className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">

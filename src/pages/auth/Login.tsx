@@ -139,16 +139,7 @@ export const Login = (_props: Readonly<LoginProps>) => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <label className="group flex min-h-10 cursor-pointer items-center gap-2">
-            <input
-              className="h-4 w-4 cursor-pointer rounded border-[#dbe8d3] bg-white text-primary-container outline-none transition-colors group-hover:border-primary-container focus:ring-primary-container/30"
-              type="checkbox"
-            />
-            <span className="text-[13px] font-semibold text-[#66766d] transition-colors group-hover:text-[#0b2228]">
-              Ghi nhớ đăng nhập
-            </span>
-          </label>
+        <div className="flex justify-end">
           <Link className={authSecondaryLinkClass} to="/forgot-password">
             Quên mật khẩu?
           </Link>

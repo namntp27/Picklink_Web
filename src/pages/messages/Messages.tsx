@@ -7,19 +7,14 @@ import {
   Image as ImageIcon,
   Info,
   Loader2,
-  MapPin,
   MessageCircle,
   MoreVertical,
-  Paperclip,
-  Phone,
   Search,
   Send,
   ShieldCheck,
-  Smile,
   Trophy,
   UserRound,
   Users,
-  Video,
   Camera,
   Check,
   Globe,
@@ -62,12 +57,10 @@ import {
   directToConversation,
   filterOptions,
   formatMessageTime,
-  getCurrentTime,
   getLevelLabel,
   groupToConversation,
   kindLabels,
-  statusClassNames,
-  statusLabels,
+  toChatMessage,
   type ChatMessage,
   type Conversation,
   type ConversationFilter,
@@ -211,13 +204,10 @@ export const Messages = () => {
     const keyword = searchTerm.trim().toLowerCase();
 
     return allConversations.filter((conversation) => {
-      const matchesFilter =
-        filter === 'all' ||
-        (filter === 'unread' ? conversation.unread > 0 : conversation.kind === filter);
+      const matchesFilter = filter === 'all' || conversation.kind === filter;
       const matchesKeyword =
         !keyword ||
         conversation.name.toLowerCase().includes(keyword) ||
-        conversation.location.toLowerCase().includes(keyword) ||
         conversation.contextTitle.toLowerCase().includes(keyword);
 
       return matchesFilter && matchesKeyword;
@@ -492,31 +482,9 @@ export const Messages = () => {
 
         if (cancelled) return;
 
-        const chatMessages: ChatMessage[] = msgs.map((m) => ({
-          id: m.messageId,
-          author: m.isMine ? 'Bạn' : m.senderName,
-          text: m.content ?? '',
-          time: formatMessageTime(m.sentAt),
-          mine: m.isMine,
-          read: true,
-          avatarUrl: m.senderAvatarUrl,
-          mediaUrl: m.mediaUrl,
-          isPinned: m.isPinned,
-          senderId: m.senderId,
-        }));
+        const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
 
-        const mappedPinned: ChatMessage[] = pinned.map((m) => ({
-          id: m.messageId,
-          author: m.isMine ? 'Bạn' : m.senderName,
-          text: m.content ?? '',
-          time: formatMessageTime(m.sentAt),
-          mine: m.isMine,
-          read: true,
-          avatarUrl: m.senderAvatarUrl,
-          mediaUrl: m.mediaUrl,
-          isPinned: m.isPinned,
-          senderId: m.senderId,
-        }));
+        const mappedPinned: ChatMessage[] = pinned.map(toChatMessage);
 
         setMessagesByConversation((prev) => ({
           ...prev,
@@ -549,7 +517,18 @@ export const Messages = () => {
 
     let cancelled = false;
 
-    const interval = setInterval(async () => {
+    let timeoutId = 0;
+    let isPolling = false;
+
+    const schedule = () => {
+      if (!cancelled && !document.hidden) {
+        timeoutId = window.setTimeout(() => { void poll(); }, 8000);
+      }
+    };
+
+    const poll = async () => {
+      if (cancelled || document.hidden || isPolling) return;
+      isPolling = true;
       try {
         let msgs: CommunityMessage[] = [];
         let pinned: CommunityMessage[] = [];
@@ -567,31 +546,9 @@ export const Messages = () => {
 
         if (cancelled) return;
 
-        const chatMessages: ChatMessage[] = msgs.map((m) => ({
-          id: m.messageId,
-          author: m.isMine ? 'Bạn' : m.senderName,
-          text: m.content ?? '',
-          time: formatMessageTime(m.sentAt),
-          mine: m.isMine,
-          read: true,
-          avatarUrl: m.senderAvatarUrl,
-          mediaUrl: m.mediaUrl,
-          isPinned: m.isPinned,
-          senderId: m.senderId,
-        }));
+        const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
 
-        const mappedPinned: ChatMessage[] = pinned.map((m) => ({
-          id: m.messageId,
-          author: m.isMine ? 'Bạn' : m.senderName,
-          text: m.content ?? '',
-          time: formatMessageTime(m.sentAt),
-          mine: m.isMine,
-          read: true,
-          avatarUrl: m.senderAvatarUrl,
-          mediaUrl: m.mediaUrl,
-          isPinned: m.isPinned,
-          senderId: m.senderId,
-        }));
+        const mappedPinned: ChatMessage[] = pinned.map(toChatMessage);
 
         setMessagesByConversation((prev) => {
           const currentList = prev[activeConversation.id] ?? [];
@@ -610,12 +567,24 @@ export const Messages = () => {
         }));
       } catch (err) {
         console.error('Failed to poll messages', err);
+      } finally {
+        isPolling = false;
+        schedule();
       }
-    }, 8000);
+    };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden || isPolling) return;
+      window.clearTimeout(timeoutId);
+      void poll();
+    };
+
+    schedule();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      window.clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId]);
 
@@ -650,18 +619,7 @@ export const Messages = () => {
         return;
       }
 
-      const mapped: ChatMessage[] = msgs.map((m) => ({
-        id: m.messageId,
-        author: m.isMine ? 'Bạn' : m.senderName,
-        text: m.content ?? '',
-        time: formatMessageTime(m.sentAt),
-        mine: m.isMine,
-        read: true,
-        avatarUrl: m.senderAvatarUrl,
-        mediaUrl: m.mediaUrl,
-        isPinned: m.isPinned,
-        senderId: m.senderId,
-      }));
+      const mapped: ChatMessage[] = msgs.map(toChatMessage);
 
       setMessagesByConversation((prev) => {
         const currentList = prev[conversationId] ?? [];
@@ -739,8 +697,8 @@ export const Messages = () => {
           [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
         }));
         setDraftMessage('');
-      } catch {
-        // silent
+      } catch (error) {
+        notify(error instanceof Error ? error.message : 'Không thể gửi tin nhắn nhóm.', 'error');
       } finally {
         setSending(false);
       }
@@ -769,29 +727,15 @@ export const Messages = () => {
           [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
         }));
         setDraftMessage('');
-      } catch (err) {
-        console.error('Failed to send direct message', err);
+      } catch (error) {
+        notify(error instanceof Error ? error.message : 'Không thể gửi tin nhắn.', 'error');
       } finally {
         setSending(false);
       }
       return;
     }
 
-    // Static conversations, local-only send
-    const nextMessage: ChatMessage = {
-      id: Date.now(),
-      author: 'Bạn',
-      text,
-      time: getCurrentTime(),
-      mine: true,
-      read: true,
-    };
-
-    setMessagesByConversation((currentMessages) => ({
-      ...currentMessages,
-      [activeConversation.id]: [...(currentMessages[activeConversation.id] ?? []), nextMessage],
-    }));
-    setDraftMessage('');
+    notify('Hội thoại này chưa được kết nối với máy chủ.', 'error');
   };
 
   const handleComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -807,18 +751,7 @@ export const Messages = () => {
     try {
       await deleteGroupMessage(token, activeConversation.groupId, messageId);
       const msgs = await getGroupMessages(token, activeConversation.groupId);
-      const chatMessages: ChatMessage[] = msgs.map((m) => ({
-        id: m.messageId,
-        author: m.isMine ? 'Bạn' : m.senderName,
-        text: m.content ?? '',
-        time: formatMessageTime(m.sentAt),
-        mine: m.isMine,
-        read: true,
-        avatarUrl: m.senderAvatarUrl,
-        mediaUrl: m.mediaUrl,
-        isPinned: m.isPinned,
-        senderId: m.senderId,
-      }));
+      const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
       setMessagesByConversation((prev) => ({
         ...prev,
         [activeConversation.id]: chatMessages,
@@ -838,31 +771,9 @@ export const Messages = () => {
         getPinnedGroupMessages(token, activeConversation.groupId).catch(() => []),
       ]);
 
-      const chatMessages: ChatMessage[] = msgs.map((m) => ({
-        id: m.messageId,
-        author: m.isMine ? 'Bạn' : m.senderName,
-        text: m.content ?? '',
-        time: formatMessageTime(m.sentAt),
-        mine: m.isMine,
-        read: true,
-        avatarUrl: m.senderAvatarUrl,
-        mediaUrl: m.mediaUrl,
-        isPinned: m.isPinned,
-        senderId: m.senderId,
-      }));
+      const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
 
-      const mappedPinned: ChatMessage[] = pinned.map((m) => ({
-        id: m.messageId,
-        author: m.isMine ? 'Bạn' : m.senderName,
-        text: m.content ?? '',
-        time: formatMessageTime(m.sentAt),
-        mine: m.isMine,
-        read: true,
-        avatarUrl: m.senderAvatarUrl,
-        mediaUrl: m.mediaUrl,
-        isPinned: m.isPinned,
-        senderId: m.senderId,
-      }));
+      const mappedPinned: ChatMessage[] = pinned.map(toChatMessage);
 
       setMessagesByConversation((prev) => ({
         ...prev,
@@ -884,18 +795,7 @@ export const Messages = () => {
       await deleteGroupMessage(token, activeConversation.groupId, messageId);
       setDraftMessage(text);
       const msgs = await getGroupMessages(token, activeConversation.groupId);
-      const chatMessages: ChatMessage[] = msgs.map((m) => ({
-        id: m.messageId,
-        author: m.isMine ? 'Bạn' : m.senderName,
-        text: m.content ?? '',
-        time: formatMessageTime(m.sentAt),
-        mine: m.isMine,
-        read: true,
-        avatarUrl: m.senderAvatarUrl,
-        mediaUrl: m.mediaUrl,
-        isPinned: m.isPinned,
-        senderId: m.senderId,
-      }));
+      const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
       setMessagesByConversation((prev) => ({
         ...prev,
         [activeConversation.id]: chatMessages,
@@ -917,18 +817,12 @@ export const Messages = () => {
                   Trao đổi riêng với người chơi, CLB và sân.
                 </p>
               </div>
-              <button
-                aria-label="Tạo cuộc trò chuyện mới"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white transition-colors hover:bg-primary/90"
-                type="button"
-              >
-                <MessageCircle className="h-5 w-5" />
-              </button>
             </div>
 
             <div className="relative mt-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+              <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
               <input
+                aria-label="Tìm hội thoại"
                 className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] font-medium outline-none placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-2 focus:ring-primary/20"
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Tìm người chơi, sân, CLB..."
@@ -940,6 +834,7 @@ export const Messages = () => {
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {filterOptions.map((option) => (
                 <button
+                  aria-pressed={filter === option.id}
                   className={`h-9 shrink-0 rounded-lg px-3 text-[13px] font-bold transition-colors ${
                     filter === option.id
                       ? 'bg-primary text-white'
@@ -976,11 +871,16 @@ export const Messages = () => {
                     onClick={() => setActiveConversationId(conversation.id)}
                     type="button"
                   >
-                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-bold text-white">
-                      {conversation.avatar}
-                      <span
-                        className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white ${statusClassNames[conversation.status]}`}
-                      />
+                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-[15px] font-bold text-white">
+                      {conversation.avatarUrl ? (
+                        <img
+                          alt=""
+                          className="h-full w-full object-cover"
+                          decoding="async"
+                          loading="lazy"
+                          src={conversation.avatarUrl}
+                        />
+                      ) : conversation.avatar}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
@@ -990,7 +890,7 @@ export const Messages = () => {
                             isActive ? 'text-on-primary-container/70' : 'text-on-surface-variant'
                           }`}
                         >
-                          {conversation.lastTime}
+                          {conversation.lastTime || null}
                         </span>
                       </div>
                       <p
@@ -1008,11 +908,6 @@ export const Messages = () => {
                         >
                           {kindLabels[conversation.kind]}
                         </span>
-                        {conversation.unread > 0 && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#eab526] px-1 text-[11px] font-bold text-white">
-                            {conversation.unread}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </button>
@@ -1033,26 +928,24 @@ export const Messages = () => {
             <>
               <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant bg-white px-4 shadow-sm md:h-[72px] md:px-6">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-bold text-white">
-                    {activeConversation.avatar}
-                    <span
-                      className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white ${statusClassNames[activeConversation.status]}`}
-                    />
+                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-[15px] font-bold text-white">
+                    {activeConversation.avatarUrl ? (
+                      <img
+                        alt=""
+                        className="h-full w-full object-cover"
+                        decoding="async"
+                        src={activeConversation.avatarUrl}
+                      />
+                    ) : activeConversation.avatar}
                   </div>
                   <div className="min-w-0">
                     <h2 className="truncate text-[16px] font-bold text-on-surface">{activeConversation.name}</h2>
                     <p className="truncate text-[12px] font-bold text-on-surface-variant">
-                      {statusLabels[activeConversation.status]} · {getLevelLabel(activeConversation)}
+                      {getLevelLabel(activeConversation)}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 text-on-surface-variant">
-                  <button aria-label="Gọi thoại" className="rounded-lg p-2 transition-colors hover:bg-surface-container-low hover:text-primary" type="button">
-                    <Phone className="h-5 w-5" />
-                  </button>
-                  <button aria-label="Gọi video" className="rounded-lg p-2 transition-colors hover:bg-surface-container-low hover:text-primary" type="button">
-                    <Video className="h-5 w-5" />
-                  </button>
                   <button
                     aria-label="Thông tin hội thoại"
                     className={`rounded-lg p-2 transition-colors ${
@@ -1062,9 +955,6 @@ export const Messages = () => {
                     type="button"
                   >
                     <Info className="h-5 w-5" />
-                  </button>
-                  <button aria-label="Tùy chọn" className="rounded-lg p-2 transition-colors hover:bg-surface-container-low hover:text-primary" type="button">
-                    <MoreVertical className="h-5 w-5" />
                   </button>
                 </div>
               </header>
@@ -1132,6 +1022,8 @@ export const Messages = () => {
                               <img
                                 alt={message.author}
                                 className="mt-1 h-8 w-8 shrink-0 rounded-full object-cover"
+                                decoding="async"
+                                loading="lazy"
                                 src={message.avatarUrl}
                               />
                             ) : (
@@ -1162,8 +1054,10 @@ export const Messages = () => {
                                 {message.text}
                                 {message.mediaUrl && (
                                   <img
-                                    alt="Media"
+                                    alt="Nội dung đính kèm"
                                     className="mt-2 max-h-56 max-w-[240px] rounded-lg border border-outline-variant object-cover"
+                                    decoding="async"
+                                    loading="lazy"
                                     src={message.mediaUrl}
                                   />
                                 )}
@@ -1246,13 +1140,6 @@ export const Messages = () => {
                     className="hidden"
                   />
                   <button
-                    aria-label="Đính kèm tệp"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary"
-                    type="button"
-                  >
-                    <Paperclip className="h-5 w-5" />
-                  </button>
-                  <button
                     aria-label="Gửi hình ảnh"
                     className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary sm:flex disabled:opacity-50"
                     onClick={() => mediaInputRef.current?.click()}
@@ -1274,13 +1161,6 @@ export const Messages = () => {
                       rows={1}
                       value={draftMessage}
                     />
-                    <button
-                      aria-label="Biểu cảm"
-                      className="absolute bottom-2 right-2 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-white hover:text-primary"
-                      type="button"
-                    >
-                      <Smile className="h-5 w-5" />
-                    </button>
                   </div>
                   <button
                     aria-label="Gửi tin nhắn"
@@ -1315,6 +1195,7 @@ export const Messages = () => {
                 <div className="flex items-center justify-between border-b border-outline-variant p-4 shrink-0">
                   <h3 className="text-[16px] font-bold text-on-surface">Thông tin nhóm</h3>
                   <button
+                    aria-label="Đóng thông tin nhóm"
                     onClick={() => setShowSettings(false)}
                     className="rounded-full p-1.5 hover:bg-surface-container-low text-on-surface-variant"
                     type="button"
@@ -1543,6 +1424,8 @@ export const Messages = () => {
                               src={img.imageUrl}
                               alt={img.caption || 'Ảnh giới thiệu'}
                               className="h-full w-full object-cover"
+                              decoding="async"
+                              loading="lazy"
                             />
                             {isManager && (
                               <button
@@ -1587,6 +1470,8 @@ export const Messages = () => {
                                   src={member.profileImageUrl}
                                   alt={member.username}
                                   className="h-8 w-8 rounded-full object-cover shrink-0"
+                                  decoding="async"
+                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
@@ -1660,8 +1545,10 @@ export const Messages = () => {
               <>
                 <div className="border-b border-outline-variant p-5 shrink-0 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white shrink-0">
-                      {activeConversation.avatar}
+                    <div className="mx-auto flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-[18px] font-bold text-white">
+                      {activeConversation.avatarUrl ? (
+                        <img alt="" className="h-full w-full object-cover" decoding="async" src={activeConversation.avatarUrl} />
+                      ) : activeConversation.avatar}
                     </div>
                     <div>
                       <h2 className="text-[16px] font-bold text-on-surface">{activeConversation.name}</h2>
@@ -1673,6 +1560,7 @@ export const Messages = () => {
                   <button
                     onClick={() => setShowSettings(false)}
                     className="rounded-full p-1.5 hover:bg-surface-container-low text-on-surface-variant lg:hidden"
+                    aria-label="Đóng thông tin hội thoại"
                     type="button"
                   >
                     <X className="h-4 w-4" />
@@ -1692,27 +1580,11 @@ export const Messages = () => {
                   <section className="rounded-lg border border-outline-variant p-4">
                     <h3 className="text-[15px] font-bold">Thông tin nhanh</h3>
                     <div className="mt-4 space-y-3">
-                      {activeConversation.location && (
-                        <div className="flex gap-3 text-[13px]">
-                          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                          <div>
-                            <p className="font-bold text-on-surface">Khu vực</p>
-                            <p className="mt-0.5 text-on-surface-variant">{activeConversation.location}</p>
-                          </div>
-                        </div>
-                      )}
                       <div className="flex gap-3 text-[13px]">
                         <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         <div>
                           <p className="font-bold text-on-surface">Trình độ</p>
                           <p className="mt-0.5 text-on-surface-variant">{getLevelLabel(activeConversation)}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-3 text-[13px]">
-                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <div>
-                          <p className="font-bold text-on-surface">Trạng thái</p>
-                          <p className="mt-0.5 text-on-surface-variant">{statusLabels[activeConversation.status]}</p>
                         </div>
                       </div>
                     </div>
@@ -1726,22 +1598,6 @@ export const Messages = () => {
                     <div className="mt-4 rounded-lg bg-[#eaf7df] p-3">
                       <p className="text-[13px] font-bold text-primary">{activeConversation.contextTitle}</p>
                       <p className="mt-1 text-[12px] font-medium text-on-surface-variant">{activeConversation.contextMeta}</p>
-                    </div>
-                  </section>
-
-                  <section className="rounded-lg border border-outline-variant p-4">
-                    <h3 className="text-[15px] font-bold">Tác vụ</h3>
-                    <div className="mt-3 space-y-2">
-                      {['Xem hồ sơ', 'Xem lịch sử trận', 'Báo cáo hội thoại'].map((action) => (
-                        <button
-                          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] font-bold text-on-surface transition-colors hover:bg-surface-container-low"
-                          key={action}
-                          type="button"
-                        >
-                          <span>{action}</span>
-                          <ChevronRight className="h-4 w-4 text-on-surface-variant" />
-                        </button>
-                      ))}
                     </div>
                   </section>
 

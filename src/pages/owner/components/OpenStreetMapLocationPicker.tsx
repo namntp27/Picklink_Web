@@ -206,7 +206,7 @@ export const OpenStreetMapLocationPicker = ({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] font-medium text-on-surface-variant">{status}</p>
+        <p aria-live="polite" className="text-[11px] font-medium text-on-surface-variant" role="status">{status}</p>
         {position && (
           <a className="text-[12px] font-bold text-primary hover:underline" href={`https://www.openstreetmap.org/?mlat=${value.latitude}&mlon=${value.longitude}#map=18/${value.latitude}/${value.longitude}`} rel="noreferrer" target="_blank">Mở trong OpenStreetMap</a>
         )}

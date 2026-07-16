@@ -1,27 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { divIcon, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
+import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { motion, useReducedMotion } from 'motion/react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import {
   ArrowLeft,
-  CarFront,
   Check,
-  Clock3,
   ExternalLink,
   LocateFixed,
   MapPin,
   Navigation,
-  Route,
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { MatchPreferredVenue } from '../../../api/matches';
+import { ModalDialog } from '../../../components/ui/ModalDialog';
+import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../../utils/playerLocation';
 import '../../community/community.css';
-
-type PlayerLocation = {
-  accuracy: number;
-  latitude: number;
-  longitude: number;
-};
 
 type LocatedVenue = MatchPreferredVenue & {
   latitude: number;
@@ -30,24 +23,6 @@ type LocatedVenue = MatchPreferredVenue & {
 
 type RouteMetric = {
   distanceKm: number;
-  durationMinutes: number;
-};
-
-type OsrmTableResponse = {
-  code: string;
-  distances?: Array<Array<number | null>>;
-  durations?: Array<Array<number | null>>;
-};
-
-type OsrmRouteResponse = {
-  code: string;
-  routes?: Array<{
-    distance: number;
-    duration: number;
-    geometry: {
-      coordinates: Array<[number, number]>;
-    };
-  }>;
 };
 
 type MatchVenueMapDialogProps = {
@@ -59,9 +34,6 @@ type MatchVenueMapDialogProps = {
   venues: MatchPreferredVenue[];
 };
 
-const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
-const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
-const MAX_CACHE_ACCURACY_METERS = 1_000;
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 
 const venueMarkerIcon = (selected: boolean) => divIcon({
@@ -85,47 +57,6 @@ const isLocatedVenue = (venue: MatchPreferredVenue): venue is LocatedVenue =>
   && typeof venue.longitude === 'number'
   && Number.isFinite(venue.longitude);
 
-const readCachedPlayerLocation = (): PlayerLocation | null => {
-  try {
-    const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
-    if (!rawValue) return null;
-    const cached = JSON.parse(rawValue) as PlayerLocation & { cachedAt: number };
-    const isValid = Number.isFinite(cached.accuracy)
-      && cached.accuracy >= 0
-      && cached.accuracy <= MAX_CACHE_ACCURACY_METERS
-      && Number.isFinite(cached.latitude)
-      && cached.latitude >= -90
-      && cached.latitude <= 90
-      && Number.isFinite(cached.longitude)
-      && cached.longitude >= -180
-      && cached.longitude <= 180
-      && Date.now() - cached.cachedAt <= PLAYER_LOCATION_CACHE_TTL_MS;
-    if (!isValid) {
-      window.localStorage.removeItem(PLAYER_LOCATION_CACHE_KEY);
-      return null;
-    }
-    return {
-      accuracy: cached.accuracy,
-      latitude: cached.latitude,
-      longitude: cached.longitude,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const cachePlayerLocation = (location: PlayerLocation) => {
-  if (location.accuracy > MAX_CACHE_ACCURACY_METERS) return;
-  try {
-    window.localStorage.setItem(PLAYER_LOCATION_CACHE_KEY, JSON.stringify({
-      ...location,
-      cachedAt: Date.now(),
-    }));
-  } catch {
-    // The map still works when local storage is unavailable.
-  }
-};
-
 const locationErrorMessage = (error: GeolocationPositionError) => {
   if (error.code === error.PERMISSION_DENIED) return 'Bạn chưa cấp quyền vị trí cho trình duyệt.';
   if (error.code === error.POSITION_UNAVAILABLE) return 'Thiết bị chưa cung cấp được vị trí hiện tại.';
@@ -139,25 +70,15 @@ const accuracyLabel = (accuracy: number) => accuracy < 1_000
 
 const MapViewport = ({
   playerLocation,
-  routeCoordinates,
   venues,
 }: {
   playerLocation: PlayerLocation | null;
-  routeCoordinates: LatLngTuple[];
   venues: LocatedVenue[];
 }) => {
   const map = useMap();
 
   useEffect(() => {
     map.invalidateSize();
-    if (routeCoordinates.length > 1) {
-      map.fitBounds(routeCoordinates as LatLngBoundsExpression, {
-        padding: [36, 36],
-        maxZoom: 16,
-      });
-      return;
-    }
-
     const points: LatLngTuple[] = venues.map((venue) => [venue.latitude, venue.longitude]);
     if (playerLocation) points.push([playerLocation.latitude, playerLocation.longitude]);
     if (points.length > 1) {
@@ -165,7 +86,7 @@ const MapViewport = ({
     } else if (points.length === 1) {
       map.setView(points[0], 15);
     }
-  }, [map, playerLocation, routeCoordinates, venues]);
+  }, [map, playerLocation, venues]);
 
   return null;
 };
@@ -192,11 +113,16 @@ export const MatchVenueMapDialog = ({
     const cached = readCachedPlayerLocation();
     return cached ? `${accuracyLabel(cached.accuracy)} · vị trí gần nhất` : '';
   });
-  const [routeMetrics, setRouteMetrics] = useState<Record<number, RouteMetric>>({});
-  const [routeCoordinates, setRouteCoordinates] = useState<LatLngTuple[]>([]);
-  const [isRouting, setIsRouting] = useState(false);
-  const [routeError, setRouteError] = useState('');
-  const dialogRef = useRef<HTMLElement>(null);
+  const routeMetrics = useMemo<Record<number, RouteMetric>>(() => {
+    if (!playerLocation) return {};
+    return Object.fromEntries(locatedVenues.map((venue) => [
+      venue.venueId,
+      {
+        distanceKm: latLng(playerLocation.latitude, playerLocation.longitude)
+          .distanceTo(latLng(venue.latitude, venue.longitude)) / 1_000,
+      },
+    ])) as Record<number, RouteMetric>;
+  }, [locatedVenues, playerLocation]);
   const geolocationWatchRef = useRef<number | null>(null);
   const geolocationTimeoutRef = useRef<number | null>(null);
   const selectedVenue = locatedVenues.find((venue) => venue.venueId === selectedVenueId)
@@ -286,122 +212,6 @@ export const MatchVenueMapDialog = ({
 
   useEffect(() => clearLocationWatch, [clearLocationWatch]);
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    dialogRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!playerLocation || locatedVenues.length === 0) {
-      setRouteMetrics({});
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const coordinates = [
-      `${playerLocation.longitude},${playerLocation.latitude}`,
-      ...locatedVenues.map((venue) => `${venue.longitude},${venue.latitude}`),
-    ].join(';');
-    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
-
-    fetch(`https://router.project-osrm.org/table/v1/driving/${coordinates}?sources=0&annotations=distance,duration`, {
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Routing table failed.');
-        return response.json() as Promise<OsrmTableResponse>;
-      })
-      .then((result) => {
-        if (result.code !== 'Ok') throw new Error('Routing table unavailable.');
-        const distances = result.distances?.[0] ?? [];
-        const durations = result.durations?.[0] ?? [];
-        const nextMetrics: Record<number, RouteMetric> = {};
-        locatedVenues.forEach((venue, index) => {
-          const distance = distances[index + 1];
-          const duration = durations[index + 1];
-          if (distance == null || duration == null) return;
-          nextMetrics[venue.venueId] = {
-            distanceKm: distance / 1000,
-            durationMinutes: Math.max(1, Math.round(duration / 60)),
-          };
-        });
-        setRouteMetrics(nextMetrics);
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        setRouteMetrics({});
-      })
-      .finally(() => window.clearTimeout(timeoutId));
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [locatedVenues, playerLocation]);
-
-  useEffect(() => {
-    if (!playerLocation || !selectedVenue) {
-      setRouteCoordinates([]);
-      setRouteError('');
-      setIsRouting(false);
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
-    const coordinates = `${playerLocation.longitude},${playerLocation.latitude};${selectedVenue.longitude},${selectedVenue.latitude}`;
-    setIsRouting(true);
-    setRouteError('');
-
-    fetch(`https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`, {
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Route request failed.');
-        return response.json() as Promise<OsrmRouteResponse>;
-      })
-      .then((result) => {
-        const route = result.routes?.[0];
-        if (result.code !== 'Ok' || !route) throw new Error('Route unavailable.');
-        setRouteCoordinates(route.geometry.coordinates.map(([longitude, latitude]) => [
-          latitude,
-          longitude,
-        ]));
-        setRouteMetrics((current) => ({
-          ...current,
-          [selectedVenue.venueId]: {
-            distanceKm: route.distance / 1000,
-            durationMinutes: Math.max(1, Math.round(route.duration / 60)),
-          },
-        }));
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        setRouteCoordinates([]);
-        setRouteError('Chưa thể vẽ lộ trình trong ứng dụng.');
-      })
-      .finally(() => {
-        window.clearTimeout(timeoutId);
-        setIsRouting(false);
-      });
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [playerLocation, selectedVenue]);
-
   const directionsUrl = selectedVenue
     ? `https://www.google.com/maps/dir/?${new URLSearchParams({
       api: '1',
@@ -414,26 +224,16 @@ export const MatchVenueMapDialog = ({
     : '#';
 
   return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-[#081d24]/72 p-0 backdrop-blur-sm sm:p-4"
-      initial={shouldReduceMotion ? false : { opacity: 0 }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      role="presentation"
-      transition={{ duration: shouldReduceMotion ? 0.01 : 0.2 }}
+    <ModalDialog
+      aria-labelledby="match-venue-map-title"
+      className="h-[100dvh] max-h-none w-full max-w-[1180px] overflow-visible bg-transparent shadow-none backdrop:bg-[#081d24]/72 sm:h-[min(780px,calc(100dvh-32px))] sm:w-[calc(100%-2rem)]"
+      onRequestClose={onClose}
     >
       <motion.section
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        aria-labelledby="match-venue-map-title"
-        aria-modal="true"
-        className="h-[100dvh] w-full max-w-[1180px] overflow-hidden bg-white shadow-[0_28px_90px_rgba(8,29,36,0.34)] outline-none sm:h-[min(780px,calc(100dvh-32px))] sm:rounded-2xl"
+        className="h-full w-full overflow-hidden bg-white shadow-[0_28px_90px_rgba(8,29,36,0.34)] outline-none sm:rounded-2xl"
         data-motion-managed
         initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.985, y: 16 }}
-        ref={dialogRef}
-        role="dialog"
-        tabIndex={-1}
         transition={{ duration: shouldReduceMotion ? 0.01 : 0.28, ease: [0.2, 0.8, 0.2, 1] }}
       >
         {locatedVenues.length === 0 ? (
@@ -521,21 +321,16 @@ export const MatchVenueMapDialog = ({
 
               <div className="flex items-center gap-3 border-b border-[#d8e4d4] bg-[#f8fbf4] px-4 py-3">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#edf5e9] text-[#477313]">
-                  <CarFront aria-hidden="true" className="h-4 w-4" />
+                  <MapPin aria-hidden="true" className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-semibold text-[#0b2228]">
-                    {selectedMetric
-                      ? `${selectedMetric.durationMinutes} phút`
-                      : isRouting ? 'Đang tính lộ trình...' : 'Lộ trình lái xe'}
+                    {selectedMetric ? selectedMetric.distanceKm.toFixed(1) + ' km' : 'Chưa có vị trí'}
                   </p>
                   <p className="mt-0.5 truncate text-[10px] text-[#718077]">
-                    {selectedMetric
-                      ? `${selectedMetric.distanceKm.toFixed(1)} km đến ${selectedVenue?.venueName}`
-                      : 'Khoảng cách theo mạng lưới đường bộ'}
+                    Khoảng cách đường thẳng đến {selectedVenue?.venueName}
                   </p>
                 </div>
-                <Route aria-hidden="true" className="h-4 w-4 shrink-0 text-[#526158]" />
               </div>
 
               <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3">
@@ -569,14 +364,10 @@ export const MatchVenueMapDialog = ({
                           <strong className="block truncate text-[12px] font-semibold text-[#0b2228]">{venue.venueName}</strong>
                           <span className="mt-0.5 line-clamp-2 block text-[10px] leading-4 text-[#718077]">{venue.address}</span>
                           {metric && (
-                            <span className="mt-1.5 flex items-center gap-3 text-[10px] font-medium text-[#477313]">
-                              <span>{metric.distanceKm < 1
-                                ? `${Math.round(metric.distanceKm * 1000)} m`
-                                : `${metric.distanceKm.toFixed(1)} km`}</span>
-                              <span className="inline-flex items-center gap-1">
-                                <Clock3 aria-hidden="true" className="h-3 w-3" />
-                                {metric.durationMinutes} phút
-                              </span>
+                            <span className="mt-1.5 block text-[10px] font-medium text-[#477313]">
+                              {metric.distanceKm < 1
+                                ? Math.round(metric.distanceKm * 1_000) + ' m'
+                                : metric.distanceKm.toFixed(1) + ' km'} đường thẳng
                             </span>
                           )}
                         </span>
@@ -604,7 +395,6 @@ export const MatchVenueMapDialog = ({
               </div>
 
               <div className="border-t border-[#d8e4d4] p-3.5">
-                {routeError && <p className="mb-2 text-[10px] font-medium text-[#b06000]">{routeError}</p>}
                 <a
                   className={`flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-4 py-2 text-[12px] font-extrabold text-[#102414] shadow-[0_10px_22px_rgba(152,217,81,0.2)] transition-[background-color,transform,box-shadow] hover:bg-[#d6f64d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313] active:scale-[0.99] ${selectedVenue ? '' : 'pointer-events-none opacity-50'}`}
                   href={directionsUrl}
@@ -631,7 +421,6 @@ export const MatchVenueMapDialog = ({
                 />
                 <MapViewport
                   playerLocation={playerLocation}
-                  routeCoordinates={routeCoordinates}
                   venues={locatedVenues}
                 />
                 {playerLocation && (
@@ -678,12 +467,6 @@ export const MatchVenueMapDialog = ({
                     </Popup>
                   </Marker>
                 ))}
-                {routeCoordinates.length > 1 && (
-                  <Polyline
-                    pathOptions={{ color: '#477313', opacity: 0.92, weight: 6 }}
-                    positions={routeCoordinates}
-                  />
-                )}
               </MapContainer>
 
               <div className="absolute left-3 right-3 top-3 z-[500] flex items-center gap-2 rounded-xl border border-[#d8e4d4] bg-white px-2 py-2 shadow-[0_10px_26px_rgba(8,29,36,0.14)] lg:hidden">
@@ -715,6 +498,6 @@ export const MatchVenueMapDialog = ({
           </div>
         )}
       </motion.section>
-    </motion.div>
+    </ModalDialog>
   );
 };
