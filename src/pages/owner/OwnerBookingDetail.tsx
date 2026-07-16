@@ -67,7 +67,7 @@ export const OwnerBookingDetail = () => {
 
   useEffect(() => { void load(); }, [load]);
   useScheduleRealtime((event) => {
-    if (!booking || (event.venueId === booking.venueId && event.courtId === booking.courtId)) void load();
+    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void load();
   });
   usePaymentRealtime((event) => {
     if (event.bookingId === bookingId) void load();

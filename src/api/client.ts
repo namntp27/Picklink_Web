@@ -3,6 +3,12 @@ import { repairMojibake } from '../utils/textEncoding';
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? '';
 
 export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, '');
+type InFlightGet = {
+  started: boolean;
+  current: Promise<unknown>;
+  queued?: Promise<unknown>;
+};
+const inFlightGets = new Map<string, InFlightGet>();
 
 export type PaginatedResponse<T> = {
   items: T[];
@@ -72,7 +78,7 @@ const getErrorMessage = (status: number, body?: ApiErrorBody) => {
     ?? fallbackMessage;
 };
 
-export const apiRequest = async <T>(
+const executeApiRequest = async <T>(
   path: string,
   options: RequestInit = {},
   accessToken?: string,
@@ -112,4 +118,54 @@ export const apiRequest = async <T>(
   }
 
   return body as T;
+};
+
+export const apiRequest = <T>(
+  path: string,
+  options: RequestInit = {},
+  accessToken?: string,
+): Promise<T> => {
+  if (Object.keys(options).length > 0) return executeApiRequest<T>(path, options, accessToken);
+
+  const key = `${accessToken ?? ''}\n${path}`;
+  const entry = inFlightGets.get(key);
+  if (entry) {
+    if (!entry.started) return entry.current as Promise<T>;
+    if (entry.queued) return entry.queued as Promise<T>;
+
+    const previous = entry.current;
+    let queued!: Promise<T>;
+    const startQueued = () => {
+      entry.current = queued;
+      entry.queued = undefined;
+      return executeApiRequest<T>(path, options, accessToken);
+    };
+    queued = previous.then(startQueued, startQueued);
+    entry.queued = queued;
+    const clear = () => {
+      if (inFlightGets.get(key) === entry && entry.current === queued && !entry.queued) {
+        inFlightGets.delete(key);
+      }
+    };
+    void queued.then(clear, clear);
+    return queued;
+  }
+
+  const nextEntry: InFlightGet = {
+    started: false,
+    current: Promise.resolve(),
+  };
+  const request = Promise.resolve().then(() => {
+    nextEntry.started = true;
+    return executeApiRequest<T>(path, options, accessToken);
+  });
+  nextEntry.current = request;
+  inFlightGets.set(key, nextEntry);
+  const clear = () => {
+    if (inFlightGets.get(key) === nextEntry && nextEntry.current === request && !nextEntry.queued) {
+      inFlightGets.delete(key);
+    }
+  };
+  void request.then(clear, clear);
+  return request;
 };
