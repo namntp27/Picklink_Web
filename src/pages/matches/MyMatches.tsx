@@ -12,14 +12,19 @@ import {
   UserPlus,
   Users,
   XCircle,
+  Play,
+  LogOut,
+  MessageSquare,
 } from 'lucide-react';
 import { cancelMatch, getMyMatches, type MatchStatus, type MatchSummary } from '../../api/matches';
+import { getMyQueues, cancelQueue, resumeQueue, type QueueStatusResponse } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
+import { formatQueueSlots } from '../../utils/queueSlotFormatter';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
 
-type FilterStatus = 'all' | MatchStatus;
+type FilterStatus = 'all' | MatchStatus | 'ActiveQueues';
 
 const statusConfig: Record<MatchStatus, {
   className: string;
@@ -37,6 +42,7 @@ const statusConfig: Record<MatchStatus, {
 
 const filters: Array<{ label: string; value: FilterStatus }> = [
   { label: 'Tất cả', value: 'all' },
+  { label: 'Lời mời đang hoạt động', value: 'ActiveQueues' },
   { label: 'Đang tìm người', value: 'Recruiting' },
   { label: 'Sẵn sàng đặt sân', value: 'ReadyToBook' },
   { label: 'Chờ thanh toán', value: 'BookingPending' },
@@ -80,11 +86,12 @@ let myMatchesCache: {
 } | null = null;
 
 export const MyMatches = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const cachedPage = myMatchesCache?.token === token && myMatchesCache.page === 1
     ? myMatchesCache.result
     : null;
   const [matches, setMatches] = useState<MatchSummary[]>(() => cachedPage?.items ?? []);
+  const [myQueues, setMyQueues] = useState<QueueStatusResponse[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(
@@ -106,11 +113,15 @@ export const MyMatches = () => {
     requestIdRef.current = requestId;
     if (!behavior.silent) setIsLoading(true);
     try {
-      const result = await getMyMatches(token, { page, pageSize: 9 }, options);
+      const [result, queues] = await Promise.all([
+        getMyMatches(token, { page, pageSize: 9 }, options),
+        getMyQueues(token).catch(() => []),
+      ]);
       if (requestId !== requestIdRef.current) return;
       myMatchesCache = { token, page, result };
       setMatches(result.items);
       setPagination(result);
+      setMyQueues(queues);
       setError('');
     } catch (reason) {
       if (options.signal?.aborted || requestId !== requestIdRef.current) return;
@@ -159,6 +170,34 @@ export const MyMatches = () => {
     }
   };
 
+  const handleResumeQueue = async (queueId: number) => {
+    if (!token) return;
+    try {
+      await resumeQueue(token, queueId);
+      await load();
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể tìm tiếp trận đấu.');
+    }
+  };
+
+  const handleCancelQueue = async (queue: QueueStatusResponse) => {
+    if (!token) return;
+    const isHost = queue.queuePlayers.find((p) => String(p.playerId) === user?.id)?.isHost;
+    const msg = isHost
+      ? 'Bạn là chủ hàng chờ, hủy hàng chờ sẽ giải tán cả nhóm. Bạn có chắc chắn?'
+      : 'Bạn có chắc chắn muốn rời khỏi hàng chờ ghép trận này?';
+    if (!window.confirm(msg)) return;
+
+    try {
+      await cancelQueue(token, queue.matchmakingQueueId ?? undefined);
+      await load();
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể rời hàng chờ.');
+    }
+  };
+
   return (
     <CommunityPage>
       <CommunityHero
@@ -187,6 +226,7 @@ export const MyMatches = () => {
             {error}
           </div>
         )}
+
 
         <nav
           aria-label="Lọc phòng theo trạng thái"
@@ -235,88 +275,205 @@ export const MyMatches = () => {
             </>
           )}
 
-          {visible.map((match) => {
-            const status = statusConfig[match.status];
-            const StatusIcon = status.icon;
-            const isInvitation = match.myParticipantStatus === 'Invited';
-
-            return (
-              <article className="community-card h-full p-3" key={match.matchId}>
-                <div className="flex flex-col gap-2.5">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className={`community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] ${status.className}`}>
-                        <StatusIcon aria-hidden="true" className="h-3 w-3" />
-                        {status.label}
-                      </span>
-                      <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">
-                        {match.isHost ? 'Bạn là chủ phòng' : isInvitation ? 'Đang mời bạn' : 'Bạn là thành viên'}
-                      </span>
-                      {isInvitation && (
-                        <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">
-                          <UserPlus aria-hidden="true" className="h-3 w-3" />
-                          Cần phản hồi
+          {activeFilter === 'ActiveQueues' ? (
+            myQueues.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-sm font-semibold text-[#526158]">
+                Không có lời mời tìm trận nào đang hoạt động.
+              </div>
+            ) : (
+              myQueues.map((queue) => (
+                <article
+                  key={queue.matchmakingQueueId}
+                  className="community-card h-full p-3 flex flex-col justify-between"
+                  style={{ background: 'linear-gradient(135deg, #f6f9f4 0%, #edf2ea 100%)' }}
+                >
+                  <div className="flex flex-col gap-2.5">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className={`community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] ${
+                          queue.isActive
+                            ? 'bg-[#edf5e9] text-[#477313] border border-[#d2e4c8]'
+                            : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full mr-1 ${queue.isActive ? 'bg-[#477313] animate-ping' : 'bg-amber-500'}`} />
+                          {queue.isActive ? 'Đang tìm đối thủ' : 'Tạm dừng tìm kiếm'}
                         </span>
-                      )}
-                      <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">{match.matchType}</span>
+                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">
+                          {queue.matchType}
+                        </span>
+                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">
+                          Trình độ: ⭐ {queue.skillLevel}
+                        </span>
+                        {queue.isPublic && (
+                          <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] bg-[#e2ff57]/20 text-[#283e0b] border border-[#cbe54f]">
+                            Công khai
+                          </span>
+                        )}
+                      </div>
+                      <Link className="mt-2 block" to={`/opponents/queue/${queue.matchmakingQueueId}`}>
+                        <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
+                          {queue.isActive ? 'Lời mời tìm trận đấu tự động' : 'Tìm trận đấu đang tạm dừng'}
+                        </h2>
+                      </Link>
+                      <p className="mt-1 text-[11px] leading-4 text-[#526158] line-clamp-2">
+                        {queue.province ? `Khu vực: ${queue.ward ? `${queue.ward}, ` : ''}${queue.province}` : 'Sử dụng GPS định vị tìm sân gần nhất'}
+                        {queue.sharedVenues && ` · Sân ưu tiên: ${queue.sharedVenues}`}
+                      </p>
                     </div>
-                    <Link className="mt-2 block" to={`/matches/${match.matchId}`}>
-                      <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
-                        {match.title}
-                      </h2>
-                    </Link>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#526158]">
-                      {match.note || `Phòng đang ở trạng thái ${status.label.toLowerCase()}.`}
-                    </p>
+
+                    <div className="mt-2.5 divide-y divide-[#e2eae0] overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#fbfcfa]">
+                      <div className="px-2.5 py-2">
+                        <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]">
+                          <Clock className="h-3 w-3 text-[#477313]" />Khung giờ & Lịch hẹn
+                        </p>
+                        <div className="mt-1 flex flex-col gap-0.5 max-h-[80px] overflow-y-auto">
+                          {formatQueueSlots(queue.queueSlots, queue.replayType, false).map((slot, sIdx) => (
+                            <span key={sIdx} className="text-[10px] font-semibold text-[#0b2228]">
+                              • {slot.dayLabel} · {slot.timeStart} - {slot.timeEnd}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="px-2.5 py-2">
+                        <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]">
+                          <Users className="h-3 w-3 text-[#477313]" />Thành viên ({queue.queuePlayers.length})
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {queue.queuePlayers.map((player) => (
+                            <span key={player.playerId} className="inline-flex items-center gap-1 bg-[#edf5e9] text-[#477313] text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#d2e4c8]">
+                              {player.playerName}
+                              {player.isHost && <span className="text-[7px] text-amber-700 bg-amber-100 px-0.5 rounded">Host</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex w-full gap-1.5">
-                    <Link className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px]" to={`/matches/${match.matchId}`}>
-                      <Eye aria-hidden="true" className="h-3 w-3" />
-                      {isInvitation ? 'Phản hồi' : 'Xem phòng'}
+
+                  <div className="mt-3 flex gap-1.5 w-full">
+                    <Link
+                      to={`/opponents/queue/${queue.matchmakingQueueId}`}
+                      className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Chi tiết
                     </Link>
-                    {match.isHost && (match.status === 'Recruiting' || match.status === 'ReadyToBook') && (
-                      <button
-                        aria-label={`Hủy phòng ${match.title}`}
-                        className="community-button-danger !h-8 !min-h-8 !w-8 shrink-0 !p-0"
-                        onClick={() => void handleCancel(match.matchId)}
-                        title="Hủy phòng"
-                        type="button"
+                    {queue.conversationId && (
+                      <Link
+                        to={`/messages?chat=${queue.conversationId}`}
+                        className="community-button !min-h-8 min-w-0 flex-1 !px-2 !py-1.5 !text-[11px] !bg-[#477313] hover:!bg-[#588e18] !text-white flex items-center justify-center gap-1"
                       >
-                        <XCircle aria-hidden="true" className="h-3.5 w-3.5" />
+                        <MessageSquare className="h-3 w-3" />
+                        Chat
+                      </Link>
+                    )}
+                    {!queue.isActive && (
+                      <button
+                        type="button"
+                        onClick={() => void handleResumeQueue(queue.matchmakingQueueId!)}
+                        className="community-button !min-h-8 min-w-0 flex-1 !px-2 !py-1.5 !text-[11px] !bg-[#e2ff57] !text-[#0b2228] hover:!bg-[#d4f046] flex items-center justify-center gap-1"
+                      >
+                        <Play className="h-3 w-3" />
+                        Tìm tiếp
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => void handleCancelQueue(queue)}
+                      className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[11px] hover:!bg-red-500/20 hover:!text-red-750 hover:!border-red-500/30 flex items-center justify-center gap-1"
+                    >
+                      <LogOut className="h-3 w-3" />
+                      {queue.queuePlayers.find((p) => String(p.playerId) === user?.id)?.isHost ? 'Hủy' : 'Rời'}
+                    </button>
                   </div>
-                </div>
+                </article>
+              ))
+            )
+          ) : (
+            visible.map((match) => {
+              const status = statusConfig[match.status];
+              const StatusIcon = status.icon;
+              const isInvitation = match.myParticipantStatus === 'Invited';
 
-                <div className="mt-2.5 divide-y divide-[#e2eae0] overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#fbfcfa]">
-                  <div className="px-2.5 py-2">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><CalendarRange className="h-3 w-3 text-[#477313]" />Ngày có thể chơi</p>
-                    <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{dateLabel(match.availableDateFrom)} - {dateLabel(match.availableDateTo)}</p>
+              return (
+                <article className="community-card h-full p-3" key={match.matchId}>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className={`community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] ${status.className}`}>
+                          <StatusIcon aria-hidden="true" className="h-3 w-3" />
+                          {status.label}
+                        </span>
+                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">
+                          {match.isHost ? 'Bạn là chủ phòng' : isInvitation ? 'Đang mời bạn' : 'Bạn là thành viên'}
+                        </span>
+                        {isInvitation && (
+                          <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">
+                            <UserPlus aria-hidden="true" className="h-3 w-3" />
+                            Cần phản hồi
+                          </span>
+                        )}
+                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">{match.matchType}</span>
+                      </div>
+                      <Link className="mt-2 block" to={`/matches/${match.matchId}`}>
+                        <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
+                          {match.title}
+                        </h2>
+                      </Link>
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#526158]">
+                        {match.note || `Phòng đang ở trạng thái ${status.label.toLowerCase()}.`}
+                      </p>
+                    </div>
+                    <div className="flex w-full gap-1.5">
+                      <Link className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px]" to={`/matches/${match.matchId}`}>
+                        <Eye aria-hidden="true" className="h-3 w-3" />
+                        {isInvitation ? 'Phản hồi' : 'Xem phòng'}
+                      </Link>
+                      {match.isHost && (match.status === 'Recruiting' || match.status === 'ReadyToBook') && (
+                        <button
+                          aria-label={`Hủy phòng ${match.title}`}
+                          className="community-button-danger !h-8 !min-h-8 !w-8 shrink-0 !p-0"
+                          onClick={() => void handleCancel(match.matchId)}
+                          title="Hủy phòng"
+                          type="button"
+                        >
+                          <XCircle aria-hidden="true" className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="px-2.5 py-2">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Clock className="h-3 w-3 text-[#477313]" />Khung giờ</p>
-                    <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">
-                      {match.startTime
-                        ? `${timePart(match.startTime)} - ${timePart(match.endTime!)}`
-                        : `${match.preferredTimeStart} - ${match.preferredTimeEnd}`}
-                    </p>
-                  </div>
-                  <div className="px-2.5 py-2">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><MapPin className="h-3 w-3 text-[#477313]" />{match.venueName ? 'Sân đã chọn' : 'Khu vực'}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">
-                      {match.venueName ? `${match.venueName} · Sân ${match.courtNumber}` : `${match.ward}, ${match.province}`}
-                    </p>
-                  </div>
-                  <div className="px-2.5 py-2">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên</p>
-                    <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{match.acceptedPlayerCount}/{match.requiredPlayerCount} người</p>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
 
-          {!isLoading && visible.length === 0 && (
+                  <div className="mt-2.5 divide-y divide-[#e2eae0] overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#fbfcfa]">
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><CalendarRange className="h-3 w-3 text-[#477313]" />Ngày có thể chơi</p>
+                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{dateLabel(match.availableDateFrom)} - {dateLabel(match.availableDateTo)}</p>
+                    </div>
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Clock className="h-3 w-3 text-[#477313]" />Khung giờ</p>
+                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">
+                        {match.startTime
+                          ? `${timePart(match.startTime)} - ${timePart(match.endTime!)}`
+                          : `${match.preferredTimeStart} - ${match.preferredTimeEnd}`}
+                      </p>
+                    </div>
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><MapPin className="h-3 w-3 text-[#477313]" />{match.venueName ? 'Sân đã chọn' : 'Khu vực'}</p>
+                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">
+                        {match.venueName ? `${match.venueName} · Sân ${match.courtNumber}` : `${match.ward}, ${match.province}`}
+                      </p>
+                    </div>
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên</p>
+                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{match.acceptedPlayerCount}/{match.requiredPlayerCount} người</p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
+
+          {!isLoading && (activeFilter === 'ActiveQueues' ? myQueues.length === 0 : visible.length === 0) && (
             <div className="sm:col-span-2 lg:col-span-3">
               <CommunityEmptyState
                 action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}
@@ -326,9 +483,11 @@ export const MyMatches = () => {
               />
             </div>
           )}
-          <div className="sm:col-span-2 lg:col-span-3">
-            <PaginationControls page={pagination} onPageChange={setPage} />
-          </div>
+          {activeFilter !== 'ActiveQueues' && (
+            <div className="sm:col-span-2 lg:col-span-3">
+              <PaginationControls page={pagination} onPageChange={setPage} />
+            </div>
+          )}
         </section>
       </main>
     </CommunityPage>

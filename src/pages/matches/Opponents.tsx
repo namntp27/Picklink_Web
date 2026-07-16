@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
-import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
-import { AlertTriangle, Bot, CalendarRange, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, UserPlus, UsersRound, X } from 'lucide-react';
+import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { AlertTriangle, Bot, CalendarRange, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, UserPlus, UsersRound, X, Settings, Repeat, User } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -14,6 +14,7 @@ import {
   type MatchPreferredVenue,
 } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
+import { joinSoloQueue } from '../../api/matchmaking';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
@@ -137,6 +138,28 @@ const reversePlayerArea = async (location: PlayerLocation) => {
   };
 };
 
+const geocodeArea = async (province: string, ward?: string) => {
+  const query = [ward, province, 'Việt Nam'].filter(Boolean).join(', ');
+  const params = new URLSearchParams({
+    format: 'jsonv2',
+    q: query,
+    limit: '1',
+  });
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+    headers: { 'Accept-Language': 'vi' },
+  });
+  if (!response.ok) throw new Error('Geocoding failed.');
+  const data = await response.json();
+  if (Array.isArray(data) && data.length > 0) {
+    return {
+      latitude: Number(data[0].lat),
+      longitude: Number(data[0].lon),
+      accuracy: 1000,
+    };
+  }
+  return null;
+};
+
 const locationErrorMessage = (error: GeolocationPositionError) => {
   if (error.code === error.PERMISSION_DENIED) {
     return 'Bạn chưa cấp quyền vị trí cho trình duyệt. Hãy bấm biểu tượng ổ khóa trên thanh địa chỉ và cho phép Vị trí.';
@@ -192,10 +215,34 @@ const MapViewport = ({
   return null;
 };
 
+const MapClickEvents = ({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) => {
+  useMapEvents({
+    click(e) {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+};
+
 export const Opponents = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [creationMode, setCreationMode] = useState<'auto' | 'manual'>('auto');
+  const [isActive, setIsActive] = useState(true);
+  const [replayType, setReplayType] = useState<string>('None');
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  const [selectedDaysOfMonth, setSelectedDaysOfMonth] = useState<number[]>([]);
+  const [weeklySlots, setWeeklySlots] = useState<Record<number, AvailabilitySlotInput[]>>({
+    0: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+    1: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+    2: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+    3: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+    4: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+    5: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+    6: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
+  });
+  const [monthlySlots, setMonthlySlots] = useState<Record<number, AvailabilitySlotInput[]>>({});
   const [title, setTitle] = useState('');
   const [province, setProvince] = useState('');
   const [ward, setWard] = useState('');
@@ -256,6 +303,7 @@ export const Opponents = () => {
   }, [selectedVenueIds, venues, visibleVenues]);
 
   useEffect(() => {
+    if (location) return;
     let isActive = true;
     const requestId = ++venueRequestId.current;
     const nextProvince = province.trim();
@@ -287,7 +335,7 @@ export const Opponents = () => {
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [province, ward]);
+  }, [province, ward, location]);
   useEffect(() => {
     const requestId = ++recommendationRequestId.current;
     if (!token || !province.trim() || !ward.trim()) {
@@ -427,6 +475,83 @@ export const Opponents = () => {
     locate(nextRadiusKm);
   };
 
+  const handleProvinceChange = async (value: string | null) => {
+    const prov = value ?? '';
+    setProvince(prov);
+    setWard('');
+    setLocation(null);
+    setLocationAreaStatus('');
+
+    if (prov) {
+      try {
+        const coords = await geocodeArea(prov);
+        if (coords) {
+          setLocation(coords);
+          setLocationAreaStatus(`Đã định vị bản đồ đến: ${prov}`);
+          void loadVenuesInRadius(coords, radiusKm);
+        }
+      } catch (e) {
+        console.error('Geocoding province failed', e);
+      }
+    }
+  };
+
+  const handleWardChange = async (value: string | null) => {
+    const wd = value ?? '';
+    setWard(wd);
+    setLocation(null);
+    setLocationAreaStatus('');
+
+    if (province && wd) {
+      try {
+        const coords = await geocodeArea(province, wd);
+        if (coords) {
+          setLocation(coords);
+          setLocationAreaStatus(`Đã định vị bản đồ đến: ${wd}, ${province}`);
+          void loadVenuesInRadius(coords, radiusKm);
+        }
+      } catch (e) {
+        console.error('Geocoding ward failed', e);
+      }
+    } else if (province) {
+      try {
+        const coords = await geocodeArea(province);
+        if (coords) {
+          setLocation(coords);
+          setLocationAreaStatus(`Đã định vị bản đồ đến: ${province}`);
+          void loadVenuesInRadius(coords, radiusKm);
+        }
+      } catch (e) {
+        console.error('Geocoding province failed', e);
+      }
+    }
+  };
+
+  const handleMapClick = async (lat: number, lon: number) => {
+    const playerLocation = {
+      accuracy: 10,
+      latitude: lat,
+      longitude: lon,
+    };
+    setLocation(playerLocation);
+    setError('');
+    setLocationAreaStatus('Đang xác định địa chỉ từ vị trí đã chọn...');
+    void loadVenuesInRadius(playerLocation, radiusKm);
+
+    try {
+      const area = await reversePlayerArea(playerLocation);
+      if (area.province) setProvince(area.province);
+      if (area.ward) setWard(area.ward);
+
+      const areaLabel = [area.ward, area.province].filter(Boolean).join(', ');
+      setLocationAreaStatus(areaLabel
+        ? `Đã chọn vị trí: ${areaLabel}`
+        : 'Đã chọn vị trí trên bản đồ.');
+    } catch {
+      setLocationAreaStatus('Đã chọn vị trí trên bản đồ nhưng chưa xác định được địa chỉ.');
+    }
+  };
+
   const toggleVenue = (venueId: number) => {
     setSelectedVenueIds((current) =>
       current.includes(venueId) ? current.filter((id) => id !== venueId) : [...current, venueId]);
@@ -464,6 +589,66 @@ export const Opponents = () => {
       : current.filter((slot) => slot.id !== slotId));
   };
 
+  const addWeeklySlot = (day: number) => {
+    setWeeklySlots((current) => {
+      const slots = current[day] ?? [];
+      if (slots.length >= 20) return current;
+      const previous = slots.at(-1);
+      const newSlot = {
+        id: nextAvailabilitySlotId.current++,
+        timeFrom: previous?.timeFrom ?? '18:00',
+        timeTo: previous?.timeTo ?? '20:00',
+      };
+      return { ...current, [day]: [...slots, newSlot] };
+    });
+  };
+
+  const removeWeeklySlot = (day: number, slotId: number) => {
+    setWeeklySlots((current) => {
+      const slots = current[day] ?? [];
+      if (slots.length <= 1) return current;
+      return { ...current, [day]: slots.filter((slot) => slot.id !== slotId) };
+    });
+  };
+
+  const updateWeeklySlot = (day: number, slotId: number, field: keyof Omit<AvailabilitySlotInput, 'id'>, value: string) => {
+    setWeeklySlots((current) => {
+      const slots = current[day] ?? [];
+      const updated = slots.map((slot) => slot.id === slotId ? { ...slot, [field]: value } : slot);
+      return { ...current, [day]: updated };
+    });
+  };
+
+  const addMonthlySlot = (day: number) => {
+    setMonthlySlots((current) => {
+      const slots = current[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
+      if (slots.length >= 20) return current;
+      const previous = slots.at(-1);
+      const newSlot = {
+        id: nextAvailabilitySlotId.current++,
+        timeFrom: previous?.timeFrom ?? '18:00',
+        timeTo: previous?.timeTo ?? '20:00',
+      };
+      return { ...current, [day]: [...slots, newSlot] };
+    });
+  };
+
+  const removeMonthlySlot = (day: number, slotId: number) => {
+    setMonthlySlots((current) => {
+      const slots = current[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
+      if (slots.length <= 1) return current;
+      return { ...current, [day]: slots.filter((slot) => slot.id !== slotId) };
+    });
+  };
+
+  const updateMonthlySlot = (day: number, slotId: number, field: keyof Omit<AvailabilitySlotInput, 'id'>, value: string) => {
+    setMonthlySlots((current) => {
+      const slots = current[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
+      const updated = slots.map((slot) => slot.id === slotId ? { ...slot, [field]: value } : slot);
+      return { ...current, [day]: updated };
+    });
+  };
+
   const changeFormat = (value: MatchFormat) => {
     setFormat(value);
   };
@@ -474,94 +659,159 @@ export const Opponents = () => {
       navigate('/login');
       return;
     }
-    if (!title.trim() || !province.trim() || !ward.trim() || selectedVenueIds.length === 0) {
-      setError('Vui lòng nhập đủ nội dung và chọn ít nhất một cụm sân mong muốn.');
+    if (!province.trim() || !ward.trim()) {
+      setError('Vui lòng chọn Tỉnh/Thành phố và Quận/Huyện để tìm đối thủ.');
       return;
     }
-    if (!Number.isInteger(neededPlayers) || neededPlayers < 1) {
-      setError('Số người cần tìm phải là số nguyên từ 1 trở lên.');
-      return;
+
+    const timeToMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const validateSlotList = (slots: AvailabilitySlotInput[], contextName: string) => {
+      const ordered = [...slots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom));
+      const hasMissing = ordered.some((slot) => !slot.timeFrom || !slot.timeTo);
+      if (hasMissing) {
+        return `Vui lòng chọn đầy đủ giờ bắt đầu và giờ kết thúc cho mỗi slot ở ${contextName}.`;
+      }
+      const hasInvalid = ordered.some((slot) => {
+        if (!slot.timeFrom || !slot.timeTo) return false;
+        return timeToMinutes(slot.timeTo) - timeToMinutes(slot.timeFrom) < 30;
+      });
+      if (hasInvalid) {
+        return `Giờ kết thúc của mỗi slot ở ${contextName} phải lớn hơn giờ bắt đầu ít nhất 30 phút.`;
+      }
+      const hasOverlap = ordered.some((slot, index) => {
+        const previous = ordered[index - 1];
+        return previous && slot.timeFrom < previous.timeTo;
+      });
+      if (hasOverlap) {
+        return `Các slot chơi ở ${contextName} không được trùng hoặc chồng thời gian.`;
+      }
+      return null;
+    };
+
+    let queueSlots: any[] = [];
+
+    if (replayType === 'None' || replayType === 'Daily') {
+      const errorMsg = validateSlotList(availabilitySlots, 'khung giờ chơi');
+      if (errorMsg) {
+        setError(errorMsg);
+        return;
+      }
+      if (replayType === 'Daily') {
+        queueSlots = orderedAvailabilitySlots.map((slot) => ({
+          timeStart: slot.timeFrom,
+          timeEnd: slot.timeTo,
+        }));
+      } else {
+        // None (One-off)
+        if (!dateFrom || !dateTo) {
+          setError('Vui lòng chọn đầy đủ ngày có thể chơi.');
+          return;
+        }
+        if (dateFrom < today()) {
+          setError('Ngày bắt đầu không được ở trong quá khứ.');
+          return;
+        }
+        if (dateTo < dateFrom) {
+          setError('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
+          return;
+        }
+
+        let current = new Date(dateFrom);
+        const end = new Date(dateTo);
+        while (current <= end) {
+          const dateStr = current.toISOString().slice(0, 10);
+          orderedAvailabilitySlots.forEach((slot) => {
+            queueSlots.push({
+              specificDate: dateStr,
+              timeStart: slot.timeFrom,
+              timeEnd: slot.timeTo,
+            });
+          });
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    } else if (replayType === 'Weekly') {
+      if (selectedWeekdays.length === 0) {
+        setError('Vui lòng chọn ít nhất một ngày trong tuần.');
+        return;
+      }
+      const weekdayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+      for (const day of selectedWeekdays) {
+        const slots = weeklySlots[day] ?? [];
+        if (slots.length === 0) {
+          setError(`Vui lòng thêm ít nhất một khung giờ cho ${weekdayNames[day]}.`);
+          return;
+        }
+        const errorMsg = validateSlotList(slots, weekdayNames[day]);
+        if (errorMsg) {
+          setError(errorMsg);
+          return;
+        }
+        const ordered = [...slots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom));
+        ordered.forEach((slot) => {
+          queueSlots.push({
+            dayOfWeek: day,
+            timeStart: slot.timeFrom,
+            timeEnd: slot.timeTo,
+          });
+        });
+      }
+    } else if (replayType === 'Monthly') {
+      if (selectedDaysOfMonth.length === 0) {
+        setError('Vui lòng chọn ít nhất một ngày trong tháng.');
+        return;
+      }
+      for (const day of selectedDaysOfMonth) {
+        const slots = monthlySlots[day] ?? [];
+        if (slots.length === 0) {
+          setError(`Vui lòng thêm ít nhất một khung giờ cho Ngày ${day}.`);
+          return;
+        }
+        const errorMsg = validateSlotList(slots, `Ngày ${day}`);
+        if (errorMsg) {
+          setError(errorMsg);
+          return;
+        }
+        const ordered = [...slots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom));
+        ordered.forEach((slot) => {
+          queueSlots.push({
+            dayOfMonth: day,
+            timeStart: slot.timeFrom,
+            timeEnd: slot.timeTo,
+          });
+        });
+      }
     }
-    const hasMissingSlotTime = orderedAvailabilitySlots.some((slot) =>
-      !slot.timeFrom || !slot.timeTo);
-    const hasInvalidSlotRange = orderedAvailabilitySlots.some((slot) =>
-      slot.timeFrom && slot.timeTo && slot.timeTo <= slot.timeFrom);
-    const hasPastSlot = dateFrom === today()
-      && orderedAvailabilitySlots.some((slot) => slot.timeFrom <= currentTime());
-    const hasOverlappingSlots = orderedAvailabilitySlots.some((slot, index) => {
-      const previous = orderedAvailabilitySlots[index - 1];
-      return previous && slot.timeFrom < previous.timeTo;
-    });
-    if (!dateFrom || !dateTo) {
-      setError('Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc.');
-      return;
-    }
-    if (dateFrom < today()) {
-      setError('Ngày bắt đầu không được ở trong quá khứ.');
-      return;
-    }
-    if (dateTo < dateFrom) {
-      setError('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
-      return;
-    }
-    if (hasMissingSlotTime) {
-      setError('Vui lòng chọn đầy đủ giờ bắt đầu và giờ kết thúc cho mỗi slot.');
-      return;
-    }
-    if (hasPastSlot) {
-      setError('Giờ bắt đầu của mỗi slot trong hôm nay phải lớn hơn giờ hiện tại.');
-      return;
-    }
-    if (hasInvalidSlotRange) {
-      setError('Giờ kết thúc của mỗi slot phải lớn hơn giờ bắt đầu.');
-      return;
-    }
-    if (hasOverlappingSlots) {
-      setError('Các slot chơi không được trùng hoặc chồng thời gian.');
-      return;
-    }
-    if (maxSkill < minSkill) {
-      setError('Trình độ tối đa không được nhỏ hơn trình độ tối thiểu.');
-      return;
+
+    let replayWeekdaysStr: string | null = null;
+    if (replayType === 'Weekly') {
+      const weekdaysNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      replayWeekdaysStr = selectedWeekdays.map((d) => weekdaysNames[d]).join(',');
     }
 
     setIsCreating(true);
     try {
-      const match = await createMatch(token, {
-        title: title.trim(),
-        province: province.trim(),
-        ward: ward.trim(),
+      await joinSoloQueue(token, {
+        matchType: format,
         searchRadiusKm: radiusKm,
         searchLatitude: location?.latitude,
         searchLongitude: location?.longitude,
-        preferredVenueIds: selectedVenueIds,
-        availableDateFrom: dateFrom,
-        availableDateTo: dateTo,
-        preferredTimeStart: timeFrom,
-        preferredTimeEnd: timeTo,
-        availabilitySlots: orderedAvailabilitySlots.map((slot) => ({
-          timeStart: slot.timeFrom,
-          timeEnd: slot.timeTo,
-        })),
-        minSkillLevel: minSkill,
-        maxSkillLevel: maxSkill,
-        matchType: format,
-        neededPlayerCount: neededPlayers,
+        replayType,
+        replayWeekdays: replayWeekdaysStr,
+        isPublic: creationMode === 'manual',
+        isActive: creationMode === 'auto' ? true : isActive,
+        province: province.trim() || null,
+        ward: ward.trim() || null,
+        sharedVenues: selectedVenueIds.length > 0 ? selectedVenueIds.join(',') : null,
+        queueSlots,
       });
-      if (invitationMode === 'automatic' || (invitationMode === 'manual' && selectedPlayerIds.length > 0)) {
-        try {
-          await inviteMatchPlayers(token, match.matchId, {
-            automatic: invitationMode === 'automatic',
-            playerIds: invitationMode === 'manual' ? selectedPlayerIds : [],
-          });
-        } catch {
-          navigate(`/matches/${match.matchId}?invite=failed`);
-          return;
-        }
-      }
-      navigate(`/matches/${match.matchId}`);
+      navigate('/my-matches');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể đăng lời mời ghép trận.');
+      setError(reason instanceof Error ? reason.message : 'Không thể đăng ký hàng chờ ghép trận.');
     } finally {
       setIsCreating(false);
     }
@@ -585,9 +835,9 @@ export const Opponents = () => {
             </Link>
           </>
         )}
-        description="Chọn khu vực và khoảng thời gian. Cả nhóm sẽ chốt sân sau khi đủ người."
+        description="Đăng ký các khung giờ và khu vực chơi của bạn. Hệ thống sẽ tự động ghép cặp người chơi phù hợp nhất."
         icon={Sparkles}
-        label="Ghép người trước, đặt sân sau"
+        label="Tìm đối thủ nhanh"
         stats={(
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -595,12 +845,12 @@ export const Opponents = () => {
               <p className="mt-1 text-[11px] font-semibold text-white/65">cụm sân đã chọn</p>
             </div>
             <div>
-              <p className="font-mono text-[24px] font-extrabold text-[#e2ff57]">{neededPlayers}</p>
-              <p className="mt-1 text-[11px] font-semibold text-white/65">người cần tìm</p>
+              <p className="font-mono text-[24px] font-extrabold text-[#e2ff57]">{format}</p>
+              <p className="mt-1 text-[11px] font-semibold text-white/65">hình thức tìm</p>
             </div>
           </div>
         )}
-        title="Tạo lời mời ghép trận"
+        title="Vào hàng chờ ghép trận"
       />
 
       {roomExpired && (
@@ -611,20 +861,41 @@ export const Opponents = () => {
 
       <main className="community-container grid items-start gap-5 xl:grid-cols-[430px_minmax(0,1fr)]">
         <form className="community-panel space-y-4 p-4 sm:p-5" noValidate onSubmit={submit}>
+          {/* Mode Selector */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#edf2ea] p-1">
+            <button
+              type="button"
+              onClick={() => setCreationMode('auto')}
+              className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-1 text-[11px] font-extrabold transition-colors ${creationMode === 'auto' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
+                }`}
+            >
+              <Repeat className="h-3.5 w-3.5" />
+              Ghép tự động
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreationMode('manual')}
+              className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-1 text-[11px] font-extrabold transition-colors ${creationMode === 'manual' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
+                }`}
+            >
+              <User className="h-3.5 w-3.5" />
+              Ghép thủ công
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#0b2228] text-[#e2ff57]"><PlusCircle className="h-5 w-5" /></div>
-            <div><h2 className="text-[17px] font-extrabold text-[#0b2228]">Thông tin lời mời</h2><p className="text-[11px] font-semibold text-[#718077]">Không khóa sân ở bước này</p></div>
+            <div>
+              <h2 className="text-[17px] font-extrabold text-[#0b2228]">Lời mời ghép trận</h2>
+              <p className="text-[11px] font-semibold text-[#718077]">Thiết lập khung giờ và sân ưu tiên</p>
+            </div>
           </div>
-          <label className="block">
-            <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tiêu đề lời mời</span>
-            <input className={inputClass} maxLength={200} onChange={(event) => setTitle(event.target.value)} placeholder="Ví dụ: Tìm đội đánh đôi buổi tối" value={title} />
-          </label>
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <label>
               <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Bán kính tìm sân</span>
               <select className={inputClass} onChange={(event) => changeRadius(Number(event.target.value))} value={radiusKm}>
-                {[2, 3, 5, 10].map((value) => <option key={value} value={value}>{value} km</option>)}
+                {[0.5, 1, 2, 3, 5, 10].map((value) => <option key={value} value={value}>{value} km</option>)}
               </select>
             </label>
             <button className="community-button-secondary mt-[22px] !h-10" disabled={isLocating} onClick={() => locate()} type="button">
@@ -637,17 +908,8 @@ export const Opponents = () => {
             <AdministrativeAreaSelects
               fieldClassName="block"
               labelClassName="mb-1.5 block text-[12px] font-extrabold text-[#526158]"
-              onProvinceChange={(value) => {
-                setLocation(null);
-                setLocationAreaStatus('');
-                setProvince(value ?? '');
-                setWard('');
-              }}
-              onWardChange={(value) => {
-                setLocation(null);
-                setLocationAreaStatus('');
-                setWard(value ?? '');
-              }}
+              onProvinceChange={handleProvinceChange}
+              onWardChange={handleWardChange}
               province={province}
               selectClassName={inputClass}
               ward={ward}
@@ -684,201 +946,305 @@ export const Opponents = () => {
             </div>
           </div>
 
-          <section className="border-y border-[#cfe0c8] py-3.5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="flex items-center gap-2 text-[13px] font-extrabold">
-                <CalendarRange className="h-4 w-4 text-[#477313]" />
-                Slot có thể chơi ({availabilitySlots.length})
-              </p>
-              <button
-                aria-label="Thêm slot"
-                className="community-button-quiet !min-h-8 !px-2.5"
-                disabled={availabilitySlots.length >= 20}
-                onClick={addAvailabilitySlot}
-                title="Thêm slot"
-                type="button"
-              >
-                <Plus className="h-4 w-4" />
-                Thêm
-              </button>
-            </div>
-            <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <label>
-                <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
-                <input
-                  className={inputClass}
-                  min={today()}
-                  onChange={(event) => {
-                    setDateFrom(event.target.value);
-                    if (event.target.value > dateTo) setDateTo(event.target.value);
-                  }}
-                  type="date"
-                  value={dateFrom}
-                />
-              </label>
-              <label>
-                <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
-                <input
-                  className={inputClass}
-                  min={dateFrom}
-                  onChange={(event) => setDateTo(event.target.value)}
-                  type="date"
-                  value={dateTo}
-                />
-              </label>
-            </div>
-            <div className="space-y-3">
-              {availabilitySlots.map((slot, index) => (
-                <div className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0" key={slot.id}>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label>
-                      <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
-                      <input
-                        className={inputClass}
-                        min={dateFrom === today() ? currentTime() : undefined}
-                        onChange={(event) => updateAvailabilitySlot(slot.id, 'timeFrom', event.target.value)}
-                        type="time"
-                        value={slot.timeFrom}
-                      />
-                    </label>
-                    <label>
-                      <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
-                      <input
-                        className={inputClass}
-                        onChange={(event) => updateAvailabilitySlot(slot.id, 'timeTo', event.target.value)}
-                        type="time"
-                        value={slot.timeTo}
-                      />
-                    </label>
-                  </div>
-                  <button
-                    aria-label={`Xóa slot ${index + 1}`}
-                    className="mt-[22px] grid h-10 w-[38px] place-items-center text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
-                    disabled={availabilitySlots.length === 1}
-                    onClick={() => removeAvailabilitySlot(slot.id)}
-                    title="Xóa slot"
-                    type="button"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+          <div>
+            <p className="mb-2 text-[13px] font-bold">Hình thức lời mời</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['1vs1', '2vs2'] as const).map((value) => (
+                <button className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`} key={value} onClick={() => changeFormat(value)} type="button">{value}</button>
               ))}
             </div>
-          </section>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label><span className="mb-1 block text-[13px] font-bold">Trình độ tối thiểu</span><select className={inputClass} onChange={(event) => setMinSkill(Number(event.target.value))} value={minSkill}>{skillLevelOptions.map((option) => <option key={option.value} value={option.value}>{option.value} - {option.label}</option>)}</select></label>
-            <label><span className="mb-1 block text-[13px] font-bold">Trình độ tối đa</span><select className={inputClass} onChange={(event) => setMaxSkill(Number(event.target.value))} value={maxSkill}>{skillLevelOptions.map((option) => <option key={option.value} value={option.value}>{option.value} - {option.label}</option>)}</select></label>
           </div>
-          {maxSkill < minSkill && (
-            <p className="text-[11px] font-bold text-red-700" role="alert">
-              Trình độ tối đa không được nhỏ hơn trình độ tối thiểu.
-            </p>
-          )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <p className="mb-2 text-[13px] font-bold">Hình thức</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(['1vs1', '2vs2'] as const).map((value) => (
-                  <button className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`} key={value} onClick={() => changeFormat(value)} type="button">{value}</button>
-                ))}
-              </div>
+          <div className="space-y-4 border-t border-[#cfe0c8] pt-4">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-[#477313]" />
+              <h3 className="text-[13px] font-extrabold text-[#0b2228]">Cấu hình lời mời</h3>
             </div>
-            <label>
-              <span className="mb-2 block text-[12px] font-extrabold text-[#526158]">Số người cần tìm</span>
-              <input
+
+            <label className="block">
+              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tần suất tìm lại (Replay)</span>
+              <select
                 className={inputClass}
-                min={1}
-                onChange={(event) => setNeededPlayers(Number(event.target.value))}
-                step={1}
-                type="number"
-                value={neededPlayers}
-              />
+                value={replayType}
+                onChange={(e) => setReplayType(e.target.value)}
+              >
+                <option value="None">Một lần (Không tìm lại sau khi khớp)</option>
+                <option value="Daily">Hàng ngày (Daily replay)</option>
+                <option value="Weekly">Hàng tuần (Weekly replay)</option>
+                <option value="Monthly">Hàng tháng (Monthly replay)</option>
+              </select>
             </label>
-          </div>
 
-          <section className="border-t border-[#d8e4d4] pt-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="flex items-center gap-2 text-[14px] font-extrabold text-[#0b2228]">
-                  <UsersRound className="h-4 w-4 text-[#477313]" />
-                  Người chơi phù hợp
-                </h3>
-                <p className="mt-1 text-[11px] font-semibold text-[#718077]">
-                  {isLoadingRecommendations ? 'Đang tìm...' : `${recommendations.length} người trong phạm vi`}
-                </p>
-              </div>
-              {invitationMode === 'manual' && selectedPlayerIds.length > 0 && (
-                <span className="community-badge">{selectedPlayerIds.length} đã chọn</span>
-              )}
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-1 rounded-[10px] bg-[#edf2ea] p-1">
-              {([
-                { value: 'automatic', label: 'Tự động', icon: Bot },
-                { value: 'manual', label: 'Thủ công', icon: UserPlus },
-                { value: 'none', label: 'Không mời', icon: ListChecks },
-              ] as const).map((option) => {
-                const Icon = option.icon;
-                return (
-                  <button
-                    aria-pressed={invitationMode === option.value}
-                    className={`flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] px-2 text-[11px] font-extrabold transition-colors ${
-                      invitationMode === option.value ? 'bg-white text-[#0b2228] shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
-                    }`}
-                    key={option.value}
-                    onClick={() => setInvitationMode(option.value)}
-                    type="button"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {recommendationError && <p className="mt-3 text-[11px] font-bold text-red-700">{recommendationError}</p>}
-            {invitationMode !== 'none' && recommendations.length > 0 && (
-              <div className="community-scroll mt-3 max-h-56 divide-y divide-[#e2e9df] overflow-y-auto">
-                {recommendations.map((player) => (
-                  <label
-                    className={`flex items-center gap-3 py-2.5 ${invitationMode === 'manual' ? 'cursor-pointer' : ''}`}
-                    key={player.playerId}
-                  >
-                    {invitationMode === 'manual' && (
-                      <input
-                        checked={selectedPlayerIds.includes(player.playerId)}
-                        className="accent-primary"
-                        onChange={() => toggleRecommendedPlayer(player.playerId)}
-                        type="checkbox"
-                      />
-                    )}
-                    <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#0b2228] text-[11px] font-extrabold text-[#e2ff57]">
-                      {player.avatarUrl
-                        ? <img alt="" className="h-full w-full object-cover" src={player.avatarUrl} />
-                        : player.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}
-                    </div>
-                    <span className="min-w-0 flex-1">
-                      <strong className="block truncate text-[13px] text-[#0b2228]">{player.playerName}</strong>
-                      <span className="block truncate text-[11px] font-semibold text-[#718077]">
-                        Level {player.skillLevel.toFixed(1)} · {player.matchReason}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-[10px] font-bold text-[#477313]">{player.prestige} uy tín</span>
+            {(replayType === 'None' || replayType === 'Daily') && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <label>
+                    <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
+                    <input
+                      className={inputClass}
+                      min={today()}
+                      onChange={(event) => {
+                        setDateFrom(event.target.value);
+                        if (event.target.value > dateTo) setDateTo(event.target.value);
+                      }}
+                      type="date"
+                      value={dateFrom}
+                    />
                   </label>
-                ))}
-              </div>
+                  <label>
+                    <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
+                    <input
+                      className={inputClass}
+                      min={dateFrom}
+                      onChange={(event) => setDateTo(event.target.value)}
+                      type="date"
+                      value={dateTo}
+                    />
+                  </label>
+                </div>
+
+                <div className="border-t border-[#cfe0c8] pt-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
+                    <button
+                      type="button"
+                      onClick={addAvailabilitySlot}
+                      className="community-button-quiet !min-h-8 !px-2.5"
+                      disabled={availabilitySlots.length >= 20}
+                    >
+                      <Plus className="h-4 w-4" /> Thêm
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {availabilitySlots.map((slot, index) => (
+                      <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0">
+                        <div className="grid grid-cols-2 gap-2">
+                          <label>
+                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
+                            <input
+                              type="time"
+                              className={inputClass}
+                              value={slot.timeFrom}
+                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
+                            <input
+                              type="time"
+                              className={inputClass}
+                              value={slot.timeTo}
+                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeTo', e.target.value)}
+                            />
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={availabilitySlots.length === 1}
+                          onClick={() => removeAvailabilitySlot(slot.id)}
+                          className="mt-[22px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
-            {!isLoadingRecommendations && !recommendationError && recommendations.length === 0 && province.trim() && ward.trim() && (
-              <p className="mt-3 py-2 text-center text-[11px] font-semibold text-[#718077]">
-                Chưa có người chơi phù hợp trong phạm vi này.
-              </p>
+
+            {replayType === 'Weekly' && (
+              <>
+                <div>
+                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Chọn các thứ trong tuần</span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((label, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          setSelectedWeekdays((prev) =>
+                            prev.includes(index) ? prev.filter((d) => d !== index) : [...prev, index]
+                          );
+                        }}
+                        className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${selectedWeekdays.includes(index)
+                          ? 'border-[#0b2228] bg-[#0b2228] text-white'
+                          : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {selectedWeekdays.map((day) => {
+                    const weekdayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                    const slots = weeklySlots[day] ?? [];
+                    return (
+                      <div key={day} className="rounded-xl border border-[#d8e4d4] p-3 bg-[#edf5e9]/20">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <span className="text-[12px] font-extrabold text-[#0b2228]">Khung giờ {weekdayNames[day]} ({slots.length})</span>
+                          <button
+                            type="button"
+                            onClick={() => addWeeklySlot(day)}
+                            className="community-button-quiet !min-h-8 !px-2.5"
+                            disabled={slots.length >= 20}
+                          >
+                            <Plus className="h-4 w-4" /> Thêm
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {slots.map((slot, index) => (
+                            <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df]/60 pb-3 last:border-b-0 last:pb-0">
+                              <div className="grid grid-cols-2 gap-2">
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Bắt đầu</span>
+                                  <input
+                                    type="time"
+                                    className={inputClass}
+                                    value={slot.timeFrom}
+                                    onChange={(e) => updateWeeklySlot(day, slot.id, 'timeFrom', e.target.value)}
+                                  />
+                                </label>
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Kết thúc</span>
+                                  <input
+                                    type="time"
+                                    className={inputClass}
+                                    value={slot.timeTo}
+                                    onChange={(e) => updateWeeklySlot(day, slot.id, 'timeTo', e.target.value)}
+                                  />
+                                </label>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={slots.length === 1}
+                                onClick={() => removeWeeklySlot(day, slot.id)}
+                                className="mt-[18px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
-          </section>
+
+            {replayType === 'Monthly' && (
+              <>
+                <div>
+                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Chọn các ngày trong tháng (1 - 31)</span>
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDaysOfMonth((prev) => {
+                            const next = prev.includes(d) ? prev.filter((val) => val !== d) : [...prev, d];
+                            if (!prev.includes(d) && !monthlySlots[d]) {
+                              setMonthlySlots((curr) => ({
+                                ...curr,
+                                [d]: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }]
+                              }));
+                            }
+                            return next;
+                          });
+                        }}
+                        className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${
+                          selectedDaysOfMonth.includes(d)
+                            ? 'border-[#0b2228] bg-[#0b2228] text-white'
+                            : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {selectedDaysOfMonth.map((day) => {
+                    const slots = monthlySlots[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
+                    return (
+                      <div key={day} className="rounded-xl border border-[#d8e4d4] p-3 bg-[#edf5e9]/20">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <span className="text-[12px] font-extrabold text-[#0b2228]">Khung giờ Ngày {day} ({slots.length})</span>
+                          <button
+                            type="button"
+                            onClick={() => addMonthlySlot(day)}
+                            className="community-button-quiet !min-h-8 !px-2.5"
+                            disabled={slots.length >= 20}
+                          >
+                            <Plus className="h-4 w-4" /> Thêm
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {slots.map((slot, index) => (
+                            <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df]/60 pb-3 last:border-b-0 last:pb-0">
+                              <div className="grid grid-cols-2 gap-2">
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Bắt đầu</span>
+                                  <input
+                                    type="time"
+                                    className={inputClass}
+                                    value={slot.timeFrom}
+                                    onChange={(e) => updateMonthlySlot(day, slot.id, 'timeFrom', e.target.value)}
+                                  />
+                                </label>
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Kết thúc</span>
+                                  <input
+                                    type="time"
+                                    className={inputClass}
+                                    value={slot.timeTo}
+                                    onChange={(e) => updateMonthlySlot(day, slot.id, 'timeTo', e.target.value)}
+                                  />
+                                </label>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={slots.length === 1}
+                                onClick={() => removeMonthlySlot(day, slot.id)}
+                                className="mt-[18px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {creationMode === 'manual' && (
+              <label className="flex cursor-pointer gap-2.5 items-start bg-[#edf5e9]/40 border border-[#cfe0c8]/50 p-2.5 rounded-xl">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="mt-0.5 accent-primary"
+                />
+                <span className="text-[11px] leading-relaxed font-semibold text-[#526158]">
+                  <strong className="block text-[#0b2228] text-[12px] font-extrabold">Mở phòng (Tự động tìm kiếm đối thủ)</strong>
+                  Hệ thống tự động tìm kiếm đối thủ chạy ngầm song song. Nếu bỏ tích, phòng sẽ chỉ tìm kiếm thông qua việc người dùng khác duyệt tìm và tham gia thủ công.
+                </span>
+              </label>
+            )}
+          </div>
 
           <button className="community-button w-full" disabled={isCreating} type="submit">
-            <PlusCircle className="h-5 w-5" /> {isCreating ? 'Đang đăng...' : 'Đăng lời mời'}
+            <PlusCircle className="h-5 w-5" />
+            {isCreating ? 'Đang tạo lời mời...' : 'Bắt đầu tìm đối thủ (Tạo lời mời)'}
           </button>
         </form>
 
@@ -902,6 +1268,7 @@ export const Opponents = () => {
             <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="match-venue-map-google h-full w-full" scrollWheelZoom zoom={12}>
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport location={location} radiusKm={radiusKm} venues={visibleVenues} />
+              <MapClickEvents onMapClick={handleMapClick} />
               {location && (
                 <Circle
                   center={[location.latitude, location.longitude]}

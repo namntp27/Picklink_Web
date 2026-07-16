@@ -41,6 +41,7 @@ const MatchDetail = lazyPage(() => import('./pages/matches/MatchDetail'), 'Match
 const MyMatches = lazyPage(() => import('./pages/matches/MyMatches'), 'MyMatches');
 const Opponents = lazyPage(() => import('./pages/matches/Opponents'), 'Opponents');
 const PendingInvites = lazyPage(() => import('./pages/matches/PendingInvites'), 'PendingInvites');
+const QueueDetail = lazyPage(() => import('./pages/matches/QueueDetail'), 'QueueDetail');
 const Messages = lazyPage(() => import('./pages/messages/Messages'), 'Messages');
 const Notifications = lazyPage(() => import('./pages/notifications/Notifications'), 'Notifications');
 const Profile = lazyPage(() => import('./pages/profile/Profile'), 'Profile');
@@ -111,6 +112,7 @@ function App() {
                 <Route path="opponents" element={<PendingInvites />} />
                 <Route path="opponents/pending" element={<PendingInvites />} />
                 <Route path="opponents/create" element={<Opponents />} />
+                <Route path="opponents/queue/:id" element={<QueueDetail />} />
                 <Route path="matches/:id" element={<MatchDetail />} />
                 <Route path="my-matches" element={<MyMatches />} />
                 <Route path="my-bookings" element={<MyBookings />} />

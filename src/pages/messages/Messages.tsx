@@ -166,6 +166,7 @@ export const Messages = () => {
         setDirectConversations(mappedDirect);
 
         // If chatWithUserId is provided in the URL, start/ensure that chat!
+        const chatParam = searchParams.get('chat') || searchParams.get('conversationId');
         if (chatWithUserId) {
           const targetUid = Number(chatWithUserId);
           if (!isNaN(targetUid)) {
@@ -185,6 +186,9 @@ export const Messages = () => {
             // Clear search param once processed
             setSearchParams({});
           }
+        } else if (chatParam) {
+          setActiveConversationId(chatParam);
+          setSearchParams({});
         } else {
           // Auto-select first loaded conversation
           if (mappedDirect.length > 0) {
@@ -201,7 +205,7 @@ export const Messages = () => {
     };
     load();
     return () => { cancelled = true; };
-  }, [token, chatWithUserId]);
+  }, [token, chatWithUserId, searchParams, setSearchParams]);
 
   const filteredConversations = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
