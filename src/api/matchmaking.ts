@@ -1,5 +1,7 @@
 import { apiRequest } from './client';
 
+export type ReplayType = 'None' | 'Daily' | 'Weekly' | 'Monthly';
+
 export type QueueSlotResponse = {
   dayOfWeek?: string | null;
   specificDate?: string | null;
@@ -24,7 +26,7 @@ export type QueueStatusResponse = {
   searchLatitude?: number | null;
   searchLongitude?: number | null;
   isActive: boolean;
-  replayType: string;
+  replayType: ReplayType;
   replayWeekdays?: string | null;
   conversationId?: number | null;
   isPublic: boolean;
@@ -50,7 +52,7 @@ export type JoinSoloQueueRequest = {
   searchRadiusKm: number;
   searchLatitude?: number | null;
   searchLongitude?: number | null;
-  replayType: string;
+  replayType: ReplayType;
   replayWeekdays?: string | null;
   isPublic?: boolean;
   isActive?: boolean;

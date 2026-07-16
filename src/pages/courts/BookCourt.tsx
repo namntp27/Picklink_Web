@@ -508,7 +508,7 @@ export const BookCourt = () => {
             </div>
 
             <MapContainer center={hanoiCenter} className="match-venue-map-google relative z-0 h-full min-h-[460px] w-full lg:min-h-full" scrollWheelZoom zoom={12}>
-              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport playerLocation={playerLocation} selectedVenue={selectedVenue} venues={mappedVenues} />
               {playerLocation && (
                 <Marker icon={playerIcon} position={[playerLocation.latitude, playerLocation.longitude]}>

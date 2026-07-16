@@ -1,12 +1,19 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { listProvinces, listWards, type ProvinceOption, type WardOption } from '../../api/locations';
+import {
+  administrativeNamesEqual,
+  listProvinces,
+  listWards,
+  type ProvinceOption,
+  type WardOption,
+} from '../../api/locations';
 
 type AdministrativeAreaSelectsProps = {
   province?: string | null;
   ward?: string | null;
-  onProvinceChange: (value: string | null) => void;
-  onWardChange: (value: string | null) => void;
+  onAreaChange?: (province: string | null, ward: string | null) => void;
+  onProvinceChange?: (value: string | null) => void;
+  onWardChange?: (value: string | null) => void;
   fieldClassName?: string;
   labelClassName?: string;
   selectClassName?: string;
@@ -130,6 +137,7 @@ const AdministrativeDropdown = ({
 export const AdministrativeAreaSelects = ({
   province,
   ward,
+  onAreaChange,
   onProvinceChange,
   onWardChange,
   fieldClassName = '',
@@ -143,11 +151,17 @@ export const AdministrativeAreaSelects = ({
   const [isLoadingWards, setIsLoadingWards] = useState(false);
 
   const selectedProvince = useMemo(
-    () => provinces.find((item) => item.name === province) ?? null,
+    () => provinces.find((item) => province && (
+      administrativeNamesEqual(item.name, province)
+      || administrativeNamesEqual(item.fullName, province)
+    )) ?? null,
     [province, provinces],
   );
   const selectedWard = useMemo(
-    () => wards.find((item) => item.name === ward) ?? null,
+    () => wards.find((item) => ward && (
+      administrativeNamesEqual(item.name, ward)
+      || administrativeNamesEqual(item.fullName, ward)
+    )) ?? null,
     [ward, wards],
   );
   const selectedProvinceCode = selectedProvince?.code;
@@ -208,8 +222,12 @@ export const AdministrativeAreaSelects = ({
         labelClassName={labelClassName}
         onSelect={(code) => {
           const nextProvince = provinces.find((item) => item.code === code);
-          onProvinceChange(nextProvince?.name ?? null);
-          onWardChange(null);
+          const nextProvinceName = nextProvince?.name ?? null;
+          if (onAreaChange) onAreaChange(nextProvinceName, null);
+          else {
+            onProvinceChange?.(nextProvinceName);
+            onWardChange?.(null);
+          }
         }}
         options={provinces}
         placeholder={provincePlaceholder}
@@ -223,7 +241,9 @@ export const AdministrativeAreaSelects = ({
         labelClassName={labelClassName}
         onSelect={(code) => {
           const nextWard = wards.find((item) => item.code === code);
-          onWardChange(nextWard?.name ?? null);
+          const nextWardName = nextWard?.name ?? null;
+          if (onAreaChange) onAreaChange(selectedProvince?.name ?? null, nextWardName);
+          else onWardChange?.(nextWardName);
         }}
         options={wards}
         placeholder={wardPlaceholder}

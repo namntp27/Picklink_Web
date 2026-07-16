@@ -1,29 +1,50 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseReverseGeocodeArea } from '../../src/utils/reverseGeocodeArea';
+import { administrativeNamesEqual } from '../../src/api/locations';
 
-const apiSource = readFileSync(new URL('../../src/api/locations.ts', import.meta.url), 'utf8');
+const locationsSource = readFileSync(
+  new URL('../../src/api/locations.ts', import.meta.url),
+  'utf8',
+);
+const geocodingSource = readFileSync(
+  new URL('../../src/api/geocoding.ts', import.meta.url),
+  'utf8',
+);
 
-test('locations API client reads provinces and wards from backend location endpoints', () => {
-  assert.match(apiSource, /export type ProvinceOption/);
-  assert.match(apiSource, /export type WardOption/);
-  assert.match(apiSource, /apiRequest<ProvinceOption\[]>\('\/api\/locations\/provinces'\)/);
-  assert.match(apiSource, /apiRequest<WardOption\[]>\(`\/api\/locations\/provinces\/\$\{encodeURIComponent\(provinceCode\)\}\/wards`\)/);
+test('locations API client reads and resolves canonical administrative areas', () => {
+  assert.match(locationsSource, /export type ProvinceOption/);
+  assert.match(locationsSource, /export type WardOption/);
+  assert.match(locationsSource, /apiRequest<ProvinceOption\[]>\('\/api\/locations\/provinces'/);
+  assert.match(
+    locationsSource,
+    /\/api\/locations\/provinces\/\$\{encodeURIComponent\(provinceCode\)\}\/wards/,
+  );
+  assert.match(locationsSource, /resolveAdministrativeArea/);
+  assert.match(locationsSource, /signal \? \{ signal \} : \{\}/);
 });
 
-test('reverse geocode uses current province and ward administrative levels', () => {
-  const response = (level4: string, level6: string) => ({
-    features: [{ properties: { geocoding: { admin: { level4, level6 } } } }],
-  });
+test('geocoding client only calls the backend proxy', () => {
+  assert.match(geocodingSource, /\/api\/locations\/geocode\/forward/);
+  assert.match(geocodingSource, /\/api\/locations\/geocode\/reverse/);
+  assert.match(geocodingSource, /\/api\/locations\/geocode\/search/);
+  assert.doesNotMatch(geocodingSource, /nominatim\.openstreetmap\.org/i);
+});
 
-  assert.deepEqual(
-    parseReverseGeocodeArea(response('Thành phố Hồ Chí Minh', 'Phường Sài Gòn')),
-    { province: 'Hồ Chí Minh', ward: 'Sài Gòn' },
+test('administrative names match catalog spelling and optional prefixes', () => {
+  assert.equal(
+    administrativeNamesEqual(
+      'Ph\u01b0\u1eddng H\u00f2a Minh',
+      'Ph\u01b0\u1eddng Ho\u00e0 Minh',
+    ),
+    true,
   );
-  assert.deepEqual(
-    parseReverseGeocodeArea(response('Hà Nội', 'Phường Hoàn Kiếm')),
-    { province: 'Hà Nội', ward: 'Hoàn Kiếm' },
+  assert.equal(
+    administrativeNamesEqual(
+      'Th\u00e0nh ph\u1ed1 H\u00e0 N\u1ed9i',
+      'H\u00e0 N\u1ed9i',
+    ),
+    true,
   );
-  assert.deepEqual(parseReverseGeocodeArea({}), { province: '', ward: '' });
+  assert.equal(administrativeNamesEqual('Ha Noi', 'Da Nang'), false);
 });

@@ -1,22 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair, MapPin } from 'lucide-react';
 import { divIcon, type LatLngExpression, type LeafletMouseEvent } from 'leaflet';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { LocationSearchControls } from './LocationSearchControls';
 import { createLocationSelectionController } from './locationSelection';
+import {
+  reverseGeocodeAddress,
+  searchGeocodeAddresses,
+  type GeocodingSearchResult,
+} from '../../../api/geocoding';
 import 'leaflet/dist/leaflet.css';
 
 type LocationValue = {
   address: string;
   latitude: string;
   longitude: string;
-};
-
-type SearchResult = {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
 };
 
 const hanoiCenter: LatLngExpression = [21.0285, 105.8542];
@@ -46,12 +44,8 @@ const geolocationErrorMessage = (error: GeolocationPositionError) => {
 };
 
 const reverseAddress = async (lat: number, lng: number) => {
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
-    headers: { 'Accept-Language': 'vi' },
-  });
-  if (!response.ok) throw new Error('Reverse geocoding failed.');
-  const result = await response.json() as { display_name?: string };
-  return result.display_name ?? '';
+  const result = await reverseGeocodeAddress(lat, lng);
+  return result.displayName;
 };
 
 const MapClickHandler = ({ onSelect }: { onSelect: (lat: number, lng: number) => void }) => {
@@ -77,10 +71,11 @@ export const OpenStreetMapLocationPicker = ({
   onChange: (nextValue: LocationValue) => void;
 }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<GeocodingSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [status, setStatus] = useState('Tìm địa chỉ, kéo marker hoặc bấm trực tiếp trên bản đồ.');
+  const searchRequestId = useRef(0);
   const selectionController = useMemo(
     () => createLocationSelectionController(reverseAddress),
     [],
@@ -105,19 +100,20 @@ export const OpenStreetMapLocationPicker = ({
   const searchAddress = async () => {
     const keyword = query.trim();
     if (!keyword) return;
+    const requestId = ++searchRequestId.current;
     setIsSearching(true);
     setStatus('Đang tìm trên OpenStreetMap...');
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(keyword)}&limit=5&countrycodes=vn&addressdetails=1`, {
-        headers: { 'Accept-Language': 'vi' },
-      });
-      if (!response.ok) throw new Error('Search failed.');
-      const items = await response.json() as SearchResult[];
+      const items = await searchGeocodeAddresses(keyword);
+      if (requestId !== searchRequestId.current) return;
       setResults(items);
       setStatus(items.length ? `Tìm thấy ${items.length} kết quả.` : 'Không tìm thấy địa chỉ phù hợp.');
     } catch {
+      if (requestId !== searchRequestId.current) return;
       setStatus('Không thể tìm địa chỉ lúc này. Bạn vẫn có thể chọn trực tiếp trên bản đồ.');
-    } finally { setIsSearching(false); }
+    } finally {
+      if (requestId === searchRequestId.current) setIsSearching(false);
+    }
   };
 
   const useCurrentLocation = () => {
@@ -169,8 +165,17 @@ export const OpenStreetMapLocationPicker = ({
       {results.length > 0 && (
         <div className="max-h-48 overflow-y-auto rounded-lg border border-outline-variant bg-white shadow-sm">
           {results.map((result) => (
-            <button className="flex w-full gap-2 border-b border-outline-variant px-3 py-2.5 text-left text-[12px] font-medium hover:bg-primary/5 last:border-0" key={result.place_id} onClick={() => { setResults([]); setQuery(result.display_name); void selectPosition(Number(result.lat), Number(result.lon), result.display_name); }} type="button">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {result.display_name}
+            <button
+              className="flex w-full gap-2 border-b border-outline-variant px-3 py-2.5 text-left text-[12px] font-medium hover:bg-primary/5 last:border-0"
+              key={result.placeId}
+              onClick={() => {
+                setResults([]);
+                setQuery(result.displayName);
+                void selectPosition(result.latitude, result.longitude, result.displayName);
+              }}
+              type="button"
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {result.displayName}
             </button>
           ))}
         </div>
@@ -186,7 +191,7 @@ export const OpenStreetMapLocationPicker = ({
 
       <div className="h-72 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low">
         <MapContainer center={position ?? hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={position ? 17 : 12}>
-          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapClickHandler onSelect={(lat, lng) => { void selectPosition(lat, lng); }} />
           <RecenterMap position={position} />
           {position && (

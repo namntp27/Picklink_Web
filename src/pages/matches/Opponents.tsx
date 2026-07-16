@@ -1,40 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, Bot, CalendarRange, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, UserPlus, UsersRound, X, Settings, Repeat, User } from 'lucide-react';
+import { AlertTriangle, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, X, Settings, Repeat, User } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
-  createMatch,
-  getMatchPlayerRecommendations,
-  inviteMatchPlayers,
   searchMatchVenues,
   type MatchFormat,
-  type MatchPlayerRecommendation,
   type MatchPreferredVenue,
 } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
-import { joinSoloQueue } from '../../api/matchmaking';
+import { forwardGeocodeArea, reverseGeocodeArea } from '../../api/geocoding';
+import { resolveAdministrativeArea } from '../../api/locations';
+import { joinSoloQueue, type JoinSoloQueueRequest, type QueueSlotRequest } from '../../api/matchmaking';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
-import { parseReverseGeocodeArea, type ReverseGeocodeResponse } from '../../utils/reverseGeocodeArea';
 
 type PlayerLocation = { accuracy: number; latitude: number; longitude: number };
-type InvitationMode = 'automatic' | 'manual' | 'none';
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
 
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
 const PLAYER_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ACCURACY_METERS = 1_000;
-const skillLevelOptions = [
-  { value: 1, label: 'Mới bắt đầu' },
-  { value: 2, label: 'Cơ bản' },
-  { value: 3, label: 'Trung bình' },
-  { value: 4, label: 'Khá' },
-  { value: 5, label: 'Chuyên nghiệp' },
-];
 
 const distanceBetweenKm = (
   from: PlayerLocation,
@@ -55,105 +44,14 @@ const today = () => {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
 const currentTime = () => new Date().toTimeString().slice(0, 5);
-const timeOptions = Array.from({ length: 48 }, (_, index) => {
-  const totalMinutes = index * 30;
-  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-  const minutes = String(totalMinutes % 60).padStart(2, '0');
-  return `${hours}:${minutes}`;
-});
-
-const timeValuePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const isValidTimeValue = (value: string) => timeValuePattern.test(value);
-const normalizeTimeInput = (value: string) => {
-  const cleaned = value.replace(/[^\d:]/g, '').slice(0, 5);
-  if (/^\d{3,4}$/.test(cleaned)) return `${cleaned.slice(0, 2)}:${cleaned.slice(2)}`;
-  return cleaned;
+const lastOneOffDate = (startDate: string) => {
+  if (!startDate) return '';
+  const date = new Date(`${startDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 30);
+  return date.toISOString().slice(0, 10);
 };
 
-type TimeDropdownInputProps = {
-  ariaLabel: string;
-  inputClass: string;
-  label: string;
-  minTime?: string;
-  onChange: (value: string) => void;
-  options: string[];
-  value: string;
-};
-
-const TimeDropdownInput = ({
-  ariaLabel,
-  inputClass,
-  label,
-  minTime,
-  onChange,
-  options,
-  value,
-}: TimeDropdownInputProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const visibleOptions = useMemo(
-    () => options.filter((time) => !minTime || time > minTime),
-    [minTime, options],
-  );
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const closeOnOutsideClick = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsideClick);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideClick);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isOpen]);
-
-  return (
-    <div className="relative" ref={rootRef}>
-      <label>
-        <span className="mb-1 block text-[11px] font-bold text-[#718077]">{label}</span>
-        <input
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-label={ariaLabel}
-          className={`${inputClass} font-mono`}
-          inputMode="numeric"
-          maxLength={5}
-          onChange={(event) => onChange(normalizeTimeInput(event.target.value))}
-          onFocus={() => setIsOpen(true)}
-          onClick={() => setIsOpen(true)}
-          placeholder="HH:mm"
-          type="text"
-          value={value}
-        />
-      </label>
-      {isOpen && (
-        <div className="community-scroll absolute left-0 right-0 top-[calc(100%+4px)] z-[1300] max-h-[240px] overflow-y-auto rounded-[10px] border border-[#d8e4d4] bg-white shadow-[0_12px_28px_rgba(8,29,36,0.16)]" role="listbox">
-          {visibleOptions.map((time) => (
-            <button
-              aria-selected={time === value}
-              className={`flex h-10 w-full items-center px-3 font-mono text-[13px] font-bold transition-colors ${time === value ? 'bg-[#edf5e9] text-[#0b2228]' : 'text-[#526158] hover:bg-[#f4f8f2]'}`}
-              key={time}
-              onClick={() => {
-                onChange(time);
-                setIsOpen(false);
-              }}
-              onMouseDown={(event) => event.preventDefault()}
-              role="option"
-              type="button"
-            >
-              {time}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+const isAbortError = (reason: unknown) => reason instanceof Error && reason.name === 'AbortError';
 const readCachedPlayerLocation = (): PlayerLocation | null => {
   try {
     const rawValue = window.localStorage.getItem(PLAYER_LOCATION_CACHE_KEY);
@@ -190,44 +88,6 @@ const cachePlayerLocation = (location: PlayerLocation) => {
   } catch {
     // Searching still works when storage is unavailable.
   }
-};
-
-const reversePlayerArea = async (location: PlayerLocation) => {
-  const params = new URLSearchParams({
-    format: 'geocodejson',
-    lat: String(location.latitude),
-    lon: String(location.longitude),
-    zoom: '18',
-    addressdetails: '1',
-  });
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
-    headers: { 'Accept-Language': 'vi' },
-  });
-  if (!response.ok) throw new Error('Reverse geocoding failed.');
-
-  return parseReverseGeocodeArea(await response.json() as ReverseGeocodeResponse);
-};
-
-const geocodeArea = async (province: string, ward?: string) => {
-  const query = [ward, province, 'Việt Nam'].filter(Boolean).join(', ');
-  const params = new URLSearchParams({
-    format: 'jsonv2',
-    q: query,
-    limit: '1',
-  });
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-    headers: { 'Accept-Language': 'vi' },
-  });
-  if (!response.ok) throw new Error('Geocoding failed.');
-  const data = await response.json();
-  if (Array.isArray(data) && data.length > 0) {
-    return {
-      latitude: Number(data[0].lat),
-      longitude: Number(data[0].lon),
-      accuracy: 1000,
-    };
-  }
-  return null;
 };
 
 const locationErrorMessage = (error: GeolocationPositionError) => {
@@ -299,8 +159,7 @@ export const Opponents = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [creationMode, setCreationMode] = useState<'auto' | 'manual'>('auto');
-  const [isActive, setIsActive] = useState(true);
-  const [replayType, setReplayType] = useState<string>('None');
+  const [replayType, setReplayType] = useState<JoinSoloQueueRequest['replayType']>('None');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [selectedDaysOfMonth, setSelectedDaysOfMonth] = useState<number[]>([]);
   const [weeklySlots, setWeeklySlots] = useState<Record<number, AvailabilitySlotInput[]>>({
@@ -313,9 +172,7 @@ export const Opponents = () => {
     6: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
   });
   const [monthlySlots, setMonthlySlots] = useState<Record<number, AvailabilitySlotInput[]>>({});
-  const [title, setTitle] = useState('');
-  const [province, setProvince] = useState('');
-  const [ward, setWard] = useState('');
+  const [{ province, ward }, setArea] = useState({ province: '', ward: '' });
   const [radiusKm, setRadiusKm] = useState(5);
   const [location, setLocation] = useState<PlayerLocation | null>(null);
   const [venues, setVenues] = useState<MatchPreferredVenue[]>([]);
@@ -326,35 +183,21 @@ export const Opponents = () => {
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlotInput[]>([
     { id: 1, timeFrom: '18:00', timeTo: '20:00' },
   ]);
-  const [minSkill, setMinSkill] = useState(2);
-  const [maxSkill, setMaxSkill] = useState(4);
   const [format, setFormat] = useState<MatchFormat>('2vs2');
-  const [neededPlayers, setNeededPlayers] = useState(3);
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
-  const [recommendations, setRecommendations] = useState<MatchPlayerRecommendation[]>([]);
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([]);
-  const [invitationMode, setInvitationMode] = useState<InvitationMode>('manual');
-  const [recommendationError, setRecommendationError] = useState('');
   const [locationAreaStatus, setLocationAreaStatus] = useState('');
   const [error, setError] = useState('');
   const venueRequestId = useRef(0);
-  const recommendationRequestId = useRef(0);
+  const geocodeRequestId = useRef(0);
+  const geocodeAbortController = useRef<AbortController | null>(null);
+  const locationRequestId = useRef(0);
   const nextAvailabilitySlotId = useRef(2);
 
   const orderedAvailabilitySlots = useMemo(
     () => [...availabilitySlots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom)),
     [availabilitySlots],
-  );
-  const timeFrom = orderedAvailabilitySlots.reduce(
-    (earliest, slot) => slot.timeFrom < earliest ? slot.timeFrom : earliest,
-    orderedAvailabilitySlots[0]?.timeFrom ?? '18:00',
-  );
-  const timeTo = orderedAvailabilitySlots.reduce(
-    (latest, slot) => slot.timeTo > latest ? slot.timeTo : latest,
-    orderedAvailabilitySlots[0]?.timeTo ?? '20:00',
   );
   const visibleVenues = useMemo(() => {
     if (!location) return venues;
@@ -371,6 +214,30 @@ export const Opponents = () => {
     return venues.filter((venue) =>
       visibleVenueIds.has(venue.venueId) || selectedVenueIds.includes(venue.venueId));
   }, [selectedVenueIds, venues, visibleVenues]);
+
+  const startGeocodeRequest = () => {
+    geocodeAbortController.current?.abort();
+    const controller = new AbortController();
+    const requestId = ++geocodeRequestId.current;
+    geocodeAbortController.current = controller;
+    return { controller, requestId };
+  };
+
+  const reverseCurrentArea = async (playerLocation: PlayerLocation) => {
+    const { controller, requestId } = startGeocodeRequest();
+    const result = await reverseGeocodeArea(
+      playerLocation.latitude,
+      playerLocation.longitude,
+      controller.signal,
+    );
+    const area = await resolveAdministrativeArea(result.province, result.ward, controller.signal);
+    return requestId === geocodeRequestId.current ? area : null;
+  };
+
+  useEffect(() => () => {
+    ++geocodeRequestId.current;
+    geocodeAbortController.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (location) return;
@@ -406,46 +273,6 @@ export const Opponents = () => {
       window.clearTimeout(timeoutId);
     };
   }, [province, ward, location]);
-  useEffect(() => {
-    const requestId = ++recommendationRequestId.current;
-    if (!token || !province.trim() || !ward.trim()) {
-      setRecommendations([]);
-      setSelectedPlayerIds([]);
-      setRecommendationError('');
-      setIsLoadingRecommendations(false);
-      return;
-    }
-
-    setIsLoadingRecommendations(true);
-    const timeoutId = window.setTimeout(() => {
-      getMatchPlayerRecommendations(token, {
-        radiusKm,
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        province: province.trim(),
-        ward: ward.trim(),
-        minSkillLevel: minSkill,
-        maxSkillLevel: maxSkill,
-        limit: 20,
-      })
-        .then((result) => {
-          if (requestId !== recommendationRequestId.current) return;
-          setRecommendations(result);
-          setSelectedPlayerIds((current) => current.filter((id) => result.some((player) => player.playerId === id)));
-          setRecommendationError('');
-        })
-        .catch((reason) => {
-          if (requestId !== recommendationRequestId.current) return;
-          setRecommendations([]);
-          setRecommendationError(reason instanceof Error ? reason.message : 'Không thể tải người chơi phù hợp.');
-        })
-        .finally(() => {
-          if (requestId === recommendationRequestId.current) setIsLoadingRecommendations(false);
-        });
-    }, 350);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [location?.latitude, location?.longitude, maxSkill, minSkill, province, radiusKm, token, ward]);
 
   const loadVenuesInRadius = async (playerLocation: PlayerLocation, nextRadiusKm: number) => {
     const requestId = ++venueRequestId.current;
@@ -472,8 +299,12 @@ export const Opponents = () => {
   };
 
   const locate = (nextRadiusKm = radiusKm) => {
+    const requestId = ++locationRequestId.current;
+    ++geocodeRequestId.current;
+    geocodeAbortController.current?.abort();
     const cachedLocation = readCachedPlayerLocation();
     if (cachedLocation) {
+      setArea({ province: '', ward: '' });
       setLocation({ ...cachedLocation });
       setError('');
       setLocationAreaStatus('Đang hiển thị vị trí gần nhất và cập nhật lại...');
@@ -496,11 +327,13 @@ export const Opponents = () => {
     if (!cachedLocation) setLocationAreaStatus('Đang lấy vị trí hiện tại...');
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
+        if (requestId !== locationRequestId.current) return;
         const playerLocation = {
           accuracy: Math.max(0, coords.accuracy),
           latitude: coords.latitude,
           longitude: coords.longitude,
         };
+        setArea({ province: '', ward: '' });
         setLocation(playerLocation);
         cachePlayerLocation(playerLocation);
         setError('');
@@ -508,21 +341,23 @@ export const Opponents = () => {
         void loadVenuesInRadius(playerLocation, nextRadiusKm);
 
         try {
-          const area = await reversePlayerArea(playerLocation);
-          if (area.province) setProvince(area.province);
-          if (area.ward) setWard(area.ward);
+          const area = await reverseCurrentArea(playerLocation);
+          if (!area || requestId !== locationRequestId.current) return;
+          setArea(area);
 
           const areaLabel = [area.ward, area.province].filter(Boolean).join(', ');
           setLocationAreaStatus(areaLabel
             ? `Đã xác định: ${areaLabel}`
             : 'Đã lấy tọa độ nhưng chưa xác định được thành phố và xã/phường.');
-        } catch {
+        } catch (reason) {
+          if (isAbortError(reason) || requestId !== locationRequestId.current) return;
           setLocationAreaStatus('Đã lấy tọa độ nhưng chưa xác định được thành phố và xã/phường. Bạn có thể nhập thủ công.');
         } finally {
-          setIsLocating(false);
+          if (requestId === locationRequestId.current) setIsLocating(false);
         }
       },
       (locationError) => {
+        if (requestId !== locationRequestId.current) return;
         if (cachedLocation) {
           setError('');
           setLocationAreaStatus('Đang dùng vị trí gần nhất. Chưa thể cập nhật vị trí mới.');
@@ -545,79 +380,61 @@ export const Opponents = () => {
     locate(nextRadiusKm);
   };
 
-  const handleProvinceChange = async (value: string | null) => {
-    const prov = value ?? '';
-    setProvince(prov);
-    setWard('');
+  const handleAreaChange = async (provinceValue: string | null, wardValue: string | null) => {
+    ++locationRequestId.current;
+    setIsLocating(false);
+    const nextArea = { province: provinceValue ?? '', ward: wardValue ?? '' };
+    setArea(nextArea);
     setLocation(null);
     setLocationAreaStatus('');
+    const { controller, requestId } = startGeocodeRequest();
 
-    if (prov) {
-      try {
-        const coords = await geocodeArea(prov);
-        if (coords) {
-          setLocation(coords);
-          setLocationAreaStatus(`Đã định vị bản đồ đến: ${prov}`);
-          void loadVenuesInRadius(coords, radiusKm);
-        }
-      } catch (e) {
-        console.error('Geocoding province failed', e);
-      }
-    }
-  };
+    if (!nextArea.province) return;
 
-  const handleWardChange = async (value: string | null) => {
-    const wd = value ?? '';
-    setWard(wd);
-    setLocation(null);
-    setLocationAreaStatus('');
-
-    if (province && wd) {
-      try {
-        const coords = await geocodeArea(province, wd);
-        if (coords) {
-          setLocation(coords);
-          setLocationAreaStatus(`Đã định vị bản đồ đến: ${wd}, ${province}`);
-          void loadVenuesInRadius(coords, radiusKm);
-        }
-      } catch (e) {
-        console.error('Geocoding ward failed', e);
-      }
-    } else if (province) {
-      try {
-        const coords = await geocodeArea(province);
-        if (coords) {
-          setLocation(coords);
-          setLocationAreaStatus(`Đã định vị bản đồ đến: ${province}`);
-          void loadVenuesInRadius(coords, radiusKm);
-        }
-      } catch (e) {
-        console.error('Geocoding province failed', e);
+    try {
+      const result = await forwardGeocodeArea(
+        nextArea.province,
+        nextArea.ward || undefined,
+        controller.signal,
+      );
+      if (requestId !== geocodeRequestId.current || !result) return;
+      const playerLocation = { ...result, accuracy: 1_000 };
+      setLocation(playerLocation);
+      const areaLabel = [nextArea.ward, nextArea.province].filter(Boolean).join(', ');
+      setLocationAreaStatus(`Đã định vị bản đồ đến: ${areaLabel}`);
+      void loadVenuesInRadius(playerLocation, radiusKm);
+    } catch (reason) {
+      if (!isAbortError(reason) && requestId === geocodeRequestId.current) {
+        setLocationAreaStatus('Chưa thể định vị khu vực đã chọn trên bản đồ.');
       }
     }
   };
 
   const handleMapClick = async (lat: number, lon: number) => {
+    const selectionId = ++locationRequestId.current;
+    setIsLocating(false);
     const playerLocation = {
       accuracy: 10,
       latitude: lat,
       longitude: lon,
     };
+    setArea({ province: '', ward: '' });
     setLocation(playerLocation);
     setError('');
     setLocationAreaStatus('Đang xác định địa chỉ từ vị trí đã chọn...');
     void loadVenuesInRadius(playerLocation, radiusKm);
 
     try {
-      const area = await reversePlayerArea(playerLocation);
-      if (area.province) setProvince(area.province);
-      if (area.ward) setWard(area.ward);
+      const area = await reverseCurrentArea(playerLocation);
+      if (!area || selectionId !== locationRequestId.current) return;
+      setArea(area);
 
       const areaLabel = [area.ward, area.province].filter(Boolean).join(', ');
       setLocationAreaStatus(areaLabel
         ? `Đã chọn vị trí: ${areaLabel}`
         : 'Đã chọn vị trí trên bản đồ.');
-    } catch {
+    } catch (reason) {
+      if (isAbortError(reason) || selectionId !== locationRequestId.current) return;
       setLocationAreaStatus('Đã chọn vị trí trên bản đồ nhưng chưa xác định được địa chỉ.');
     }
   };
@@ -625,11 +442,6 @@ export const Opponents = () => {
   const toggleVenue = (venueId: number) => {
     setSelectedVenueIds((current) =>
       current.includes(venueId) ? current.filter((id) => id !== venueId) : [...current, venueId]);
-  };
-
-  const toggleRecommendedPlayer = (playerId: number) => {
-    setSelectedPlayerIds((current) =>
-      current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]);
   };
 
   const updateAvailabilitySlot = (
@@ -747,10 +559,10 @@ export const Opponents = () => {
       }
       const hasInvalid = ordered.some((slot) => {
         if (!slot.timeFrom || !slot.timeTo) return false;
-        return timeToMinutes(slot.timeTo) - timeToMinutes(slot.timeFrom) < 30;
+        return timeToMinutes(slot.timeTo) - timeToMinutes(slot.timeFrom) < 90;
       });
       if (hasInvalid) {
-        return `Giờ kết thúc của mỗi slot ở ${contextName} phải lớn hơn giờ bắt đầu ít nhất 30 phút.`;
+        return `Giờ kết thúc của mỗi slot ở ${contextName} phải lớn hơn giờ bắt đầu ít nhất 90 phút.`;
       }
       const hasOverlap = ordered.some((slot, index) => {
         const previous = ordered[index - 1];
@@ -762,7 +574,7 @@ export const Opponents = () => {
       return null;
     };
 
-    let queueSlots: any[] = [];
+    let queueSlots: QueueSlotRequest[] = [];
 
     if (replayType === 'None' || replayType === 'Daily') {
       const errorMsg = validateSlotList(availabilitySlots, 'khung giờ chơi');
@@ -787,6 +599,14 @@ export const Opponents = () => {
         }
         if (dateTo < dateFrom) {
           setError('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
+          return;
+        }
+        if (dateTo > lastOneOffDate(dateFrom)) {
+          setError('Khoảng ngày có thể chơi không được vượt quá 31 ngày.');
+          return;
+        }
+        if (dateFrom === today() && orderedAvailabilitySlots.some((slot) => slot.timeFrom <= currentTime())) {
+          setError('Giờ bắt đầu của hôm nay phải ở trong tương lai.');
           return;
         }
 
@@ -873,7 +693,7 @@ export const Opponents = () => {
         replayType,
         replayWeekdays: replayWeekdaysStr,
         isPublic: creationMode === 'manual',
-        isActive: creationMode === 'auto' ? true : isActive,
+        isActive: true,
         province: province.trim() || null,
         ward: ward.trim() || null,
         sharedVenues: selectedVenueIds.length > 0 ? selectedVenueIds.join(',') : null,
@@ -978,8 +798,7 @@ export const Opponents = () => {
             <AdministrativeAreaSelects
               fieldClassName="block"
               labelClassName="mb-1.5 block text-[12px] font-extrabold text-[#526158]"
-              onProvinceChange={handleProvinceChange}
-              onWardChange={handleWardChange}
+              onAreaChange={handleAreaChange}
               province={province}
               selectClassName={inputClass}
               ward={ward}
@@ -1043,7 +862,8 @@ export const Opponents = () => {
               <select
                 className={inputClass}
                 value={replayType}
-                onChange={(e) => setReplayType(e.target.value)}
+                onChange={(event) =>
+                  setReplayType(event.target.value as JoinSoloQueueRequest['replayType'])}
               >
                 <option value="None">Một lần (Không tìm lại sau khi khớp)</option>
                 <option value="Daily">Hàng ngày (Daily replay)</option>
@@ -1052,8 +872,7 @@ export const Opponents = () => {
               </select>
             </label>
 
-            {(replayType === 'None' || replayType === 'Daily') && (
-              <>
+            {replayType === 'None' && (
                 <div className="grid grid-cols-2 gap-2">
                   <label>
                     <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
@@ -1061,8 +880,10 @@ export const Opponents = () => {
                       className={inputClass}
                       min={today()}
                       onChange={(event) => {
-                        setDateFrom(event.target.value);
-                        if (event.target.value > dateTo) setDateTo(event.target.value);
+                        const nextDateFrom = event.target.value;
+                        setDateFrom(nextDateFrom);
+                        if (nextDateFrom > dateTo) setDateTo(nextDateFrom);
+                        else if (dateTo > lastOneOffDate(nextDateFrom)) setDateTo(lastOneOffDate(nextDateFrom));
                       }}
                       type="date"
                       value={dateFrom}
@@ -1072,6 +893,7 @@ export const Opponents = () => {
                     <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
                     <input
                       className={inputClass}
+                      max={lastOneOffDate(dateFrom)}
                       min={dateFrom}
                       onChange={(event) => setDateTo(event.target.value)}
                       type="date"
@@ -1079,7 +901,9 @@ export const Opponents = () => {
                     />
                   </label>
                 </div>
+            )}
 
+            {(replayType === 'None' || replayType === 'Daily') && (
                 <div className="border-t border-[#cfe0c8] pt-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
@@ -1101,6 +925,7 @@ export const Opponents = () => {
                             <input
                               type="time"
                               className={inputClass}
+                              min={replayType === 'None' && dateFrom === today() ? currentTime() : undefined}
                               value={slot.timeFrom}
                               onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
                             />
@@ -1127,7 +952,6 @@ export const Opponents = () => {
                     ))}
                   </div>
                 </div>
-              </>
             )}
 
             {replayType === 'Weekly' && (
@@ -1303,20 +1127,6 @@ export const Opponents = () => {
               </>
             )}
 
-            {creationMode === 'manual' && (
-              <label className="flex cursor-pointer gap-2.5 items-start bg-[#edf5e9]/40 border border-[#cfe0c8]/50 p-2.5 rounded-xl">
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="mt-0.5 accent-primary"
-                />
-                <span className="text-[11px] leading-relaxed font-semibold text-[#526158]">
-                  <strong className="block text-[#0b2228] text-[12px] font-extrabold">Mở phòng (Tự động tìm kiếm đối thủ)</strong>
-                  Hệ thống tự động tìm kiếm đối thủ chạy ngầm song song. Nếu bỏ tích, phòng sẽ chỉ tìm kiếm thông qua việc người dùng khác duyệt tìm và tham gia thủ công.
-                </span>
-              </label>
-            )}
           </div>
 
           <button className="community-button w-full" disabled={isCreating} type="submit">
@@ -1343,7 +1153,7 @@ export const Opponents = () => {
           </div>
           <div className="h-[420px] bg-[#e7eee4] sm:h-[520px] xl:h-[calc(100dvh-190px)] xl:min-h-[540px] xl:max-h-[720px] relative z-10">
             <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="match-venue-map-google h-full w-full" scrollWheelZoom zoom={12}>
-              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapViewport location={location} radiusKm={radiusKm} venues={visibleVenues} />
               <MapClickEvents onMapClick={handleMapClick} />
               {location && (
