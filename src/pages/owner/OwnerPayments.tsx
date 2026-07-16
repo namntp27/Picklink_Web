@@ -91,13 +91,9 @@ export const OwnerPayments = () => {
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') void load(false);
     };
-    const fallbackTimer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void load(false);
-    }, 2_000);
     window.addEventListener('focus', refreshWhenVisible);
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
-      window.clearInterval(fallbackTimer);
       window.removeEventListener('focus', refreshWhenVisible);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
