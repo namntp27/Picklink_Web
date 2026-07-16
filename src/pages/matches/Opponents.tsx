@@ -18,12 +18,11 @@ import { joinSoloQueue } from '../../api/matchmaking';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+import { parseReverseGeocodeArea, type ReverseGeocodeResponse } from '../../utils/reverseGeocodeArea';
 
 type PlayerLocation = { accuracy: number; latitude: number; longitude: number };
 type InvitationMode = 'automatic' | 'manual' | 'none';
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
-type ReverseGeocodeAddress = Record<string, string | undefined>;
-type ReverseGeocodeResponse = { address?: ReverseGeocodeAddress };
 
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 const PLAYER_LOCATION_CACHE_KEY = 'picklink.player-location';
@@ -193,31 +192,9 @@ const cachePlayerLocation = (location: PlayerLocation) => {
   }
 };
 
-const administrativePrefixes = /^(thành phố|tỉnh|tp\.?|phường|xã|thị trấn|quận|huyện|thị xã)\s+/i;
-const wardPrefixes = /^(phường|xã|thị trấn)\s+/i;
-const normalizeAreaName = (value: string) => value.trim().replace(administrativePrefixes, '').trim();
-const pickAddressPart = (address: ReverseGeocodeAddress | undefined, keys: string[]) => {
-  if (!address) return '';
-  for (const key of keys) {
-    const value = address[key]?.trim();
-    if (value) return normalizeAreaName(value);
-  }
-  return '';
-};
-
-const pickWard = (address: ReverseGeocodeAddress | undefined) => {
-  if (!address) return '';
-  const keys = ['ward', 'town', 'municipality', 'city_district', 'borough', 'suburb', 'quarter', 'neighbourhood', 'village', 'hamlet'];
-  for (const key of keys) {
-    const value = address[key]?.trim();
-    if (value && wardPrefixes.test(value)) return normalizeAreaName(value);
-  }
-  return pickAddressPart(address, keys);
-};
-
 const reversePlayerArea = async (location: PlayerLocation) => {
   const params = new URLSearchParams({
-    format: 'jsonv2',
+    format: 'geocodejson',
     lat: String(location.latitude),
     lon: String(location.longitude),
     zoom: '18',
@@ -228,12 +205,7 @@ const reversePlayerArea = async (location: PlayerLocation) => {
   });
   if (!response.ok) throw new Error('Reverse geocoding failed.');
 
-  const result = await response.json() as ReverseGeocodeResponse;
-  const address = result.address;
-  return {
-    province: pickAddressPart(address, ['city', 'state', 'province', 'town', 'municipality']),
-    ward: pickWard(address),
-  };
+  return parseReverseGeocodeArea(await response.json() as ReverseGeocodeResponse);
 };
 
 const geocodeArea = async (province: string, ward?: string) => {
