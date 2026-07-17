@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { AlertTriangle, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, X, Settings, Repeat, User } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
   searchMatchVenues,
@@ -115,8 +115,8 @@ const MapClickEvents = ({ onMapClick }: { onMapClick: (lat: number, lon: number)
 export const Opponents = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [creationMode, setCreationMode] = useState<'auto' | 'manual'>('auto');
+  const [title, setTitle] = useState('');
   const [replayType, setReplayType] = useState<JoinSoloQueueRequest['replayType']>('None');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [selectedDaysOfMonth, setSelectedDaysOfMonth] = useState<number[]>([]);
@@ -142,6 +142,9 @@ export const Opponents = () => {
     { id: 1, timeFrom: '18:00', timeTo: '20:00' },
   ]);
   const [format, setFormat] = useState<MatchFormat>('2vs2');
+  const [playerCount, setPlayerCount] = useState(4);
+  const [minSkillLevel, setMinSkillLevel] = useState(1);
+  const [maxSkillLevel, setMaxSkillLevel] = useState(5);
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -495,6 +498,10 @@ export const Opponents = () => {
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (creationMode === 'manual' && !title.trim()) {
+      setError('Vui lòng nhập tiêu đề lời mời.');
+      return;
+    }
     if (!token) {
       navigate('/login');
       return;
@@ -644,6 +651,12 @@ export const Opponents = () => {
     setIsCreating(true);
     try {
       await joinSoloQueue(token, {
+        ...(creationMode === 'manual' ? {
+          title: title.trim(),
+          playerCount,
+          minSkillLevel,
+          maxSkillLevel,
+        } : {}),
         matchType: format,
         searchRadiusKm: radiusKm,
         searchLatitude: location?.latitude,
@@ -666,7 +679,6 @@ export const Opponents = () => {
   };
 
   const inputClass = 'community-control';
-  const roomExpired = searchParams.get('expired') === '1';
 
   return (
     <CommunityPage>
@@ -701,11 +713,6 @@ export const Opponents = () => {
         title="Vào hàng chờ ghép trận"
       />
 
-      {roomExpired && (
-        <div className="mx-auto mt-5 max-w-[1216px] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-bold text-amber-800">
-          Lời mời đã hết khoảng ngày có thể chơi và được chuyển sang trạng thái Hết hạn.
-        </div>
-      )}
 
       <main className="community-container grid items-start gap-5 xl:grid-cols-[430px_minmax(0,1fr)]">
         <form className="community-panel space-y-4 p-4 sm:p-5" noValidate onSubmit={submit}>
@@ -738,6 +745,63 @@ export const Opponents = () => {
               <p className="text-[11px] font-semibold text-[#718077]">Thiết lập khung giờ và sân ưu tiên</p>
             </div>
           </div>
+
+          {creationMode === 'manual' && (
+            <>
+              <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">
+            <label>
+              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tiêu đề</span>
+              <input
+                className={inputClass}
+                maxLength={150}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Ví dụ: Kèo cầu tối thứ Bảy"
+                required
+                value={title}
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Số người chơi</span>
+              <select className={inputClass} onChange={(event) => setPlayerCount(Number(event.target.value))} value={playerCount}>
+                {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
+                  <option key={count} value={count}>{count} người</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label>
+              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Trình độ tối thiểu</span>
+              <select
+                className={inputClass}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setMinSkillLevel(value);
+                  if (value > maxSkillLevel) setMaxSkillLevel(value);
+                }}
+                value={minSkillLevel}
+              >
+                {['M\u1edbi ch\u01a1i', 'C\u01a1 b\u1ea3n', 'Trung b\u00ecnh', 'Kh\u00e1', 'N\u00e2ng cao'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Trình độ tối đa</span>
+              <select
+                className={inputClass}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setMaxSkillLevel(value);
+                  if (value < minSkillLevel) setMinSkillLevel(value);
+                }}
+                value={maxSkillLevel}
+              >
+                {['M\u1edbi ch\u01a1i', 'C\u01a1 b\u1ea3n', 'Trung b\u00ecnh', 'Kh\u00e1', 'N\u00e2ng cao'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+              </select>
+            </label>
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <label>

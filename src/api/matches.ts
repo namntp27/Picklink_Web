@@ -108,11 +108,31 @@ export type MatchPlayerRecommendation = {
   matchReason: string;
 };
 
+export type MatchBookingCheckInGroup = {
+  bookingCheckInGroupId: number;
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  checkInCode?: string | null;
+  checkInStatus: string;
+  isCheckInWindowOpen: boolean;
+};
+
+export type MatchBookingCheckIn = {
+  bookingId: number;
+  bookingStatus: string;
+  startTime: string;
+  endTime: string;
+  checkInGroups: MatchBookingCheckInGroup[];
+};
+
 export type MatchDetailResponse = MatchSummary & {
   bookingId?: number | null;
   conversationId?: number | null;
   myPlayerId?: number | null;
   checkInCode?: string | null;
+  bookingCheckIns: MatchBookingCheckIn[];
   paymentDeadline?: string | null;
   myPaymentId?: number | null;
   myQrImageUrl?: string | null;
@@ -270,6 +290,40 @@ export const inviteMatchPlayers = (
   method: 'POST',
   body: JSON.stringify({ automatic: input.automatic, playerIds: input.playerIds ?? [] }),
 }, token);
+export const updateMatchInvitation = (token: string, matchId: number, input: {
+  title: string;
+  province: string;
+  ward: string;
+  searchRadiusKm: number;
+  searchLatitude?: number | null;
+  searchLongitude?: number | null;
+  preferredVenueIds: number[];
+  availableDateFrom: string;
+  availableDateTo: string;
+  preferredTimeStart: string;
+  preferredTimeEnd: string;
+  availabilitySlots: Array<{ timeStart: string; timeEnd: string }>;
+  minSkillLevel: number;
+  maxSkillLevel: number;
+  matchType: MatchFormat;
+  neededPlayerCount: number;
+  note?: string;
+}) => {
+  const normalizeTime = (value: string) => /^\d{2}:\d{2}$/.test(value) ? `${value}:00` : value;
+  return apiRequest<MatchDetailResponse>(`/api/matches/${matchId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      ...input,
+      preferredTimeStart: normalizeTime(input.preferredTimeStart),
+      preferredTimeEnd: normalizeTime(input.preferredTimeEnd),
+      availabilitySlots: input.availabilitySlots.map((slot) => ({
+        ...slot,
+        timeStart: normalizeTime(slot.timeStart),
+        timeEnd: normalizeTime(slot.timeEnd),
+      })),
+    }),
+  }, token);
+};
 export const acceptMatchInvitation = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/invitation/accept`, { method: 'POST' }, token);
 export const declineMatchInvitation = (token: string, matchId: number) =>
@@ -285,9 +339,7 @@ export const removeParticipant = (token: string, matchId: number, participantId:
 export const markMatchReadyToBook = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/ready`, { method: 'POST' }, token);
 export const createMatchBooking = (token: string, matchId: number, input: {
-  courtId: number;
-  startTime: string;
-  endTime: string;
+  slots: Array<{ courtId: number; startTime: string; endTime: string }>;
 }) => apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/booking`, {
   method: 'POST',
   body: JSON.stringify(input),
@@ -312,10 +364,6 @@ export const unvoteMatchSlot = (token: string, matchId: number, input: MatchSlot
     method: 'DELETE',
     body: JSON.stringify(input),
   }, token);
-export const cancelMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/cancel`, { method: 'POST' }, token);
-export const reopenMatch = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/reopen`, { method: 'POST' }, token);
 export const completeMatch = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/complete`, { method: 'POST' }, token);
 

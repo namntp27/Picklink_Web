@@ -1120,22 +1120,6 @@ textarea.community-control {
     linear-gradient(180deg, #ffffff, #f8fbf5);
 }
 
-.match-selected-time {
-  border-radius: 11px;
-  background: var(--community-ink);
-  padding: 10px;
-  color: white;
-  box-shadow: 0 10px 24px rgb(8 29 36 / 0.12);
-}
-
-.match-selected-time p:first-child {
-  color: rgb(255 255 255 / 0.62) !important;
-}
-
-.match-selected-time p:last-child {
-  color: white !important;
-}
-
 .match-slot-grid {
   display: grid;
   gap: 6px;

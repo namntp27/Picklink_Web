@@ -20,6 +20,8 @@ import {
   getMyQueues,
   getPublicQueues,
   joinPublicQueue,
+  approvePublicQueueRequest,
+  rejectPublicQueueRequest,
   cancelQueue,
   resumeQueue,
   type QueueStatusResponse,
@@ -137,6 +139,10 @@ export const QueueDetail = () => {
         publicQueues.find((q) => q.matchmakingQueueId === queueId);
 
       if (foundQueue) {
+        if (foundQueue.matchId) {
+          navigate(`/matches/${foundQueue.matchId}`, { replace: true });
+          return;
+        }
         setQueue(foundQueue);
         if (foundQueue.sharedVenues) {
           const venueIds = foundQueue.sharedVenues.split(',').map(Number);
@@ -217,10 +223,26 @@ export const QueueDetail = () => {
     setIsActionBusy(true);
     try {
       await joinPublicQueue(token, queueId);
-      notify('Tham gia hàng chờ thành công!', 'success');
+      notify('Đã gửi yêu cầu, chờ chủ phòng duyệt.', 'success');
       void loadQueue();
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Không thể tham gia hàng chờ này.', 'error');
+    } finally {
+      setIsActionBusy(false);
+    }
+  };
+
+  const handleReviewRequest = async (playerId: number, approve: boolean) => {
+    if (!token || !queueId) return;
+    setIsActionBusy(true);
+    try {
+      await (approve
+        ? approvePublicQueueRequest(token, queueId, playerId)
+        : rejectPublicQueueRequest(token, queueId, playerId));
+      notify(approve ? 'Đã chấp nhận yêu cầu tham gia.' : 'Đã từ chối yêu cầu tham gia.', 'success');
+      void loadQueue();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Không thể cập nhật yêu cầu.', 'error');
     } finally {
       setIsActionBusy(false);
     }
@@ -265,15 +287,25 @@ export const QueueDetail = () => {
     setShowInviteModal(false);
   };
 
+  const approvedPlayers = useMemo(
+    () => queue?.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected') ?? [],
+    [queue]
+  );
+  const pendingRequests = useMemo(() => queue?.queuePlayers.filter((p) => p.status === 'Pending') ?? [], [queue]);
+  const myRequest = useMemo(
+    () => queue?.queuePlayers.find((p) => String(p.playerId) === user?.id || p.playerId === myPlayerId || p.playerName === user?.name),
+    [queue, user, myPlayerId]
+  );
+
   const isMember = useMemo(() => {
     if (!queue || !user) return false;
-    return queue.queuePlayers.some((p) => String(p.playerId) === user.id || p.playerId === myPlayerId || p.playerName === user.name);
-  }, [queue, user, myPlayerId]);
+    return approvedPlayers.some((p) => String(p.playerId) === user.id || p.playerId === myPlayerId || p.playerName === user.name);
+  }, [approvedPlayers, user, myPlayerId]);
 
   const isHost = useMemo(() => {
     if (!queue || !user) return false;
-    return queue.queuePlayers.some((p) => (String(p.playerId) === user.id || p.playerId === myPlayerId || p.playerName === user.name) && p.isHost);
-  }, [queue, user, myPlayerId]);
+    return approvedPlayers.some((p) => (String(p.playerId) === user.id || p.playerId === myPlayerId || p.playerName === user.name) && p.isHost);
+  }, [approvedPlayers, user, myPlayerId]);
 
   // Calendar visualization
   const calendarComponent = useMemo(() => {
@@ -495,9 +527,9 @@ export const QueueDetail = () => {
     );
   }
 
-  // Create slot cards: 1vs1 = 2 slots, 2vs2 = 4 slots
-  const totalSlots = queue.matchType === '1vs1' ? 2 : 4;
-  const slotsList = Array.from({ length: totalSlots }, (_, i) => queue.queuePlayers[i] || null);
+  // Create one slot card for each configured player.
+  const totalSlots = queue.playerCount ?? (queue.matchType === '1vs1' ? 2 : 4);
+  const slotsList = Array.from({ length: totalSlots }, (_, i) => approvedPlayers[i] || null);
 
   return (
     <CommunityPage>
@@ -552,6 +584,10 @@ export const QueueDetail = () => {
               >
                 <LogOut className="h-4 w-4" /> {isHost ? 'Hủy hàng chờ' : 'Rời hàng chờ'}
               </button>
+            ) : myRequest?.status === 'Pending' ? (
+              <button type="button" disabled className="community-button-secondary">Chờ chủ phòng duyệt</button>
+            ) : myRequest?.status === 'Rejected' ? (
+              <button type="button" disabled className="community-button-secondary">Đã bị từ chối</button>
             ) : (
               <button
                 type="button"
@@ -559,7 +595,7 @@ export const QueueDetail = () => {
                 onClick={handleJoin}
                 className="community-button flex items-center justify-center gap-1.5 !bg-[#e2ff57] !text-[#0b2228] hover:!bg-[#d4f046]"
               >
-                <Plus className="h-4 w-4" /> Tham gia
+                <Plus className="h-4 w-4" /> Gửi yêu cầu
               </button>
             )}
           </div>
@@ -592,8 +628,8 @@ export const QueueDetail = () => {
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                 <p className="text-[11px] font-bold text-slate-400 uppercase">Trình độ yêu cầu</p>
-                <p className="mt-1 text-[16px] font-extrabold text-[#0b2228]">⭐ {queue.skillLevel}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Trình độ trung bình</p>
+                <p className="mt-1 text-[16px] font-extrabold text-[#0b2228]">⭐ Level {queue.minSkillLevel ?? 1}-{queue.maxSkillLevel ?? 5}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Khoảng trình độ đã chọn</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 flex flex-col justify-between">
                 <div>
@@ -773,6 +809,30 @@ export const QueueDetail = () => {
               })}
             </div>
           </section>
+
+          {isHost && pendingRequests.length > 0 && (
+            <section className="community-panel p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-[17px] font-extrabold text-[#0b2228]">Yêu cầu tham gia</h2>
+                  <p className="text-[11px] font-semibold text-[#718077]">Chỉ người được chấp nhận mới vào phòng.</p>
+                </div>
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-800">{pendingRequests.length}</span>
+              </div>
+              {pendingRequests.map((request) => (
+                <div key={request.playerId} className="flex items-center justify-between gap-3 rounded-xl border border-[#d8e4d4] bg-[#fbfdfa] p-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <img src={request.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.playerName)}&background=edf5e9&color=477313`} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    <span className="truncate text-[12px] font-bold text-[#0b2228]">{request.playerName}</span>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button type="button" disabled={isActionBusy} onClick={() => void handleReviewRequest(request.playerId, true)} className="rounded-lg bg-[#477313] px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-[#588e18] disabled:opacity-50">Chấp nhận</button>
+                    <button type="button" disabled={isActionBusy} onClick={() => void handleReviewRequest(request.playerId, false)} className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50">Từ chối</button>
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
 
           {/* Visual Schedule Details */}
           <section className="community-panel p-5 space-y-6">

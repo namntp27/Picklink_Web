@@ -15,13 +15,19 @@ export type QueuePlayerResponse = {
   playerName: string;
   avatarUrl?: string | null;
   isHost: boolean;
+  status?: 'Pending' | 'Approved' | 'Rejected' | string;
 };
 
 export type QueueStatusResponse = {
   inQueue: boolean;
   matchmakingQueueId?: number | null;
+  matchId?: number | null;
+  title?: string | null;
+  playerCount?: number;
   matchType?: string | null;
   skillLevel?: number | null;
+  minSkillLevel?: number;
+  maxSkillLevel?: number;
   searchRadiusKm?: number;
   searchLatitude?: number | null;
   searchLongitude?: number | null;
@@ -48,6 +54,10 @@ export type QueueSlotRequest = {
 };
 
 export type JoinSoloQueueRequest = {
+  title?: string;
+  playerCount?: number;
+  minSkillLevel?: number;
+  maxSkillLevel?: number;
   matchType: string;
   searchRadiusKm: number;
   searchLatitude?: number | null;
@@ -96,3 +106,13 @@ export const joinPublicQueue = (token: string, queueId: number) =>
   apiRequest<QueueStatusResponse>(`/api/matchmaking/public/join/${queueId}`, {
     method: 'POST',
   }, token);
+
+export const createManualQueueRoom = (token: string, queueId: number) =>
+  apiRequest<{ matchId: number }>(`/api/matchmaking/public/${queueId}/room`, {
+    method: 'POST',
+  }, token);
+export const approvePublicQueueRequest = (token: string, queueId: number, playerId: number) =>
+  apiRequest<{ message: string }>(`/api/matchmaking/public/requests/${queueId}/${playerId}/approve`, { method: 'POST' }, token);
+
+export const rejectPublicQueueRequest = (token: string, queueId: number, playerId: number) =>
+  apiRequest<{ message: string }>(`/api/matchmaking/public/requests/${queueId}/${playerId}/reject`, { method: 'POST' }, token);

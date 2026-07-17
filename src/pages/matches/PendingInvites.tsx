@@ -19,7 +19,7 @@ import {
   Plus,
   Settings,
 } from 'lucide-react';
-import { getOpenMatches, type MatchFormat, type MatchSummary } from '../../api/matches';
+import { getOpenMatches, searchMatchVenues, type MatchFormat, type MatchPreferredVenue, type MatchSummary } from '../../api/matches';
 import { getPublicQueues, joinPublicQueue, cancelQueue, type QueueStatusResponse } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
@@ -68,6 +68,16 @@ const availabilitySlotsFor = (match: MatchSummary) => match.availabilitySlots?.l
     timeEnd: match.preferredTimeEnd,
   }];
 
+const queueVenueIds = (sharedVenues?: string | null) => sharedVenues?.split(',').map(Number).filter(Number.isInteger) ?? [];
+
+const queueDateRange = (queue: QueueStatusResponse) => {
+  const dates = queue.queueSlots.flatMap((slot) => slot.specificDate ? [slot.specificDate] : []).sort();
+  if (!dates.length) return queue.replayType === 'Daily' ? 'Hàng ngày' : queue.replayType;
+  return dateLabel(dates[0]) + ' - ' + dateLabel(dates[dates.length - 1]);
+};
+
+
+const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
 export const PendingInvites = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
@@ -83,6 +93,8 @@ export const PendingInvites = () => {
     MatchSummary,
     'title' | 'preferredVenues'
   > | null>(null);
+  const [queueVenues, setQueueVenues] = useState<Record<number, MatchPreferredVenue[]>>({});
+  const [mappedQueue, setMappedQueue] = useState<QueueStatusResponse | null>(null);
   const [filters, setFilters] = useState<Filters>(defaults);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
@@ -106,6 +118,34 @@ export const PendingInvites = () => {
       setQueuesLoading(false);
     }
   }, [token]);
+
+  useEffect(() => {
+    let disposed = false;
+    void (async () => {
+      const resolved: Record<number, MatchPreferredVenue[]> = {};
+      await Promise.all(queues.map(async (queue) => {
+        const queueId = queue.matchmakingQueueId;
+        const venueIds = queueVenueIds(queue.sharedVenues);
+        if (queueId == null || venueIds.length === 0) return;
+        try {
+          const venues = await searchMatchVenues({
+            radiusKm: 10,
+            latitude: queue.searchLatitude ?? undefined,
+            longitude: queue.searchLongitude ?? undefined,
+            province: queue.province ?? undefined,
+            ward: queue.ward ?? undefined,
+          });
+          resolved[queueId] = venueIds.flatMap((venueId) => venues.filter((venue) => venue.venueId === venueId));
+        } catch {
+          resolved[queueId] = [];
+        }
+      }));
+      if (!disposed) setQueueVenues(resolved);
+    })();
+    return () => {
+      disposed = true;
+    };
+  }, [queues]);
 
   const handleJoinQueue = async (queueId: number) => {
     if (!token) {
@@ -194,11 +234,12 @@ export const PendingInvites = () => {
   
   const filteredQueues = useMemo(() => {
     return queues.filter((q) => {
+      if (!q.isPublic) return false;
       if (filters.format !== 'all' && q.matchType !== filters.format) return false;
       if (filters.province && q.province !== filters.province) return false;
       if (filters.ward && q.ward !== filters.ward) return false;
       
-      const isMine = q.queuePlayers.some((p) => String(p.playerId) === user?.id);
+      const isMine = q.queuePlayers.some((p) => String(p.playerId) === user?.id && p.status !== 'Pending' && p.status !== 'Rejected');
       if (filters.owner === 'mine' && !isMine) return false;
       if (filters.owner === 'other' && isMine) return false;
       return true;
@@ -210,8 +251,8 @@ export const PendingInvites = () => {
       return visibleMatches.reduce((sum, match) => sum + match.availableSlotCount, 0);
     }
     return filteredQueues.reduce((sum, q) => {
-      const maxCap = q.matchType === '1vs1' ? 2 : 4;
-      return sum + Math.max(0, maxCap - q.queuePlayers.length);
+      const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
+      return sum + Math.max(0, maxCap - q.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected').length);
     }, 0);
   }, [activeTab, visibleMatches, filteredQueues]);
 
@@ -299,7 +340,7 @@ export const PendingInvites = () => {
                     activeTab === 'queue' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
                   }`}
                 >
-                  Hàng chờ ghép cặp
+                  Lời mời thủ công
                 </button>
               </div>
               <button
@@ -475,10 +516,14 @@ export const PendingInvites = () => {
           ) : (
             <>
               {filteredQueues.map((q) => {
-                const maxCap = q.matchType === '1vs1' ? 2 : 4;
-                const isMine = q.queuePlayers.some((qp) => String(qp.playerId) === user?.id);
-                const host = q.queuePlayers.find((qp) => qp.isHost);
-                const isFull = q.queuePlayers.length >= maxCap;
+                const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
+                const approvedPlayers = q.queuePlayers.filter((qp) => qp.status !== 'Pending' && qp.status !== 'Rejected');
+                const myRequest = q.queuePlayers.find((qp) => String(qp.playerId) === user?.id);
+                const isMine = myRequest?.status !== 'Pending' && myRequest?.status !== 'Rejected';
+                const host = approvedPlayers.find((qp) => qp.isHost);
+                const isFull = approvedPlayers.length >= maxCap;
+                const venueList = queueVenues[q.matchmakingQueueId ?? 0] ?? [];
+                const hasMappableVenue = venueList.some((venue) => venue.latitude != null && venue.longitude != null);
 
                 return (
                   <article className="community-card h-full p-3 flex flex-col justify-between" key={q.matchmakingQueueId}>
@@ -486,18 +531,15 @@ export const PendingInvites = () => {
                       <div className="min-w-0">
                         <div className="flex flex-wrap gap-1.5">
                           <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px]">{q.matchType}</span>
-                          <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">⭐ Trình độ {q.skillLevel}</span>
+                          <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">Trình độ tối thiểu: {skillLevelName(q.minSkillLevel)}</span>
+                          <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">Trình độ tối đa: {skillLevelName(q.maxSkillLevel)}</span>
                           {isMine && <span className="community-badge !min-h-5 !bg-[#edf5e9] !px-1.5 !py-1 !text-[10px] !text-[#477313] border border-[#477313]/25">Đã tham gia</span>}
-                          {q.isPublic ? (
-                             <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Ghép thủ công (Công khai)</span>
-                           ) : (
-                             <span className="community-badge !min-h-5 !bg-[#e2eae0] !px-1.5 !py-1 !text-[10px] !text-[#526158]">Ghép tự động (Kín)</span>
-                           )}
+                          <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Ghép thủ công (Công khai)</span>
                         </div>
                         
-                        <Link to={`/opponents/queue/${q.matchmakingQueueId}`} className="block mt-2">
+                        <Link to={q.matchId ? `/matches/${q.matchId}` : `/opponents/queue/${q.matchmakingQueueId}`} className="block mt-2">
                           <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
-                            Hàng chờ của {host?.playerName ?? 'Người chơi'}
+                            {q.title?.trim() || 'Lời mời ghép trận thủ công'}
                           </h2>
                         </Link>
 
@@ -538,23 +580,28 @@ export const PendingInvites = () => {
                         </div>
 
                         <div className="px-2.5 py-2">
-                          <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Clock className="h-3 w-3 text-[#477313]" />Khung giờ & Lịch tìm</p>
+                          <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><CalendarRange className="h-3 w-3 text-[#477313]" />Khoảng ngày</p>
+                          <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{queueDateRange(q)}</p>
+                        </div>
+
+                        <div className="px-2.5 py-2">
+                          <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Clock className="h-3 w-3 text-[#477313]" />Các slot đã chọn</p>
                           <div className="community-scroll mt-1 flex max-h-20 flex-wrap gap-1 overflow-y-auto pr-1">
                             {formatQueueSlots(q.queueSlots, q.replayType, true).map((slot, idx) => (
                               <span
                                 className="inline-flex min-h-5 items-center rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0b2228]"
                                 key={idx}
                               >
-                                {slot.dayLabel ? `${slot.dayLabel} · ` : ''}{slot.timeStart} - {slot.timeEnd}
+                                {slot.timeStart} - {slot.timeEnd}
                               </span>
                             ))}
                           </div>
                         </div>
 
                         <div className="px-2.5 py-2">
-                          <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên nhóm ({q.queuePlayers.length}/{maxCap})</p>
+                          <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên nhóm ({approvedPlayers.length}/{maxCap})</p>
                           <div className="mt-1.5 flex flex-wrap gap-1">
-                            {q.queuePlayers.map((player) => (
+                            {approvedPlayers.map((player) => (
                               <span key={player.playerId} className="inline-flex items-center bg-[#edf5e9] border border-[#d8e4d4] text-[10px] px-1.5 py-0.5 rounded font-medium text-[#477313]">
                                 {player.playerName}
                               </span>
@@ -562,11 +609,31 @@ export const PendingInvites = () => {
                           </div>
                         </div>
                       </div>
+                      {venueList.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {venueList.map((venue) => (
+                            <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]" key={venue.venueId}>
+                              {venue.venueName}
+                            </span>
+                          ))}
+                          {hasMappableVenue && (
+                            <button
+                              className="community-button-secondary !min-h-5 !gap-1 !px-1.5 !py-1 !text-[10px]"
+                              onClick={() => setMappedQueue(q)}
+                              title="Xem vị trí, khoảng cách và lộ trình"
+                              type="button"
+                            >
+                              <Route aria-hidden="true" className="h-3 w-3" />
+                              Bản đồ
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-3 flex gap-2">
                       <Link
-                        to={`/opponents/queue/${q.matchmakingQueueId}`}
+                        to={q.matchId ? `/matches/${q.matchId}` : `/opponents/queue/${q.matchmakingQueueId}`}
                         className="community-button-secondary !min-h-8 flex-1 !text-[11px] flex items-center justify-center gap-1"
                       >
                         <Eye className="h-3.5 w-3.5" />
@@ -592,6 +659,10 @@ export const PendingInvites = () => {
                             Rời hàng chờ
                           </button>
                         </>
+                      ) : myRequest?.status === 'Pending' ? (
+                        <button type="button" disabled className="community-button-secondary !min-h-8 flex-1 !text-[11px]">Chờ chủ phòng duyệt</button>
+                      ) : myRequest?.status === 'Rejected' ? (
+                        <button type="button" disabled className="community-button-secondary !min-h-8 flex-1 !text-[11px]">Đã bị từ chối</button>
                       ) : (
                         <button
                           type="button"
@@ -600,7 +671,7 @@ export const PendingInvites = () => {
                           className="community-button !min-h-8 flex-1 !text-[11px] flex items-center justify-center gap-1"
                         >
                           <Plus className="h-3.5 w-3.5" />
-                          {isFull ? 'Đã đầy' : 'Tham gia'}
+                          {isFull ? 'Đã đầy' : 'Gửi yêu cầu'}
                         </button>
                       )}
                     </div>
@@ -612,7 +683,7 @@ export const PendingInvites = () => {
                 <div className="sm:col-span-2 lg:col-span-3">
                   <CommunityEmptyState
                     action={<Link className="community-button" to="/opponents/create">Tạo hàng chờ</Link>}
-                    description="Hiện tại chưa có hàng chờ tự động công khai nào phù hợp với bộ lọc."
+                    description="Hiện tại chưa có lời mời thủ công công khai nào phù hợp với bộ lọc."
                     icon={Users}
                     title="Chưa có hàng chờ phù hợp"
                   />
@@ -638,6 +709,16 @@ export const PendingInvites = () => {
             matchTitle={mappedMatch.title}
             onClose={() => setMappedMatch(null)}
             venues={mappedMatch.preferredVenues}
+          />
+        </Suspense>
+      )}
+      {mappedQueue && (
+        <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
+          <MatchVenueMapDialog
+            matchTitle={mappedQueue.title?.trim() || 'Lời mời ghép trận thủ công'}
+            onClose={() => setMappedQueue(null)}
+            selectedVenueIds={queueVenueIds(mappedQueue.sharedVenues)}
+            venues={queueVenues[mappedQueue.matchmakingQueueId ?? 0] ?? []}
           />
         </Suspense>
       )}

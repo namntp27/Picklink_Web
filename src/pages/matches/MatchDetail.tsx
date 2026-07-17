@@ -1,14 +1,16 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarRange,
   Check,
+  ChevronDown,
   CheckCircle2,
   Clock,
   CreditCard,
   MapPin,
   MessageCircle,
+  Plus,
   Route,
   Send,
   ShieldCheck,
@@ -22,22 +24,26 @@ import { getCourtAvailability, type AvailabilitySlot, type CourtAvailability } f
 import {
   acceptMatchInvitation,
   acceptParticipant,
-  cancelMatch,
   createMatchBooking,
   declineMatchInvitation,
   getMatchSlotOptions,
   getMatchDetail,
   getMatchMessages,
+  inviteMatchPlayers,
   joinMatch,
   leaveMatch,
   markMatchReadyToBook,
   rejectParticipant,
   removeParticipant,
+  searchMatchVenues,
   sendMatchMessage,
   unvoteMatchSlot,
+  updateMatchInvitation,
   voteMatchSlot,
   type MatchDetailResponse,
+  type MatchFormat,
   type MatchMessage,
+  type MatchPreferredVenue,
   type MatchParticipant,
   type MatchSlotOption,
 } from '../../api/matches';
@@ -51,6 +57,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
+import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 
 const MatchVenueMapDialog = lazy(async () => {
@@ -103,21 +110,57 @@ const timeFromMinutes = (value: number) => {
   const minutes = (value % 60).toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 };
-const unavailableLabel: Record<string, string> = {
-  Holding: 'Đang giữ',
-  Booked: 'Đã đặt',
-  Blocked: 'Đã khóa',
-  Maintenance: 'Bảo trì',
-  Event: 'Sự kiện',
-  Closed: 'Đóng cửa',
-};
+const invitationTimeOptions = Array.from({ length: 48 }, (_, index) => timeFromMinutes(index * 30));
 const slotIdentity = (courtId: number, startTimeValue: string, endTimeValue: string) =>
   `${courtId}|${startTimeValue}|${endTimeValue}`;
+type MatchBookingSlotSelection = {
+  courtId: number;
+  startTime: string;
+  endTime: string;
+  hourlyPrice: number;
+};
+type MonthUnavailableSlot = {
+  date: string;
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  status: AvailabilitySlot['status'];
+};
+type InvitationDraft = {
+  title: string;
+  note: string;
+  neededPlayerCount: number;
+  province: string;
+  ward: string;
+  searchRadiusKm: number;
+  searchLatitude?: number | null;
+  searchLongitude?: number | null;
+  preferredVenueIds: number[];
+  availableDateFrom: string;
+  availableDateTo: string;
+  preferredTimeStart: string;
+  preferredTimeEnd: string;
+  availabilitySlots: Array<{ timeStart: string; timeEnd: string }>;
+  minSkillLevel: number;
+  maxSkillLevel: number;
+  matchType: MatchFormat;
+};
+const maxMatchBookingSlots = 496;
+const todayDateKey = () => {
+  const today = new Date();
+  return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+};
+const datesInMonth = (value: string) => {
+  const [year, month] = value.split('-').map(Number);
+  if (!year || !month) return [];
+  return Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) =>
+    [year, String(month).padStart(2, "0"), String(index + 1).padStart(2, "0")].join("-"));
+};
 
 export const MatchDetail = () => {
   const { id } = useParams();
   const matchId = Number(id);
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { token } = useAuth();
   const [match, setMatch] = useState<MatchDetailResponse | null>(null);
@@ -127,17 +170,28 @@ export const MatchDetail = () => {
   const [bookingDate, setBookingDate] = useState('');
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
   const [slotOptions, setSlotOptions] = useState<MatchSlotOption[]>([]);
-  const [courtId, setCourtId] = useState<number | null>(null);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, MatchBookingSlotSelection[]>>({});
+  const [bookingMonth, setBookingMonth] = useState('');
+  const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
   const [receipt, setReceipt] = useState<File | null>(null);
   const [selectedPaymentPlayerIds, setSelectedPaymentPlayerIds] = useState<number[]>([]);
   const [batchPreview, setBatchPreview] = useState<BatchPaymentPreview | null>(null);
   const [showVenueMap, setShowVenueMap] = useState(false);
+  const [showInvitationEditor, setShowInvitationEditor] = useState(false);
+  const [invitationDraft, setInvitationDraft] = useState<InvitationDraft>({
+    title: '', note: '', neededPlayerCount: 1, province: '', ward: '', searchRadiusKm: 5,
+    preferredVenueIds: [], availableDateFrom: '', availableDateTo: '', preferredTimeStart: '',
+    preferredTimeEnd: '', availabilitySlots: [], minSkillLevel: 1, maxSkillLevel: 5, matchType: '2vs2',
+  });
+  const [invitationVenues, setInvitationVenues] = useState<MatchPreferredVenue[]>([]);
+  const [isSearchingInvitationVenues, setIsSearchingInvitationVenues] = useState(false);
+  const [openInvitationTimePicker, setOpenInvitationTimePicker] = useState<{ slotIndex: number; field: 'start' | 'end' } | null>(null);
   const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<MatchParticipant | null>(null);
+  const [bookingClock, setBookingClock] = useState(() => Date.now());
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
 
   const loadMatch = async () => {
     if (!token || !Number.isInteger(matchId)) return;
@@ -146,6 +200,7 @@ export const MatchDetail = () => {
       setMatch(result);
       setSelectedVenueId((current) => current ?? result.preferredVenues[0]?.venueId ?? null);
       setBookingDate((current) => current || result.availableDateFrom);
+      setBookingMonth((current) => current || result.availableDateFrom.slice(0, 7));
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải phòng ghép trận.');
@@ -165,28 +220,43 @@ export const MatchDetail = () => {
   useEffect(() => { void loadMessages(); }, [match?.conversationId, token]);
 
   useEffect(() => {
+    const now = Date.now();
+    const refreshTimes = [
+      match?.status === 'Booked' && match.endTime ? new Date(match.endTime).getTime() + 1_000 : 0,
+      ...(match?.bookingCheckIns ?? []).flatMap((booking) => booking.checkInGroups.flatMap((group) => [
+        new Date(group.startTime).getTime() - 30 * 60 * 1_000 + 1_000,
+        new Date(group.endTime).getTime() + 1_000,
+      ])),
+    ].filter((time) => time > now);
+    const nextRefresh = Math.min(...refreshTimes);
+    if (!Number.isFinite(nextRefresh)) return;
+    const timeout = window.setTimeout(() => {
+      setBookingClock(Date.now());
+      void loadMatch();
+    }, Math.max(1_000, nextRefresh - now));
+    return () => window.clearTimeout(timeout);
+  }, [match?.endTime, match?.status, match?.bookingCheckIns]);
+
+  useEffect(() => {
     const container = messagesContainerRef.current;
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   const loadAvailability = async () => {
-    if (!selectedVenueId || !bookingDate || match?.status !== 'ReadyToBook') {
+    if (!selectedVenueId || !bookingDate || !canBookAnotherRound) {
       setAvailability(null);
       return;
     }
     try {
       const result = await getCourtAvailability(selectedVenueId, bookingDate, token);
       setAvailability(result);
-      setCourtId((current) => result.courts.some((court) => court.courtId === current)
-        ? current
-        : result.courts[0]?.courtId ?? null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải lịch sân.');
     }
   };
 
   const loadSlotOptions = async () => {
-    if (!token || !selectedVenueId || !bookingDate || match?.status !== 'ReadyToBook') {
+    if (!token || !selectedVenueId || !bookingDate || !canBookAnotherRound) {
       setSlotOptions([]);
       return;
     }
@@ -201,10 +271,6 @@ export const MatchDetail = () => {
 
   useMatchRealtime((event) => {
     if (event.matchId !== matchId) return;
-    if (event.action === 'Expired') {
-      navigate('/opponents/create?expired=1', { replace: true });
-      return;
-    }
     if (event.action === 'MessageSent') {
       void loadMessages();
       return;
@@ -254,21 +320,23 @@ export const MatchDetail = () => {
   }, [match]);
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
-    if (!selectedVenueId || !courtId || !startTime || !endTime) return false;
-    if (notification.venueId !== selectedVenueId || notification.courtId !== courtId || notification.startTime.slice(0, 10) !== bookingDate) return false;
-
-    const changedStart = minuteOfDay(timePart(notification.startTime));
-    const changedEnd = minuteOfDay(timePart(notification.endTime));
-    const selectedStart = minuteOfDay(startTime);
-    const selectedEnd = minuteOfDay(endTime);
-    return selectedStart < changedEnd && selectedEnd > changedStart;
+    if (notification.venueId !== selectedVenueId || notification.startTime.slice(0, 10) !== bookingDate) return false;
+    return availability?.slots.some((slot) =>
+      selectedSlotKeys.includes(`${slot.courtId}:${timePart(slot.startTime)}`)
+      && slot.courtId === notification.courtId
+      && slot.startTime < notification.endTime
+      && slot.endTime > notification.startTime,
+    ) ?? false;
   };
 
   useScheduleRealtime((notification) => {
     if (notification.venueId !== selectedVenueId || notification.startTime.slice(0, 10) !== bookingDate) return;
     if (notification.action !== 'Deleted' && notificationTouchesSelection(notification)) {
-      setStartTime('');
-      setEndTime('');
+      setSelectedSlotsByDate((current) => {
+        const next = { ...current };
+        delete next[bookingDate];
+        return next;
+      });
       setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn giờ khác.');
     }
     void loadAvailability();
@@ -291,67 +359,118 @@ export const MatchDetail = () => {
     [selectedPaymentPlayerIds],
   );
   const isFull = Boolean(match && approved.length === match.requiredPlayerCount);
-  const selectedCourt = availability?.courts.find((court) => court.courtId === courtId);
-  const slotOptionLookup = useMemo(
-    () => new Map(slotOptions.map((option) =>
-      [slotIdentity(option.courtId, option.startTime, option.endTime), option])),
-    [slotOptions],
+  const slotKey = (slot: AvailabilitySlot) => String(slot.courtId) + ":" + timePart(slot.startTime);
+  const selectedSlotsForDate = selectedSlotsByDate[bookingDate] ?? [];
+  const selectedSlotKeys = selectedSlotsForDate.map((slot) => String(slot.courtId) + ':' + timePart(slot.startTime));
+  const unavailableSlotKeysForDate = useMemo(
+    () => monthUnavailableSlots.filter((slot) => slot.date === bookingDate)
+      .map((slot) => String(slot.courtId) + ':' + timePart(slot.startTime)),
+    [bookingDate, monthUnavailableSlots],
   );
   const slotMinutes = availability?.slotMinutes ?? 30;
-  const slotPrice = selectedCourt ? Math.round(selectedCourt.hourlyPrice * slotMinutes / 60) : 0;
-  const visibleSlots = useMemo(
-    () => availability?.slots
-      .filter((slot) => {
-        if (slot.courtId !== courtId) return false;
-        if (match?.availabilitySlots.length) {
-          return match.availabilitySlots.some((declared) =>
-            timePart(slot.startTime) >= declared.timeStart
-            && timePart(slot.endTime) <= declared.timeEnd);
-        }
-        return timePart(slot.startTime) >= (match?.preferredTimeStart ?? '00:00')
-          && timePart(slot.endTime) <= (match?.preferredTimeEnd ?? '23:59');
-      })
-      .sort((left, right) => left.startTime.localeCompare(right.startTime)) ?? [],
-    [availability, courtId, match?.availabilitySlots, match?.preferredTimeStart, match?.preferredTimeEnd],
+  const selectedSlots = useMemo(
+    () => Object.values(selectedSlotsByDate).flat()
+      .sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId),
+    [selectedSlotsByDate],
   );
-  const availableSlots = useMemo(
-    () => visibleSlots.filter((slot) => slot.status === 'Available' && new Date(slot.startTime).getTime() > Date.now()),
-    [visibleSlots],
+  const selectedDates = useMemo(
+    () => Object.keys(selectedSlotsByDate).filter((date) => selectedSlotsByDate[date].length).sort(),
+    [selectedSlotsByDate],
   );
-  const startOptions = useMemo(
-    () => Array.from(new Set(availableSlots.map((slot) => timePart(slot.startTime)))),
-    [availableSlots],
+  const estimatedTotalAmount = selectedSlots.reduce(
+    (total, slot) => total + Math.round(slot.hourlyPrice * (slotMinutes / 60)),
+    0,
   );
-  const endOptions = useMemo(() => {
-    if (!startTime) return [];
-    const startIndex = availableSlots.findIndex((slot) => timePart(slot.startTime) === startTime);
-    if (startIndex < 0) return [];
-    const values: string[] = [];
-    for (let index = startIndex; index < availableSlots.length; index += 1) {
-      if (index > startIndex && availableSlots[index].startTime !== availableSlots[index - 1].endTime) break;
-      values.push(timePart(availableSlots[index].endTime));
-    }
-    return values;
-  }, [availableSlots, startTime]);
-  const selectedSlotStarts = useMemo(() => {
-    if (!startTime || !endTime) return [];
-    const start = minuteOfDay(startTime);
-    const end = minuteOfDay(endTime);
-    return visibleSlots
-      .filter((slot) => {
-        const slotStart = minuteOfDay(timePart(slot.startTime));
-        const slotEnd = minuteOfDay(timePart(slot.endTime));
-        return slotStart >= start && slotEnd <= end;
-      })
-      .map((slot) => timePart(slot.startTime));
-  }, [visibleSlots, startTime, endTime]);
-  const selectedDurationHours = startTime && endTime
-    ? Math.max(0, (minuteOfDay(endTime) - minuteOfDay(startTime)) / 60)
-    : 0;
-  const estimatedTotalAmount = selectedCourt ? Math.round(selectedCourt.hourlyPrice * selectedDurationHours) : 0;
   const estimatedAmountPerPlayer = (match?.requiredPlayerCount ?? 0) > 0
     ? Math.ceil(estimatedTotalAmount / match!.requiredPlayerCount)
     : 0;
+  const removeSelectedDate = (date: string) => {
+    setSelectedSlotsByDate((current) => {
+      const next = { ...current };
+      delete next[date];
+      return next;
+    });
+    setMonthUnavailableSlots((current) => current.filter((slot) => slot.date !== date));
+  };
+
+  const applyCurrentSlotsToMonth = async () => {
+    if (!token || !selectedVenueId || !bookingMonth || !selectedSlotsForDate.length) {
+      setError('Hãy chọn ít nhất một slot ở ngày đang xem trước khi áp dụng cho cả tháng.');
+      return;
+    }
+    const targetDates = datesInMonth(bookingMonth).filter((date) => date >= todayDateKey());
+    if (!targetDates.length) {
+      setError('Tháng đã chọn không còn ngày nào có thể đặt.');
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      // ponytail: reuse the existing daily availability API; add a batch endpoint only if this becomes a bottleneck.
+      const calendars = await Promise.all(targetDates.map(async (date) => ({
+        date,
+        availability: await getCourtAvailability(selectedVenueId, date, token),
+      })));
+      const unavailable: MonthUnavailableSlot[] = [];
+      const pastSlotKeys = new Set<string>();
+      const validSlots: MatchBookingSlotSelection[] = [];
+      for (const { date, availability: dailyAvailability } of calendars) {
+        for (const templateSlot of selectedSlotsForDate) {
+          const startTime = date + 'T' + timePart(templateSlot.startTime) + ':00';
+          const endTime = date + 'T' + timePart(templateSlot.endTime) + ':00';
+          const currentSlot = dailyAvailability.slots.find((slot) =>
+            slot.courtId === templateSlot.courtId && timePart(slot.startTime) === timePart(templateSlot.startTime));
+          if (new Date(startTime).getTime() <= Date.now()) {
+            pastSlotKeys.add(slotIdentity(templateSlot.courtId, startTime, endTime));
+            continue;
+          }
+          const available = currentSlot?.status === 'Available';
+          if (available) {
+            validSlots.push({ ...templateSlot, startTime, endTime });
+            continue;
+          }
+          const court = dailyAvailability.courts.find((item) => item.courtId === templateSlot.courtId);
+          unavailable.push({
+            date,
+            courtId: templateSlot.courtId,
+            courtNumber: court?.courtNumber ?? templateSlot.courtId,
+            startTime,
+            endTime,
+            status: currentSlot?.status ?? 'Closed',
+          });
+        }
+      }
+
+      const unavailableKeys = new Set([...pastSlotKeys, ...unavailable.map((slot) => slotIdentity(slot.courtId, slot.startTime, slot.endTime))]);
+      const existingKeys = new Set(selectedSlots.map((slot) => slotIdentity(slot.courtId, slot.startTime, slot.endTime)));
+      const additions = validSlots.filter((slot) => !existingKeys.has(slotIdentity(slot.courtId, slot.startTime, slot.endTime)));
+      const invalidSelectedCount = selectedSlots.filter((slot) => unavailableKeys.has(slotIdentity(slot.courtId, slot.startTime, slot.endTime))).length;
+      if (selectedSlots.length - invalidSelectedCount + additions.length > maxMatchBookingSlots) {
+        setError('Một booking chỉ hỗ trợ tối đa ' + maxMatchBookingSlots + ' slot. Hãy giảm số slot hoặc số ngày.');
+        return;
+      }
+
+      setSelectedSlotsByDate((current) => {
+        const next = { ...current };
+        targetDates.forEach((date) => {
+          const retained = (next[date] ?? []).filter((slot) => !unavailableKeys.has(slotIdentity(slot.courtId, slot.startTime, slot.endTime)));
+          const newSlots = additions.filter((slot) => slot.startTime.slice(0, 10) === date);
+          const merged = [...retained, ...newSlots];
+          if (merged.length) next[date] = merged;
+          else delete next[date];
+        });
+        return next;
+      });
+      setMonthUnavailableSlots(unavailable);
+      setError(unavailable.length
+        ? 'Không áp dụng ' + unavailable.length + ' slot không còn trống. Xem danh sách sân, ngày và giờ bên dưới.'
+        : '');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể kiểm tra lịch cả tháng.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!token || !match?.bookingId || !selectedPaymentKey) {
@@ -376,69 +495,31 @@ export const MatchDetail = () => {
     };
   }, [match?.bookingId, selectedPaymentKey, token]);
 
-  useEffect(() => {
-    if (!startTime) return;
-    if (!startOptions.includes(startTime)) {
-      setStartTime('');
-      setEndTime('');
-      setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn giờ khác.');
-      return;
-    }
-    if (endTime && !endOptions.includes(endTime)) {
-      setEndTime('');
-      setError('Khung giờ kết thúc vừa chọn không còn khả dụng. Vui lòng chọn lại.');
-    }
-  }, [startOptions, endOptions, startTime, endTime]);
-
-  const applySlotSelection = (slotStarts: string[]) => {
-    const sorted = [...slotStarts].sort((left, right) => minuteOfDay(left) - minuteOfDay(right));
-    if (!sorted.length) {
-      setStartTime('');
-      setEndTime('');
-      return;
-    }
-    const lastSlot = availableSlots.find((slot) => timePart(slot.startTime) === sorted.at(-1));
-    setStartTime(sorted[0]);
-    setEndTime(lastSlot ? timePart(lastSlot.endTime) : timeFromMinutes(minuteOfDay(sorted.at(-1)!) + slotMinutes));
-  };
-
   const selectSlot = (slot: AvailabilitySlot) => {
-    const slotStart = timePart(slot.startTime);
-    const slotEnd = timePart(slot.endTime);
-    if (slot.status !== 'Available' || new Date(slot.startTime).getTime() <= Date.now()) return;
-
-    setError('');
-    if (!selectedSlotStarts.length) {
-      setStartTime(slotStart);
-      setEndTime(slotEnd);
-      return;
-    }
-
-    if (selectedSlotStarts.includes(slotStart)) {
-      const sorted = [...selectedSlotStarts].sort((left, right) => minuteOfDay(left) - minuteOfDay(right));
-      if (sorted.length === 1) {
-        applySlotSelection([]);
-      } else if (slotStart === sorted[0]) {
-        applySlotSelection(sorted.slice(1));
-      } else if (slotStart === sorted.at(-1)) {
-        applySlotSelection(sorted.slice(0, -1));
-      } else {
-        setStartTime(slotStart);
-        setEndTime(slotEnd);
+    if (slot.status !== 'Available'
+      || unavailableSlotKeysForDate.includes(slotKey(slot))
+      || new Date(slot.startTime).getTime() <= Date.now()
+      || !bookingDate) return;
+    const court = availability?.courts.find((item) => item.courtId === slot.courtId);
+    const key = slotIdentity(slot.courtId, slot.startTime, slot.endTime);
+    setSelectedSlotsByDate((current) => {
+      const currentDateSlots = current[bookingDate] ?? [];
+      const nextDateSlots = currentDateSlots.some((item) => slotIdentity(item.courtId, item.startTime, item.endTime) === key)
+        ? currentDateSlots.filter((item) => slotIdentity(item.courtId, item.startTime, item.endTime) !== key)
+        : [...currentDateSlots, {
+          courtId: slot.courtId,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          hourlyPrice: court?.hourlyPrice ?? 0,
+        }].sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId);
+      if (!nextDateSlots.length) {
+        const next = { ...current };
+        delete next[bookingDate];
+        return next;
       }
-      return;
-    }
-
-    const candidate = [...selectedSlotStarts, slotStart].sort((left, right) => minuteOfDay(left) - minuteOfDay(right));
-    const consecutive = candidate.every((value, index) =>
-      index === 0 || minuteOfDay(value) - minuteOfDay(candidate[index - 1]) === slotMinutes);
-    if (consecutive) {
-      applySlotSelection(candidate);
-    } else {
-      setStartTime(slotStart);
-      setEndTime(slotEnd);
-      setError('Chỉ được chọn các slot liên tiếp. Hệ thống đã bắt đầu một lựa chọn mới.');
-    }
+      return { ...current, [bookingDate]: nextDateSlots };
+    });
+    setError('');
   };
 
   const toggleSlotVote = async (option: MatchSlotOption) => {
@@ -464,6 +545,44 @@ export const MatchDetail = () => {
   };
 
 
+  const openInvitationEditor = () => {
+    if (!match) return;
+    const slots = match.availabilitySlots.length > 0
+      ? match.availabilitySlots.map((slot) => ({ timeStart: slot.timeStart.slice(0, 5), timeEnd: slot.timeEnd.slice(0, 5) }))
+      : [{ timeStart: match.preferredTimeStart.slice(0, 5), timeEnd: match.preferredTimeEnd.slice(0, 5) }];
+    setInvitationDraft({
+      title: match.title, note: match.note ?? '', neededPlayerCount: match.neededPlayerCount,
+      province: match.province, ward: match.ward, searchRadiusKm: match.searchRadiusKm,
+      searchLatitude: match.searchLatitude, searchLongitude: match.searchLongitude,
+      preferredVenueIds: match.preferredVenues.map((venue) => venue.venueId),
+      availableDateFrom: match.availableDateFrom, availableDateTo: match.availableDateTo,
+      preferredTimeStart: match.preferredTimeStart.slice(0, 5), preferredTimeEnd: match.preferredTimeEnd.slice(0, 5),
+      availabilitySlots: slots, minSkillLevel: match.minSkillLevel, maxSkillLevel: match.maxSkillLevel, matchType: match.matchType,
+    });
+    setInvitationVenues(match.preferredVenues);
+    setShowInvitationEditor(true);
+  };
+
+  const searchInvitationVenues = async () => {
+    setIsSearchingInvitationVenues(true);
+    setError('');
+    try {
+      const venues = await searchMatchVenues({
+        province: invitationDraft.province, ward: invitationDraft.ward, radiusKm: invitationDraft.searchRadiusKm,
+        latitude: invitationDraft.searchLatitude ?? undefined, longitude: invitationDraft.searchLongitude ?? undefined,
+      });
+      setInvitationVenues(venues);
+      setInvitationDraft((current) => ({
+        ...current,
+        preferredVenueIds: current.preferredVenueIds.filter((venueId) => venues.some((venue) => venue.venueId === venueId)),
+      }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể tìm cụm sân.');
+    } finally {
+      setIsSearchingInvitationVenues(false);
+    }
+  };
+
   const run = async (action: () => Promise<unknown>) => {
     setIsBusy(true);
     setError('');
@@ -478,14 +597,12 @@ export const MatchDetail = () => {
   };
 
   const createBooking = () => {
-    if (!token || !courtId || !bookingDate || !startTime || !endTime) {
-      setError('Vui lòng chọn đủ cụm sân, sân con, ngày và giờ.');
+    if (!token || !selectedSlots.length) {
+      setError('Vui lòng chọn ít nhất một slot.');
       return;
     }
     void run(() => createMatchBooking(token, matchId, {
-      courtId,
-      startTime: `${bookingDate}T${startTime}:00`,
-      endTime: `${bookingDate}T${endTime}:00`,
+      slots: selectedSlots.map(({ courtId, startTime, endTime }) => ({ courtId, startTime, endTime })),
     }));
   };
 
@@ -542,6 +659,9 @@ export const MatchDetail = () => {
   }
 
   const inputClass = 'community-control';
+  const bookingHasEnded = match.status === 'Booked'
+    && Boolean(match.endTime)
+    && new Date(match.endTime!).getTime() <= bookingClock;
   const playableSlotLabels = match.availabilitySlots.length > 0
     ? match.availabilitySlots.map((slot) => `${slot.timeStart.slice(0, 5)} - ${slot.timeEnd.slice(0, 5)}`)
     : [`${match.preferredTimeStart.slice(0, 5)} - ${match.preferredTimeEnd.slice(0, 5)}`];
@@ -579,8 +699,17 @@ export const MatchDetail = () => {
                 <p className="match-eyebrow">điều kiện ghép trận</p>
                 <h2>Phạm vi lời mời</h2>
               </div>
-              <span className="match-soft-badge">{match.preferredVenues.length} cụm sân</span>
+              <div className="flex items-center gap-2">
+                <span className="match-soft-badge">{match.preferredVenues.length} cụm sân</span>
+                {match.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
+                  <button aria-expanded={showInvitationEditor} className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[10px]" disabled={isBusy} onClick={showInvitationEditor ? () => setShowInvitationEditor(false) : openInvitationEditor} type="button">
+                    {showInvitationEditor ? 'Hủy sửa' : 'Sửa lời mời'}
+                  </button>
+                )}
+              </div>
             </div>
+          {!showInvitationEditor && (
+            <>
             <div className="match-scope-grid">
               <div className="match-info-tile"><MapPin className="h-4 w-4" /><p>Khu vực</p><strong>{match.ward}, {match.province}</strong><span>Bán kính {match.searchRadiusKm} km</span></div>
               <div className="match-info-tile"><CalendarRange className="h-4 w-4" /><p>Ngày có thể chơi</p><strong>{dateLabel(match.availableDateFrom)}</strong><span>đến {dateLabel(match.availableDateTo)}</span></div>
@@ -611,6 +740,89 @@ export const MatchDetail = () => {
               </div>
               <div className="flex flex-wrap gap-2">{match.preferredVenues.map((venue) => <span className="community-badge text-[#526158]" key={venue.venueId}>{venue.venueName}</span>)}</div>
             </div>
+            </>
+          )}
+          {match.isHost && showInvitationEditor && (
+            <div className="mt-4 border-t border-[#d8e7d4] pt-4">
+              <p className="mb-3 text-[11px] font-bold text-[#526158]">Chỉnh sửa trực tiếp trong thẻ phạm vi lời mời.</p>
+            <form className="mt-4 space-y-4" onSubmit={(event) => {
+              event.preventDefault();
+              if (!token) return;
+              void run(async () => {
+                await updateMatchInvitation(token, matchId, invitationDraft);
+                setShowInvitationEditor(false);
+              });
+            }}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-[11px] font-bold text-[#526158] sm:col-span-2">Tiêu đề lời mời
+                  <input className="community-input mt-1 w-full" disabled={isBusy} maxLength={200} onChange={(event) => setInvitationDraft((current) => ({ ...current, title: event.target.value }))} required value={invitationDraft.title} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Tỉnh / thành phố
+                  <input className="community-input mt-1 w-full" disabled={isBusy} maxLength={100} onChange={(event) => { setInvitationDraft((current) => ({ ...current, province: event.target.value, searchLatitude: null, searchLongitude: null, preferredVenueIds: [] })); setInvitationVenues([]); }} required value={invitationDraft.province} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Xã / phường
+                  <input className="community-input mt-1 w-full" disabled={isBusy} maxLength={150} onChange={(event) => { setInvitationDraft((current) => ({ ...current, ward: event.target.value, searchLatitude: null, searchLongitude: null, preferredVenueIds: [] })); setInvitationVenues([]); }} required value={invitationDraft.ward} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Bán kính tìm sân (km)
+                  <input className="community-input mt-1 w-full" disabled={isBusy} max={10} min={0.5} onChange={(event) => setInvitationDraft((current) => ({ ...current, searchRadiusKm: Number(event.target.value) }))} required step={0.5} type="number" value={invitationDraft.searchRadiusKm} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Cần thêm thành viên
+                  <input className="community-input mt-1 w-full" disabled={isBusy} max={8} min={Math.max(1, approved.length - 1)} onChange={(event) => setInvitationDraft((current) => ({ ...current, neededPlayerCount: Number(event.target.value) }))} required type="number" value={invitationDraft.neededPlayerCount} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Từ ngày
+                  <input className="community-input mt-1 w-full" disabled={isBusy} min={todayDateKey()} onChange={(event) => setInvitationDraft((current) => ({ ...current, availableDateFrom: event.target.value }))} required type="date" value={invitationDraft.availableDateFrom} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Đến ngày
+                  <input className="community-input mt-1 w-full" disabled={isBusy} min={invitationDraft.availableDateFrom || todayDateKey()} onChange={(event) => setInvitationDraft((current) => ({ ...current, availableDateTo: event.target.value }))} required type="date" value={invitationDraft.availableDateTo} />
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Trình độ thấp nhất
+                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, minSkillLevel: Number(event.target.value) }))} value={invitationDraft.minSkillLevel}>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>Level {level}</option>)}</select>
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Trình độ cao nhất
+                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, maxSkillLevel: Number(event.target.value) }))} value={invitationDraft.maxSkillLevel}>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>Level {level}</option>)}</select>
+                </label>
+                <label className="block text-[11px] font-bold text-[#526158]">Hình thức
+                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, matchType: event.target.value as MatchFormat }))} value={invitationDraft.matchType}><option value="1vs1">1 vs 1</option><option value="2vs2">2 vs 2</option></select>
+                </label>
+              </div>
+
+              <div className="rounded-lg border border-[#d8e7d4] bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[12px] font-extrabold text-[#0b2228]">Các slot có thể chơi</p><p className="text-[10px] text-[#718077]">Bạn có thể thêm các khung giờ rời nhau.</p></div><button className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[11px]" disabled={isBusy || invitationDraft.availabilitySlots.length >= 20} onClick={() => setInvitationDraft((current) => ({ ...current, availabilitySlots: [...current.availabilitySlots, { timeStart: '18:00', timeEnd: '19:00' }] }))} type="button"><Plus className="h-3.5 w-3.5" /> Thêm slot</button></div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {invitationDraft.availabilitySlots.map((slot, index) => (
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-end gap-2 rounded-md border border-[#e0ebdc] bg-[#f8fbf7] p-2" key={`slot-${index}`}>
+                      <div className="min-w-0"><p className="text-[10px] font-bold text-[#526158]">Bắt đầu</p><button aria-expanded={openInvitationTimePicker?.slotIndex === index && openInvitationTimePicker.field === 'start'} className="community-input mt-1 flex w-full items-center justify-between gap-1 text-left" disabled={isBusy} onClick={() => setOpenInvitationTimePicker((current) => current?.slotIndex === index && current.field === 'start' ? null : { slotIndex: index, field: 'start' })} type="button"><span>{slot.timeStart}</span><ChevronDown className="h-3.5 w-3.5 shrink-0" /></button></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold text-[#526158]">Kết thúc</p><button aria-expanded={openInvitationTimePicker?.slotIndex === index && openInvitationTimePicker.field === 'end'} className="community-input mt-1 flex w-full items-center justify-between gap-1 text-left" disabled={isBusy} onClick={() => setOpenInvitationTimePicker((current) => current?.slotIndex === index && current.field === 'end' ? null : { slotIndex: index, field: 'end' })} type="button"><span>{slot.timeEnd}</span><ChevronDown className="h-3.5 w-3.5 shrink-0" /></button></div>
+                      <button aria-label={`Xóa slot ${index + 1}`} className="grid h-9 w-9 place-items-center rounded-md border border-red-200 text-red-600 disabled:opacity-50" disabled={isBusy || invitationDraft.availabilitySlots.length === 1} onClick={() => setInvitationDraft((current) => ({ ...current, availabilitySlots: current.availabilitySlots.filter((_, itemIndex) => itemIndex !== index) }))} type="button"><Trash2 className="h-3.5 w-3.5" /></button>
+                      {openInvitationTimePicker?.slotIndex === index && (
+                        <div className="col-span-3 h-[258px] overflow-y-scroll rounded-md border border-[#cfe0c8] bg-white shadow-sm" role="listbox">
+                          {invitationTimeOptions.map((time) => {
+                            const field = openInvitationTimePicker.field;
+                            const selectedTime = field === 'start' ? slot.timeStart : slot.timeEnd;
+                            return <button aria-selected={time === selectedTime} className={`block h-8 w-full px-3 text-left text-[12px] font-semibold hover:bg-[#eff7ec] ${time === selectedTime ? 'bg-[#e5f2df] text-[#265615]' : 'text-[#35433a]'}`} key={time} onClick={() => { setInvitationDraft((current) => ({ ...current, availabilitySlots: current.availabilitySlots.map((item, itemIndex) => itemIndex === index ? (field === 'start' ? { ...item, timeStart: time } : { ...item, timeEnd: time }) : item) })); setOpenInvitationTimePicker(null); }} role="option" type="button">{time}</button>;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[#d8e7d4] bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[12px] font-extrabold text-[#0b2228]">Cụm sân mong muốn</p><p className="text-[10px] text-[#718077]">Đổi khu vực rồi tìm lại để chọn cụm sân phù hợp.</p></div><button className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[11px]" disabled={isBusy || isSearchingInvitationVenues} onClick={() => void searchInvitationVenues()} type="button">{isSearchingInvitationVenues ? 'Đang tìm...' : 'Tìm cụm sân'}</button></div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {invitationVenues.map((venue) => <label className="flex cursor-pointer items-start gap-2 rounded-md border border-[#e0ebdc] p-2 text-[11px] font-bold text-[#35433a]" key={venue.venueId}><input checked={invitationDraft.preferredVenueIds.includes(venue.venueId)} className="mt-0.5 h-4 w-4 accent-[#4b7a32]" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, preferredVenueIds: event.target.checked ? [...current.preferredVenueIds, venue.venueId] : current.preferredVenueIds.filter((venueId) => venueId !== venue.venueId) }))} type="checkbox" /><span>{venue.venueName}{venue.distanceKm != null && <small className="mt-0.5 block font-semibold text-[#718077]">Cách {venue.distanceKm.toFixed(1)} km</small>}</span></label>)}
+                  {invitationVenues.length === 0 && <p className="text-[11px] text-[#718077]">Chưa có cụm sân. Hãy tìm cụm sân trước khi lưu.</p>}
+                </div>
+              </div>
+
+              <label className="block text-[11px] font-bold text-[#526158]">Nội dung lời mời
+                <textarea className="community-input mt-1 min-h-20 w-full" disabled={isBusy} maxLength={1000} onChange={(event) => setInvitationDraft((current) => ({ ...current, note: event.target.value }))} value={invitationDraft.note} />
+              </label>
+              <div className="flex justify-end gap-2"><button className="community-button-secondary" disabled={isBusy} onClick={() => setShowInvitationEditor(false)} type="button">Hủy</button><button className="community-button" disabled={isBusy} type="submit"><Check className="h-4 w-4" /> Lưu phạm vi lời mời</button></div>
+            </form>
+            </div>
+          )}
           </section>
 
           <section className="community-panel match-panel match-roster-panel">
@@ -619,7 +831,7 @@ export const MatchDetail = () => {
               <span className="match-count-pill">{approved.length}/{match.requiredPlayerCount}</span>
             </div>
 
-            {match.isHost && pending.length > 0 && (
+            {isApprovedMember && pending.length > 0 && (
               <div className="mt-3 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2">
                 <p className="text-[11px] font-bold text-amber-900">Chờ duyệt ({pending.length})</p>
                 {pending.map((participant) => (
@@ -702,96 +914,72 @@ export const MatchDetail = () => {
           </section>
           </div>
 
-          {isApprovedMember && match.status === 'ReadyToBook' && (
+          {isApprovedMember && match.status === 'Booked' && (
+            <section className="match-alert" role="status">
+              <strong>{bookingHasEnded ? 'Lượt booking gần nhất đã hết giờ.' : 'Booking đã thanh toán thành công.'}</strong> Bạn có thể chọn slot bên dưới để tạo booking tiếp theo ngay.
+            </section>
+          )}
+
+          {isApprovedMember && canBookAnotherRound && (
             <section className="community-panel match-panel match-schedule-panel">
               <div className="match-section-heading">
                 <div>
                   <p className="match-eyebrow">giữ sân</p>
                   <h2>Chọn lịch và tạo booking</h2>
-                  <p>Chọn các slot liền nhau trong phạm vi lời mời. Chủ phòng hoặc thành viên đã được duyệt đều có thể tạo booking.</p>
+                  <p>Chọn tự do các slot trống, kể cả slot rời nhau hoặc nhiều sân cùng một khung giờ. Chủ phòng hoặc thành viên đã được duyệt đều có thể tạo booking.</p>
                   <p>Dùng chat để thảo luận, vote các slot rảnh chung rồi tạo booking khi cả nhóm chốt.</p>
                 </div>
-                <span className="match-soft-badge">{startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa chọn'}</span>
+                <span className="match-soft-badge">{selectedSlots.length ? `${selectedSlots.length} slot` : 'Chưa chọn'}</span>
               </div>
               <div className="match-booking-form">
-                <label><span className="mb-1 block text-[13px] font-bold">Cụm sân</span><select className={inputClass} onChange={(event) => { setSelectedVenueId(Number(event.target.value)); setCourtId(null); setStartTime(''); setEndTime(''); }} value={selectedVenueId ?? ''}>{match.preferredVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
+                <label><span className="mb-1 block text-[13px] font-bold">Cụm sân</span><select className={inputClass} onChange={(event) => { setSelectedVenueId(Number(event.target.value)); setSelectedSlotsByDate({}); setMonthUnavailableSlots([]); }} value={selectedVenueId ?? ''}>{match.preferredVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
                 <label>
-                  <span className="mb-1 block text-[13px] font-bold">Ngày chơi chính xác</span>
-                  <input className={inputClass} max={match.availableDateTo} min={match.availableDateFrom} onChange={(event) => { setBookingDate(event.target.value); setStartTime(''); setEndTime(''); }} type="date" value={bookingDate} />
+                  <span className="mb-1 block text-[13px] font-bold">Ngày đang xem</span>
+                  <input className={inputClass} onChange={(event) => setBookingDate(event.target.value)} type="date" value={bookingDate} />
                 </label>
-                <label><span className="mb-1 block text-[13px] font-bold">Sân con</span><select className={inputClass} onChange={(event) => { setCourtId(Number(event.target.value)); setStartTime(''); setEndTime(''); }} value={courtId ?? ''}><option value="">Chọn sân</option>{availability?.courts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType} · {currency.format(court.hourlyPrice)}/giờ</option>)}</select></label>
-                <div className="match-selected-time">
-                  <p className="text-[12px] font-bold text-[#526158]">Khung giờ đã chọn</p>
-                  <p className="mt-1 text-[15px] font-extrabold text-[#0b2228]">{startTime && endTime ? `${startTime} - ${endTime}` : 'Chưa chọn slot'}</p>
+                <div className="md:col-span-2 rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="min-w-[160px] flex-1"><span className="mb-1 block text-[12px] font-bold text-[#526158]">Áp dụng slot ngày này cho cả tháng</span><input className={inputClass} onChange={(event) => setBookingMonth(event.target.value)} type="month" value={bookingMonth} /></label>
+                    <button className="rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy || !bookingMonth || !selectedSlotsForDate.length} onClick={() => void applyCurrentSlotsToMonth()} type="button">Áp dụng cả tháng</button>
+                  </div>
+                  <p className="mt-2 text-[12px] font-medium text-[#718077]">Đổi ngày để chọn slot riêng từng ngày. Khi áp dụng cả tháng, các slot đang chọn được sao chép cho mọi ngày còn lại trong tháng.</p>
+                  {monthUnavailableSlots.length > 0 && <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950"><p className="flex items-center gap-2 text-[12px] font-extrabold"><AlertCircle className="h-4 w-4" /> Slot không còn trống ({monthUnavailableSlots.length})</p><div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-y-auto">{monthUnavailableSlots.map((slot) => <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold" key={slotIdentity(slot.courtId, slot.startTime, slot.endTime)}>Sân {slot.courtNumber} · {dateLabel(slot.date)} · {timePart(slot.startTime)}-{timePart(slot.endTime)}</span>)}</div></div>}
+                  {selectedDates.length > 0 && (
+                    <div className="mt-3 max-h-64 overflow-y-auto pr-1">
+                      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                        {selectedDates.map((date) => (
+                          <div className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (date === bookingDate ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-white text-[#526158]')} key={date}>
+                            <button className="min-w-0 flex-1 text-left" onClick={() => setBookingDate(date)} type="button">
+                              <span className="block truncate">{dateLabel(date)}</span>
+                              <span className="mt-1 block text-[10px]">{selectedSlotsByDate[date].length} slot</span>
+                            </button>
+                            <button aria-label={'Bỏ ngày ' + date} onClick={() => removeSelectedDate(date)} type="button"><X className="h-3 w-3" /></button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[13px] font-bold text-[#0b2228]">Slot khả dụng ({slotMinutes} phút/slot)</span>
+                    <span className="text-[13px] font-bold text-[#0b2228]">Slot khả dụng ngày {bookingDate} ({slotMinutes} phút/slot)</span>
                     <div className="flex flex-wrap gap-2 text-[11px] font-bold">
                       <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-primary">Trống</span>
                       <span className="rounded-full border border-[#0b2228] bg-[#0b2228] px-2 py-1 text-white">Đã chọn</span>
                       <span className="rounded-full border border-[#d8e4d4] bg-white px-2 py-1 text-[#8a968f]">Không khả dụng</span>
                     </div>
                   </div>
-                  <div className="match-slot-grid">
-                    {visibleSlots.map((slot) => {
-                      const slotTime = timePart(slot.startTime);
-                      const option = slotOptionLookup.get(slotIdentity(slot.courtId, slot.startTime, slot.endTime));
-                      const selected = selectedSlotStarts.includes(slotTime);
-                      const past = new Date(slot.startTime).getTime() <= Date.now();
-                      const disabled = slot.status !== 'Available' || past;
-                      const compatible = Boolean(option?.isCompatibleForAll);
-                      const voted = Boolean(option?.isVotedByMe);
-                      const className = selected
-                        ? 'match-slot-button--selected'
-                        : disabled
-                          ? 'cursor-not-allowed border-[#d8e4d4] bg-white text-[#98a39d]'
-                          : compatible
-                            ? 'match-slot-button--compatible'
-                            : 'border-[#b9dca8] bg-[#eef8e6] text-primary hover:border-primary hover:bg-[#e2ff57] hover:text-[#102414]';
-                      return (
-                        <div className="match-slot-card" key={`${slot.courtId}-${slot.startTime}`}>
-                          <button
-                            className={`match-slot-button ${className} ${voted ? 'match-slot-button--voted' : ''}`}
-                            disabled={disabled}
-                            onClick={() => selectSlot(slot)}
-                            title={past ? 'Đã qua' : unavailableLabel[slot.status] ?? 'Còn trống'}
-                            type="button"
-                          >
-                            <span className="block">{slotTime}</span>
-                            <span className="mt-0.5 block text-[10px] font-bold opacity-75">{disabled ? (past ? 'Đã qua' : unavailableLabel[slot.status] ?? slot.status) : currency.format(slotPrice)}</span>
-                            {compatible && option && (
-                              <span className="match-slot-vote-meta">
-                                Rảnh {option.compatiblePlayerCount}/{option.requiredPlayerCount}
-                                {option.voteCount > 0 ? ` · ${option.voteCount} vote` : ''}
-                              </span>
-                            )}
-                          </button>
-                          {compatible && option && (
-                            <button
-                              className="match-slot-vote-button"
-                              disabled={isBusy}
-                              onClick={() => void toggleSlotVote(option)}
-                              type="button"
-                            >
-                              {option.isVotedByMe ? 'Bỏ vote' : 'Vote slot này'}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {!visibleSlots.length && <p className="rounded-xl bg-[#f7faf5] p-4 text-center text-[13px] font-bold text-[#718077]">Không có slot phù hợp với ngày và sân đã chọn.</p>}
+                  {availability && <CourtTimelineGrid availability={availability} disabledSlotKeys={unavailableSlotKeysForDate} onSelectSlot={selectSlot} selectedSlotKeys={selectedSlotKeys} />}
                 </div>
               </div>
-              {selectedCourt && (
+              {selectedSlots.length > 0 && (
                 <div className="match-price-summary">
-                  <div><p className="text-[11px] font-bold text-[#718077]">Giá slot {slotMinutes} phút</p><p className="mt-1 font-extrabold text-[#0b2228]">{currency.format(slotPrice)}</p></div>
-                  <div><p className="text-[11px] font-bold text-[#718077]">Tổng tiền sân</p><p className="mt-1 font-extrabold text-[#0b2228]">{selectedDurationHours ? currency.format(estimatedTotalAmount) : 'Chưa chọn giờ'}</p></div>
-                  <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-primary">{selectedDurationHours ? currency.format(estimatedAmountPerPlayer) : 'Chưa chọn giờ'}</p></div>
+                  <div><p className="text-[11px] font-bold text-[#718077]">Tổng lịch</p><p className="mt-1 font-extrabold text-[#0b2228]">{selectedSlots.length} slot · {selectedDates.length} ngày</p></div>
+                  <div><p className="text-[11px] font-bold text-[#718077]">Tổng tiền sân</p><p className="mt-1 font-extrabold text-[#0b2228]">{currency.format(estimatedTotalAmount)}</p></div>
+                  <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-primary">{currency.format(estimatedAmountPerPlayer)}</p></div>
                 </div>
               )}
-              <button className="community-button mt-4 w-full" disabled={isBusy || !courtId || !startTime || !endTime} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
+              <button className="community-button mt-4 w-full" disabled={isBusy || !selectedSlots.length} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
             </section>
           )}
 
@@ -811,18 +999,46 @@ export const MatchDetail = () => {
         </div>
 
         <aside className="match-aside space-y-4 lg:sticky lg:top-20 lg:self-start">
-          {match.checkInCode && isApprovedMember && (
+          {isApprovedMember && match.bookingCheckIns.length > 0 && (
             <section className="match-checkin-card">
-              <p className="match-eyebrow">check-in tại sân</p>
-              <h3>Mã check-in</h3>
-              <div className="match-checkin-code">{match.checkInCode}</div>
-              <p>Xuất trình mã này cho nhân viên sân khi tới giờ chơi. Mã chỉ hiển thị sau khi booking hợp lệ.</p>
+              <p className="match-eyebrow">check-in theo lượt</p>
+              <h3>Các lượt booking</h3>
+              <div className="mt-3 space-y-3">
+                {match.bookingCheckIns.map((booking, bookingIndex) => (
+                  <article className="rounded-xl border border-white/20 bg-white/10 p-2.5" key={booking.bookingId}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div><p className="text-[11px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p><p className="mt-0.5 text-[10px] text-white/70">{booking.bookingStatus === 'Confirmed' ? 'Đã thanh toán' : 'Chờ thanh toán'}</p></div>
+                      <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-bold">{booking.checkInGroups.length} sân / khung giờ</span>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {booking.checkInGroups.map((group) => (
+                        <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={group.bookingCheckInGroupId}>
+                          <p className="text-[11px] font-bold text-white">Sân {group.courtNumber} · {dateTimeLabel(group.startTime)}–{timePart(group.endTime)}</p>
+                          {group.checkInCode ? (
+                            <div className="match-checkin-code">{group.checkInCode}</div>
+                          ) : (
+                            <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <p className="mt-3">Mỗi sân hoặc khung giờ rời nhau có một mã riêng; mã chỉ mở trong thời gian check-in.</p>
             </section>
           )}
 
-          {!(match.checkInCode && isApprovedMember) && (
+          {!(isApprovedMember && match.bookingCheckIns.length > 0) && (
             <section className="community-panel match-side-panel">
               <h3 className="text-[18px] font-bold">Thao tác</h3>
+              {match.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
+                <div className="mt-4 space-y-2">
+                  {match.status === 'Recruiting' && !isFull && (
+                    <button className="community-button w-full" disabled={isBusy} onClick={() => token && void run(() => inviteMatchPlayers(token, matchId, { automatic: true }))} type="button"><UserCheck className="h-4 w-4" /> Tuyển thêm thành viên</button>
+                  )}
+                </div>
+              )}
               {!match.isHost && match.myParticipantStatus === 'Invited' && match.status === 'Recruiting' && (
                 <div className="mt-4 border-y border-[#cfe0c8] py-4">
                   <p className="text-center text-[13px] font-extrabold text-[#0b2228]">Bạn được mời tham gia trận này</p>
@@ -839,15 +1055,12 @@ export const MatchDetail = () => {
               {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.myParticipantStatus !== 'Invited' && match.status === 'Recruiting' && (
                 <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
               )}
-              {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng duyệt</div>}
-              {!match.isHost && (match.myParticipantStatus === 'Pending' || isApprovedMember) && match.status !== 'BookingPending' && match.status !== 'Booked' && (
+              {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng hoặc thành viên trong phòng duyệt</div>}
+              {isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
                 <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={() => token && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
               )}
               {match.isHost && match.status === 'Recruiting' && isFull && (
                 <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
-              )}
-              {match.isHost && ['Recruiting', 'ReadyToBook', 'BookingPending'].includes(match.status) && (
-                <button className="community-button-danger mt-3 w-full" disabled={isBusy} onClick={() => token && window.confirm('Hủy phòng ghép trận này?') && void run(() => cancelMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Hủy phòng</button>
               )}
             </section>
           )}

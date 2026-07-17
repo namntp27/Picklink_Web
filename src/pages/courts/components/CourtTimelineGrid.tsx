@@ -4,6 +4,7 @@ type CourtTimelineGridProps = {
   availability: CourtAvailability;
   selectedSlotKeys: string[];
   onSelectSlot: (slot: AvailabilitySlot) => void;
+  disabledSlotKeys?: string[];
 };
 
 const timelineHelpPhone = '0822 046 686';
@@ -60,6 +61,7 @@ export const CourtTimelineGrid = ({
   availability,
   selectedSlotKeys,
   onSelectSlot,
+  disabledSlotKeys = [],
 }: CourtTimelineGridProps) => {
   const ticks = buildTimelineTicks(availability.openTime, availability.closeTime, availability.slotMinutes);
   const slotStarts = ticks.slice(0, -1);
@@ -109,12 +111,15 @@ export const CourtTimelineGrid = ({
               </div>
               {slotStarts.map((tick) => {
                 const slot = slotsByCourtAndStart.get(`${court.courtId}-${tick}`);
+                const forcedUnavailable = disabledSlotKeys.includes(slotKey(court.courtId, tick));
                 const selected = selectedSlotKeys.includes(slotKey(court.courtId, tick));
                 const past = slot ? new Date(slot.startTime).getTime() <= Date.now() : false;
                 const resumableHolding = Boolean(slot?.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId);
-                const disabled = !slot || (!resumableHolding && (slot.status !== 'Available' || past));
-                const statusClass = selected
-                  ? stateClasses.selected
+                const disabled = forcedUnavailable || !slot || (!resumableHolding && (slot.status !== 'Available' || past));
+                const statusClass = forcedUnavailable
+                  ? stateClasses.locked
+                  : selected
+                    ? stateClasses.selected
                   : resumableHolding
                     ? stateClasses.owned
                     : !slot || past || slot.status === 'Blocked' || slot.status === 'Maintenance' || slot.status === 'Closed'
