@@ -17,6 +17,7 @@ const statusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Blocked: 'Khoá',
   Maintenance: 'Bảo trì',
   Event: 'Sự kiện',
+  TicketSession: 'Xé vé',
   Closed: 'Khoá',
   Inactive: 'Khoá',
 };
@@ -28,6 +29,7 @@ const stateClasses: Record<OwnerScheduleSlot['status'], string> = {
   Blocked: 'bg-[#aeb8b0] hover:bg-[#a4afa6]',
   Maintenance: 'bg-[#aeb8b0] hover:bg-[#a4afa6]',
   Event: 'bg-[#c86fd5] text-white hover:bg-[#bd62ca]',
+  TicketSession: 'bg-[#98d951] text-[#102414] hover:bg-[#8acb45]',
   Closed: 'bg-[#aeb8b0] hover:bg-[#a4afa6]',
   Inactive: 'bg-[#aeb8b0] hover:bg-[#a4afa6]',
 };
@@ -37,6 +39,7 @@ const legendItems = [
   { label: 'Đã đặt', className: 'bg-[#f26767]' },
   { label: 'Khoá', className: 'bg-[#aeb8b0]' },
   { label: 'Sự kiện', className: 'bg-[#c86fd5]', marker: '!' },
+  { label: 'Xé vé', className: 'bg-[#98d951]', marker: 'V' },
 ];
 
 const minutes = (value: string) => {

@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Ticket,
   UserRound,
   X,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { Button } from '../ui/Button';
 const navItems = [
   { path: '/', label: 'Trang chủ' },
   { path: '/book-court', label: 'Tìm sân' },
+  { path: '/ticket-sessions', label: 'Xé vé' },
   { path: '/clubs', label: 'Câu lạc bộ' },
   { path: '/opponents', label: 'Tìm đối thủ' },
   { path: '/posts', label: 'Bài đăng' },
@@ -30,6 +32,7 @@ const navItems = [
 
 const utilityItems = [
   { path: '/my-bookings', label: 'Lịch sử đặt sân', icon: CalendarClock },
+  { path: '/my-tickets', label: 'Vé của tôi', icon: Ticket },
   { path: '/messages', label: 'Tin nhắn', icon: MessageCircle },
   { path: '/notifications', label: 'Thông báo', icon: Bell },
 ];

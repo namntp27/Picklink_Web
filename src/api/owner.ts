@@ -78,11 +78,12 @@ export type OwnerScheduleItem = {
   paymentStatus?: string | null;
   isOwnerBlock: boolean;
   isOwnerEntry: boolean;
-  entryType?: OwnerScheduleEntryType | null;
+  entryType?: OwnerScheduleDisplayEntryType | null;
   title?: string | null;
 };
 
 export type OwnerScheduleEntryType = 'Blocked' | 'Maintenance' | 'Event';
+export type OwnerScheduleDisplayEntryType = OwnerScheduleEntryType | 'TicketSession';
 
 export type OwnerScheduleSlot = {
   courtId: number;
@@ -91,9 +92,9 @@ export type OwnerScheduleSlot = {
   courtNumber: number;
   startTime: string;
   endTime: string;
-  status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed' | 'Inactive';
+  status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'TicketSession' | 'Closed' | 'Inactive';
   bookingId?: number | null;
-  entryType?: OwnerScheduleEntryType | null;
+  entryType?: OwnerScheduleDisplayEntryType | null;
   title?: string | null;
 };
 

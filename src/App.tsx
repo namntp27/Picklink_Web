@@ -41,6 +41,10 @@ const QueueDetail = lazyPage(() => import('./pages/matches/QueueDetail'), 'Queue
 const Messages = lazyPage(() => import('./pages/messages/Messages'), 'Messages');
 const Notifications = lazyPage(() => import('./pages/notifications/Notifications'), 'Notifications');
 const Profile = lazyPage(() => import('./pages/profile/Profile'), 'Profile');
+const TicketSessions = lazyPage(() => import('./pages/tickets/TicketSessions'), 'TicketSessions');
+const TicketSessionDetail = lazyPage(() => import('./pages/tickets/TicketSessionDetail'), 'TicketSessionDetail');
+const MyTickets = lazyPage(() => import('./pages/tickets/MyTickets'), 'MyTickets');
+const MyTicketDetail = lazyPage(() => import('./pages/tickets/MyTicketDetail'), 'MyTicketDetail');
 const CreateReview = lazyPage(() => import('./pages/reviews/CreateReview'), 'CreateReview');
 const AdminBookings = lazyPage(() => import('./pages/admin/AdminBookings'), 'AdminBookings');
 const AdminClubs = lazyPage(() => import('./pages/admin/AdminClubs'), 'AdminClubs');
@@ -61,6 +65,8 @@ const OwnerDashboard = lazyPage(() => import('./pages/owner/OwnerDashboard'), 'O
 const OwnerRevenue = lazyPage(() => import('./pages/owner/OwnerRevenue'), 'OwnerRevenue');
 const OwnerSettings = lazyPage(() => import('./pages/owner/OwnerSettings'), 'OwnerSettings');
 const OwnerStaff = lazyPage(() => import('./pages/owner/OwnerStaff'), 'OwnerStaff');
+const OwnerTicketSessions = lazyPage(() => import('./pages/owner/OwnerTicketSessions'), 'OwnerTicketSessions');
+const OwnerTicketSessionDetail = lazyPage(() => import('./pages/owner/OwnerTicketSessionDetail'), 'OwnerTicketSessionDetail');
 const OwnerVenueDetail = lazyPage(() => import('./pages/owner/OwnerVenueDetail'), 'OwnerVenueDetail');
 const StaffDashboard = lazyPage(() => import('./pages/staff/StaffDashboard'), 'StaffDashboard');
 
@@ -85,6 +91,7 @@ function App() {
     || pathname === '/posts'
     || pathname.startsWith('/posts/')
     || pathname.startsWith('/my-')
+    || pathname.startsWith('/ticket-sessions')
     || pathname.startsWith('/messages')
     || pathname.startsWith('/notifications')
     || pathname.startsWith('/profile')
@@ -102,6 +109,8 @@ function App() {
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Home />} />
               <Route path="book-court" element={<BookCourt />} />
+              <Route path="ticket-sessions" element={<TicketSessions />} />
+              <Route path="ticket-sessions/:id" element={<TicketSessionDetail />} />
               <Route path="clubs" element={<Clubs />} />
               <Route path="listclubs" element={<Clubs />} />
               <Route path="posts" element={<Posts />} />
@@ -116,6 +125,8 @@ function App() {
                 <Route path="matches/:id" element={<MatchDetail />} />
                 <Route path="my-matches" element={<MyMatches />} />
                 <Route path="my-bookings" element={<MyBookings />} />
+                <Route path="my-tickets" element={<MyTickets />} />
+                <Route path="my-tickets/:id" element={<MyTicketDetail />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="messages" element={<Messages />} />
                 <Route path="notifications" element={<Notifications />} />
@@ -149,6 +160,8 @@ function App() {
               <Route path="/owner/bookings" element={<OwnerBookings kind="regular" />} />
               <Route path="/owner/match-bookings" element={<OwnerBookings kind="match" />} />
               <Route path="/owner/bookings/:id" element={<OwnerBookingDetail />} />
+              <Route path="/owner/ticket-sessions" element={<OwnerTicketSessions />} />
+              <Route path="/owner/ticket-sessions/:id" element={<OwnerTicketSessionDetail />} />
               <Route path="/owner/courts" element={<OwnerCourts />} />
               <Route path="/owner/courts/create" element={<OwnerCourtCreate />} />
               <Route path="/owner/courts/:id" element={<OwnerVenueDetail />} />

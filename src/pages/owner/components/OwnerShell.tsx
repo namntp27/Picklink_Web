@@ -8,6 +8,7 @@ import {
   CreditCard,
   Map,
   Settings,
+  Ticket,
   User,
   UsersRound,
 } from 'lucide-react';
@@ -15,7 +16,7 @@ import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../auth/AuthContext';
 import '../owner.css';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'matchBookings' | 'courts' | 'revenue' | 'staff' | 'settings';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'courts' | 'revenue' | 'staff' | 'settings';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -26,6 +27,7 @@ const ownerNavItems: Array<{
 }> = [
   { id: 'schedule', label: 'Lịch đặt sân', shortLabel: 'Lịch', to: '/owner', icon: CalendarDays },
   { id: 'bookings', label: 'Đơn đặt sân', shortLabel: 'Đơn', to: '/owner/bookings', icon: CreditCard },
+  { id: 'ticketSessions', label: 'Xé vé', shortLabel: 'Xé vé', to: '/owner/ticket-sessions', icon: Ticket },
   { id: 'matchBookings', label: 'Đơn ghép trận', shortLabel: 'Ghép trận', to: '/owner/match-bookings', icon: UsersRound },
   { id: 'courts', label: 'Sân & court', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
   { id: 'revenue', label: 'Doanh thu', shortLabel: 'Doanh thu', to: '/owner/revenue', icon: Banknote },

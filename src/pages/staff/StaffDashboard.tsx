@@ -35,6 +35,13 @@ import {
   type StaffNotification,
 } from '../../api/staff';
 import type { StaffPermission } from '../../api/owner';
+import {
+  checkInSessionTicket,
+  getStaffTicketSessionParticipants,
+  getStaffTicketSessions,
+  type StaffTicketParticipant,
+  type TicketSession,
+} from '../../api/ticketing';
 import { PaginationControls } from '../../components/PaginationControls';
 import './staff.css';
 
@@ -101,6 +108,16 @@ const attendanceStatusLabel: Record<string, string> = {
   Absent: 'Vắng mặt',
 };
 
+const ticketStatusLabel: Record<string, string> = {
+  PendingPayment: 'Chờ thanh toán',
+  Paid: 'Đã thanh toán',
+  CheckedIn: 'Đã vào sân',
+  Cancelled: 'Đã hủy',
+  Expired: 'Đã hết hạn',
+  RefundPending: 'Chờ hoàn tiền',
+  Refunded: 'Đã hoàn tiền',
+};
+
 const viLabel = (labels: Record<string, string>, value?: string | null, fallback = 'Chưa cập nhật') =>
   value ? labels[value] ?? fallback : fallback;
 
@@ -110,6 +127,7 @@ const vietnameseMessage = (value: string) => value
   .replace(/no-show/gi, 'vắng mặt');
 
 type BookingTypeFilter = 'all' | 'Court' | 'Match';
+type WorkspaceMode = 'bookings' | 'tickets';
 
 export const StaffDashboard = () => {
   const { token, user, logout } = useAuth();
@@ -124,6 +142,14 @@ export const StaffDashboard = () => {
   const [searchCode, setSearchCode] = useState('');
   const [date, setDate] = useState(todayValue);
   const [bookingTypeFilter, setBookingTypeFilter] = useState<BookingTypeFilter>('all');
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('bookings');
+  const [ticketSessions, setTicketSessions] = useState<TicketSession[]>([]);
+  const [ticketsPage, setTicketsPage] = useState(1);
+  const [ticketPagination, setTicketPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
+  const [selectedTicketSession, setSelectedTicketSession] = useState<TicketSession | null>(null);
+  const [ticketParticipants, setTicketParticipants] = useState<StaffTicketParticipant[]>([]);
+  const [isTicketLoading, setIsTicketLoading] = useState(false);
+  const [isTicketDetailLoading, setIsTicketDetailLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
@@ -149,8 +175,32 @@ export const StaffDashboard = () => {
     setBookings((current) => current.map((item) => item.bookingId === booking.bookingId ? booking : item));
   };
 
-  const load = useCallback(async (signal: AbortSignal) => {
+  const selectTicketSession = async (session: TicketSession) => {
     if (!token) return;
+    setSelectedTicketSession(session);
+    setTicketParticipants([]);
+    setIsTicketDetailLoading(true);
+    setError('');
+    setSuccess('');
+    window.requestAnimationFrame(() => {
+      detailPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      if (window.innerWidth < 1000) {
+        detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    try {
+      const result = await getStaffTicketSessionParticipants(token, session.ticketSessionId);
+      setSelectedTicketSession(result.session);
+      setTicketParticipants(result.tickets);
+    } catch (reason) {
+      setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể tải danh sách người tham gia.');
+    } finally {
+      setIsTicketDetailLoading(false);
+    }
+  };
+
+  const load = useCallback(async (signal: AbortSignal) => {
+    if (!token || workspaceMode !== 'bookings') return;
     setIsLoading(true);
     setError('');
     try {
@@ -184,7 +234,7 @@ export const StaffDashboard = () => {
     } finally {
       if (!signal.aborted) setIsLoading(false);
     }
-  }, [bookingTypeFilter, bookingsPage, date, token]);
+  }, [bookingTypeFilter, bookingsPage, date, token, workspaceMode]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -192,10 +242,45 @@ export const StaffDashboard = () => {
     return () => controller.abort();
   }, [load]);
 
+  const loadTicketSessions = useCallback(async (signal: AbortSignal) => {
+    if (!token || workspaceMode !== 'tickets') return;
+    setIsTicketLoading(true);
+    setError('');
+    try {
+      const result = await getStaffTicketSessions(
+        token,
+        { date, page: ticketsPage, pageSize: 10 },
+        { signal },
+      );
+      if (signal.aborted) return;
+      setTicketSessions(result.items);
+      setTicketPagination(result);
+      setSelectedTicketSession((current) => current
+        ? result.items.find((item) => item.ticketSessionId === current.ticketSessionId) ?? null
+        : null);
+    } catch (reason) {
+      if (signal.aborted) return;
+      setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể tải các buổi xé vé.');
+    } finally {
+      if (!signal.aborted) setIsTicketLoading(false);
+    }
+  }, [date, ticketsPage, token, workspaceMode]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadTicketSessions(controller.signal);
+    return () => controller.abort();
+  }, [loadTicketSessions]);
+
   const selectedPermissions = useMemo(() =>
     assignments.find((item) => item.venueId === selected?.venueId)?.permissions ?? [],
   [assignments, selected?.venueId]);
   const hasPermission = (permission: StaffPermission) => selectedPermissions.includes(permission);
+  const selectedTicketPermissions = useMemo(() =>
+    assignments.find((item) => item.venueId === selectedTicketSession?.venueId)?.permissions ?? [],
+  [assignments, selectedTicketSession?.venueId]);
+  const canCheckInSelectedTicket = selectedTicketPermissions.includes('CheckIn');
+  const canCheckInAnyTicket = assignments.some((item) => item.permissions.includes('CheckIn'));
   const selectedCheckInGroup = useMemo(() => selected?.checkInGroups
     .find((group) => group.bookingCheckInGroupId === selectedCheckInGroupId) ?? null,
   [selected, selectedCheckInGroupId]);
@@ -208,9 +293,35 @@ export const StaffDashboard = () => {
   const currentCheckInWindowOpen = selectedCheckInGroup?.isCheckInWindowOpen ?? selected?.isCheckInWindowOpen;
   const currentCanMarkNoShow = selectedCheckInGroup?.canMarkNoShow ?? selected?.canMarkNoShow;
 
+  const runTicketCheckIn = async (ticketCode: string) => {
+    if (!token) return;
+    if (!canCheckInAnyTicket) {
+      setError('Bạn chưa được cấp quyền check-in tại cụm sân.');
+      return;
+    }
+    setIsBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await checkInSessionTicket(token, ticketCode);
+      setTicketParticipants((current) => current.map((item) =>
+        item.sessionTicketId === result.sessionTicketId ? result : item));
+      setSearchCode('');
+      setSuccess(`Đã check-in vé ${result.ticketCode} cho ${result.playerName}.`);
+    } catch (reason) {
+      setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể check-in vé.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const searchAndVerify = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!token || !searchCode.trim()) return;
+    if (workspaceMode === 'tickets') {
+      await runTicketCheckIn(searchCode.trim());
+      return;
+    }
     setIsBusy(true);
     setError('');
     setSuccess('');
@@ -287,6 +398,8 @@ export const StaffDashboard = () => {
 
   const checkedIn = bookings.filter((item) => item.checkInStatus === 'CheckedIn').length;
   const ready = bookings.filter((item) => item.checkInStatus === 'Ready').length;
+  const checkedInTickets = ticketParticipants.filter((item) => item.ticketStatus === 'CheckedIn').length;
+  const soldTicketCount = ticketSessions.reduce((total, item) => total + item.soldTickets, 0);
   const courtBookingCount = bookings.filter((item) => item.bookingType === 'Court').length;
   const matchBookingCount = bookings.filter((item) => item.bookingType === 'Match').length;
   const filteredBookings = bookingTypeFilter === 'all'
@@ -357,6 +470,9 @@ export const StaffDashboard = () => {
               onChange={(event) => {
                 setDate(event.target.value);
                 setBookingsPage(1);
+                setTicketsPage(1);
+                setSelectedTicketSession(null);
+                setTicketParticipants([]);
               }}
               type="date"
               value={date}
@@ -364,15 +480,42 @@ export const StaffDashboard = () => {
           </label>
         </section>
 
+        <div aria-label="Chọn nghiệp vụ vận hành" className="mt-4 inline-flex rounded-xl border border-[#d7e2d3] bg-white p-1" role="group">
+          {([
+            { value: 'bookings', label: 'Booking' },
+            { value: 'tickets', label: 'Xé vé' },
+          ] as const).map((item) => (
+            <button
+              aria-pressed={workspaceMode === item.value}
+              className={'min-h-9 rounded-lg px-4 text-[12px] font-extrabold transition-colors '
+                + (workspaceMode === item.value ? 'bg-[#0b2228] text-white' : 'text-[#627168] hover:bg-[#edf4e9]')}
+              key={item.value}
+              onClick={() => {
+                setWorkspaceMode(item.value);
+                setSearchCode('');
+                setError('');
+                setSuccess('');
+              }}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
         <form className="staff-command" onSubmit={searchAndVerify}>
           <div className="staff-command__intro">
             <span className="staff-command__icon">
               <QrCode aria-hidden="true" className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-[13px] font-extrabold">Nhập hoặc quét mã</p>
+              <p className="text-[13px] font-extrabold">
+                {workspaceMode === 'tickets' ? 'Quét mã để check-in vé' : 'Nhập hoặc quét mã'}
+              </p>
               <p className="mt-0.5 truncate text-[10px] font-medium text-[#627168]">
-                Máy quét có thể nhập trực tiếp
+                {workspaceMode === 'tickets'
+                  ? 'Chỉ vé đã thanh toán tại sân được phân công'
+                  : 'Máy quét có thể nhập trực tiếp'}
               </p>
             </div>
           </div>
@@ -383,18 +526,20 @@ export const StaffDashboard = () => {
               autoFocus
               className="staff-control"
               onChange={(event) => setSearchCode(event.target.value)}
-              placeholder="VD: PL-20260622-001"
+              placeholder={workspaceMode === 'tickets' ? 'VD: TK-...' : 'VD: PL-20260622-001'}
               value={searchCode}
             />
           </div>
           <button
             aria-busy={isBusy}
             className="staff-button"
-            disabled={isBusy || !searchCode.trim()}
+            disabled={isBusy || !searchCode.trim() || (workspaceMode === 'tickets' && !canCheckInAnyTicket)}
             type="submit"
           >
-            <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-            Xác minh
+            {workspaceMode === 'tickets'
+              ? <UserCheck aria-hidden="true" className="h-4 w-4" />
+              : <ShieldCheck aria-hidden="true" className="h-4 w-4" />}
+            {workspaceMode === 'tickets' ? 'Check-in vé' : 'Xác minh'}
           </button>
         </form>
 
@@ -414,12 +559,19 @@ export const StaffDashboard = () => {
         </div>
 
         <section aria-label="Tổng quan ca trực" className="staff-metrics">
-          {[
-            { label: 'Đơn trên trang', value: bookings.length, icon: CalendarDays },
-            { label: 'Sẵn sàng', value: ready, icon: Clock3 },
-            { label: 'Đã vào sân', value: checkedIn, icon: UserCheck },
-            { label: 'Cảnh báo', value: notifications.length, icon: BellRing },
-          ].map((item) => (
+          {(workspaceMode === 'bookings'
+            ? [
+                { label: 'Đơn trên trang', value: bookings.length, icon: CalendarDays },
+                { label: 'Sẵn sàng', value: ready, icon: Clock3 },
+                { label: 'Đã vào sân', value: checkedIn, icon: UserCheck },
+                { label: 'Cảnh báo', value: notifications.length, icon: BellRing },
+              ]
+            : [
+                { label: 'Buổi trên trang', value: ticketSessions.length, icon: CalendarDays },
+                { label: 'Vé đã bán', value: soldTicketCount, icon: QrCode },
+                { label: 'Đã check-in', value: checkedInTickets, icon: UserCheck },
+                { label: 'Còn chỗ', value: ticketSessions.reduce((total, item) => total + item.remainingTickets, 0), icon: Clock3 },
+              ]).map((item) => (
             <div className="staff-metric" key={item.label}>
               <div className="min-w-0">
                 <p className="staff-metric__value">{item.value}</p>
@@ -430,6 +582,7 @@ export const StaffDashboard = () => {
           ))}
         </section>
 
+        {workspaceMode === 'bookings' && (
         <section className="staff-workspace">
           <section className="staff-panel">
             <div className="staff-panel__header">
@@ -846,6 +999,245 @@ export const StaffDashboard = () => {
             </div>
           </aside>
         </section>
+        )}
+
+        {workspaceMode === 'tickets' && (
+          <section className="staff-workspace">
+            <section className="staff-panel">
+              <div className="staff-panel__header">
+                <div>
+                  <h2>
+                    Buổi xé vé ngày {new Intl.DateTimeFormat('vi-VN').format(new Date(date + 'T00:00:00'))}
+                  </h2>
+                  <p>Chỉ hiển thị buổi tại cụm sân được phân công quyền check-in.</p>
+                </div>
+                <span className="staff-status is-neutral">{ticketPagination.totalCount} buổi</span>
+              </div>
+
+              {isTicketLoading ? (
+                <div aria-busy="true" aria-label="Đang tải các buổi xé vé" role="status">
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <div className="staff-skeleton-row" key={index} />
+                  ))}
+                </div>
+              ) : !ticketSessions.length ? (
+                <div className="staff-list-state">
+                  <div>
+                    <span className="staff-list-state__icon">
+                      <QrCode aria-hidden="true" className="h-5 w-5" />
+                    </span>
+                    <p className="mt-3 text-[13px] font-extrabold text-[#0b2228]">Chưa có buổi xé vé</p>
+                    <p className="mt-1 text-[11px]">Thử chọn ngày khác hoặc kiểm tra quyền tại cụm sân.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="staff-booking-list">
+                  {ticketSessions.map((session, index) => (
+                    <button
+                      aria-pressed={selectedTicketSession?.ticketSessionId === session.ticketSessionId}
+                      className={'staff-booking-row '
+                        + (selectedTicketSession?.ticketSessionId === session.ticketSessionId ? 'is-selected' : '')}
+                      key={session.ticketSessionId}
+                      onClick={() => void selectTicketSession(session)}
+                      type="button"
+                    >
+                      <span className="staff-booking-index">
+                        {String((ticketPagination.page - 1) * ticketPagination.pageSize + index + 1).padStart(2, '0')}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p className="staff-booking-code">{session.title}</p>
+                          <span className="staff-type-badge is-match">Xé vé</span>
+                        </div>
+                        <p className="mt-1 truncate text-[11px] font-bold text-[#627168]">
+                          {session.skillLevel} · {session.playFormat}
+                        </p>
+                        <p className="mt-1 truncate text-[10px] text-[#627168]">
+                          <MapPin aria-hidden="true" className="mr-1 inline h-3 w-3" />
+                          {session.venueName}, Sân {session.courtNumber}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="whitespace-nowrap text-[12px] font-extrabold">
+                          {time(session.startTime)} - {time(session.endTime)}
+                        </p>
+                        <p className="mt-1 truncate text-[10px] text-[#627168]">
+                          {money.format(session.ticketPrice)}/vé
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <span className={'staff-status ' + (session.remainingTickets > 0 ? 'is-ready' : 'is-warning')}>
+                          {session.soldTickets}/{session.maxPlayers} vé
+                        </span>
+                        <p className="mt-1.5 truncate text-[10px] font-bold text-[#627168]">
+                          Còn {session.remainingTickets} chỗ
+                        </p>
+                      </div>
+                      <ArrowRight aria-hidden="true" className="hidden h-4 w-4 text-[#627168] sm:block" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {ticketPagination.totalPages > 1 && (
+                <div className="staff-pagination">
+                  <PaginationControls
+                    page={ticketPagination}
+                    onPageChange={(nextPage) => {
+                      setTicketsPage(nextPage);
+                      setSelectedTicketSession(null);
+                      setTicketParticipants([]);
+                    }}
+                  />
+                </div>
+              )}
+            </section>
+
+            <aside className="staff-detail-column" ref={detailPanelRef}>
+              {!selectedTicketSession ? (
+                <div className="staff-empty-detail">
+                  <div>
+                    <span className="staff-empty-detail__icon">
+                      <UserCheck aria-hidden="true" className="h-5 w-5" />
+                    </span>
+                    <p className="mt-3 text-[13px] font-extrabold">Chọn buổi xé vé</p>
+                    <p className="mt-1 max-w-[32ch] text-[11px] leading-5 text-[#627168]">
+                      Danh sách người tham gia và trạng thái check-in sẽ xuất hiện tại đây.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  className="staff-detail-stack"
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 5 }}
+                  key={selectedTicketSession.ticketSessionId}
+                  transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+                >
+                  <section className="staff-panel">
+                    <div className="staff-detail-hero">
+                      <p className="text-[10px] font-bold text-white/60">Buổi xé vé</p>
+                      <h2 className="break-words">{selectedTicketSession.title}</h2>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="staff-status">Sân {selectedTicketSession.courtNumber}</span>
+                        <span className="staff-status">{selectedTicketSession.skillLevel}</span>
+                        <span className="staff-status">{selectedTicketSession.playFormat}</span>
+                      </div>
+                    </div>
+                    <div className="staff-detail-body">
+                      <dl className="staff-detail-grid">
+                        <div className="staff-detail-item">
+                          <dt>Cụm sân</dt>
+                          <dd>{selectedTicketSession.venueName}</dd>
+                        </div>
+                        <div className="staff-detail-item">
+                          <dt>Khung giờ</dt>
+                          <dd>{time(selectedTicketSession.startTime)} - {time(selectedTicketSession.endTime)}</dd>
+                        </div>
+                        <div className="staff-detail-item">
+                          <dt>Vé đã bán</dt>
+                          <dd>{selectedTicketSession.soldTickets}/{selectedTicketSession.maxPlayers}</dd>
+                        </div>
+                        <div className="staff-detail-item">
+                          <dt>Giá vé</dt>
+                          <dd>{money.format(selectedTicketSession.ticketPrice)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </section>
+
+                  <section className="staff-panel">
+                    <div className="staff-section">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="staff-detail-title">Người tham gia</h3>
+                          <p className="mt-1 text-[10px] text-[#627168]">
+                            {ticketParticipants.length} vé trong danh sách
+                          </p>
+                        </div>
+                        <span className="staff-status is-success">
+                          {ticketParticipants.filter((item) => item.ticketStatus === 'CheckedIn').length} đã vào sân
+                        </span>
+                      </div>
+
+                      {!canCheckInSelectedTicket && (
+                        <p className="mt-3 text-[11px] font-semibold text-[#a32e28]">
+                          Bạn chưa được cấp quyền check-in tại cụm sân này.
+                        </p>
+                      )}
+
+                      {isTicketDetailLoading ? (
+                        <div aria-busy="true" className="mt-3" role="status">
+                          {Array.from({ length: 4 }).map((_, index) => (
+                            <div className="staff-skeleton-row" key={index} />
+                          ))}
+                        </div>
+                      ) : !ticketParticipants.length ? (
+                        <p className="mt-4 text-center text-[11px] text-[#627168]">Chưa có người đăng ký.</p>
+                      ) : (
+                        <div className="staff-participants">
+                          {ticketParticipants.map((participant, index) => {
+                            const isCheckedIn = participant.ticketStatus === 'CheckedIn'
+                              || Boolean(participant.checkedInAt);
+                            const isPaid = participant.ticketStatus === 'Paid'
+                              && participant.paymentStatus === 'Paid';
+                            const statusClass = isCheckedIn
+                              ? 'is-success'
+                              : isPaid
+                                ? 'is-ready'
+                                : participant.ticketStatus === 'Cancelled'
+                                  || participant.ticketStatus === 'Expired'
+                                  || participant.ticketStatus === 'Refunded'
+                                  ? 'is-danger'
+                                  : 'is-warning';
+
+                            return (
+                              <article className="staff-participant" key={participant.sessionTicketId}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-[12px] font-extrabold">
+                                      {index + 1}. {participant.playerName}
+                                    </p>
+                                    <p className="mt-1 break-all font-mono text-[10px] font-bold text-[#477313]">
+                                      {participant.ticketCode}
+                                    </p>
+                                    <p className="mt-1 text-[10px] text-[#627168]">
+                                      {viLabel(paymentStatusLabel, participant.paymentStatus)}
+                                      {participant.checkedInAt ? ' · ' + dateTime(participant.checkedInAt) : ''}
+                                    </p>
+                                  </div>
+                                  <span className={'staff-status ' + statusClass}>
+                                    {viLabel(ticketStatusLabel, participant.ticketStatus)}
+                                  </span>
+                                </div>
+                                <button
+                                  className="staff-button mt-3 w-full"
+                                  disabled={isBusy || !canCheckInSelectedTicket || !isPaid || isCheckedIn}
+                                  onClick={() => window.confirm('Xác nhận ' + participant.playerName + ' đã vào sân?')
+                                    && void runTicketCheckIn(participant.ticketCode)}
+                                  type="button"
+                                >
+                                  {isCheckedIn
+                                    ? <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                                    : <UserCheck aria-hidden="true" className="h-4 w-4" />}
+                                  {isCheckedIn ? 'Đã check-in' : isPaid ? 'Check-in vé' : 'Chưa thể check-in'}
+                                </button>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <p className="mt-3 text-[10px] leading-5 text-[#627168]">
+                        Hệ thống chỉ cho phép vé đã thanh toán check-in trong khung giờ hợp lệ và từ chối vé đã dùng.
+                      </p>
+                    </div>
+                  </section>
+                </motion.div>
+              )}
+            </aside>
+          </section>
+        )}
       </main>
     </div>
   );

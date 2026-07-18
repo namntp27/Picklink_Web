@@ -10,6 +10,7 @@ import {
   Lock,
   RefreshCw,
   Sparkles,
+  Ticket,
   Unlock,
   Wrench,
   XCircle,
@@ -74,6 +75,7 @@ const slotStatusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Blocked: 'Đã khóa',
   Maintenance: 'Bảo trì',
   Event: 'Sự kiện',
+  TicketSession: 'Xé vé',
   Closed: 'Đã đóng cửa',
   Inactive: 'Ngừng hoạt động',
 };
@@ -159,7 +161,7 @@ export const OwnerDashboard = () => {
   const bookedCount = visibleSlots.filter((slot) => slot.status === 'Booked').length;
   const holdingCount = visibleSlots.filter((slot) => slot.status === 'Holding').length;
   const availableCount = visibleSlots.filter((slot) => slot.status === 'Available').length;
-  const operationCount = visibleItems.filter((item) => item.isOwnerEntry).length;
+  const operationCount = visibleItems.filter((item) => item.isOwnerEntry && item.entryType !== 'TicketSession').length;
   const revenue = visibleItems
     .filter((item) => item.status === 'Confirmed')
     .reduce((sum, item) => sum + item.amount, 0);
@@ -355,7 +357,11 @@ export const OwnerDashboard = () => {
                   <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Số tiền</span><strong className="text-right">{selectedSlotItem.amount ? money.format(selectedSlotItem.amount) : '-'}</strong></div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {selectedSlotItem.isOwnerEntry ? (
+                  {selectedSlotItem.entryType === 'TicketSession' ? (
+                    <Link className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white" to="/owner/ticket-sessions">
+                      <Ticket className="h-4 w-4" /> Quản lý buổi xé vé
+                    </Link>
+                  ) : selectedSlotItem.isOwnerEntry ? (
                     <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2 text-[13px] font-bold" onClick={() => void unlock(selectedSlotItem)} type="button">
                       <Unlock className="h-4 w-4" /> Mở khóa lịch
                     </button>
