@@ -147,6 +147,7 @@ export type BookingHolding = {
 };
 
 export type BookingHoldSlot = {
+  date?: string;
   courtId: number;
   startTime: string;
 };

@@ -15,8 +15,7 @@ test('court timeline grid matches the venue timetable states from the reference'
     assert.match(gridSource, new RegExp(label));
   }
 
-  assert.match(gridSource, /0822 046 686/);
-  assert.match(gridSource, /0981 181 551/);
+  assert.match(gridSource, /áp dụng cả tháng/i);
   assert.match(gridSource, /buildTimelineTicks/);
   assert.match(gridSource, /gridTemplateColumns/);
   assert.match(gridSource, /timeToMinutes/);
@@ -71,9 +70,9 @@ test('court schedule limits player booking dates to one month from today', () =>
 });
 
 test('court schedule allows non-consecutive slots but one child court per time', () => {
-  assert.doesNotMatch(scheduleSource, /Ch? du?c ch?n c�c slot li�n ti?p/);
+  assert.doesNotMatch(scheduleSource, /Ch? du?c ch?n cï¿½c slot liï¿½n ti?p/);
   assert.doesNotMatch(scheduleSource, /const consecutive = candidate\.every/);
-  assert.match(scheduleSource, /current\.filter\(\(item\) => !item\.endsWith\(`:\$\{startTime\}`\)\)/);
+  assert.match(scheduleSource, /slotKey\(item\.courtId, time\(item\.startTime\)\)\.endsWith\(':' \+ startTime\)/);
 });
 
 test('court schedule ignores its own realtime holding event before checkout navigation', () => {

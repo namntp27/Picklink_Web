@@ -7,9 +7,6 @@ type CourtTimelineGridProps = {
   disabledSlotKeys?: string[];
 };
 
-const timelineHelpPhone = '0822 046 686';
-const timelineBackupPhone = '0981 181 551';
-
 export const timeToMinutes = (value: string) => {
   const [hour, minute] = value.slice(0, 5).split(':').map(Number);
   return hour * 60 + minute;
@@ -84,9 +81,8 @@ export const CourtTimelineGrid = ({
       </div>
 
       <p className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">
-        <span className="font-black text-[#f97316]">Lưu ý:</span> Nếu bạn cần đặt lịch tháng vui lòng liên hệ {timelineHelpPhone} hoặc {timelineBackupPhone} để được hỗ trợ
+        <span className="font-black text-[#f97316]">Lưu ý:</span> Bạn có thể chọn các slot rời nhau; dùng mục áp dụng cả tháng để sao chép lịch đang chọn.
       </p>
-
       <div className="overflow-x-auto">
         <div className="min-w-[1080px]">
           <div

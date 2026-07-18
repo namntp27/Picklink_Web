@@ -6,13 +6,13 @@ const scheduleSource = readFileSync(new URL('../../../src/pages/courts/CourtSche
 
 test('court schedule permits one child court per time slot', () => {
   assert.match(scheduleSource, /const slotKey = \(courtId: number, startTime: string\)/);
-  assert.match(scheduleSource, /selectedSlotKeys\.includes\(slotKey\(slot\.courtId/);
-  assert.match(scheduleSource, /current\.filter\(\(item\) => !item\.endsWith\(`:\$\{startTime\}`\)\)/);
-  assert.match(scheduleSource, /bookingId=\$\{booking\.bookingId\}/);
+  assert.match(scheduleSource, /selectedSlotKeys = selectedSlotsForDate\.map/);
+  assert.match(scheduleSource, /currentDateSlots\.filter\(\(item\) => !slotKey\(item\.courtId, time\(item\.startTime\)\)\.endsWith\(':' \+ startTime\)\)/);
+  assert.match(scheduleSource, /bookingId=' \+ booking\.bookingId/);
 });
 
 test('court schedule continues an owned holding from the bottom action', () => {
   assert.match(scheduleSource, /const resumableHoldingBookingId = availability\?\.slots\.find/);
-  assert.ok(scheduleSource.includes('navigate(`/checkout?bookingId=${resumableHoldingBookingId}'));
+  assert.ok(scheduleSource.includes("navigate('/checkout?bookingId=' + resumableHoldingBookingId"));
   assert.match(scheduleSource, /!selectedSlots\.length && !resumableHoldingBookingId/);
 });
