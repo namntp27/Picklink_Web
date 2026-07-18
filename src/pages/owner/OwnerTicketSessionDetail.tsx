@@ -7,9 +7,11 @@ import {
   Edit3,
   Loader2,
   MapPin,
+  QrCode,
   RotateCcw,
   Send,
   Ticket,
+  UserCheck,
   UsersRound,
   X,
   XCircle,
@@ -19,6 +21,7 @@ import { ApiError } from '../../api/client';
 import { getOwnerVenues, type OwnerVenue } from '../../api/owner';
 import {
   cancelOwnerTicketSession,
+  checkInOwnerSessionTicket,
   completeOwnerAdditionalRefund,
   completeOwnerTicketRefund,
   getOwnerTicketSessionParticipants,
@@ -139,6 +142,7 @@ export const OwnerTicketSessionDetail = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [checkInCode, setCheckInCode] = useState('');
   const [refundTarget, setRefundTarget] = useState<RefundTarget | null>(null);
 
   const load = useCallback(async (showLoading = true) => {
@@ -260,6 +264,19 @@ export const OwnerTicketSessionDetail = () => {
       : () => completeOwnerAdditionalRefund(token, ticketSessionId, target.ticket.sessionTicketId, target.transaction.sePayTransactionId, reference);
     if (await perform('refund', action, 'Đã ghi nhận hoàn tiền thành công.')) setRefundTarget(null);
   };
+  const checkInTicket = async (code: string) => {
+    const ticketCode = code.trim();
+    if (!token || ticketCode.length < 3) return;
+    if (await perform(
+      'check-in',
+      () => checkInOwnerSessionTicket(token, ticketSessionId, ticketCode),
+      `Đã check-in vé ${ticketCode}.`,
+    )) setCheckInCode('');
+  };
+  const submitCheckIn = (event: FormEvent) => {
+    event.preventDefault();
+    void checkInTicket(checkInCode);
+  };
 
   return (
     <OwnerShell activeId="ticketSessions">
@@ -325,7 +342,36 @@ export const OwnerTicketSessionDetail = () => {
           <section className="owner-panel">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4">
               <div><h2 className="flex items-center gap-2 text-[18px]"><UsersRound className="h-5 w-5 text-primary" /> Người tham gia</h2><p className="mt-1 text-[12px] text-on-surface-variant">Theo dõi vé, thanh toán, check-in và các khoản cần hoàn.</p></div>
-              <span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{details.tickets.length} lượt đăng ký</span>
+              <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto">
+                {session.status === 'Published' && (
+                  <form className="flex w-full items-center gap-2 sm:w-auto" onSubmit={submitCheckIn}>
+                    <label className="sr-only" htmlFor="owner-ticket-check-in-code">Mã vé để check-in</label>
+                    <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+                      <QrCode aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                      <input
+                        autoComplete="off"
+                        className="w-full pl-9 pr-3"
+                        disabled={Boolean(busy)}
+                        id="owner-ticket-check-in-code"
+                        maxLength={40}
+                        onChange={(event) => setCheckInCode(event.target.value)}
+                        placeholder="Nhập hoặc quét mã vé"
+                        value={checkInCode}
+                      />
+                    </div>
+                    <button
+                      aria-busy={busy === 'check-in'}
+                      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-primary px-4 text-[12px] font-bold disabled:opacity-50"
+                      disabled={Boolean(busy) || checkInCode.trim().length < 3}
+                      type="submit"
+                    >
+                      {busy === 'check-in' ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+                      Check-in
+                    </button>
+                  </form>
+                )}
+                <span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{details.tickets.length} lượt đăng ký</span>
+              </div>
             </div>
             {details.tickets.length === 0 ? (
               <div className="grid min-h-44 place-items-center p-6 text-center"><div><Ticket className="mx-auto h-8 w-8 text-on-surface-variant" /><p className="mt-2 text-[13px] font-bold">Chưa có Player đăng ký.</p></div></div>
@@ -336,12 +382,34 @@ export const OwnerTicketSessionDetail = () => {
                   <tbody>{details.tickets.map((ticket) => {
                     const additional = ticket.sePayTransactions.filter((transaction) => transaction.status === 'AdditionalRefundPending');
                     const mainRefund = ticket.status === 'RefundPending' && ticket.paymentStatus === 'RefundPending';
+                    const checkedIn = ticket.status === 'CheckedIn' || Boolean(ticket.checkedInAt);
+                    const canCheckIn = session.status === 'Published'
+                      && ticket.status === 'Paid'
+                      && ticket.paymentStatus === 'Paid'
+                      && !checkedIn;
                     return (
                       <tr className="border-t border-outline-variant align-top" key={ticket.sessionTicketId}>
                         <td><p className="font-bold">{ticket.playerName}</p><p className="mt-1 text-[12px] text-on-surface-variant">{ticket.playerEmail || 'Không có email'}</p><p className="mt-1 font-mono text-[12px] font-bold text-primary">{ticket.ticketCode}</p></td>
                         <td><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badgeClass(ticket.status)}`}>{ticketStatusLabels[ticket.status] ?? ticket.status}</span>{ticket.cancellationReason && <p className="mt-2 max-w-56 text-[11px] text-on-surface-variant">{ticket.cancellationReason}</p>}</td>
                         <td><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badgeClass(ticket.paymentStatus)}`}>{paymentStatusLabels[ticket.paymentStatus] ?? ticket.paymentStatus}</span><p className="mt-2 text-[11px] text-on-surface-variant">{ticket.paidAt ? shortDateTime.format(new Date(ticket.paidAt)) : 'Chưa ghi nhận thanh toán'}</p></td>
-                        <td>{ticket.checkedInAt ? <><span className="inline-flex items-center gap-1 text-[12px] font-bold text-[#477313]"><CheckCircle2 className="h-4 w-4" /> Đã check-in</span><p className="mt-1 text-[11px] text-on-surface-variant">{shortDateTime.format(new Date(ticket.checkedInAt))}</p></> : <span className="text-[12px] text-on-surface-variant">Chưa check-in</span>}</td>
+                        <td>
+                          {checkedIn ? (
+                            <><span className="inline-flex items-center gap-1 text-[12px] font-bold text-[#477313]"><CheckCircle2 className="h-4 w-4" /> Đã check-in</span>{ticket.checkedInAt && <p className="mt-1 text-[11px] text-on-surface-variant">{shortDateTime.format(new Date(ticket.checkedInAt))}</p>}</>
+                          ) : (
+                            <div className="flex flex-col items-start gap-2">
+                              <span className="text-[12px] text-on-surface-variant">Chưa check-in</span>
+                              <button
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-[11px] font-bold disabled:opacity-50"
+                                disabled={Boolean(busy) || !canCheckIn}
+                                onClick={() => window.confirm(`Xác nhận ${ticket.playerName} đã vào sân?`) && void checkInTicket(ticket.ticketCode)}
+                                type="button"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                                {canCheckIn ? 'Check-in vé' : 'Chưa thể check-in'}
+                              </button>
+                            </div>
+                          )}
+                        </td>
                         <td className="font-bold"><Banknote className="mr-1 inline h-4 w-4 text-primary" />{money.format(ticket.amount)}{additional.map((transaction) => <p className="mt-2 text-[11px] font-bold text-amber-800" key={transaction.sePayTransactionId}>Chuyển thêm: {money.format(transaction.amount)}</p>)}</td>
                         <td><div className="flex flex-col items-end gap-2">{mainRefund && <button className="rounded-lg border border-amber-300 px-3 py-2 text-[11px] font-bold text-amber-800" disabled={Boolean(busy)} onClick={() => setRefundTarget({ kind: 'ticket', ticket })} type="button">Hoàn vé</button>}{additional.map((transaction) => <button className="rounded-lg border border-amber-300 px-3 py-2 text-[11px] font-bold text-amber-800" disabled={Boolean(busy)} key={transaction.sePayTransactionId} onClick={() => setRefundTarget({ kind: 'additional', ticket, transaction })} type="button">Hoàn khoản chuyển thêm</button>)}{!mainRefund && additional.length === 0 && <span className="text-[11px] text-on-surface-variant">Không có khoản chờ hoàn</span>}</div></td>
                       </tr>

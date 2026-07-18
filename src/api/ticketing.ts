@@ -170,6 +170,12 @@ export const cancelOwnerTicketSession = (token: string, ticketSessionId: number,
 export const getOwnerTicketSessionParticipants = (token: string, ticketSessionId: number) =>
   apiRequest<TicketSessionParticipants>('/api/owner/ticket-sessions/' + ticketSessionId + '/participants', {}, token);
 
+export const checkInOwnerSessionTicket = (token: string, ticketSessionId: number, ticketCode: string) =>
+  apiRequest<SessionTicket>('/api/owner/ticket-sessions/' + ticketSessionId + '/tickets/check-in', {
+    method: 'POST',
+    body: JSON.stringify({ ticketCode: ticketCode.trim() }),
+  }, token);
+
 export const completeOwnerTicketRefund = (token: string, ticketSessionId: number, ticketId: number, reference: string) =>
   apiRequest<SessionTicket>('/api/owner/ticket-sessions/' + ticketSessionId + '/tickets/' + ticketId + '/refund', {
     method: 'POST',

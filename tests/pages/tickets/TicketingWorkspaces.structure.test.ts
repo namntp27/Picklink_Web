@@ -30,6 +30,10 @@ test('owner and staff ticketing screens expose protected lifecycle actions', () 
   assert.match(ownerDetail, /completeOwnerTicketRefund/);
   assert.match(ownerDetail, /completeOwnerAdditionalRefund/);
   assert.match(ownerDetail, /AdditionalRefundPending/);
+  assert.match(ownerDetail, /checkInOwnerSessionTicket/);
+  assert.match(ownerDetail, /onSubmit={submitCheckIn}/);
+  assert.match(ownerDetail, /ticket\.status === 'Paid'\s*&& ticket\.paymentStatus === 'Paid'/);
+  assert.match(ownerDetail, /ticket\.status === 'CheckedIn'\s*\|\| Boolean\(ticket\.checkedInAt\)/);
   assert.match(staff, /getStaffTicketSessions/);
   assert.match(staff, /getStaffTicketSessionParticipants/);
   assert.match(staff, /checkInSessionTicket/);
