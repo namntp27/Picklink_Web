@@ -147,6 +147,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const [matchTransactionTarget, setMatchTransactionTarget] = useState<{
     bookingId: number;
     bookingCode: string;
+    booking: OwnerBookingListItem;
     prefetched?: PrefetchedMatchPayments | null;
   } | null>(null);
   const paymentPrefetchCache = useRef(new globalThis.Map<number, PrefetchedPayment>());
@@ -513,6 +514,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                                   setMatchTransactionTarget({
                                     bookingId: Number(booking.id),
                                     bookingCode: booking.code,
+                                    booking,
                                     prefetched,
                                   });
                                   return;
@@ -581,6 +583,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
             )}
             {matchTransactionTarget && (
               <OwnerMatchTransactionReviewModal
+                booking={matchTransactionTarget.booking}
                 bookingCode={matchTransactionTarget.bookingCode}
                 bookingId={matchTransactionTarget.bookingId}
                 initialPayments={matchTransactionTarget.prefetched?.data}

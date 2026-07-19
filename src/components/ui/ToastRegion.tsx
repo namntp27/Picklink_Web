@@ -82,7 +82,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       <div
         aria-atomic="false"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-3 top-3 z-[120] ml-auto grid max-w-sm gap-2 sm:inset-x-auto sm:right-4 sm:top-4"
+        className="pointer-events-none fixed left-1/2 top-3 z-[120] grid w-[calc(100%_-_1.5rem)] max-w-md -translate-x-1/2 gap-2 sm:top-4"
       >
         <AnimatePresence initial={false}>
           {items.map((item) => {
@@ -92,7 +92,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             return (
               <motion.div
                 animate={{ opacity: 1, scale: 1, x: 0 }}
-                className={`pointer-events-auto flex items-start gap-3 rounded-2xl border bg-white/96 p-3.5 text-[#0b2228] shadow-[0_18px_48px_rgba(8,29,36,0.16)] backdrop-blur-xl ${style.surfaceClassName}`}
+                className={`picklink-toast-item pointer-events-auto flex items-start gap-3 rounded-2xl border bg-white/96 p-3.5 text-[#0b2228] shadow-[0_18px_48px_rgba(8,29,36,0.16)] backdrop-blur-xl ${style.surfaceClassName}`}
                 exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.97, x: 18 }}
                 initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96, x: 24 }}
                 key={item.id}

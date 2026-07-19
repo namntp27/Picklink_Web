@@ -20,6 +20,7 @@ import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { Button } from '../../components/ui/Button';
+import { MatchCheckout } from '../matches/MatchCheckout';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const dateText = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date(value));
@@ -66,7 +67,7 @@ const buildSlotSummaries = (booking: BookingHolding) => {
 
 const hoursText = (hours: number) => Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, '');
 
-export const Checkout = () => {
+const CourtCheckout = () => {
   const [params] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -428,4 +429,9 @@ export const Checkout = () => {
       </main>
     </div>
   );
+};
+
+export const Checkout = () => {
+  const [params] = useSearchParams();
+  return Number.isInteger(Number(params.get('matchId'))) ? <MatchCheckout /> : <CourtCheckout />;
 };

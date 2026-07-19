@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CalendarRange,
@@ -24,6 +24,7 @@ import { getCourtAvailability, type AvailabilitySlot, type CourtAvailability } f
 import {
   acceptMatchInvitation,
   acceptParticipant,
+  cancelPendingMatchBooking,
   createMatchBooking,
   declineMatchInvitation,
   getMatchSlotOptions,
@@ -48,17 +49,13 @@ import {
   type MatchSlotOption,
 } from '../../api/matches';
 import { ApiError } from '../../api/client';
-import {
-  previewBatchPayment,
-  submitBatchBankTransfer,
-  type BatchPaymentPreview,
-} from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
+import { ModalDialog } from '../../components/ui/ModalDialog';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -93,9 +90,8 @@ const paymentStatusClass = (status?: string | null) => {
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
   weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
 }).format(new Date(`${value}T00:00:00`));
-const dateTimeLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-}).format(new Date(value));
+const dateTimeLabel = (value: string) => `${datePart(value)} · ${timePart(value)}`;
+const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency', currency: 'VND', maximumFractionDigits: 0,
 });
@@ -127,7 +123,21 @@ type MonthUnavailableSlot = {
   endTime: string;
   status: AvailabilitySlot['status'];
 };
-type InvitationDraft = {
+type ScheduleConflict = {
+  playerName: string;
+  selectedSlot: {
+    venueName: string;
+    courtNumber: number;
+    startTime: string;
+    endTime: string;
+  };
+  conflictingSlot: {
+    venueName: string;
+    courtNumber: number;
+    startTime: string;
+    endTime: string;
+  };
+};type InvitationDraft = {
   title: string;
   note: string;
   neededPlayerCount: number;
@@ -151,6 +161,8 @@ const todayDateKey = () => {
   const today = new Date();
   return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
 };
+export const defaultMatchBookingDate = (availableDateFrom: string, availableDateTo: string, today = todayDateKey()) =>
+  today >= availableDateFrom && today <= availableDateTo ? today : availableDateFrom;
 const datesInMonth = (value: string) => {
   const [year, month] = value.split('-').map(Number);
   if (!year || !month) return [];
@@ -162,6 +174,7 @@ export const MatchDetail = () => {
   const { id } = useParams();
   const matchId = Number(id);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { token } = useAuth();
   const [match, setMatch] = useState<MatchDetailResponse | null>(null);
   const [messages, setMessages] = useState<MatchMessage[]>([]);
@@ -173,10 +186,9 @@ export const MatchDetail = () => {
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, MatchBookingSlotSelection[]>>({});
   const [bookingMonth, setBookingMonth] = useState('');
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
-  const [receipt, setReceipt] = useState<File | null>(null);
-  const [selectedPaymentPlayerIds, setSelectedPaymentPlayerIds] = useState<number[]>([]);
-  const [batchPreview, setBatchPreview] = useState<BatchPaymentPreview | null>(null);
   const [showVenueMap, setShowVenueMap] = useState(false);
+  const [showBookingRounds, setShowBookingRounds] = useState(false);
+  const [showEditBookingConfirmation, setShowEditBookingConfirmation] = useState(false);
   const [showInvitationEditor, setShowInvitationEditor] = useState(false);
   const [invitationDraft, setInvitationDraft] = useState<InvitationDraft>({
     title: '', note: '', neededPlayerCount: 1, province: '', ward: '', searchRadiusKm: 5,
@@ -197,10 +209,11 @@ export const MatchDetail = () => {
     if (!token || !Number.isInteger(matchId)) return;
     try {
       const result = await getMatchDetail(token, matchId);
+      const defaultBookingDate = defaultMatchBookingDate(result.availableDateFrom, result.availableDateTo);
       setMatch(result);
       setSelectedVenueId((current) => current ?? result.preferredVenues[0]?.venueId ?? null);
-      setBookingDate((current) => current || result.availableDateFrom);
-      setBookingMonth((current) => current || result.availableDateFrom.slice(0, 7));
+      setBookingDate((current) => current || defaultBookingDate);
+      setBookingMonth((current) => current || defaultBookingDate.slice(0, 7));
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải phòng ghép trận.');
@@ -290,34 +303,6 @@ export const MatchDetail = () => {
     void loadSlotOptions();
   }, [selectedVenueId, bookingDate, match?.status, token]);
 
-  useEffect(() => {
-    if (!match || match.status !== 'BookingPending') {
-      setSelectedPaymentPlayerIds([]);
-      setBatchPreview(null);
-      setReceipt(null);
-      return;
-    }
-
-    const targets = match.participants.filter((participant) =>
-      approvedStatus(participant.status)
-      && participant.paymentId
-      && participant.paymentStatus === 'Pending');
-    if (!targets.length) {
-      setSelectedPaymentPlayerIds([]);
-      setBatchPreview(null);
-      setReceipt(null);
-      return;
-    }
-
-    const eligibleIds = new Set(targets.map((participant) => participant.playerId));
-    setSelectedPaymentPlayerIds((current) => {
-      const retained = current.filter((playerId) => eligibleIds.has(playerId));
-      if (retained.length) return retained;
-      return targets.some((participant) => participant.playerId === match.myPlayerId)
-        ? [match.myPlayerId!]
-        : [];
-    });
-  }, [match]);
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
     if (notification.venueId !== selectedVenueId || notification.startTime.slice(0, 10) !== bookingDate) return false;
@@ -350,15 +335,10 @@ export const MatchDetail = () => {
   const pending = match?.participants.filter((participant) => participant.status === 'Pending') ?? [];
   const invited = match?.participants.filter((participant) => participant.status === 'Invited') ?? [];
   const isApprovedMember = Boolean(match?.isHost || match?.myParticipantStatus && approvedStatus(match.myParticipantStatus));
-  const paymentTargets = useMemo(
-    () => approved.filter((participant) => participant.paymentId),
-    [approved],
-  );
-  const selectedPaymentKey = useMemo(
-    () => [...selectedPaymentPlayerIds].sort((left, right) => left - right).join(','),
-    [selectedPaymentPlayerIds],
-  );
   const isFull = Boolean(match && approved.length === match.requiredPlayerCount);
+  const canEditPendingBooking = match?.status === 'BookingPending'
+    && approved.length === match.requiredPlayerCount
+    && approved.every((participant) => participant.paymentStatus === 'Pending');
   const slotKey = (slot: AvailabilitySlot) => String(slot.courtId) + ":" + timePart(slot.startTime);
   const selectedSlotsForDate = selectedSlotsByDate[bookingDate] ?? [];
   const selectedSlotKeys = selectedSlotsForDate.map((slot) => String(slot.courtId) + ':' + timePart(slot.startTime));
@@ -472,28 +452,6 @@ export const MatchDetail = () => {
     }
   };
 
-  useEffect(() => {
-    if (!token || !match?.bookingId || !selectedPaymentKey) {
-      setBatchPreview(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    setBatchPreview(null);
-    const payerIds = selectedPaymentKey.split(',').map(Number);
-    void previewBatchPayment(token, match.bookingId, payerIds)
-      .then((preview) => {
-        if (!cancelled) setBatchPreview(preview);
-      })
-      .catch((reason) => {
-        if (cancelled) return;
-        setBatchPreview(null);
-        setError(reason instanceof Error ? reason.message : 'Không thể tạo mã thanh toán gộp.');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [match?.bookingId, selectedPaymentKey, token]);
 
   const selectSlot = (slot: AvailabilitySlot) => {
     if (slot.status !== 'Available'
@@ -596,16 +554,40 @@ export const MatchDetail = () => {
     }
   };
 
-  const createBooking = () => {
+  const createBooking = async (allowScheduleConflicts = false) => {
     if (!token || !selectedSlots.length) {
       setError('Vui lòng chọn ít nhất một slot.');
       return;
     }
-    void run(() => createMatchBooking(token, matchId, {
-      slots: selectedSlots.map(({ courtId, startTime, endTime }) => ({ courtId, startTime, endTime })),
-    }));
+    setIsBusy(true);
+    setError('');
+    try {
+      await createMatchBooking(token, matchId, {
+        slots: selectedSlots.map(({ courtId, startTime, endTime }) => ({ courtId, startTime, endTime })),
+        allowScheduleConflicts,
+      });
+      await loadMatch();
+    } catch (reason) {
+      const body = reason instanceof ApiError ? reason.body as {
+        requiresScheduleConflictConfirmation?: boolean;
+        conflicts?: ScheduleConflict[];
+      } | undefined : undefined;
+      if (!allowScheduleConflicts && body?.requiresScheduleConflictConfirmation && body.conflicts?.length) {
+        const details = body.conflicts.map((conflict) =>
+          `${conflict.playerName} đã có lịch trùng với slot được chọn.\n`
+          + `Lịch đã có: ${conflict.conflictingSlot.venueName} · Sân ${conflict.conflictingSlot.courtNumber} · ${datePart(conflict.conflictingSlot.startTime)} · ${timePart(conflict.conflictingSlot.startTime)}–${timePart(conflict.conflictingSlot.endTime)}`
+          + `\nSlot đang chọn: ${conflict.selectedSlot.venueName} · Sân ${conflict.selectedSlot.courtNumber} · ${datePart(conflict.selectedSlot.startTime)} · ${timePart(conflict.selectedSlot.startTime)}–${timePart(conflict.selectedSlot.endTime)}`,
+        );
+        if (window.confirm(`${details.join('\n\n')}\n\nBạn có muốn tiếp tục tạo booking trùng lịch không?`)) {
+          await createBooking(true);
+        }
+        return;
+      }
+      setError(reason instanceof Error ? reason.message : 'Không thể tạo booking.');
+    } finally {
+      setIsBusy(false);
+    }
   };
-
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!token || !message.trim()) return;
@@ -620,31 +602,6 @@ export const MatchDetail = () => {
     }
   };
 
-  const pay = async () => {
-    if (!token || !match?.bookingId || !receipt || !batchPreview || selectedPaymentPlayerIds.length === 0) {
-      setError('Vui lòng chọn thành viên và ảnh biên lai.');
-      return;
-    }
-    setIsBusy(true);
-    setError('');
-    try {
-      await submitBatchBankTransfer(token, match.bookingId!, selectedPaymentPlayerIds, receipt);
-      setReceipt(null);
-      setSelectedPaymentPlayerIds([]);
-      setBatchPreview(null);
-      await loadMatch();
-    } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 409) {
-        setReceipt(null);
-        setSelectedPaymentPlayerIds([]);
-        setBatchPreview(null);
-        await loadMatch();
-      }
-      setError(reason instanceof Error ? reason.message : 'Không thể gửi thanh toán gộp.');
-    } finally {
-      setIsBusy(false);
-    }
-  };
 
   if (!match) {
     return (
@@ -915,7 +872,7 @@ export const MatchDetail = () => {
           </div>
 
           {isApprovedMember && match.status === 'Booked' && (
-            <section className="match-alert" role="status">
+            <section className="match-alert" role="alert">
               <strong>{bookingHasEnded ? 'Lượt booking gần nhất đã hết giờ.' : 'Booking đã thanh toán thành công.'}</strong> Bạn có thể chọn slot bên dưới để tạo booking tiếp theo ngay.
             </section>
           )}
@@ -979,7 +936,7 @@ export const MatchDetail = () => {
                   <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-primary">{currency.format(estimatedAmountPerPlayer)}</p></div>
                 </div>
               )}
-              <button className="community-button mt-4 w-full" disabled={isBusy || !selectedSlots.length} onClick={createBooking} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
+              <button className="community-button mt-4 w-full" disabled={isBusy || !selectedSlots.length} onClick={() => void createBooking()} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
             </section>
           )}
 
@@ -1002,30 +959,8 @@ export const MatchDetail = () => {
           {isApprovedMember && match.bookingCheckIns.length > 0 && (
             <section className="match-checkin-card">
               <p className="match-eyebrow">check-in theo lượt</p>
-              <h3>Các lượt booking</h3>
-              <div className="mt-3 space-y-3">
-                {match.bookingCheckIns.map((booking, bookingIndex) => (
-                  <article className="rounded-xl border border-white/20 bg-white/10 p-2.5" key={booking.bookingId}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div><p className="text-[11px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p><p className="mt-0.5 text-[10px] text-white/70">{booking.bookingStatus === 'Confirmed' ? 'Đã thanh toán' : 'Chờ thanh toán'}</p></div>
-                      <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-bold">{booking.checkInGroups.length} sân / khung giờ</span>
-                    </div>
-                    <div className="mt-2 space-y-2">
-                      {booking.checkInGroups.map((group) => (
-                        <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={group.bookingCheckInGroupId}>
-                          <p className="text-[11px] font-bold text-white">Sân {group.courtNumber} · {dateTimeLabel(group.startTime)}–{timePart(group.endTime)}</p>
-                          {group.checkInCode ? (
-                            <div className="match-checkin-code">{group.checkInCode}</div>
-                          ) : (
-                            <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-              <p className="mt-3">Mỗi sân hoặc khung giờ rời nhau có một mã riêng; mã chỉ mở trong thời gian check-in.</p>
+              <div className="flex items-center justify-between gap-3"><h3>Các lượt booking</h3><button className="rounded-lg bg-white/15 px-3 py-1.5 text-[11px] font-extrabold text-white hover:bg-white/25" onClick={() => setShowBookingRounds(true)} type="button">{`Xem danh s\u00e1ch (${match.bookingCheckIns.length})`}</button></div>
+
             </section>
           )}
 
@@ -1069,85 +1004,21 @@ export const MatchDetail = () => {
             <section className="community-panel match-payment-card">
               <p className="match-eyebrow">thanh toán</p>
               <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán booking</h3>
-              <div className="match-payment-amount">
-                <span>{selectedPaymentPlayerIds.length} phần đã chọn</span>
-                <strong>{batchPreview ? currency.format(batchPreview.totalAmount) : 'Chưa có'}</strong>
-              </div>
-              {paymentTargets.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="text-[12px] font-bold text-on-surface-variant">Chọn các thành viên bạn muốn thanh toán cùng lúc</p>
-                  {paymentTargets.map((participant) => {
-                    const canSelect = participant.paymentStatus === 'Pending';
-                    const isSelected = selectedPaymentPlayerIds.includes(participant.playerId);
-                    return (
-                      <label
-                        className={`flex items-start gap-3 rounded-lg border p-3 ${isSelected ? 'border-primary bg-primary/5' : 'border-outline-variant'} ${canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
-                        key={participant.playerId}
-                      >
-                        <input
-                          checked={isSelected}
-                          className="mt-1 h-4 w-4 accent-primary"
-                          disabled={!canSelect || isBusy}
-                          onChange={(event) => {
-                            setSelectedPaymentPlayerIds((current) => event.target.checked
-                              ? [...current, participant.playerId]
-                              : current.filter((playerId) => playerId !== participant.playerId));
-                            setReceipt(null);
-                          }}
-                          type="checkbox"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center justify-between gap-2">
-                            <strong className="text-[13px]">{participant.playerName}</strong>
-                            <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
-                              {paymentStatusLabels[participant.paymentStatus ?? ''] ?? participant.paymentStatus ?? 'Chưa có trạng thái'}
-                            </span>
-                          </span>
-                          <span className="mt-1 block text-[12px] text-on-surface-variant">
-                            {currency.format(match.amountPerPlayer)}
-                          </span>
-                          {participant.paymentStatus === 'Pending' && participant.paymentRejectionReason && (
-                            <span className="mt-2 block text-[12px] font-bold text-red-700">
-                              Lần gửi trước bị từ chối: {participant.paymentRejectionReason}
-                            </span>
-                          )}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-              {paymentTargets.length === 0 && (
-                <p className="mt-3 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">
-                  Chưa có khoản thanh toán nào cho nhóm chơi này.
-                </p>
-              )}
-              {selectedPaymentPlayerIds.length > 0 && !batchPreview && (
-                <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px] font-bold text-on-surface-variant">
-                  Đang tạo mã QR cho giao dịch gộp...
-                </p>
-              )}
-              {batchPreview && (
-                <>
-                  <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px]">
-                    Thanh toán một lần cho <strong>{batchPreview.memberNames.join(', ')}</strong>.
-                  </p>
-                  <img alt="QR thanh toán gộp" className="mx-auto mt-4 w-full max-w-[250px] rounded-lg border" src={batchPreview.qrImageUrl} />
-                  <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-center text-[12px]">
-                    Nội dung: <strong>{batchPreview.transferContent}</strong>
-                  </p>
-                  <label className="mt-3 block cursor-pointer rounded-lg border border-dashed border-primary p-3 text-center text-[13px] font-bold text-primary">
-                    {receipt?.name || 'Chọn một ảnh biên lai'}
-                    <input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
-                  </label>
-                  <button className="community-button mt-3 w-full" disabled={!receipt || isBusy || !batchPreview} onClick={() => void pay()} type="button">
-                    Gửi thanh toán cho {selectedPaymentPlayerIds.length} người
-                  </button>
-                </>
+              <p className="mt-3 text-[13px] leading-6 text-on-surface-variant">Chọn người cần thanh toán, quét QR và gửi biên lai tại trang thanh toán riêng.</p>
+              <button
+                className="community-button mt-4 w-full"
+                onClick={() => navigate(`/checkout?bookingId=${match.bookingId}&date=${encodeURIComponent(match.startTime?.slice(0, 10) ?? bookingDate)}&matchId=${matchId}`)}
+                type="button"
+              >
+                <CreditCard className="h-4 w-4" /> Mở trang thanh toán
+              </button>
+              {canEditPendingBooking && (
+                <button className="community-button-secondary mt-2 w-full" disabled={isBusy} onClick={() => setShowEditBookingConfirmation(true)} type="button">
+                  <CalendarRange className="h-4 w-4" /> Sửa booking
+                </button>
               )}
             </section>
           )}
-
           <section className="community-panel p-4">
             <h3 className="flex items-center gap-2 text-[18px] font-bold"><MessageCircle className="h-5 w-5 text-primary" /> Chat phòng</h3>
             {!match.conversationId ? (
@@ -1176,6 +1047,66 @@ export const MatchDetail = () => {
         </aside>
       </main>
 
+
+      {showEditBookingConfirmation && (
+        <ModalDialog aria-labelledby="edit-match-booking-title" canClose={!isBusy} className="w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white p-5 text-[#0b2228] shadow-2xl" closeOnBackdrop={!isBusy} onRequestClose={() => setShowEditBookingConfirmation(false)}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-primary">Sửa booking</p>
+              <h2 className="mt-1 text-xl font-black" id="edit-match-booking-title">Chọn lại slot?</h2>
+            </div>
+            <button aria-label="Đóng" className="rounded-lg p-2 hover:bg-[#eef8e6]" disabled={isBusy} onClick={() => setShowEditBookingConfirmation(false)} type="button"><X className="h-5 w-5" /></button>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-[#526158]">Booking giữ chỗ hiện tại sẽ được hủy và các slot sẽ được mở lại. Chưa có khoản thanh toán nào bị ảnh hưởng.</p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button className="community-button-secondary" disabled={isBusy} onClick={() => setShowEditBookingConfirmation(false)} type="button">Giữ booking</button>
+            <button
+              className="community-button"
+              disabled={isBusy}
+              onClick={() => {
+                if (!token) return;
+                setShowEditBookingConfirmation(false);
+                setSelectedSlotsByDate({});
+                void run(() => cancelPendingMatchBooking(token, matchId));
+              }}
+              type="button"
+            >
+              Hủy giữ chỗ và sửa
+            </button>
+          </div>
+        </ModalDialog>
+      )}
+
+      {showBookingRounds && (
+        <ModalDialog aria-labelledby="match-booking-rounds-title" className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl bg-[#0b2228] p-5 text-white shadow-2xl" onRequestClose={() => setShowBookingRounds(false)}>
+          <div className="flex items-start justify-between gap-4">
+            <div><p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#e2ff57]">{'Check-in theo l\u01b0\u1ee3t'}</p><h2 className="mt-1 text-xl font-black" id="match-booking-rounds-title">{'Danh s\u00e1ch l\u01b0\u1ee3t booking'}</h2></div>
+            <button aria-label={'\u0110\u00f3ng'} className="rounded-lg p-2 hover:bg-white/10" onClick={() => setShowBookingRounds(false)} type="button"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="mt-4 space-y-3">
+                {match.bookingCheckIns.map((booking, bookingIndex) => (
+                  <article className="rounded-xl border border-white/20 bg-white/10 p-2.5" key={booking.bookingId}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div><p className="text-[11px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p><p className="mt-0.5 text-[10px] text-white/70">{booking.bookingStatus === 'Confirmed' ? 'Đã thanh toán' : 'Chờ thanh toán'}</p></div>
+                      <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-bold">{booking.checkInGroups.length} sân / khung giờ</span>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {booking.checkInGroups.map((group) => (
+                        <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={group.bookingCheckInGroupId}>
+                          <p className="text-[11px] font-bold text-white">Sân {group.courtNumber} · {dateTimeLabel(group.startTime)}–{timePart(group.endTime)}</p>
+                          {group.checkInCode ? (
+                            <div className="match-checkin-code">{group.checkInCode}</div>
+                          ) : (
+                            <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+                        </div>
+        </ModalDialog>
+      )}
       {showVenueMap && (
         <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
           <MatchVenueMapDialog

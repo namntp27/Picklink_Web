@@ -87,6 +87,7 @@ export type MatchParticipant = {
   requestedAt: string;
   respondedAt?: string | null;
   paymentId?: number | null;
+  paymentAmount?: number | null;
   paymentStatus?: string | null;
   qrImageUrl?: string | null;
   transferContent?: string | null;
@@ -134,6 +135,7 @@ export type MatchDetailResponse = MatchSummary & {
   checkInCode?: string | null;
   bookingCheckIns: MatchBookingCheckIn[];
   paymentDeadline?: string | null;
+  paymentHoldRemainingSeconds?: number | null;
   myPaymentId?: number | null;
   myQrImageUrl?: string | null;
   myTransferContent?: string | null;
@@ -340,10 +342,13 @@ export const markMatchReadyToBook = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/ready`, { method: 'POST' }, token);
 export const createMatchBooking = (token: string, matchId: number, input: {
   slots: Array<{ courtId: number; startTime: string; endTime: string }>;
+  allowScheduleConflicts?: boolean;
 }) => apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/booking`, {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
+export const cancelPendingMatchBooking = (token: string, matchId: number) =>
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/booking`, { method: 'DELETE' }, token);
 export const getMatchSlotOptions = (
   token: string,
   matchId: number,

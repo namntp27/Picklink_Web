@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Loader2, ReceiptText, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Loader2, MapPin, ReceiptText, XCircle } from 'lucide-react';
 import type { BankTransfer } from '../../../api/booking';
 import { ApiError } from '../../../api/client';
+import type { BookingDetail } from '../../../data/bookings';
 import {
   approveOperatorPayment,
   getOperatorBookingPayments,
@@ -17,15 +18,6 @@ const currency = new Intl.NumberFormat('vi-VN', {
   currency: 'VND',
   maximumFractionDigits: 0,
 });
-const playDateTime = (value: string) => new Intl.DateTimeFormat('vi-VN', {
-  weekday: 'short',
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-}).format(new Date(value));
-
 const statusLabels: Record<string, string> = {
   Pending: 'Chờ gửi biên lai',
   WaitingForConfirmation: 'Chờ xác nhận',
@@ -42,9 +34,23 @@ const statusClasses: Record<string, string> = {
   Cancelled: 'bg-red-100 text-red-700',
 };
 
+type BookingSlot = NonNullable<BankTransfer['slots']>[number];
+
+export const mergeAdjacentBookingSlots = (slots: BookingSlot[]) => {
+  const merged: BookingSlot[] = [];
+  [...slots]
+    .sort((left, right) => left.startTime.slice(0, 10).localeCompare(right.startTime.slice(0, 10)) || left.courtNumber - right.courtNumber || left.startTime.localeCompare(right.startTime))
+    .forEach((slot) => {
+      const previous = merged.at(-1);
+      if (previous && previous.courtId === slot.courtId && previous.startTime.slice(0, 10) === slot.startTime.slice(0, 10) && previous.endTime === slot.startTime) previous.endTime = slot.endTime;
+      else merged.push({ ...slot });
+    });
+  return merged;
+};
 type OwnerMatchTransactionReviewModalProps = {
   bookingId: number;
   bookingCode: string;
+  booking: Pick<BookingDetail, 'address' | 'courtName' | 'slots' | 'totalAmount'>;
   initialPayments?: BankTransfer[];
   initialPaymentsRequest?: Promise<BankTransfer[]>;
   onClose: () => void;
@@ -54,6 +60,7 @@ type OwnerMatchTransactionReviewModalProps = {
 export const OwnerMatchTransactionReviewModal = ({
   bookingId,
   bookingCode,
+  booking,
   initialPayments,
   initialPaymentsRequest,
   onClose,
@@ -109,6 +116,13 @@ export const OwnerMatchTransactionReviewModal = ({
       };
     });
   }, [payments]);
+  const bookingSlots = payments[0]?.slots?.length
+    ? payments[0].slots
+    : booking.slots?.length
+      ? booking.slots
+      : payments[0] ? [{ courtId: payments[0].courtNumber, courtNumber: payments[0].courtNumber, startTime: payments[0].startTime, endTime: payments[0].endTime }] : [];
+  const bookingTimeGroups = mergeAdjacentBookingSlots(bookingSlots);
+  const amountPerPlayer = payments[0]?.amount ?? 0;
 
   const approve = async (payment: BankTransfer) => {
     if (!token) return;
@@ -188,25 +202,8 @@ export const OwnerMatchTransactionReviewModal = ({
           </div>
         ) : (
           <>
-          {payments[0] && (
-            <div className="mt-5 grid gap-3 rounded-xl bg-surface-container-low p-4 sm:grid-cols-3">
-              <div>
-                <p className="text-[11px] font-bold uppercase text-on-surface-variant">Cụm sân</p>
-                <p className="mt-1 text-[14px] font-bold">{payments[0].venueName}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase text-on-surface-variant">Sân con</p>
-                <p className="mt-1 text-[14px] font-bold">Sân {payments[0].courtNumber}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase text-on-surface-variant">Lịch chơi</p>
-                <p className="mt-1 text-[14px] font-bold">
-                  {playDateTime(payments[0].startTime)} - {payments[0].endTime.slice(11, 16)}
-                </p>
-              </div>
-            </div>
-          )}
-          <div className="mt-6 grid gap-5 lg:grid-cols-2">
+          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-5">
             {groupedPayments.map((group) => {
               const payment = group.representative;
               const isBatch = group.payments.length > 1 || payment.groupPaymentCount > 1;
@@ -286,6 +283,16 @@ export const OwnerMatchTransactionReviewModal = ({
                 </article>
               );
             })}
+            </div>
+            <aside className="h-fit rounded-2xl border border-outline-variant bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] lg:sticky lg:top-4">
+              <h3 className="flex items-center gap-2 text-lg font-extrabold"><ReceiptText className="h-5 w-5 text-primary" /> Thông tin booking</h3>
+              <div className="mt-4 space-y-4 text-[13px]">
+                <div className="flex gap-3"><MapPin className="h-5 w-5 shrink-0 text-primary" /><div><strong>{booking.courtName}</strong><p className="mt-1 text-on-surface-variant">{booking.address}</p></div></div>
+                <div className="flex gap-3"><Clock className="h-5 w-5 shrink-0 text-primary" /><div>{bookingTimeGroups.map((slot) => <p className="mt-1 text-on-surface-variant" key={`${slot.courtId}-${slot.startTime}`}>Sân {slot.courtNumber}: {slot.startTime.slice(0, 10).split('-').reverse().join('/')} · {slot.startTime.slice(11, 16)} - {slot.endTime.slice(11, 16)}</p>)}</div></div>
+              </div>
+              <div className="my-4 border-t border-dashed border-outline-variant" />
+              <div className="space-y-2 text-[14px]"><div className="flex justify-between gap-3"><span>Phần mỗi người</span><strong>{currency.format(amountPerPlayer)}</strong></div><div className="flex justify-between gap-3"><span>Tổng booking</span><strong>{currency.format(booking.totalAmount)}</strong></div></div>
+            </aside>
           </div>
           </>
         )}
