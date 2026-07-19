@@ -63,6 +63,7 @@ const OwnerCourtCreate = lazyPage(() => import('./pages/owner/OwnerCourtCreate')
 const OwnerCourtEdit = lazyPage(() => import('./pages/owner/OwnerCourtEdit'), 'OwnerCourtEdit');
 const OwnerCourts = lazyPage(() => import('./pages/owner/OwnerCourts'), 'OwnerCourts');
 const OwnerDashboard = lazyPage(() => import('./pages/owner/OwnerDashboard'), 'OwnerDashboard');
+const OwnerMessages = lazyPage(() => import('./pages/owner/OwnerMessages'), 'OwnerMessages');
 const OwnerNotifications = lazyPage(() => import('./pages/owner/OwnerNotifications'), 'OwnerNotifications');
 const OwnerRevenue = lazyPage(() => import('./pages/owner/OwnerRevenue'), 'OwnerRevenue');
 const OwnerSettings = lazyPage(() => import('./pages/owner/OwnerSettings'), 'OwnerSettings');
@@ -130,12 +131,14 @@ function App() {
                 <Route path="my-tickets" element={<MyTickets />} />
                 <Route path="my-tickets/:id" element={<MyTicketDetail />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="messages" element={<Messages />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="reviews/create" element={<CreateReview />} />
                 <Route path="posts/create" element={<CreatePost />} />
                 <Route path="clubs/create" element={<CreateClub />} />
                 <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={['player']} />}>
+                <Route path="messages" element={<Messages />} />
               </Route>
             </Route>
             <Route element={<PublicOnlyRoute />}>
@@ -158,6 +161,7 @@ function App() {
             </Route>
             <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
               <Route path="/owner" element={<OwnerDashboard />} />
+              <Route path="/owner/messages" element={<OwnerMessages />} />
               <Route path="/owner/notifications" element={<OwnerNotifications />} />
               <Route path="/owner/check-in" element={<OwnerCheckIn />} />
               <Route path="/owner/schedule" element={<OwnerDashboard />} />

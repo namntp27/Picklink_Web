@@ -74,8 +74,11 @@ export type OwnerScheduleItem = {
   endTime: string;
   status: string;
   customerName?: string | null;
+  customerUserId?: number | null;
   amount: number;
   paymentStatus?: string | null;
+  checkInStatus?: string | null;
+  canCancel: boolean;
   isOwnerBlock: boolean;
   isOwnerEntry: boolean;
   entryType?: OwnerScheduleDisplayEntryType | null;
@@ -94,6 +97,7 @@ export type OwnerScheduleSlot = {
   endTime: string;
   status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'TicketSession' | 'Closed' | 'Inactive';
   bookingId?: number | null;
+  checkInStatus?: string | null;
   entryType?: OwnerScheduleDisplayEntryType | null;
   title?: string | null;
 };
@@ -291,7 +295,7 @@ export const getOwnerSchedule = async (token: string, date: string, view: 'day' 
     view: result.view ?? view,
     slotMinutes: result.slotMinutes ?? 30,
     venues: (result.venues ?? []).map(normalizeOwnerVenue),
-    items: (result.items ?? []).map((item) => ({ ...item, isOwnerEntry: item.isOwnerEntry ?? item.isOwnerBlock, entryType: item.entryType ?? (item.isOwnerBlock ? 'Blocked' : null) })),
+    items: (result.items ?? []).map((item) => ({ ...item, canCancel: item.canCancel ?? true, isOwnerEntry: item.isOwnerEntry ?? item.isOwnerBlock, entryType: item.entryType ?? (item.isOwnerBlock ? 'Blocked' : null) })),
     slots: result.slots ?? [],
   };
 };

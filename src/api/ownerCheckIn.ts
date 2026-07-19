@@ -8,11 +8,13 @@ export const getOwnerCheckInBookings = (
   date?: string,
   pagination: PaginationParams = {},
   bookingType?: 'Court' | 'Match',
+  venueId?: number,
   options: Pick<RequestInit, 'signal'> = {},
 ) => {
   const params = new URLSearchParams();
   if (date) params.set('date', date);
   if (bookingType) params.set('bookingType', bookingType);
+  if (venueId) params.set('venueId', String(venueId));
   if (pagination.page) params.set('page', String(pagination.page));
   if (pagination.pageSize) params.set('pageSize', String(pagination.pageSize));
   const query = params.toString();

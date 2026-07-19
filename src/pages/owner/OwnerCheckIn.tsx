@@ -25,6 +25,7 @@ import {
   markOwnerMatchParticipantNoShow,
   verifyOwnerCheckInCode,
 } from '../../api/ownerCheckIn';
+import { getOwnerVenues, type OwnerVenue } from '../../api/owner';
 import type { StaffBooking } from '../../api/staff';
 import { useAuth } from '../../auth/AuthContext';
 import { OwnerShell } from './components/OwnerShell';
@@ -77,6 +78,8 @@ export const OwnerCheckIn = () => {
   const { token } = useAuth();
   const [date, setDate] = useState(localToday);
   const [bookingType, setBookingType] = useState<'all' | 'Court' | 'Match'>('all');
+  const [venues, setVenues] = useState<OwnerVenue[]>([]);
+  const [venueId, setVenueId] = useState(0);
   const [bookings, setBookings] = useState<StaffBooking[]>([]);
   const [selected, setSelected] = useState<StaffBooking | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -96,6 +99,7 @@ export const OwnerCheckIn = () => {
         date,
         { page: 1, pageSize: 100 },
         bookingType === 'all' ? undefined : bookingType,
+        venueId || undefined,
       );
       setBookings(result.items);
       setSelected((current) => current
@@ -106,11 +110,26 @@ export const OwnerCheckIn = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [bookingType, date, token]);
+  }, [bookingType, date, token, venueId]);
 
   useEffect(() => {
     void loadBookings();
   }, [loadBookings]);
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    void getOwnerVenues(token)
+      .then((result) => {
+        if (active) setVenues(result);
+      })
+      .catch((reason) => {
+        if (active) setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách cụm sân.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   const selectedGroup = useMemo(
     () => selected?.checkInGroups.find((item) => item.bookingCheckInGroupId === selectedGroupId) ?? null,
@@ -235,7 +254,7 @@ export const OwnerCheckIn = () => {
       </section>
 
       <section className="owner-panel p-4 sm:p-5">
-        <form className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_180px_170px_auto]" onSubmit={verifyCode}>
+        <form className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_auto]" onSubmit={verifyCode}>
           <label>
             <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã booking / mã khung giờ</span>
             <span className="flex h-11 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
@@ -259,18 +278,6 @@ export const OwnerCheckIn = () => {
               value={date}
             />
           </label>
-          <label>
-            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Loại đơn</span>
-            <select
-              className="h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[13px] font-bold outline-none focus:border-primary"
-              onChange={(event) => setBookingType(event.target.value as typeof bookingType)}
-              value={bookingType}
-            >
-              <option value="all">Tất cả</option>
-              <option value="Court">Đặt sân</option>
-              <option value="Match">Ghép trận</option>
-            </select>
-          </label>
           <button
             className="mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#173b31] px-5 text-[13px] font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!code.trim() || busyKey === 'verify'}
@@ -280,6 +287,60 @@ export const OwnerCheckIn = () => {
             Xác minh mã
           </button>
         </form>
+
+        <div className="mt-4 grid gap-4 border-t border-outline-variant pt-4">
+          <div className="min-w-0">
+            <p className="mb-2 text-[11px] font-extrabold text-on-surface-variant">Lọc theo cụm sân</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                aria-pressed={venueId === 0}
+                className={'shrink-0 rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (venueId === 0
+                  ? 'border-[#173b31] bg-[#173b31] text-white'
+                  : 'border-outline-variant bg-white text-on-surface-variant hover:border-[#9cad71]')}
+                onClick={() => setVenueId(0)}
+                type="button"
+              >
+                Tất cả cụm sân
+              </button>
+              {venues.map((venue) => (
+                <button
+                  aria-pressed={venueId === venue.venueId}
+                  className={'shrink-0 rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (venueId === venue.venueId
+                    ? 'border-[#173b31] bg-[#173b31] text-white'
+                    : 'border-outline-variant bg-white text-on-surface-variant hover:border-[#9cad71]')}
+                  key={venue.venueId}
+                  onClick={() => setVenueId(venue.venueId)}
+                  type="button"
+                >
+                  {venue.venueName}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[11px] font-extrabold text-on-surface-variant">Lọc theo loại đơn</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: 'all', label: 'Tất cả đơn' },
+                { value: 'Court', label: 'Đặt sân' },
+                { value: 'Match', label: 'Ghép trận' },
+              ] as const).map((item) => (
+                <button
+                  aria-pressed={bookingType === item.value}
+                  className={'rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (bookingType === item.value
+                    ? 'border-[#e2ff57] bg-[#e2ff57] text-[#17310a]'
+                    : 'border-outline-variant bg-white text-on-surface-variant hover:border-[#9cad71]')}
+                  key={item.value}
+                  onClick={() => setBookingType(item.value)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700" role="alert">{error}</div>}
@@ -360,7 +421,7 @@ export const OwnerCheckIn = () => {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-bold text-white/60">{selected.bookingType === 'Match' ? 'Đơn ghép trận' : 'Đơn đặt sân'}</p>
-                    <h2 className="mt-1 text-[24px] font-black tracking-tight">{selected.bookingCode}</h2>
+                    <h2 className="owner-checkin-booking-code mt-1 text-[24px] font-black tracking-tight">{selected.bookingCode}</h2>
                     <p className="mt-2 text-[12px] font-semibold text-white/70">{selected.playerName} · {selected.venueName}</p>
                   </div>
                   <span className={'rounded-full px-3 py-1.5 text-[10px] font-extrabold ' + statusClass(currentStatus ?? '')}>

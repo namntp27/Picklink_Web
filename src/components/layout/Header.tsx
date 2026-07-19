@@ -19,6 +19,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
 import { getUnreadNotificationCount } from '../../api/notifications';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
+import { useUnreadMessageSenderCount } from '../../hooks/useUnreadMessageSenderCount';
 import { Button } from '../ui/Button';
 
 const navItems = [
@@ -41,6 +42,7 @@ export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const { logout, token, user } = useAuth();
+  const unreadMessageSenderCount = useUnreadMessageSenderCount(token);
   const location = useLocation();
   const mobileMenuId = useId();
   const shouldReduceMotion = useReducedMotion();
@@ -178,6 +180,11 @@ export const Header = () => {
                   to={item.path}
                 >
                   <Icon aria-hidden="true" className="h-5 w-5" />
+                  {item.path === '/messages' && unreadMessageSenderCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e2ff57] px-1 text-[11px] font-black text-[#102414] ring-2 ring-white">
+                      {Math.min(unreadMessageSenderCount, 99)}
+                    </span>
+                  )}
                   {item.path === '/notifications' && unreadNotificationCount > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e2ff57] px-1 text-[11px] font-black text-[#102414] ring-2 ring-white">
                       {Math.min(unreadNotificationCount, 99)}
@@ -321,6 +328,11 @@ export const Header = () => {
                         <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />
                         {item.label}
                       </span>
+                      {item.path === '/messages' && unreadMessageSenderCount > 0 && (
+                        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#e2ff57] px-1.5 text-[11px] font-black text-[#102414]">
+                          {Math.min(unreadMessageSenderCount, 99)}
+                        </span>
+                      )}
                       {item.path === '/notifications' && unreadNotificationCount > 0 && (
                         <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#e2ff57] px-1.5 text-[11px] font-black text-[#102414]">
                           {Math.min(unreadNotificationCount, 99)}

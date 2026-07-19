@@ -8,6 +8,7 @@ import {
   Clock,
   Eye,
   Lock,
+  MessageCircle,
   RefreshCw,
   Sparkles,
   Ticket,
@@ -93,6 +94,15 @@ const operationTimeOptions = Array.from({ length: 48 }, (_, index) => {
 });
 
 const getPaymentStatusLabel = (status?: string | null) => status ? paymentStatusLabel[status] ?? status : '-';
+
+const checkInStatusLabel: Record<string, string> = {
+  NotOpen: 'Chưa đến giờ check-in',
+  Ready: 'Sẵn sàng check-in',
+  CheckedIn: 'Đã check-in',
+  PartiallyCheckedIn: 'Đã check-in một phần',
+  NoShow: 'Vắng mặt',
+  Cancelled: 'Đã hủy',
+};
 
 export const OwnerDashboard = () => {
   const { token } = useAuth();
@@ -355,6 +365,7 @@ export const OwnerDashboard = () => {
                   <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Khách hàng</span><strong className="text-right">{selectedSlotItem.customerName || '-'}</strong></div>
                   <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Thanh toán</span><strong className="text-right">{getPaymentStatusLabel(selectedSlotItem.paymentStatus)}</strong></div>
                   <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Số tiền</span><strong className="text-right">{selectedSlotItem.amount ? money.format(selectedSlotItem.amount) : '-'}</strong></div>
+                  <div className="flex justify-between gap-4"><span className="text-on-surface-variant">Trạng thái check-in</span><strong className="text-right">{checkInStatusLabel[selectedSlot.checkInStatus ?? selectedSlotItem.checkInStatus ?? ''] ?? selectedSlot.checkInStatus ?? selectedSlotItem.checkInStatus ?? '-'}</strong></div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {selectedSlotItem.entryType === 'TicketSession' ? (
@@ -367,14 +378,20 @@ export const OwnerDashboard = () => {
                     </button>
                   ) : (
                     <>
+                      {selectedSlotItem.customerUserId && (
+                        <Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2 text-[13px] font-bold text-primary" to={`/owner/messages?chatWithUserId=${selectedSlotItem.customerUserId}&bookingId=${selectedSlotItem.bookingId}`}>
+                          <MessageCircle className="h-4 w-4" /> Liên hệ khách hàng
+                        </Link>
+                      )}
                       {selectedSlotItem.status === 'Holding' && (
                         <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white" onClick={() => void updateStatus(selectedSlotItem, 'Confirmed')} type="button">
                           <CheckCircle2 className="h-4 w-4" /> Xác nhận đặt sân
                         </button>
                       )}
-                      <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600" onClick={() => void updateStatus(selectedSlotItem, 'Cancelled')} type="button">
+                      <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600 disabled:cursor-not-allowed disabled:bg-red-50 disabled:opacity-50" disabled={!selectedSlotItem.canCancel} onClick={() => void updateStatus(selectedSlotItem, 'Cancelled')} title={!selectedSlotItem.canCancel ? 'Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy.' : undefined} type="button">
                         <XCircle className="h-4 w-4" /> Hủy booking
                       </button>
+                      {!selectedSlotItem.canCancel && <p className="basis-full text-[12px] font-bold text-red-600">Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy.</p>}
                     </>
                   )}
                 </div>

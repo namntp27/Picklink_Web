@@ -12,6 +12,7 @@ export type Conversation = {
   kind: ConversationKind;
   lastMessage: string;
   lastTime: string;
+  unreadMessageCount: number;
   contextTitle: string;
   contextMeta: string;
   groupId?: number;
@@ -84,6 +85,7 @@ export const groupToConversation = (group: CommunityGroup): Conversation => ({
     ? group.messageCount + ' tin nhắn trong nhóm'
     : 'Chưa có tin nhắn',
   lastTime: '',
+  unreadMessageCount: group.unreadMessageCount,
   contextTitle: group.groupName,
   contextMeta: group.memberCount + ' thành viên',
   groupId: group.groupId,
@@ -98,6 +100,7 @@ export const directToConversation = (direct: DirectConversation): Conversation =
   kind: 'direct',
   lastMessage: direct.lastMessage || 'Chưa có tin nhắn',
   lastTime: formatMessageTime(direct.lastMessageAt),
+  unreadMessageCount: direct.unreadMessageCount,
   contextTitle: 'Trò chuyện cá nhân',
   contextMeta: direct.otherSkillLevel ? 'Trình độ ' + direct.otherSkillLevel : 'Chưa cập nhật trình độ',
   conversationId: direct.conversationId,

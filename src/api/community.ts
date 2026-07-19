@@ -23,6 +23,7 @@ export type CommunityGroup = {
   myStatus: string | null;
   postCount: number;
   messageCount: number;
+  unreadMessageCount: number;
   rules: string | null;
   overallRating: number;
   ratingCount: number;
@@ -277,6 +278,7 @@ export type DirectConversation = {
   otherSkillLevel: string;
   lastMessageAt: string;
   lastMessage: string;
+  unreadMessageCount: number;
 };
 
 export const startDirectConversation = (token: string, targetUserId: number) =>
@@ -286,6 +288,13 @@ export const startDirectConversation = (token: string, targetUserId: number) =>
 
 export const getDirectConversations = (token: string) =>
   apiRequest<DirectConversation[]>(`/api/community/conversations/direct`, {}, token);
+
+export type UnreadMessageSenderCount = {
+  count: number;
+};
+
+export const getUnreadMessageSenderCount = (token: string) =>
+  apiRequest<UnreadMessageSenderCount>(`/api/community/conversations/unread-sender-count`, {}, token);
 
 export const getDirectMessages = (token: string, conversationId: number, beforeMessageId?: number, limit = 8) => {
   const query = beforeMessageId ? `?beforeMessageId=${beforeMessageId}&limit=${limit}` : `?limit=${limit}`;

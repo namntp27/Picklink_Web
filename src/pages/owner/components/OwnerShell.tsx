@@ -8,6 +8,7 @@ import {
   CircleGauge,
   CreditCard,
   Map,
+  MessageCircle,
   ScanLine,
   Settings,
   Ticket,
@@ -18,9 +19,10 @@ import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../auth/AuthContext';
 import { getUnreadNotificationCount } from '../../../api/notifications';
 import { useNotificationRealtime } from '../../../hooks/useNotificationRealtime';
+import { useUnreadMessageSenderCount } from '../../../hooks/useUnreadMessageSenderCount';
 import '../owner.css';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'checkIn' | 'courts' | 'revenue' | 'staff' | 'settings' | 'notifications';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'checkIn' | 'messages' | 'courts' | 'revenue' | 'staff' | 'settings' | 'notifications';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -54,6 +56,7 @@ export const OwnerShell = ({
   const shouldReduceMotion = useReducedMotion();
   const { token, user } = useAuth();
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const unreadMessageSenderCount = useUnreadMessageSenderCount(token);
   const initials = user?.name
     ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
     : '';
@@ -107,6 +110,23 @@ export const OwnerShell = ({
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            aria-current={activeId === 'messages' ? 'page' : undefined}
+            aria-label={unreadMessageSenderCount > 0 ? `Tin nhắn khách hàng, ${unreadMessageSenderCount} người gửi mới` : 'Tin nhắn khách hàng'}
+            className={cn(
+              'owner-topbar__action relative text-white',
+              activeId === 'messages' && '!bg-[#e2ff57] !text-[#102414]',
+            )}
+            title="Tin nhắn khách hàng"
+            to="/owner/messages"
+          >
+            <MessageCircle aria-hidden="true" className="h-[18px] w-[18px]" />
+            {unreadMessageSenderCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e2ff57] px-1 text-[10px] font-black text-[#102414] ring-2 ring-[#0b2228]">
+                {Math.min(unreadMessageSenderCount, 99)}
+              </span>
+            )}
+          </Link>
           <Link
             aria-label={unreadNotificationCount > 0 ? `Thông báo, ${unreadNotificationCount} chưa đọc` : 'Thông báo'}
             className="owner-topbar__action relative text-white"

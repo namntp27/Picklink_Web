@@ -200,6 +200,22 @@
   gap: 18px;
 }
 
+.owner-page-header.owner-messages-header {
+  gap: 10px;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.owner-root .owner-messages-header h1 {
+  font-size: clamp(1.3rem, 2.1vw, 1.75rem) !important;
+}
+
+.owner-root input.owner-messages-search {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+}
+
 .owner-page-header {
   display: flex;
   flex-direction: column;
@@ -365,6 +381,12 @@
   letter-spacing: -0.016em;
 }
 
+.owner-root h2.owner-checkin-booking-code {
+  color: var(--owner-accent);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 14px rgb(226 255 87 / 0.12);
+}
+
 .owner-root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 .owner-root select {
   min-height: 40px;
@@ -507,6 +529,24 @@
 
   .owner-content {
     padding-bottom: 34px;
+  }
+
+  .owner-content.owner-messages-content {
+    height: calc(100dvh - 60px);
+    overflow: hidden;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .owner-messages-inner,
+  .owner-messages-inner > .owner-content__motion {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .owner-messages-inner > .owner-content__motion {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
   }
 
   .owner-mobile-nav {

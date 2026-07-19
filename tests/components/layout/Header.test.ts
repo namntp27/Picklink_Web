@@ -11,6 +11,13 @@ test('header notification badge is loaded from the real notification API', () =>
   assert.doesNotMatch(source, /badge: '3'/);
 });
 
+test('player message icon shows the number of unread senders', () => {
+  assert.match(source, /useUnreadMessageSenderCount/);
+  assert.match(source, /unreadMessageSenderCount/);
+  assert.match(source, /item\.path === '\/messages'/);
+  assert.match(source, /Math\.min\(unreadMessageSenderCount, 99\)/);
+});
+
 test('header always uses the hero dark green treatment on every route', () => {
   assert.doesNotMatch(source, /const isHeroDarkHeader = location\.pathname/);
   assert.match(source, /const headerSurfaceClass = 'border-\[#143f34\] bg-\[#081d24\]\/98/);

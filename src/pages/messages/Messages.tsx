@@ -52,6 +52,7 @@ import {
   type GroupImage,
 } from '../../api/community';
 import { uploadToCloudinary } from '../../api/cloudinary';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 
 import {
   directToConversation,
@@ -199,6 +200,32 @@ export const Messages = () => {
     load();
     return () => { cancelled = true; };
   }, [token, chatWithUserId, searchParams, setSearchParams]);
+  useVisiblePolling(async () => {
+    if (!token) return;
+    try {
+      const [groupsData, directData] = await Promise.all([
+        getGroups(token, undefined, undefined, undefined, 'Mine'),
+        getDirectConversations(token),
+      ]);
+      const myGroups = groupsData.filter(
+        (group) => group.myStatus === 'Accepted' || group.myRole === 'Owner',
+      );
+      setGroups(myGroups);
+      setClubConversations(myGroups.map(groupToConversation));
+      setDirectConversations(directData.map(directToConversation));
+    } catch {
+      // Keep the current list while the next visible poll retries.
+    }
+  }, 4_000, Boolean(token));
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+    const clearUnread = (conversation: Conversation) => conversation.id === activeConversationId
+      ? { ...conversation, unreadMessageCount: 0 }
+      : conversation;
+    setDirectConversations((current) => current.map(clearUnread));
+    setClubConversations((current) => current.map(clearUnread));
+  }, [activeConversationId]);
 
   const filteredConversations = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -859,13 +886,17 @@ export const Messages = () => {
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map((conversation) => {
                 const isActive = conversation.id === activeConversation?.id;
+                const unread = !isActive && conversation.unreadMessageCount > 0;
 
                 return (
                   <button
+                    aria-label={`${conversation.name}${unread ? `, ${conversation.unreadMessageCount} tin chưa đọc` : ''}`}
                     className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
                       isActive
                         ? 'bg-primary-container text-on-primary-container shadow-sm'
-                        : 'text-on-surface hover:bg-surface-container-low'
+                        : unread
+                          ? 'bg-[#eef8e6] text-on-surface ring-1 ring-[#cfe5c4]'
+                          : 'text-on-surface hover:bg-surface-container-low'
                     }`}
                     key={conversation.id}
                     onClick={() => setActiveConversationId(conversation.id)}
@@ -884,7 +915,7 @@ export const Messages = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-[14px] font-bold">{conversation.name}</p>
+                        <p className={`truncate text-[14px] ${unread ? 'font-black text-[#102b2e]' : 'font-bold'}`}>{conversation.name}</p>
                         <span
                           className={`shrink-0 text-[11px] font-bold ${
                             isActive ? 'text-on-primary-container/70' : 'text-on-surface-variant'
@@ -895,7 +926,7 @@ export const Messages = () => {
                       </div>
                       <p
                         className={`mt-1 truncate text-[12px] font-medium ${
-                          isActive ? 'text-on-primary-container/80' : 'text-on-surface-variant'
+                          isActive ? 'text-on-primary-container/80' : unread ? 'font-extrabold text-[#274c35]' : 'text-on-surface-variant'
                         }`}
                       >
                         {conversation.lastMessage}
@@ -908,6 +939,7 @@ export const Messages = () => {
                         >
                           {kindLabels[conversation.kind]}
                         </span>
+                        {unread && <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#e2ff57] px-1.5 text-[10px] font-black text-[#102414]">{Math.min(conversation.unreadMessageCount, 99)}</span>}
                       </div>
                     </div>
                   </button>
