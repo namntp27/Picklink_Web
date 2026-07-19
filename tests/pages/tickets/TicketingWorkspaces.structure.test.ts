@@ -49,3 +49,22 @@ test('owner schedule renders ticket sessions without exposing schedule-entry del
   assert.match(dashboard, /to="\/owner\/ticket-sessions"/);
   assert.match(timeline, /TicketSession: 'Xé vé'/);
 });
+test('owner shell exposes realtime payment and ticket notifications', () => {
+  const app = read('src/App.tsx');
+  const ownerShell = read('src/pages/owner/components/OwnerShell.tsx');
+  const ownerNotifications = read('src/pages/owner/OwnerNotifications.tsx');
+  const notificationsApi = read('src/api/notifications.ts');
+  const notificationsPage = read('src/pages/notifications/Notifications.tsx');
+
+  assert.match(ownerShell, /getUnreadNotificationCount/);
+  assert.match(ownerShell, /useNotificationRealtime/);
+  assert.match(app, /allowedRoles=\{\['player'\]\}[\s\S]*?<Route path="notifications"/);
+  assert.equal((app.match(/path="notifications"/g) ?? []).length, 1);
+  assert.match(app, /path="\/owner\/notifications"/);
+  assert.match(ownerShell, /to="\/owner\/notifications"/);
+  assert.match(ownerNotifications, /OwnerShell activeId="notifications"/);
+  assert.match(ownerNotifications, /Notifications workspace="owner"/);
+  assert.match(ownerShell, /unreadNotificationCount/);
+  assert.match(notificationsApi, /'ticket'/);
+  assert.match(notificationsPage, /value: 'ticket'/);
+});

@@ -62,6 +62,7 @@ const OwnerCourtCreate = lazyPage(() => import('./pages/owner/OwnerCourtCreate')
 const OwnerCourtEdit = lazyPage(() => import('./pages/owner/OwnerCourtEdit'), 'OwnerCourtEdit');
 const OwnerCourts = lazyPage(() => import('./pages/owner/OwnerCourts'), 'OwnerCourts');
 const OwnerDashboard = lazyPage(() => import('./pages/owner/OwnerDashboard'), 'OwnerDashboard');
+const OwnerNotifications = lazyPage(() => import('./pages/owner/OwnerNotifications'), 'OwnerNotifications');
 const OwnerRevenue = lazyPage(() => import('./pages/owner/OwnerRevenue'), 'OwnerRevenue');
 const OwnerSettings = lazyPage(() => import('./pages/owner/OwnerSettings'), 'OwnerSettings');
 const OwnerStaff = lazyPage(() => import('./pages/owner/OwnerStaff'), 'OwnerStaff');
@@ -156,6 +157,7 @@ function App() {
             </Route>
             <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
               <Route path="/owner" element={<OwnerDashboard />} />
+              <Route path="/owner/notifications" element={<OwnerNotifications />} />
               <Route path="/owner/schedule" element={<OwnerDashboard />} />
               <Route path="/owner/bookings" element={<OwnerBookings kind="regular" />} />
               <Route path="/owner/match-bookings" element={<OwnerBookings kind="match" />} />

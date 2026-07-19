@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
+  Bell,
   CalendarDays,
   CircleGauge,
   CreditCard,
@@ -14,9 +15,11 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../auth/AuthContext';
+import { getUnreadNotificationCount } from '../../../api/notifications';
+import { useNotificationRealtime } from '../../../hooks/useNotificationRealtime';
 import '../owner.css';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'courts' | 'revenue' | 'staff' | 'settings';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'courts' | 'revenue' | 'staff' | 'settings' | 'notifications';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -47,11 +50,32 @@ export const OwnerShell = ({
   innerClassName?: string;
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const { user } = useAuth();
+  const { token, user } = useAuth();
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const initials = user?.name
     ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
     : '';
 
+  const loadUnreadNotificationCount = async () => {
+    if (!token) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+    try {
+      const result = await getUnreadNotificationCount(token);
+      setUnreadNotificationCount(result.count);
+    } catch {
+      setUnreadNotificationCount(0);
+    }
+  };
+
+  useEffect(() => {
+    void loadUnreadNotificationCount();
+  }, [token]);
+
+  useNotificationRealtime(token, () => {
+    void loadUnreadNotificationCount();
+  });
   return (
     <div className="owner-root">
       <header className="owner-topbar">
@@ -78,7 +102,22 @@ export const OwnerShell = ({
               {item.label}
             </Link>
           ))}
-        </nav>        <div className="flex items-center gap-2">
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <Link
+            aria-label={unreadNotificationCount > 0 ? `Thông báo, ${unreadNotificationCount} chưa đọc` : 'Thông báo'}
+            className="owner-topbar__action relative text-white"
+            title="Thông báo"
+            to="/owner/notifications"
+          >
+            <Bell aria-hidden="true" className="h-[18px] w-[18px]" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e2ff57] px-1 text-[10px] font-black text-[#102414] ring-2 ring-[#0b2228]">
+                {Math.min(unreadNotificationCount, 99)}
+              </span>
+            )}
+          </Link>
           <span className="hidden max-w-40 truncate text-[12px] font-bold text-white/76 sm:block">
             {user?.name || 'Chủ sân'}
           </span>

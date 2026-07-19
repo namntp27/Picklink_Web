@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   AlertCircle,
@@ -6,9 +6,10 @@ import {
   CalendarDays,
   Loader2,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
+import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type BookingScheduleConflict, type CourtAvailability } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
@@ -36,6 +37,7 @@ const datesInMonth = (value: string) => {
     [year, String(month).padStart(2, '0'), String(index + 1).padStart(2, '0')].join('-'));
 };
 const time = (value: string) => value.slice(11, 16);
+const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const slotKey = (courtId: number, startTime: string) => courtId + ':' + startTime;
 const slotIdentity = (courtId: number, startTime: string, endTime: string) =>
   courtId + '|' + startTime + '|' + endTime;
@@ -79,6 +81,8 @@ export const CourtScheduleDetail = () => {
   const prefersReducedMotion = useReducedMotion();
   const [date, setDate] = useState(() => validScheduleDate(searchParams.get('date')));
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
+  const [availabilityDate, setAvailabilityDate] = useState<string | null>(null);
+  const availabilityRequestId = useRef(0);
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, CourtSlotSelection[]>>({});
   const [bookingMonth, setBookingMonth] = useState(() => date.slice(0, 7));
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
@@ -97,16 +101,22 @@ export const CourtScheduleDetail = () => {
 
   const load = async (showLoading = true) => {
     if (!Number.isInteger(venueId)) return;
+    const requestId = ++availabilityRequestId.current;
+    const requestedDate = date;
     if (showLoading) {
       setIsLoading(true);
       setError('');
     }
     try {
-      setAvailability(await getCourtAvailability(venueId, date, token));
+      const nextAvailability = await getCourtAvailability(venueId, requestedDate, token);
+      if (availabilityRequestId.current !== requestId) return;
+      setAvailability(nextAvailability);
+      setAvailabilityDate(requestedDate);
     } catch (requestError) {
+      if (availabilityRequestId.current !== requestId) return;
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
     } finally {
-      if (showLoading) setIsLoading(false);
+      if (availabilityRequestId.current === requestId) setIsLoading(false);
     }
   };
 
@@ -140,9 +150,17 @@ export const CourtScheduleDetail = () => {
     (total, slot) => total + Math.round(slot.hourlyPrice * 0.5),
     0,
   );
+  const removeSelectedDate = (selectedDate: string) => {
+    setSelectedSlotsByDate((current) => {
+      const next = { ...current };
+      delete next[selectedDate];
+      return next;
+    });
+    setMonthUnavailableSlots((current) => current.filter((slot) => slot.date !== selectedDate));
+  };
 
   useEffect(() => {
-    if (isLoading || !availability || !selectedSlotsForDate.length) return;
+    if (isLoading || !availability || availabilityDate !== date || !selectedSlotsForDate.length) return;
     const validKeys = new Set(
       availability.slots
         .filter((slot) => slot.status === 'Available' && new Date(slot.startTime).getTime() > Date.now())
@@ -160,7 +178,7 @@ export const CourtScheduleDetail = () => {
       return next;
     });
     setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');
-  }, [availability, date, isLoading, selectedSlotsForDate]);
+  }, [availability, availabilityDate, date, isLoading, selectedSlotsForDate]);
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
     if (!selectedSlotKeys.length) return false;
@@ -316,7 +334,7 @@ export const CourtScheduleDetail = () => {
     }
   };
 
-  const createHold = async () => {
+  const createHold = async (allowScheduleConflicts = false) => {
     if (resumableHoldingBookingId) {
       navigate('/checkout?bookingId=' + resumableHoldingBookingId + '&date=' + encodeURIComponent(date));
       return;
@@ -336,16 +354,31 @@ export const CourtScheduleDetail = () => {
           courtId: slot.courtId,
           startTime: time(slot.startTime) + ':00',
         })),
+        allowScheduleConflicts,
       });
       navigate('/checkout?bookingId=' + booking.bookingId + '&date=' + encodeURIComponent(selectedDates[0] ?? date), { state: { booking } });
     } catch (requestError) {
+      const body = requestError instanceof ApiError ? requestError.body as {
+        requiresScheduleConflictConfirmation?: boolean;
+        conflicts?: BookingScheduleConflict[];
+      } | undefined : undefined;
+      if (!allowScheduleConflicts && body?.requiresScheduleConflictConfirmation && body.conflicts?.length) {
+        const details = body.conflicts.map((conflict) =>
+          `${conflict.playerName} đã có lịch trùng với slot được chọn.\n`
+          + `Lịch đã có: ${conflict.conflictingSlot.venueName} · Sân ${conflict.conflictingSlot.courtNumber} · ${datePart(conflict.conflictingSlot.startTime)} · ${time(conflict.conflictingSlot.startTime)}–${time(conflict.conflictingSlot.endTime)}`
+          + `\nSlot đang chọn: ${conflict.selectedSlot.venueName} · Sân ${conflict.selectedSlot.courtNumber} · ${datePart(conflict.selectedSlot.startTime)} · ${time(conflict.selectedSlot.startTime)}–${time(conflict.selectedSlot.endTime)}`,
+        );
+        if (window.confirm(`${details.join('\n\n')}\n\nBạn có muốn tiếp tục tạo booking trùng lịch không?`)) {
+          await createHold(true);
+        }
+        return;
+      }
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể giữ slot. Vui lòng tải lại lịch.');
-      await load();
+      await load(false);
     } finally {
       setIsHolding(false);
     }
   };
-
   const changeDate = (nextDate: string) => {
     const nextValidDate = validScheduleDate(nextDate);
     setDate(nextValidDate);
@@ -426,11 +459,19 @@ export const CourtScheduleDetail = () => {
 
           {!isLoading && availability && availability.courts.length > 0 && (
             <>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <CourtTimelineGrid
+                  availability={availability}
+                  disabledSlotKeys={unavailableSlotKeysForDate}
+                  onSelectSlot={selectSlot}
+                  selectedSlotKeys={selectedSlotKeys}
+                />
+              </div>
               <div className="border-b border-[#dbe8d3] bg-[#f8fbf4] px-3 py-3">
                 <div className="mx-auto max-w-5xl rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="min-w-[160px] flex-1">
-                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Áp dụng slot đang chọn cho cả tháng</span>
+                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Áp dụng slot ngày này cho cả tháng</span>
                       <input
                         className="h-10 w-full rounded-lg border border-[#d8e4d4] bg-white px-3 text-[13px] font-bold text-[#0b2228] outline-none focus:border-[#276b3f]"
                         max={maxScheduleDate().slice(0, 7)}
@@ -451,7 +492,7 @@ export const CourtScheduleDetail = () => {
                     </Button>
                   </div>
                   <p className="mt-2 text-[12px] font-medium text-[#718077]">
-                    Chọn slot cho từng ngày như bình thường. Áp dụng cả tháng sẽ sao chép các slot đang chọn sang các ngày còn trống trong tháng.
+                    Đổi ngày để chọn slot riêng từng ngày. Khi áp dụng cả tháng, các slot đang chọn được sao chép cho mọi ngày còn lại trong tháng.
                   </p>
                   {monthUnavailableSlots.length > 0 && (
                     <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
@@ -468,20 +509,33 @@ export const CourtScheduleDetail = () => {
                       </div>
                     </div>
                   )}
+                  {selectedDates.length > 0 && (
+                    <div className="mt-3 max-h-64 overflow-y-auto pr-1">
+                      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                        {selectedDates.map((selectedDate) => (
+                          <div
+                            className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (selectedDate === date ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-white text-[#526158]')}
+                            key={selectedDate}
+                          >
+                            <button className="min-w-0 flex-1 text-left" onClick={() => changeDate(selectedDate)} type="button">
+                              <span className="block truncate">{dateLabel(selectedDate)}</span>
+                              <span className="mt-1 block text-[10px]">{selectedSlotsByDate[selectedDate].length} slot</span>
+                            </button>
+                            <button aria-label={'Bỏ ngày ' + selectedDate} onClick={() => removeSelectedDate(selectedDate)} type="button">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="mt-3 text-[12px] font-extrabold text-[#276b3f]">
                     Tổng booking: {selectedSlots.length} slot · {selectedDates.length} ngày
                   </p>
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <CourtTimelineGrid
-                  availability={availability}
-                  disabledSlotKeys={unavailableSlotKeysForDate}
-                  onSelectSlot={selectSlot}
-                  selectedSlotKeys={selectedSlotKeys}
-                />
-              </div>
+
             </>
           )}
         </section>

@@ -433,5 +433,7 @@ const CourtCheckout = () => {
 
 export const Checkout = () => {
   const [params] = useSearchParams();
-  return Number.isInteger(Number(params.get('matchId'))) ? <MatchCheckout /> : <CourtCheckout />;
+  const matchId = params.get('matchId');
+  const isMatchCheckout = matchId !== null && /^\d+$/.test(matchId) && Number(matchId) > 0;
+  return isMatchCheckout ? <MatchCheckout /> : <CourtCheckout />;
 };

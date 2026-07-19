@@ -4,6 +4,12 @@ import { test } from 'node:test';
 
 const checkoutSource = readFileSync(new URL('../../../src/pages/courts/Checkout.tsx', import.meta.url), 'utf8');
 
+test('court checkout is not mistaken for match checkout when matchId is absent', () => {
+  assert.match(checkoutSource, /matchId !== null/);
+  assert.match(checkoutSource, /Number\(matchId\) > 0/);
+  assert.doesNotMatch(checkoutSource, /Number\.isInteger\(Number\(params\.get\('matchId'\)\)\)/);
+});
+
 test('checkout loads and submits one booking', () => {
   assert.match(checkoutSource, /params\.get\('bookingId'\)/);
   assert.match(checkoutSource, /getBookingHolding/);

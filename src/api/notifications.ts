@@ -1,6 +1,6 @@
 import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
 
-export type NotificationType = 'match' | 'payment' | 'court' | 'club' | 'system';
+export type NotificationType = 'match' | 'payment' | 'court' | 'ticket' | 'club' | 'system';
 export type NotificationTone = 'default' | 'urgent' | 'success';
 export type NotificationFilter = 'all' | 'unread' | NotificationType;
 

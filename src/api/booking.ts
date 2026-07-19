@@ -151,6 +151,21 @@ export type BookingHoldSlot = {
   courtId: number;
   startTime: string;
 };
+export type BookingScheduleConflict = {
+  playerName: string;
+  selectedSlot: {
+    venueName: string;
+    courtNumber: number;
+    startTime: string;
+    endTime: string;
+  };
+  conflictingSlot: {
+    venueName: string;
+    courtNumber: number;
+    startTime: string;
+    endTime: string;
+  };
+};
 
 const normalizeBookingHolding = (booking: BookingHolding): BookingHolding => ({
   ...booking,
@@ -186,7 +201,7 @@ export const removeFavoriteVenue = (token: string, venueId: number) => apiReques
 
 export const getCourtAvailability = (venueId: number, date: string, token?: string | null) => apiRequest<CourtAvailability>(`/api/player-bookings/venues/${venueId}/availability?date=${encodeURIComponent(date)}`, {}, token ?? undefined);
 
-export const createBookingHolding = (token: string, input: { date: string; slots: BookingHoldSlot[] }) => apiRequest<BookingHolding>('/api/player-bookings/hold', {
+export const createBookingHolding = (token: string, input: { date: string; slots: BookingHoldSlot[]; allowScheduleConflicts?: boolean }) => apiRequest<BookingHolding>('/api/player-bookings/hold', {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);

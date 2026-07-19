@@ -11,6 +11,7 @@ import {
   CreditCard,
   MapPin,
   ShieldCheck,
+  Ticket,
   Trash2,
   UserPlus,
   Users,
@@ -41,7 +42,18 @@ const filterOptions: Array<{ label: string; value: NotificationFilter }> = [
   { label: 'Ghép trận', value: 'match' },
   { label: 'Thanh toán', value: 'payment' },
   { label: 'Đặt sân', value: 'court' },
+  { label: 'Xé vé', value: 'ticket' },
   { label: 'CLB', value: 'club' },
+  { label: 'Hệ thống', value: 'system' },
+];
+
+const ownerFilterOptions: Array<{ label: string; value: NotificationFilter }> = [
+  { label: 'Tất cả', value: 'all' },
+  { label: 'Chưa đọc', value: 'unread' },
+  { label: 'Đặt sân', value: 'court' },
+  { label: 'Ghép trận', value: 'match' },
+  { label: 'Xé vé', value: 'ticket' },
+  { label: 'Thanh toán', value: 'payment' },
   { label: 'Hệ thống', value: 'system' },
 ];
 
@@ -49,6 +61,7 @@ const typeLabels: Record<NotificationType, string> = {
   match: 'Ghép trận',
   payment: 'Thanh toán',
   court: 'Đặt sân',
+  ticket: 'Xé vé',
   club: 'Câu lạc bộ',
   system: 'Hệ thống',
 };
@@ -71,6 +84,10 @@ const notificationTypeConfig: Record<
   court: {
     icon: CalendarClock,
     className: 'bg-[#e5f0e5] text-[#276b3f]',
+  },
+  ticket: {
+    icon: Ticket,
+    className: 'bg-[#fff4d8] text-[#9a6700]',
   },
   club: {
     icon: Users,
@@ -103,7 +120,7 @@ const formatNotificationTime = (value: string) => {
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
-export const Notifications = () => {
+export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' | 'owner' }) => {
   const shouldReduceMotion = useReducedMotion();
   const { token } = useAuth();
   const notify = useToast();
@@ -215,18 +232,22 @@ export const Notifications = () => {
   };
 
   return (
-    <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]">
+    <div className={workspace === 'owner' ? 'text-[#0b2228]' : 'min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]'}>
       <section className="relative overflow-hidden bg-[#081d24] px-4 py-5 text-white sm:px-6 lg:px-8" data-no-reveal>
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(152,217,81,0.17),transparent_32%),linear-gradient(120deg,#081d24,#143f34)]" />
         <div className="relative mx-auto flex max-w-[1120px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="inline-flex items-center gap-2 text-[12px] font-bold text-[#dff6b2]">
               <BellRing aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
-              Trung tâm thông báo
+              {workspace === 'owner' ? 'Trung tâm vận hành' : 'Trung tâm thông báo'}
             </p>
-            <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-[-0.035em] sm:text-[32px]">Thông báo</h1>
+            <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-[-0.035em] sm:text-[32px]">
+              {workspace === 'owner' ? 'Thông báo chủ sân' : 'Thông báo'}
+            </h1>
             <p className="mt-1 max-w-[62ch] text-[13px] leading-5 text-white/68">
-              Lời mời, thanh toán, lịch sân và hoạt động cộng đồng tại một nơi.
+              {workspace === 'owner'
+                ? 'Theo dõi đơn đặt sân, ghép trận, xé vé và giao dịch chuyển khoản.'
+                : 'Lời mời, thanh toán, lịch sân và hoạt động cộng đồng tại một nơi.'}
             </p>
           </div>
 
@@ -248,7 +269,7 @@ export const Notifications = () => {
           <section className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-2.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 scrollbar-none xl:pb-0">
-                {filterOptions.map((filter) => (
+                {(workspace === 'owner' ? ownerFilterOptions : filterOptions).map((filter) => (
                   <button
                     className={`picklink-glow-control h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-bold transition-[background-color,color,transform] ${
                       activeFilter === filter.value
