@@ -23,3 +23,9 @@ test('checkout summarizes selected child-court slots instead of the parent booki
   assert.match(checkoutSource, /slotSummaries\.map/);
   assert.doesNotMatch(checkoutSource, /timeText\(booking\.startTime\)} - \{timeText\(booking\.endTime\)/);
 });
+
+test('checkout renders an owner-rejected receipt as a red alert', () => {
+  assert.match(checkoutSource, /transfer\?\.rejectionReason && status === 'Pending'/);
+  assert.match(checkoutSource, /border-red-300 bg-red-50/);
+  assert.match(checkoutSource, /text-red-700" role="alert"/);
+});

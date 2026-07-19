@@ -31,7 +31,7 @@ export const OwnerCourtEdit = () => {
     setIsSaving(true);
     try {
       await updateOwnerVenue(token, venueId, input);
-      navigate('/owner/courts', { replace: true });
+      navigate(`/owner/courts/${venueId}`, { replace: true });
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật cụm sân.');
     } finally {
@@ -41,8 +41,8 @@ export const OwnerCourtEdit = () => {
 
   return (
     <OwnerShell activeId="courts" innerClassName="max-w-4xl">
-      <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/courts">
-        <ArrowLeft className="h-4 w-4" /> Quay lại danh sách sân
+      <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to={`/owner/courts/${venueId}`}>
+        <ArrowLeft className="h-4 w-4" /> Quay lại chi tiết sân
       </Link>
       <section className="owner-panel p-5 md:p-6">
         <div className="mb-5 flex items-center gap-3">

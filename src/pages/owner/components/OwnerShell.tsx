@@ -8,6 +8,7 @@ import {
   CircleGauge,
   CreditCard,
   Map,
+  ScanLine,
   Settings,
   Ticket,
   User,
@@ -19,7 +20,7 @@ import { getUnreadNotificationCount } from '../../../api/notifications';
 import { useNotificationRealtime } from '../../../hooks/useNotificationRealtime';
 import '../owner.css';
 
-export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'courts' | 'revenue' | 'staff' | 'settings' | 'notifications';
+export type OwnerSectionId = 'schedule' | 'bookings' | 'ticketSessions' | 'matchBookings' | 'checkIn' | 'courts' | 'revenue' | 'staff' | 'settings' | 'notifications';
 
 const ownerNavItems: Array<{
   id: OwnerSectionId;
@@ -32,9 +33,10 @@ const ownerNavItems: Array<{
   { id: 'bookings', label: 'Đơn đặt sân', shortLabel: 'Đơn', to: '/owner/bookings', icon: CreditCard },
   { id: 'ticketSessions', label: 'Xé vé', shortLabel: 'Xé vé', to: '/owner/ticket-sessions', icon: Ticket },
   { id: 'matchBookings', label: 'Đơn ghép trận', shortLabel: 'Ghép trận', to: '/owner/match-bookings', icon: UsersRound },
+  { id: 'checkIn', label: 'Check-in', shortLabel: 'Check-in', to: '/owner/check-in', icon: ScanLine },
   { id: 'courts', label: 'Sân & court', shortLabel: 'Sân', to: '/owner/courts', icon: Map },
   { id: 'revenue', label: 'Doanh thu', shortLabel: 'Doanh thu', to: '/owner/revenue', icon: Banknote },
-  { id: 'staff', label: 'Nhân viên & CheckIn', shortLabel: 'Staff', to: '/owner/staff', icon: UsersRound },
+  { id: 'staff', label: 'Nhân viên', shortLabel: 'Staff', to: '/owner/staff', icon: UsersRound },
   { id: 'settings', label: 'Cài đặt', shortLabel: 'Cài đặt', to: '/owner/settings', icon: Settings },
 ];
 
