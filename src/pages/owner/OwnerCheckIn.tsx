@@ -94,16 +94,23 @@ export const OwnerCheckIn = () => {
     setIsLoading(true);
     setError('');
     try {
-      const result = await getOwnerCheckInBookings(
+      const getPage = (page: number) => getOwnerCheckInBookings(
         token,
         date,
-        { page: 1, pageSize: 100 },
+        { page, pageSize: 100 },
         bookingType === 'all' ? undefined : bookingType,
         venueId || undefined,
       );
-      setBookings(result.items);
+      const firstPage = await getPage(1);
+      // ponytail: A daily queue is bounded; add visible pagination only if loading every page becomes measurable.
+      const remainingPages = await Promise.all(Array.from(
+        { length: Math.max(0, firstPage.totalPages - 1) },
+        (_, index) => getPage(index + 2),
+      ));
+      const items = [firstPage, ...remainingPages].flatMap((page) => page.items);
+      setBookings(items);
       setSelected((current) => current
-        ? result.items.find((item) => item.bookingId === current.bookingId) ?? null
+        ? items.find((item) => item.bookingId === current.bookingId) ?? null
         : null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách check-in.');
@@ -138,7 +145,10 @@ export const OwnerCheckIn = () => {
 
   const chooseBooking = (booking: StaffBooking, groupId?: number | null) => {
     setSelected(booking);
-    setSelectedGroupId(groupId ?? booking.checkInGroups.find((item) => item.checkInStatus === 'Ready')?.bookingCheckInGroupId ?? null);
+    setSelectedGroupId(groupId
+      ?? booking.checkInGroups.find((item) => item.isCheckInWindowOpen)?.bookingCheckInGroupId
+      ?? booking.checkInGroups.find((item) => item.canMarkNoShow)?.bookingCheckInGroupId
+      ?? booking.checkInGroups[0]?.bookingCheckInGroupId ?? null);
     setError('');
     setSuccess('');
   };

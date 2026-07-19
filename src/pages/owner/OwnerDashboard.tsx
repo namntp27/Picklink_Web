@@ -179,6 +179,9 @@ export const OwnerDashboard = () => {
   const selectedSlotItem = selectedSlot?.bookingId
     ? visibleItems.find((item) => item.bookingId === selectedSlot.bookingId)
     : undefined;
+  const cancellationBlockedMessage = selectedSlotItem?.paymentStatus === 'Paid'
+    ? 'Booking đã thanh toán chỉ có thể hủy khi có quy trình hoàn tiền.'
+    : 'Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy.';
 
   const applySlotToForm = (slot: OwnerScheduleSlot) => {
     setSelectedSlot(slot);
@@ -388,10 +391,10 @@ export const OwnerDashboard = () => {
                           <CheckCircle2 className="h-4 w-4" /> Xác nhận đặt sân
                         </button>
                       )}
-                      <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600 disabled:cursor-not-allowed disabled:bg-red-50 disabled:opacity-50" disabled={!selectedSlotItem.canCancel} onClick={() => void updateStatus(selectedSlotItem, 'Cancelled')} title={!selectedSlotItem.canCancel ? 'Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy.' : undefined} type="button">
+                      <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600 disabled:cursor-not-allowed disabled:bg-red-50 disabled:opacity-50" disabled={!selectedSlotItem.canCancel} onClick={() => void updateStatus(selectedSlotItem, 'Cancelled')} title={!selectedSlotItem.canCancel ? cancellationBlockedMessage : undefined} type="button">
                         <XCircle className="h-4 w-4" /> Hủy booking
                       </button>
-                      {!selectedSlotItem.canCancel && <p className="basis-full text-[12px] font-bold text-red-600">Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy.</p>}
+                      {!selectedSlotItem.canCancel && <p className="basis-full text-[12px] font-bold text-red-600">{cancellationBlockedMessage}</p>}
                     </>
                   )}
                 </div>

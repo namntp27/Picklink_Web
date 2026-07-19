@@ -18,6 +18,12 @@ test('owner check-in sends the selected venue to the backend before pagination',
   assert.ok(apiSource.includes("params.set('venueId', String(venueId))"));
 });
 
+test('owner check-in loads every page instead of stopping at 100 bookings', () => {
+  assert.ok(pageSource.includes('firstPage.totalPages - 1'));
+  assert.ok(pageSource.includes('getPage(index + 2)'));
+  assert.ok(pageSource.includes('[firstPage, ...remainingPages].flatMap'));
+});
+
 test('owner check-in booking code stays readable on the dark detail header', () => {
   const ownerCss = readFileSync(new URL('../../../src/pages/owner/owner.css', import.meta.url), 'utf8');
 

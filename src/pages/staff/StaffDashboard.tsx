@@ -157,9 +157,13 @@ export const StaffDashboard = () => {
   const detailPanelRef = useRef<HTMLElement | null>(null);
 
   const selectBooking = (booking: StaffBooking, checkInGroupId?: number) => {
+    const groupId = checkInGroupId
+      ?? booking.checkInGroups.find((group) => group.isCheckInWindowOpen)?.bookingCheckInGroupId
+      ?? booking.checkInGroups.find((group) => group.canMarkNoShow)?.bookingCheckInGroupId
+      ?? booking.checkInGroups[0]?.bookingCheckInGroupId;
     setSelected(booking);
-    setSelectedCheckInGroupId(checkInGroupId ?? null);
-    setSearchCode(booking.checkInGroups.find((group) => group.bookingCheckInGroupId === checkInGroupId)?.checkInCode ?? booking.bookingCode);
+    setSelectedCheckInGroupId(groupId ?? null);
+    setSearchCode(booking.checkInGroups.find((group) => group.bookingCheckInGroupId === groupId)?.checkInCode ?? booking.bookingCode);
     setError('');
     setSuccess('');
     window.requestAnimationFrame(() => {

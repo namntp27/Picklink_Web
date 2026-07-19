@@ -114,12 +114,14 @@ export const OwnerBookingDetail = () => {
   const courts = Array.from(new Set(bookingSlots.map((slot) => `Sân ${slot.courtNumber}`))).join(', ');
   const playTime = bookingSlots.map((slot) => `Sân ${slot.courtNumber}: ${time(slot.startTime)} - ${time(slot.endTime)}`).join(' · ');
   const playerLocation = [booking.playerCommune, booking.playerCity].filter(Boolean).join(', ') || 'Chưa cập nhật';
+  const canCancel = booking.paymentStatus !== 'Paid' && booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired';
 
   return (
     <OwnerShell activeId="bookings">
       <section className="owner-page-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div><Link className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" to="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Link><h1 className="mt-3 font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
-        <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired' && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Cancelled')} type="button">Từ chối / Hủy</button>}</div>
+        <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{canCancel && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Cancelled')} type="button">Từ chối / Hủy</button>}</div>
+        {booking.paymentStatus === 'Paid' && booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired' && <p className="text-[12px] font-bold text-red-600">Booking đã thanh toán chỉ có thể hủy khi có quy trình hoàn tiền.</p>}
       </section>
 
       {(error || success) && <div className={`rounded-lg border px-4 py-3 text-[13px] font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{error || success}</div>}

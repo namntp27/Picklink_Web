@@ -77,9 +77,26 @@ const statusClass = (status: string) => {
   return 'border-error/25 bg-error-container text-error';
 };
 
+const getBookingRange = (booking: BookingHolding, now = Date.now()) => {
+  const groups = booking.checkInGroups
+    .filter((group) => !['CheckedIn', 'NoShow'].includes(group.checkInStatus));
+  const ranges = (groups.length > 0
+    ? groups
+    : booking.checkInGroups.length > 0
+      ? booking.checkInGroups
+      : booking.slots.length > 0
+        ? booking.slots
+        : [booking])
+    .slice()
+    .sort((first, second) => first.startTime.localeCompare(second.startTime));
+  return ranges.find((range) => new Date(range.startTime).getTime() - 30 * 60_000 <= now && new Date(range.endTime).getTime() >= now)
+    ?? ranges.find((range) => new Date(range.endTime).getTime() >= now)
+    ?? ranges[ranges.length - 1];
+};
+
 const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
   if (filter === 'all') return true;
-  if (filter === 'upcoming') return !['Cancelled', 'Expired'].includes(booking.status) && new Date(booking.endTime).getTime() >= Date.now();
+  if (filter === 'upcoming') return !['Cancelled', 'Expired'].includes(booking.status) && new Date(getBookingRange(booking).endTime).getTime() >= Date.now();
   if (filter === 'pending') return ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
   if (filter === 'paid') return booking.paymentStatus === 'Paid';
   return booking.status === 'Cancelled' || booking.status === 'Expired';
@@ -140,8 +157,9 @@ export const MyBookings = () => {
   }, [activeFilter, bookings, search]);
 
   const nextBooking = useMemo(() => bookings
-    .filter((booking) => !['Cancelled', 'Expired'].includes(booking.status) && new Date(booking.endTime).getTime() >= Date.now())
-    .sort((first, second) => first.startTime.localeCompare(second.startTime))[0], [bookings]);
+    .filter((booking) => !['Cancelled', 'Expired'].includes(booking.status) && new Date(getBookingRange(booking).endTime).getTime() >= Date.now())
+    .sort((first, second) => getBookingRange(first).startTime.localeCompare(getBookingRange(second).startTime))[0], [bookings]);
+  const nextBookingRange = nextBooking ? getBookingRange(nextBooking) : null;
   const paidCount = bookings.filter((booking) => booking.paymentStatus === 'Paid').length;
   const pendingCount = bookings.filter((booking) => ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus)).length;
   const readyCount = bookings.filter((booking) => booking.checkInStatus === 'Ready').length;
@@ -167,8 +185,9 @@ export const MyBookings = () => {
     setError('');
     try {
       const updatedBooking = await retryBookingPayment(token, booking.bookingId);
+      const range = getBookingRange(updatedBooking);
       navigate(
-        `/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(booking.startTime.slice(0, 10))}`,
+        `/checkout?bookingId=${booking.bookingId}&date=${encodeURIComponent(range.startTime.slice(0, 10))}`,
         { state: { booking: updatedBooking } },
       );
     } catch (requestError) {
@@ -254,7 +273,8 @@ export const MyBookings = () => {
               {filtered.map((booking) => {
                 const canContinue = booking.status === 'Holding' && ['Pending', 'WaitingForConfirmation'].includes(booking.paymentStatus);
                 const canCancel = booking.canCancel && booking.paymentStatus !== 'Paid';
-                const scheduleDate = booking.startTime.slice(0, 10);
+                const displayRange = getBookingRange(booking);
+                const scheduleDate = displayRange.startTime.slice(0, 10);
                 const isBusy = busyId === booking.bookingId;
 
                 return (
@@ -284,8 +304,8 @@ export const MyBookings = () => {
                         <p className="mt-0.5 break-all text-[12px] font-bold text-[#081d24]">{booking.bookingCode}</p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-3">
                           {[
-                            { icon: CalendarDays, label: 'Ngày chơi', value: date(booking.startTime) },
-                            { icon: Clock, label: 'Khung giờ', value: `${time(booking.startTime)} - ${time(booking.endTime)}` },
+                            { icon: CalendarDays, label: 'Ngày chơi', value: date(displayRange.startTime) },
+                            { icon: Clock, label: 'Khung giờ', value: `${time(displayRange.startTime)} - ${time(displayRange.endTime)}` },
                             { icon: MapPin, label: 'Địa chỉ', value: booking.address },
                           ].map((item) => (
                             <div className="flex min-w-0 gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-2" key={item.label}>
@@ -358,11 +378,11 @@ export const MyBookings = () => {
             <h2 className="flex items-center gap-2 text-[17px] font-extrabold">
               <ShieldCheck className="h-5 w-5 text-[#081d24]" /> Lịch gần nhất
             </h2>
-            {nextBooking ? (
+            {nextBooking && nextBookingRange ? (
               <div className="mt-3">
                 <p className="break-words text-[14px] font-bold">{nextBooking.venueName} · Sân {nextBooking.courtNumber}</p>
                 <p className="mt-1.5 text-[12px] leading-5 text-on-surface-variant">
-                  {date(nextBooking.startTime)} · {time(nextBooking.startTime)} - {time(nextBooking.endTime)}
+                  {date(nextBookingRange.startTime)} · {time(nextBookingRange.startTime)} - {time(nextBookingRange.endTime)}
                 </p>
                 <Link className={`mt-3 w-full ${primaryLinkButton}`} to={`/bookings/${nextBooking.bookingId}`}>
                   Xem booking
