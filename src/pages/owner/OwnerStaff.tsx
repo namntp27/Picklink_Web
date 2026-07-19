@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, History, ShieldCheck, UserMinus, UserPlus, UsersRound, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, History, Pencil, Save, ShieldCheck, UserMinus, UserPlus, UsersRound, XCircle } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import {
   assignOwnerStaff,
@@ -27,6 +27,15 @@ const permissions: Array<{ value: StaffPermission; label: string }> = [
 const inputClass = 'h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
 const dateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '-';
 
+type StaffEditDraft = {
+  username: string;
+  email: string;
+  venueIds: number[];
+  role: string;
+  permissions: StaffPermission[];
+  isActive: boolean;
+};
+
 export const OwnerStaff = () => {
   const { token } = useAuth();
   const [staff, setStaff] = useState<OwnerStaffAssignment[]>([]);
@@ -39,7 +48,7 @@ export const OwnerStaff = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('Nhân viên vận hành');
-  const [venueId, setVenueId] = useState(0);
+  const [selectedVenueIds, setSelectedVenueIds] = useState<number[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<StaffPermission[]>(permissions.map((item) => item.value));
   const [historyVenueId, setHistoryVenueId] = useState(0);
   const [historyDate, setHistoryDate] = useState('');
@@ -47,6 +56,8 @@ export const OwnerStaff = () => {
   const [historyPagination, setHistoryPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<number | null>(null);
+  const [staffEdit, setStaffEdit] = useState<StaffEditDraft | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -69,13 +80,13 @@ export const OwnerStaff = () => {
       setVenues(venueResult);
       setHistory(historyResult.items);
       setHistoryPagination(historyResult);
-      if (!venueId && venueResult[0]) setVenueId(venueResult[0].venueId);
+      setSelectedVenueIds((current) => current.length || !venueResult[0] ? current : [venueResult[0].venueId]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải dữ liệu nhân viên.');
     } finally {
       setIsLoading(false);
     }
-  }, [historyDate, historyPage, historyVenueId, token, venueId]);
+  }, [historyDate, historyPage, historyVenueId, token]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -85,19 +96,19 @@ export const OwnerStaff = () => {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!token || !venueId) return;
+    if (!token || selectedVenueIds.length === 0) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
       if (accountMode === 'create') {
         if (password !== confirmPassword) throw new Error('Mật khẩu xác nhận không khớp.');
-        await createOwnerStaffAccount(token, { venueId, username, email, password, role, permissions: selectedPermissions });
+        await createOwnerStaffAccount(token, { venueIds: selectedVenueIds, username, email, password, role, permissions: selectedPermissions });
         setUsername('');
         setPassword('');
         setConfirmPassword('');
-        setSuccess('Đã tạo tài khoản Staff và phân công vào cụm sân. Hãy gửi thông tin đăng nhập cho nhân viên qua kênh an toàn.');
+        setSuccess('Đã tạo tài khoản Staff và phân công vào các cụm sân đã chọn. Hãy gửi thông tin đăng nhập cho nhân viên qua kênh an toàn.');
       } else {
-        await assignOwnerStaff(token, { venueId, email, role, permissions: selectedPermissions });
-        setSuccess('Đã gán tài khoản Staff có sẵn vào cụm sân.');
+        await assignOwnerStaff(token, { venueIds: selectedVenueIds, email, role, permissions: selectedPermissions });
+        setSuccess('Đã gán tài khoản Staff có sẵn vào các cụm sân đã chọn.');
       }
       setEmail('');
       await load();
@@ -122,6 +133,77 @@ export const OwnerStaff = () => {
     } finally { setIsBusy(false); }
   };
 
+  const beginStaffEdit = (assignment: OwnerStaffAssignment) => {
+    setEditingStaffId(assignment.staffId);
+    setStaffEdit({
+      username: assignment.username,
+      email: assignment.email,
+      venueIds: (() => { const activeVenueIds = Array.from(new Set(staff.filter((item) => item.userId === assignment.userId && item.isActive).map((item) => item.venueId))); return activeVenueIds.length ? activeVenueIds : [assignment.venueId]; })(),
+      role: assignment.role,
+      permissions: [...assignment.permissions],
+      isActive: staff.some((item) => item.userId === assignment.userId && item.isActive),
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const cancelStaffEdit = () => {
+    setEditingStaffId(null);
+    setStaffEdit(null);
+  };
+
+  const toggleStaffEditPermission = (permission: StaffPermission) => setStaffEdit((current) => current ? {
+    ...current,
+    permissions: current.permissions.includes(permission)
+      ? current.permissions.filter((item) => item !== permission)
+      : [...current.permissions, permission],
+  } : current);
+  const toggleStaffEditVenue = (venueId: number) => setStaffEdit((current) => current ? {
+    ...current,
+    venueIds: current.venueIds.includes(venueId)
+      ? current.venueIds.filter((item) => item !== venueId)
+      : [...current.venueIds, venueId],
+  } : current);
+
+  const toggleDraftVenue = (venueId: number) => setSelectedVenueIds((current) =>
+    current.includes(venueId) ? current.filter((item) => item !== venueId) : [...current, venueId]);
+
+  const saveStaffEdit = async (assignment: OwnerStaffAssignment) => {
+    if (!token || !staffEdit || editingStaffId !== assignment.staffId) return;
+    if (staffEdit.username.trim().length < 3) {
+      setError('Tên đăng nhập cần ít nhất 3 ký tự.');
+      return;
+    }
+    if (!staffEdit.email.trim().includes('@')) {
+      setError('Email nhân viên không hợp lệ.');
+      return;
+    }
+    if (staffEdit.venueIds.length === 0 || staffEdit.venueIds.some((venueId) => !venues.some((venue) => venue.venueId === venueId))) {
+      setError('Hãy chọn ít nhất một cụm sân nhân viên được phép check-in.');
+      return;
+    }
+    if (staffEdit.isActive && staffEdit.permissions.length === 0) {
+      setError('Nhân viên đang hoạt động cần có ít nhất một quyền.');
+      return;
+    }
+
+    setIsBusy(true); setError(''); setSuccess('');
+    try {
+      await updateOwnerStaff(token, assignment.staffId, {
+        venueIds: staffEdit.venueIds,
+        username: staffEdit.username.trim(),
+        email: staffEdit.email.trim(),
+        role: staffEdit.role.trim(),
+        permissions: staffEdit.permissions,
+        isActive: staffEdit.isActive,
+      });
+      cancelStaffEdit();
+      setSuccess('Đã cập nhật thông tin nhân viên.');
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể cập nhật thông tin nhân viên.');
+    } finally { setIsBusy(false); }
+  };
   const toggleDraftPermission = (permission: StaffPermission) => setSelectedPermissions((current) =>
     current.includes(permission) ? current.filter((item) => item !== permission) : [...current, permission]);
 
@@ -169,10 +251,10 @@ export const OwnerStaff = () => {
               <label className="block"><span className="mb-1.5 block text-[12px] font-bold">Xác nhận mật khẩu</span><input autoComplete="new-password" className={inputClass} minLength={8} onChange={(event) => setConfirmPassword(event.target.value)} required type={showPassword ? 'text' : 'password'} value={confirmPassword} /></label>
               <label className="flex items-center gap-2 text-[11px] font-bold text-on-surface-variant"><input checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} type="checkbox" /> Hiện mật khẩu để bàn giao</label>
             </>}
-            <label className="block"><span className="mb-1.5 block text-[12px] font-bold">Cụm sân</span><select className={inputClass} onChange={(event) => setVenueId(Number(event.target.value))} required value={venueId}>{!venues.length && <option value={0}>Chưa có cụm sân</option>}{venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
+            <fieldset><legend className="mb-2 text-[12px] font-bold">Các cụm sân được phép check-in</legend><div className="space-y-2">{venues.map((venue) => { const selected = selectedVenueIds.includes(venue.venueId); return <label className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-[13px] font-bold transition-colors ${selected ? 'border-[#c9e63f] bg-[#e2ff57] text-[#10282b]' : 'border-outline-variant bg-white text-on-surface-variant'}`} key={venue.venueId}><input checked={selected} onChange={() => toggleDraftVenue(venue.venueId)} type="checkbox" />{venue.venueName}</label>; })}</div>{!venues.length && <p className="text-[12px] text-on-surface-variant">Chưa có cụm sân.</p>}</fieldset>
             <label className="block"><span className="mb-1.5 block text-[12px] font-bold">Chức danh</span><input className={inputClass} maxLength={100} onChange={(event) => setRole(event.target.value)} value={role} /></label>
-            <fieldset><legend className="mb-2 text-[12px] font-bold">Quyền vận hành</legend><div className="space-y-2">{permissions.map((permission) => <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-outline-variant p-3 text-[13px] font-bold" key={permission.value}><input checked={selectedPermissions.includes(permission.value)} onChange={() => toggleDraftPermission(permission.value)} type="checkbox" />{permission.label}</label>)}</div></fieldset>
-            <button className="w-full rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={isBusy || !venues.length || !selectedPermissions.length} type="submit">{accountMode === 'create' ? 'Tạo tài khoản & phân công' : 'Gán vào cụm sân'}</button>
+            <fieldset><legend className="mb-2 text-[12px] font-bold">Quyền vận hành</legend><div className="space-y-2">{permissions.map((permission) => <label className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-[13px] font-bold transition-colors ${selectedPermissions.includes(permission.value) ? 'border-[#c9e63f] bg-[#e2ff57] text-[#10282b]' : 'border-outline-variant bg-white text-on-surface-variant'}`} key={permission.value}><input checked={selectedPermissions.includes(permission.value)} onChange={() => toggleDraftPermission(permission.value)} type="checkbox" />{permission.label}</label>)}</div></fieldset>
+            <button className="w-full rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-50" disabled={isBusy || !venues.length || !selectedVenueIds.length || !selectedPermissions.length} type="submit">{accountMode === 'create' ? 'Tạo tài khoản & phân công' : 'Gán vào cụm sân'}</button>
           </div>
         </form>
 
@@ -182,9 +264,9 @@ export const OwnerStaff = () => {
             <article className="p-5" key={assignment.staffId}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div><div className="flex flex-wrap items-center gap-2"><h3 className="text-[16px] font-bold">{assignment.username}</h3><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${assignment.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>{assignment.isActive ? 'Đang hoạt động' : 'Đã thu hồi'}</span></div><p className="mt-1 text-[13px] text-on-surface-variant">{assignment.email} · {assignment.role}</p><p className="mt-1 text-[13px] font-bold text-primary">{assignment.venueName}</p></div>
-                <button className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-bold ${assignment.isActive ? 'border-red-200 text-red-600' : 'border-primary text-primary'}`} disabled={isBusy} onClick={() => void saveAssignment(assignment, { isActive: !assignment.isActive })} type="button">{assignment.isActive ? <><UserMinus className="h-4 w-4" /> Thu hồi</> : <><UserPlus className="h-4 w-4" /> Cấp lại</>}</button>
+                <div className="flex flex-wrap gap-2"><button className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-bold text-primary" disabled={isBusy} onClick={() => beginStaffEdit(assignment)} type="button"><Pencil className="h-4 w-4" /> Chỉnh sửa</button><button className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-bold ${assignment.isActive ? 'border-red-200 text-red-600' : 'border-primary text-primary'}`} disabled={isBusy} onClick={() => void saveAssignment(assignment, { isActive: !assignment.isActive })} type="button">{assignment.isActive ? <><UserMinus className="h-4 w-4" /> Thu hồi</> : <><UserPlus className="h-4 w-4" /> Cấp lại</>}</button></div>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">{permissions.map((permission) => { const enabled = assignment.permissions.includes(permission.value); return <button className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${enabled ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant'}`} disabled={isBusy || !assignment.isActive} key={permission.value} onClick={() => void saveAssignment(assignment, { permissions: enabled ? assignment.permissions.filter((item) => item !== permission.value) : [...assignment.permissions, permission.value] })} type="button">{permission.label}</button>; })}</div>
+              {editingStaffId === assignment.staffId && staffEdit ? <div className="mt-4 rounded-xl border border-outline-variant bg-surface-container-low p-4"><div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[12px] font-bold">Tên đăng nhập</span><input className={inputClass} maxLength={100} minLength={3} onChange={(event) => setStaffEdit({ ...staffEdit, username: event.target.value })} required value={staffEdit.username} /></label><label className="block"><span className="mb-1.5 block text-[12px] font-bold">Email</span><input className={inputClass} maxLength={255} onChange={(event) => setStaffEdit({ ...staffEdit, email: event.target.value })} required type="email" value={staffEdit.email} /></label><fieldset className="sm:col-span-2"><legend className="mb-2 text-[12px] font-bold">Các cụm sân được phép check-in</legend><div className="grid gap-2 sm:grid-cols-2">{venues.map((venue) => { const selected = staffEdit.venueIds.includes(venue.venueId); return <label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-[12px] font-bold transition-colors ${selected ? 'border-[#c9e63f] bg-[#e2ff57] text-[#10282b]' : 'border-outline-variant bg-white text-on-surface-variant'}`} key={venue.venueId}><input className="sr-only" checked={selected} onChange={() => toggleStaffEditVenue(venue.venueId)} type="checkbox" /><span className={`h-2.5 w-2.5 rounded-full border ${selected ? 'border-[#10282b] bg-[#10282b]' : 'border-outline'}`} />{venue.venueName}</label>; })}</div><p className="mt-2 text-[11px] text-on-surface-variant">Nhân viên có quyền Check-in sẽ thao tác được tại mọi sân con thuộc các cụm đã chọn.</p></fieldset><label className="block"><span className="mb-1.5 block text-[12px] font-bold">Chức danh</span><input className={inputClass} maxLength={100} onChange={(event) => setStaffEdit({ ...staffEdit, role: event.target.value })} value={staffEdit.role} /></label><label className="block"><span className="mb-1.5 block text-[12px] font-bold">Trạng thái</span><select className={inputClass} onChange={(event) => setStaffEdit({ ...staffEdit, isActive: event.target.value === 'active' })} value={staffEdit.isActive ? 'active' : 'inactive'}><option value="active">Đang hoạt động</option><option value="inactive">Đã thu hồi</option></select></label></div><fieldset className="mt-4"><legend className="mb-2 text-[12px] font-bold">Quyền vận hành</legend><div className="flex flex-wrap gap-2">{permissions.map((permission) => <label className={`cursor-pointer rounded-full border px-3 py-1.5 text-[11px] font-bold ${staffEdit.permissions.includes(permission.value) ? 'border-[#c9e63f] bg-[#e2ff57] text-[#10282b] shadow-[0_4px_12px_rgba(226,255,87,0.22)]' : 'border-outline-variant text-on-surface-variant'}`} key={permission.value}><input className="sr-only" checked={staffEdit.permissions.includes(permission.value)} onChange={() => toggleStaffEditPermission(permission.value)} type="checkbox" />{permission.label}</label>)}</div></fieldset><div className="mt-4 flex justify-end gap-2"><button className="rounded-lg border border-outline-variant bg-white px-3 py-2 text-[12px] font-bold" disabled={isBusy} onClick={cancelStaffEdit} type="button"><XCircle className="mr-1 inline h-4 w-4" /> Hủy</button><button className="rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50" disabled={isBusy || !staffEdit.username.trim() || !staffEdit.email.trim() || !staffEdit.venueIds.length} onClick={() => void saveStaffEdit(assignment)} type="button"><Save className="mr-1 inline h-4 w-4" /> Lưu thay đổi</button></div></div> : <div className="mt-4 flex flex-wrap gap-2">{permissions.map((permission) => { const enabled = assignment.permissions.includes(permission.value); return <button className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${enabled ? 'border-[#c9e63f] bg-[#e2ff57] text-[#10282b] shadow-[0_4px_12px_rgba(226,255,87,0.22)]' : 'border-outline-variant text-on-surface-variant'}`} disabled={isBusy || !assignment.isActive} key={permission.value} onClick={() => void saveAssignment(assignment, { permissions: enabled ? assignment.permissions.filter((item) => item !== permission.value) : [...assignment.permissions, permission.value] })} type="button">{permission.label}</button>; })}</div>}
             </article>
           ))}</div>}
         </section>

@@ -101,7 +101,7 @@ export const OwnerSettings = () => {
 
   const payoutIsValid = Boolean(
     payout.bankCode
-      && /^d{5,30}$/.test(payout.accountNumber)
+      && /^\d{5,30}$/.test(payout.accountNumber)
       && payout.accountHolder.trim().length >= 2,
   );
 
@@ -254,7 +254,7 @@ export const OwnerSettings = () => {
                   className="mt-2 h-12 w-full rounded-lg border border-outline-variant px-3 text-[16px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   inputMode="numeric"
                   maxLength={30}
-                  onChange={(event) => updatePayout('accountNumber', event.target.value.replace(/D/g, ''))}
+                  onChange={(event) => updatePayout('accountNumber', event.target.value.replace(/\D/g, ''))}
                   placeholder="Nhập số tài khoản"
                   value={payout.accountNumber}
                 />

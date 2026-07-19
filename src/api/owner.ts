@@ -321,17 +321,17 @@ export const updateOwnerBookingStatus = (token: string, bookingId: number, statu
 
 export const getOwnerStaff = (token: string) => apiRequest<OwnerStaffAssignment[]>('/api/owner/staff', {}, token);
 
-export const assignOwnerStaff = (token: string, input: { venueId: number; email: string; role?: string; permissions: StaffPermission[] }) => apiRequest<OwnerStaffAssignment>('/api/owner/staff', {
+export const assignOwnerStaff = (token: string, input: { venueIds: number[]; email: string; role?: string; permissions: StaffPermission[] }) => apiRequest<OwnerStaffAssignment>('/api/owner/staff', {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
 
-export const createOwnerStaffAccount = (token: string, input: { venueId: number; username: string; email: string; password: string; role?: string; permissions: StaffPermission[] }) => apiRequest<OwnerStaffAssignment>('/api/owner/staff/accounts', {
+export const createOwnerStaffAccount = (token: string, input: { venueIds: number[]; username: string; email: string; password: string; role?: string; permissions: StaffPermission[] }) => apiRequest<OwnerStaffAssignment>('/api/owner/staff/accounts', {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
 
-export const updateOwnerStaff = (token: string, staffId: number, input: { role?: string; permissions: StaffPermission[]; isActive: boolean }) => apiRequest<OwnerStaffAssignment>(`/api/owner/staff/${staffId}`, {
+export const updateOwnerStaff = (token: string, staffId: number, input: { venueIds?: number[]; username?: string; email?: string; role?: string; permissions: StaffPermission[]; isActive: boolean }) => apiRequest<OwnerStaffAssignment>(`/api/owner/staff/${staffId}`, {
   method: 'PATCH',
   body: JSON.stringify(input),
 }, token);
