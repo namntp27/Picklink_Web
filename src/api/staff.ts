@@ -14,6 +14,7 @@ export type StaffBooking = {
   bookingCode: string;
   bookingType: 'Court' | 'Match';
   matchId?: number | null;
+  verifiedPlayerId?: number | null;
   bookingStatus: string;
   checkInStatus: 'NotOpen' | 'Ready' | 'CheckedIn' | 'NoShow' | 'Cancelled';
   paymentStatus: string;

@@ -15,6 +15,8 @@ test('staff dashboard verifies and processes the selected check-in group', async
   assert.match(api, /markStaffCheckInGroupNoShow/);
   assert.match(dashboard, /verified\.checkInGroups\.find/);
   assert.match(dashboard, /verifyStaffBookingCodeByCode/);
+  assert.match(dashboard, /verified\.verifiedPlayerId/);
+  assert.match(dashboard, /checkInStaffMatchParticipant\(token, verified\.bookingId, verifiedParticipant\.playerId\)/);
   assert.match(dashboard, /checkInStaffCheckInGroup/);
   assert.match(dashboard, /markStaffCheckInGroupNoShow/);
   assert.match(dashboard, /pageSize: 10/);

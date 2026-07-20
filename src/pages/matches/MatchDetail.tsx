@@ -1094,6 +1094,7 @@ export const MatchDetail = () => {
                       {booking.checkInGroups.map((group) => (
                         <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={group.bookingCheckInGroupId}>
                           <p className="text-[11px] font-bold text-white">Sân {group.courtNumber} · {dateTimeLabel(group.startTime)}–{timePart(group.endTime)}</p>
+                          {group.checkInCode && <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Mã check-in cá nhân của bạn</p>}
                           {group.checkInCode ? (
                             <div className="match-checkin-code">{group.checkInCode}</div>
                           ) : (

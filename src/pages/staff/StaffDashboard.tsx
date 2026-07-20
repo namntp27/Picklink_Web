@@ -331,8 +331,24 @@ export const StaffDashboard = () => {
     setSuccess('');
     try {
       const code = searchCode.trim();
-      const verified = await verifyStaffBookingCodeByCode(token, code);
+      let verified = await verifyStaffBookingCodeByCode(token, code);
       const group = verified.checkInGroups.find((item) => item.checkInCode.toUpperCase() === code.toUpperCase());
+      const verifiedParticipant = verified.verifiedPlayerId
+        ? verified.participants.find((item) => item.playerId === verified.verifiedPlayerId)
+        : undefined;
+      if (verifiedParticipant) {
+        if (verifiedParticipant.attendanceStatus === 'Pending') {
+          verified = await checkInStaffMatchParticipant(token, verified.bookingId, verifiedParticipant.playerId);
+          selectBooking(verified);
+          setSuccess(`Đã check-in ${verifiedParticipant.playerName} bằng mã cá nhân.`);
+          return;
+        }
+        selectBooking(verified);
+        setSuccess(verifiedParticipant.attendanceStatus === 'Present'
+          ? `${verifiedParticipant.playerName} đã check-in trước đó.`
+          : `${verifiedParticipant.playerName} đã được đánh dấu vắng mặt.`);
+        return;
+      }
       selectBooking(verified, group?.bookingCheckInGroupId);
       setSuccess(`Mã ${verified.bookingCode} hợp lệ và đơn thuộc đúng cụm sân được phân công.`);
     } catch (reason) {

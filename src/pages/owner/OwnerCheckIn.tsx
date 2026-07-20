@@ -171,10 +171,28 @@ export const OwnerCheckIn = () => {
     setError('');
     setSuccess('');
     try {
-      const booking = await verifyOwnerCheckInCode(token, normalized);
+      let booking = await verifyOwnerCheckInCode(token, normalized);
       const group = booking.checkInGroups.find(
         (item) => item.checkInCode.toUpperCase() === normalized.toUpperCase(),
       );
+      const verifiedParticipant = booking.verifiedPlayerId
+        ? booking.participants.find((item) => item.playerId === booking.verifiedPlayerId)
+        : undefined;
+      if (verifiedParticipant) {
+        if (verifiedParticipant.attendanceStatus === 'Pending') {
+          booking = await checkInOwnerMatchParticipant(token, booking.bookingId, verifiedParticipant.playerId);
+          updateBooking(booking);
+          setSelectedGroupId(null);
+          setSuccess('Đã check-in ' + verifiedParticipant.playerName + ' bằng mã cá nhân.');
+          return;
+        }
+        updateBooking(booking);
+        setSelectedGroupId(null);
+        setSuccess(verifiedParticipant.playerName + (verifiedParticipant.attendanceStatus === 'Present'
+          ? ' đã check-in trước đó.'
+          : ' đã được đánh dấu vắng mặt.'));
+        return;
+      }
       updateBooking(booking);
       setSelectedGroupId(group?.bookingCheckInGroupId ?? null);
       setSuccess(group
@@ -266,7 +284,7 @@ export const OwnerCheckIn = () => {
       <section className="owner-panel p-4 sm:p-5">
         <form className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_auto]" onSubmit={verifyCode}>
           <label>
-            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã booking / mã khung giờ</span>
+            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã booking / khung giờ / người chơi</span>
             <span className="flex h-11 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
               <QrCode className="h-4 w-4 shrink-0 text-primary" />
               <input
@@ -493,9 +511,9 @@ export const OwnerCheckIn = () => {
                       <p className="inline-flex items-center gap-2 text-[13px] font-extrabold"><UsersRound className="h-4 w-4" /> Điểm danh người chơi</p>
                       <span className="text-[11px] font-bold text-on-surface-variant">{selected.checkedInParticipantCount}/{selected.participantCount} đã vào sân</span>
                     </div>
-                    {!selected.codeVerifiedAt && (
-                      <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">Quét mã đơn ghép trận trước khi xác nhận người chơi vào sân.</p>
-                    )}
+                    <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
+                      Quét mã cá nhân để hệ thống nhận đúng người và check-in ngay. Mã đơn chung chỉ dùng để mở đơn.
+                    </p>
                     <div className="space-y-2">
                       {selected.participants.map((participant) => (
                         <article className="rounded-lg border border-outline-variant p-3" key={participant.playerId}>

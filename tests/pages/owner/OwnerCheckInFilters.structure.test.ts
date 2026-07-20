@@ -24,6 +24,12 @@ test('owner check-in loads every page instead of stopping at 100 bookings', () =
   assert.ok(pageSource.includes('[firstPage, ...remainingPages].flatMap'));
 });
 
+test('owner check-in resolves and checks in the player from a personal match code', () => {
+  assert.ok(pageSource.includes('booking.verifiedPlayerId'));
+  assert.ok(pageSource.includes('checkInOwnerMatchParticipant(token, booking.bookingId, verifiedParticipant.playerId)'));
+  assert.ok(pageSource.includes('Mã đơn chung chỉ dùng để mở đơn.'));
+});
+
 test('owner check-in booking code stays readable on the dark detail header', () => {
   const ownerCss = readFileSync(new URL('../../../src/pages/owner/owner.css', import.meta.url), 'utf8');
 
