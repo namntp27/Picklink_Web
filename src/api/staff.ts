@@ -15,6 +15,7 @@ export type StaffBooking = {
   bookingType: 'Court' | 'Match';
   matchId?: number | null;
   verifiedPlayerId?: number | null;
+  verifiedCheckInGroupId?: number | null;
   bookingStatus: string;
   checkInStatus: 'NotOpen' | 'Ready' | 'CheckedIn' | 'NoShow' | 'Cancelled';
   paymentStatus: string;
@@ -42,7 +43,6 @@ export type StaffBooking = {
 
 export type StaffCheckInGroup = {
   bookingCheckInGroupId: number;
-  checkInCode: string;
   courtId: number;
   courtNumber: number;
   startTime: string;
@@ -94,14 +94,9 @@ export const getTodayStaffBookings = (
 export const searchStaffBooking = (token: string, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/search?code=${encodeURIComponent(code)}`, {}, token);
 export const verifyStaffBookingCodeByCode = (token: string, code: string) => apiRequest<StaffBooking>('/api/staff/bookings/verify-code', { method: 'POST', body: JSON.stringify({ code }) }, token);
 export const getStaffBooking = (token: string, bookingId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}`, {}, token);
-export const verifyStaffBookingCode = (token: string, bookingId: number, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/verify-code`, { method: 'POST', body: JSON.stringify({ code }) }, token);
-export const verifyStaffCheckInGroupCode = (token: string, bookingId: number, checkInGroupId: number, code: string) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/check-in-groups/${checkInGroupId}/verify-code`, { method: 'POST', body: JSON.stringify({ code }) }, token);
 export const confirmStaffAtCourtPayment = (token: string, bookingId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/confirm-at-court-payment`, { method: 'POST' }, token);
-export const checkInStaffBooking = (token: string, bookingId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/check-in`, { method: 'POST' }, token);
-export const checkInStaffCheckInGroup = (token: string, bookingId: number, checkInGroupId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/check-in-groups/${checkInGroupId}/check-in`, { method: 'POST' }, token);
 export const markStaffBookingNoShow = (token: string, bookingId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/no-show`, { method: 'POST' }, token);
 export const markStaffCheckInGroupNoShow = (token: string, bookingId: number, checkInGroupId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/check-in-groups/${checkInGroupId}/no-show`, { method: 'POST' }, token);
-export const checkInStaffMatchParticipant = (token: string, bookingId: number, playerId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/participants/${playerId}/check-in`, { method: 'POST' }, token);
 export const markStaffMatchParticipantNoShow = (token: string, bookingId: number, playerId: number) => apiRequest<StaffBooking>(`/api/staff/bookings/${bookingId}/participants/${playerId}/no-show`, { method: 'POST' }, token);
 export const getStaffNotifications = (
   token: string,

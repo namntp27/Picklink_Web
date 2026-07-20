@@ -24,10 +24,13 @@ test('owner check-in loads every page instead of stopping at 100 bookings', () =
   assert.ok(pageSource.includes('[firstPage, ...remainingPages].flatMap'));
 });
 
-test('owner check-in resolves and checks in the player from a personal match code', () => {
+test('owner scan atomically checks in the resolved group or player', () => {
   assert.ok(pageSource.includes('booking.verifiedPlayerId'));
-  assert.ok(pageSource.includes('checkInOwnerMatchParticipant(token, booking.bookingId, verifiedParticipant.playerId)'));
-  assert.ok(pageSource.includes('Mã đơn chung chỉ dùng để mở đơn.'));
+  assert.ok(pageSource.includes('booking.verifiedCheckInGroupId'));
+  assert.ok(pageSource.includes("attendanceStatus === 'Present'"));
+  assert.doesNotMatch(pageSource, /checkInOwner(?:Booking|BookingGroup|MatchParticipant)/);
+  assert.doesNotMatch(apiSource, /checkInOwner(?:Booking|BookingGroup|MatchParticipant)/);
+  assert.doesNotMatch(apiSource, /checkInCode:/);
 });
 
 test('owner check-in booking code stays readable on the dark detail header', () => {

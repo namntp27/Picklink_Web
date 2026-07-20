@@ -42,27 +42,9 @@ export const confirmOwnerAtCourtPayment = (token: string, bookingId: number) =>
     token,
   );
 
-export const checkInOwnerBooking = (token: string, bookingId: number) =>
-  apiRequest<StaffBooking>(
-    ROOT + '/bookings/' + bookingId + '/check-in',
-    { method: 'POST' },
-    token,
-  );
-
 export const markOwnerBookingNoShow = (token: string, bookingId: number) =>
   apiRequest<StaffBooking>(
     ROOT + '/bookings/' + bookingId + '/no-show',
-    { method: 'POST' },
-    token,
-  );
-
-export const checkInOwnerBookingGroup = (
-  token: string,
-  bookingId: number,
-  checkInGroupId: number,
-) =>
-  apiRequest<StaffBooking>(
-    ROOT + '/bookings/' + bookingId + '/check-in-groups/' + checkInGroupId + '/check-in',
     { method: 'POST' },
     token,
   );
@@ -74,17 +56,6 @@ export const markOwnerBookingGroupNoShow = (
 ) =>
   apiRequest<StaffBooking>(
     ROOT + '/bookings/' + bookingId + '/check-in-groups/' + checkInGroupId + '/no-show',
-    { method: 'POST' },
-    token,
-  );
-
-export const checkInOwnerMatchParticipant = (
-  token: string,
-  bookingId: number,
-  playerId: number,
-) =>
-  apiRequest<StaffBooking>(
-    ROOT + '/bookings/' + bookingId + '/participants/' + playerId + '/check-in',
     { method: 'POST' },
     token,
   );

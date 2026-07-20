@@ -148,7 +148,7 @@ export const OwnerBookingDetail = () => {
           </section>
 
           <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-[18px] font-bold"><CalendarDays className="h-5 w-5 text-primary" /> Sân con và mã check-in</h2>
+            <h2 className="flex items-center gap-2 text-[18px] font-bold"><CalendarDays className="h-5 w-5 text-primary" /> Sân con và trạng thái check-in</h2>
             <div className="mt-4 space-y-3">
               {booking.slots.map((slot) => (
                 <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-container-low p-3" key={slot.bookingSlotId}>
@@ -162,7 +162,7 @@ export const OwnerBookingDetail = () => {
                 {booking.checkInGroups.map((group) => (
                   <div className="flex items-center justify-between gap-3 text-[12px]" key={group.bookingCheckInGroupId}>
                     <span>Sân {group.courtNumber}: {time(group.startTime)} - {time(group.endTime)}</span>
-                    <span className="font-bold text-primary">{group.checkInCode} · {group.checkInStatus}</span>
+                    <span className="font-bold text-primary">{group.checkInStatus}</span>
                   </div>
                 ))}
               </div>

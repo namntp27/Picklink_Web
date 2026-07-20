@@ -6,6 +6,10 @@ const source = readFileSync(
   new URL('../../../src/pages/matches/Opponents.tsx', import.meta.url),
   'utf8',
 );
+const myMatchesSource = readFileSync(
+  new URL('../../../src/pages/matches/MyMatches.tsx', import.meta.url),
+  'utf8',
+);
 
 test('opponents page keeps province and ward updates atomic and race-safe', () => {
   assert.match(source, /AdministrativeAreaSelects/);
@@ -41,4 +45,10 @@ test('manual queues stay discoverable while all new queues remain matchable', ()
   assert.match(source, /\{replayType === 'None' && \(/);
   assert.match(source, /https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png/);
   assert.doesNotMatch(source, /nominatim\.openstreetmap\.org/i);
+});
+
+test('only the approved public-queue host can open a room', () => {
+  assert.match(myMatchesSource, /const isCurrentUserHost = approvedPlayers\.some/);
+  assert.match(myMatchesSource, /queue\.isPublic && isCurrentUserHost/);
+  assert.match(myMatchesSource, /to=\{`\/opponents\/queue\/\$\{queue\.matchmakingQueueId\}`\}/);
 });

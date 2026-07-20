@@ -9,15 +9,11 @@ import {
   RefreshCw,
   ScanLine,
   Ticket,
-  UserCheck,
   UsersRound,
   UserX,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
-  checkInOwnerBooking,
-  checkInOwnerBookingGroup,
-  checkInOwnerMatchParticipant,
   confirmOwnerAtCourtPayment,
   getOwnerCheckInBookings,
   markOwnerBookingGroupNoShow,
@@ -171,35 +167,26 @@ export const OwnerCheckIn = () => {
     setError('');
     setSuccess('');
     try {
-      let booking = await verifyOwnerCheckInCode(token, normalized);
-      const group = booking.checkInGroups.find(
-        (item) => item.checkInCode.toUpperCase() === normalized.toUpperCase(),
-      );
+      const booking = await verifyOwnerCheckInCode(token, normalized);
+      const group = booking.verifiedCheckInGroupId
+        ? booking.checkInGroups.find(
+          (item) => item.bookingCheckInGroupId === booking.verifiedCheckInGroupId,
+        )
+        : undefined;
       const verifiedParticipant = booking.verifiedPlayerId
         ? booking.participants.find((item) => item.playerId === booking.verifiedPlayerId)
         : undefined;
-      if (verifiedParticipant) {
-        if (verifiedParticipant.attendanceStatus === 'Pending') {
-          booking = await checkInOwnerMatchParticipant(token, booking.bookingId, verifiedParticipant.playerId);
-          updateBooking(booking);
-          setSelectedGroupId(null);
-          setSuccess('Đã check-in ' + verifiedParticipant.playerName + ' bằng mã cá nhân.');
-          return;
-        }
-        updateBooking(booking);
-        setSelectedGroupId(null);
-        setSuccess(verifiedParticipant.playerName + (verifiedParticipant.attendanceStatus === 'Present'
-          ? ' đã check-in trước đó.'
-          : ' đã được đánh dấu vắng mặt.'));
-        return;
-      }
       updateBooking(booking);
       setSelectedGroupId(group?.bookingCheckInGroupId ?? null);
+      if (verifiedParticipant) {
+        setSuccess(verifiedParticipant.attendanceStatus === 'Present'
+          ? 'Đã check-in ' + verifiedParticipant.playerName + ' bằng mã cá nhân.'
+          : verifiedParticipant.playerName + ' đã được đánh dấu vắng mặt.');
+        return;
+      }
       setSuccess(group
-        ? 'Đã xác minh đúng mã của sân và khung giờ được chọn.'
-        : booking.checkInGroups.length > 0
-          ? 'Đã tìm thấy đơn. Hãy quét mã của đúng sân và khung giờ cần check-in.'
-          : 'Đã xác minh mã booking.');
+        ? 'Đã check-in đúng sân và khung giờ.'
+        : 'Mã check-in hợp lệ.');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Mã check-in không hợp lệ.');
     } finally {
@@ -258,8 +245,6 @@ export const OwnerCheckIn = () => {
   };
 
   const currentStatus = selectedGroup?.checkInStatus ?? selected?.checkInStatus;
-  const currentVerifiedAt = selectedGroup?.codeVerifiedAt ?? selected?.codeVerifiedAt;
-  const currentWindowOpen = selectedGroup?.isCheckInWindowOpen ?? selected?.isCheckInWindowOpen ?? false;
   const currentCanNoShow = selectedGroup?.canMarkNoShow ?? selected?.canMarkNoShow ?? false;
   const checkedInCount = bookings.filter((item) => item.checkInStatus === 'CheckedIn').length;
   const readyCount = bookings.filter((item) => item.checkInStatus === 'Ready').length;
@@ -284,7 +269,7 @@ export const OwnerCheckIn = () => {
       <section className="owner-panel p-4 sm:p-5">
         <form className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_auto]" onSubmit={verifyCode}>
           <label>
-            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã booking / khung giờ / người chơi</span>
+            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã check-in khung giờ / người chơi</span>
             <span className="flex h-11 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
               <QrCode className="h-4 w-4 shrink-0 text-primary" />
               <input
@@ -312,7 +297,7 @@ export const OwnerCheckIn = () => {
             type="submit"
           >
             {busyKey === 'verify' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
-            Xác minh mã
+            Quét & check-in
           </button>
         </form>
 
@@ -404,7 +389,7 @@ export const OwnerCheckIn = () => {
               <div className="flex min-h-44 flex-col items-center justify-center px-4 text-center">
                 <CalendarDays className="h-7 w-7 text-on-surface-variant" />
                 <p className="mt-3 text-[13px] font-extrabold">Không có booking trong ngày này</p>
-                <p className="mt-1 text-[11px] text-on-surface-variant">Đổi ngày hoặc quét trực tiếp mã booking của khách.</p>
+                <p className="mt-1 text-[11px] text-on-surface-variant">Đổi ngày hoặc quét trực tiếp mã check-in của khách.</p>
               </div>
             )}
             {bookings.map((booking) => (
@@ -498,8 +483,8 @@ export const OwnerCheckIn = () => {
                     </div>
                     {selectedGroup && (
                       <p className="mt-2 text-[11px] font-semibold text-on-surface-variant">
-                        Mã khung giờ: <strong>{selectedGroup.checkInCode}</strong>
-                        {selectedGroup.codeVerifiedAt ? ' · Đã xác minh' : ' · Chưa xác minh'}
+                        Sân {selectedGroup.courtNumber}
+                        {selectedGroup.checkedInAt ? ' · Đã check-in' : ' · Chưa check-in'}
                       </p>
                     )}
                   </div>
@@ -512,7 +497,7 @@ export const OwnerCheckIn = () => {
                       <span className="text-[11px] font-bold text-on-surface-variant">{selected.checkedInParticipantCount}/{selected.participantCount} đã vào sân</span>
                     </div>
                     <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
-                      Quét mã cá nhân để hệ thống nhận đúng người và check-in ngay. Mã đơn chung chỉ dùng để mở đơn.
+                      Quét mã cá nhân để hệ thống nhận đúng người và check-in ngay. Mã booking không dùng để check-in.
                     </p>
                     <div className="space-y-2">
                       {selected.participants.map((participant) => (
@@ -528,15 +513,6 @@ export const OwnerCheckIn = () => {
                           </div>
                           {participant.attendanceStatus === 'Pending' && (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              <button
-                                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#173b31] px-3 text-[11px] font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                                disabled={Boolean(busyKey) || !selected.codeVerifiedAt || !selected.isCheckInWindowOpen || participant.paymentStatus !== 'Paid'}
-                                onClick={() => window.confirm('Xác nhận ' + participant.playerName + ' đã vào sân?')
-                                  && void runParticipantAction('participant-' + participant.playerId, checkInOwnerMatchParticipant, participant.playerId, 'Đã xác nhận người chơi vào sân.')}
-                                type="button"
-                              >
-                                <UserCheck className="h-3.5 w-3.5" /> Xác nhận vào sân
-                              </button>
                               <button
                                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                 disabled={Boolean(busyKey) || !selected.canMarkNoShow || participant.paymentStatus !== 'Paid'}
@@ -569,17 +545,6 @@ export const OwnerCheckIn = () => {
                       </button>
                     )}
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <button
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#173b31] px-4 text-[12px] font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                        disabled={Boolean(busyKey) || (selected.checkInGroups.length > 0 && !selectedGroup) || !currentVerifiedAt || !currentWindowOpen || selected.paymentStatus !== 'Paid' || currentStatus !== 'Ready'}
-                        onClick={() => window.confirm('Xác nhận khách đã vào sân?')
-                          && (selectedGroup
-                            ? void runGroupAction('check-in', checkInOwnerBookingGroup, 'Đã check-in khách vào sân.')
-                            : void runBookingAction('check-in', checkInOwnerBooking, 'Đã check-in khách vào sân.'))}
-                        type="button"
-                      >
-                        <UserCheck className="h-4 w-4" /> Xác nhận vào sân
-                      </button>
                       <button
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-[12px] font-extrabold text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                         disabled={Boolean(busyKey) || (selected.checkInGroups.length > 0 && !selectedGroup) || !currentCanNoShow || currentStatus !== 'Ready'}

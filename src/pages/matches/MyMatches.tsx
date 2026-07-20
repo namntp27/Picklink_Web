@@ -301,6 +301,7 @@ export const MyMatches = () => {
                 const approvedPlayers = queue.queuePlayers.filter((player) => player.status !== 'Pending' && player.status !== 'Rejected');
                 const host = approvedPlayers.find((player) => player.isHost);
                 const maxCap = queue.playerCount ?? (queue.matchType === '1vs1' ? 2 : 4);
+                const isCurrentUserHost = approvedPlayers.some((player) => player.isHost && String(player.playerId) === user?.id);
 
                 return (
                 <article
@@ -407,10 +408,14 @@ export const MyMatches = () => {
                       <Link to={`/matches/${queue.matchId}`} className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1">
                         <Eye className="h-3 w-3" /> Chi tiết
                       </Link>
-                    ) : (
+                    ) : queue.isPublic && isCurrentUserHost ? (
                       <button className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1" onClick={() => void handleOpenQueueRoom(queue.matchmakingQueueId!)} type="button">
-                        <Eye className="h-3 w-3" /> Chi tiết
+                        <Eye className="h-3 w-3" /> Mở phòng
                       </button>
+                    ) : (
+                      <Link to={`/opponents/queue/${queue.matchmakingQueueId}`} className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1">
+                        <Eye className="h-3 w-3" /> Chi tiết
+                      </Link>
                     )}
                     {queue.conversationId && (
                       <Link

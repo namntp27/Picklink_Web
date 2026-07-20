@@ -119,7 +119,7 @@ export const OwnerMatchTransactionReviewModal = ({
   const bookingSlots = payments[0]?.slots?.length
     ? payments[0].slots
     : booking.slots?.length
-      ? booking.slots
+      ? booking.slots.map((slot) => ({ ...slot, courtId: Number(slot.courtId) }))
       : payments[0] ? [{ courtId: payments[0].courtNumber, courtNumber: payments[0].courtNumber, startTime: payments[0].startTime, endTime: payments[0].endTime }] : [];
   const bookingTimeGroups = mergeAdjacentBookingSlots(bookingSlots);
   const amountPerPlayer = payments[0]?.amount ?? 0;
