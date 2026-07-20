@@ -21,6 +21,7 @@ test('checkout summarizes selected child-court slots instead of the parent booki
   assert.match(checkoutSource, /buildSlotSummaries/);
   assert.match(checkoutSource, /booking\.slots\.length/);
   assert.match(checkoutSource, /slotSummaries\.map/);
+  assert.match(checkoutSource, /dateText\(slot\.startTime\)/);
   assert.doesNotMatch(checkoutSource, /timeText\(booking\.startTime\)} - \{timeText\(booking\.endTime\)/);
 });
 

@@ -26,9 +26,22 @@ test('booking detail page uses a compact no-header layout', () => {
 
 test('booking detail puts each check-in code beside its child court and playing time', () => {
   assert.match(source, /booking\.checkInGroups\.map\(\(group\)/);
+  assert.match(source, /playDate\(group\.startTime\)/);
   assert.match(source, /time\(group\.startTime\)/);
   assert.match(source, /time\(group\.endTime\)/);
   assert.match(source, /group\.checkInCode/);
+  assert.match(source, /Mở trước giờ chơi 30 phút/);
+  assert.doesNotMatch(source, /group\.checkInCode \?\? booking\.checkInCode/);
+});
+
+
+test('booking timeline shows check-in history for each child playing occurrence', () => {
+  assert.match(source, /booking\.checkInGroups\.filter\(\(group\) => group\.checkedInAt\)\.map/);
+  assert.match(source, /dateTime\(group\.checkedInAt!\)/);
+  assert.match(source, /playDate\(group\.startTime\)/);
+  assert.match(source, /group\.courtNumber/);
+  assert.match(source, /booking\.checkedInAt && booking\.checkInGroups\.length === 0/);
+  assert.match(source, /booking\.checkInGroups\.some\(\(group\) => group\.checkedInAt\)/);
 });
 
 

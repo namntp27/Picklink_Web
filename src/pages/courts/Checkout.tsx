@@ -396,11 +396,13 @@ const CourtCheckout = () => {
               <div className="flex gap-3">
                 <Clock className="h-5 w-5 shrink-0 text-primary" />
                 <div>
-                  <strong>{dateText(slotSummaries[0]?.startTime ?? booking.startTime)}</strong>
-                  <div className="mt-1 space-y-1 text-[#66766d]">
+                  <div className="space-y-2 text-[#66766d]">
                     {slotSummaries.map((slot) => (
                       <p key={`${slot.courtId}-${slot.startTime}`}>
-                        {slotSummaries.length > 1 ? `Sân ${slot.courtNumber}: ` : ''}{timeText(slot.startTime)} - {timeText(slot.endTime)}
+                        <strong className="block text-[#0b2228]">{dateText(slot.startTime)}</strong>
+                        <span className="mt-0.5 block">
+                          {slotSummaries.length > 1 ? `Sân ${slot.courtNumber}: ` : ''}{timeText(slot.startTime)} - {timeText(slot.endTime)}
+                        </span>
                       </p>
                     ))}
                     <p>{hoursText(selectedDurationHours)} giờ</p>

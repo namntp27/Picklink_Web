@@ -269,7 +269,18 @@ export const BookingDetail = () => {
                   </div>
                 </div>
               ))}
-              {booking.checkedInAt && (
+              {booking.checkInGroups.filter((group) => group.checkedInAt).map((group) => (
+                <div className="flex gap-3 py-3" key={`check-in-${group.bookingCheckInGroupId}`}>
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-container/25 text-primary"><TicketCheck className="h-4 w-4" /></span>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold">Đã check-in buổi chơi</p>
+                    <p className="mt-0.5 break-words text-[12px] text-on-surface-variant">
+                      {dateTime(group.checkedInAt!)} · {playDate(group.startTime)} · Sân {group.courtNumber} · {time(group.startTime)} - {time(group.endTime)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {booking.checkedInAt && booking.checkInGroups.length === 0 && (
                 <div className="flex gap-3 py-3">
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-container/25 text-primary"><TicketCheck className="h-4 w-4" /></span>
                   <div>
@@ -278,7 +289,7 @@ export const BookingDetail = () => {
                   </div>
                 </div>
               )}
-              {booking.statusHistory.length === 0 && !booking.checkedInAt && <p className="py-4 text-[14px] text-on-surface-variant">Chưa có lịch sử trạng thái.</p>}
+              {booking.statusHistory.length === 0 && !booking.checkedInAt && !booking.checkInGroups.some((group) => group.checkedInAt) && <p className="py-4 text-[14px] text-on-surface-variant">Chưa có lịch sử trạng thái.</p>}
             </div>
           </section>
 
@@ -287,9 +298,12 @@ export const BookingDetail = () => {
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">{'Mã check-in'}</p>
               <div className="mt-2 space-y-1">
                 {booking.checkInGroups.map((group) => (
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-container-low px-3 py-2 text-[12px]" key={group.bookingCheckInGroupId}>
-                    <strong className="min-w-0 truncate">{`Sân ${group.courtNumber} · ${time(group.startTime)} - ${time(group.endTime)}`}</strong>
-                    <span className="shrink-0 font-mono font-extrabold text-primary">{group.checkInCode ?? booking.checkInCode ?? 'Chưa mở mã'}</span>
+                  <div className="rounded-lg bg-surface-container-low px-3 py-2 text-[12px]" key={group.bookingCheckInGroupId}>
+                    <p className="font-extrabold text-on-surface">{playDate(group.startTime)}</p>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                      <strong>{`Sân ${group.courtNumber} · ${time(group.startTime)} - ${time(group.endTime)}`}</strong>
+                      <span className="font-mono font-extrabold text-primary">{group.checkInCode ?? 'Mở trước giờ chơi 30 phút'}</span>
+                    </div>
                   </div>
                 ))}
               </div>
