@@ -67,7 +67,9 @@ const getErrorMessage = (status: number, body?: ApiErrorBody) => {
         ? 'Không tìm thấy API hoặc dữ liệu được yêu cầu. Hãy khởi động lại backend nếu vừa cập nhật mã nguồn.'
         : status === 409
           ? 'Dữ liệu vừa thay đổi. Vui lòng tải lại và thử lại.'
-          : status >= 500
+          : status === 429
+            ? 'Bạn thao tác quá nhanh. Vui lòng chờ một lúc rồi thử lại.'
+            : status >= 500
             ? 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.'
             : 'Yêu cầu không thành công.';
 
