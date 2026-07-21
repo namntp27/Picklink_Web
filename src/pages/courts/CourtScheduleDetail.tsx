@@ -9,7 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { createBookingHolding, getCourtAvailability, type AvailabilitySlot, type BookingScheduleConflict, type CourtAvailability } from '../../api/booking';
+import { createBookingHolding, getCourtAvailabilities, getCourtAvailability, type AvailabilitySlot, type BookingScheduleConflict, type CourtAvailability } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
@@ -17,6 +17,7 @@ import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { CourtTimelineGrid } from './components/CourtTimelineGrid';
+import { addCalendarMonths, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
 const maxBookingSlots = 496;
 const localDate = () => {
@@ -28,14 +29,15 @@ const maxScheduleDate = () => {
   now.setMonth(now.getMonth() + 1);
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
+const maxBookingDate = () => addCalendarMonths(localDate(), maximumAdvanceBookingMonths);
+const maximumMonthDurationFrom = (startDate: string) => {
+  for (let months = maximumAdvanceBookingMonths; months >= 1; months -= 1) {
+    if (addCalendarMonths(startDate, months) <= maxBookingDate()) return months;
+  }
+  return 0;
+};
 const validScheduleDate = (value: string | null) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localDate() && value <= maxScheduleDate() ? value : localDate();
-const datesInMonth = (value: string) => {
-  const [year, month] = value.split('-').map(Number);
-  if (!year || !month) return [];
-  return Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) =>
-    [year, String(month).padStart(2, '0'), String(index + 1).padStart(2, '0')].join('-'));
-};
 const time = (value: string) => value.slice(11, 16);
 const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const slotKey = (courtId: number, startTime: string) => courtId + ':' + startTime;
@@ -84,7 +86,7 @@ export const CourtScheduleDetail = () => {
   const [availabilityDate, setAvailabilityDate] = useState<string | null>(null);
   const availabilityRequestId = useRef(0);
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, CourtSlotSelection[]>>({});
-  const [bookingMonth, setBookingMonth] = useState(() => date.slice(0, 7));
+  const [bookingMonths, setBookingMonths] = useState(1);
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isApplyingMonth, setIsApplyingMonth] = useState(false);
@@ -128,6 +130,8 @@ export const CourtScheduleDetail = () => {
     () => selectedSlotsByDate[date] ?? [],
     [date, selectedSlotsByDate],
   );
+  const maximumMonthDuration = maximumMonthDurationFrom(date);
+  const bookingRangeEnd = addCalendarMonths(date, bookingMonths);
   const selectedSlotKeys = selectedSlotsForDate.map((slot) => slotKey(slot.courtId, time(slot.startTime)));
   const selectedSlots = useMemo(
     () => Object.values(selectedSlotsByDate).flat()
@@ -249,26 +253,21 @@ export const CourtScheduleDetail = () => {
     setError('');
   };
 
-  const applyCurrentSlotsToMonth = async () => {
-    if (!token || !bookingMonth || !selectedSlotsForDate.length) {
-      setError('Hãy chọn ít nhất một slot ở ngày đang xem trước khi áp dụng cho cả tháng.');
+  const applyCurrentSlotsForMonths = async () => {
+    if (!token || bookingMonths < 1 || !selectedSlotsForDate.length) {
+      setError('Hãy chọn ít nhất một slot ở ngày đang xem trước khi áp dụng theo số tháng.');
       return;
     }
-    const targetDates = datesInMonth(bookingMonth)
-      .filter((targetDate) => targetDate >= localDate() && targetDate <= maxScheduleDate());
-    if (!targetDates.length) {
-      setError('Tháng đã chọn không còn ngày nào có thể đặt.');
+    const targetDates = datesForMonthDuration(date, bookingMonths);
+    if (!targetDates.length || bookingRangeEnd > maxBookingDate()) {
+      setError('Khoảng đặt sân phải kết thúc trong vòng 12 tháng kể từ hôm nay.');
       return;
     }
 
     setIsApplyingMonth(true);
     setError('');
     try {
-      // ponytail: reuse the existing daily availability API; add a batch endpoint only if this becomes a bottleneck.
-      const calendars = await Promise.all(targetDates.map(async (targetDate) => ({
-        date: targetDate,
-        availability: await getCourtAvailability(venueId, targetDate, token),
-      })));
+      const calendars = await getCourtAvailabilities(venueId, targetDates, token);
       const unavailable: MonthUnavailableSlot[] = [];
       const invalidKeys = new Set<string>();
       const validSlots: CourtSlotSelection[] = [];
@@ -328,7 +327,7 @@ export const CourtScheduleDetail = () => {
       });
       setMonthUnavailableSlots(unavailable);
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : 'Không thể kiểm tra lịch cả tháng.');
+      setError(reason instanceof ApiError ? reason.message : 'Không thể kiểm tra lịch theo số tháng.');
     } finally {
       setIsApplyingMonth(false);
     }
@@ -382,7 +381,7 @@ export const CourtScheduleDetail = () => {
   const changeDate = (nextDate: string) => {
     const nextValidDate = validScheduleDate(nextDate);
     setDate(nextValidDate);
-    setBookingMonth(nextValidDate.slice(0, 7));
+    setBookingMonths((current) => Math.min(current, maximumMonthDurationFrom(nextValidDate)));
     setSearchParams({ date: nextValidDate }, { replace: true });
   };
 
@@ -471,28 +470,29 @@ export const CourtScheduleDetail = () => {
                 <div className="mx-auto max-w-5xl rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="min-w-[160px] flex-1">
-                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Áp dụng slot ngày này cho cả tháng</span>
+                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Số tháng áp dụng</span>
                       <input
                         className="h-10 w-full rounded-lg border border-[#d8e4d4] bg-white px-3 text-[13px] font-bold text-[#0b2228] outline-none focus:border-[#276b3f]"
-                        max={maxScheduleDate().slice(0, 7)}
-                        min={localDate().slice(0, 7)}
-                        onChange={(event) => setBookingMonth(event.target.value)}
-                        type="month"
-                        value={bookingMonth}
+                        max={maximumMonthDuration}
+                        min={1}
+                        onChange={(event) => setBookingMonths(Math.max(1, Math.min(maximumMonthDuration, Math.trunc(Number(event.target.value)) || 1)))}
+                        step={1}
+                        type="number"
+                        value={bookingMonths}
                       />
                     </label>
                     <Button
                       aria-busy={isApplyingMonth}
                       className="h-10 rounded-xl bg-[#0b2228] px-3 text-[12px] font-bold text-white hover:bg-[#173a41]"
-                      disabled={isApplyingMonth || !bookingMonth || !selectedSlotsForDate.length}
-                      onClick={() => void applyCurrentSlotsToMonth()}
+                      disabled={isApplyingMonth || maximumMonthDuration < 1 || !selectedSlotsForDate.length}
+                      onClick={() => void applyCurrentSlotsForMonths()}
                       type="button"
                     >
-                      {isApplyingMonth ? 'ĐANG KIỂM TRA...' : 'ÁP DỤNG CẢ THÁNG'}
+                      {isApplyingMonth ? 'ĐANG KIỂM TRA...' : `ÁP DỤNG ${bookingMonths} THÁNG`}
                     </Button>
                   </div>
                   <p className="mt-2 text-[12px] font-medium text-[#718077]">
-                    Đổi ngày để chọn slot riêng từng ngày. Khi áp dụng cả tháng, các slot đang chọn được sao chép cho mọi ngày còn lại trong tháng.
+                    Sao chép các slot đang chọn từ {formatDateKey(date)} đến {formatDateKey(bookingRangeEnd)}, bao gồm ngày kết thúc.
                   </p>
                   {monthUnavailableSlots.length > 0 && (
                     <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">

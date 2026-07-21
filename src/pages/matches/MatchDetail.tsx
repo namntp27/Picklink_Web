@@ -20,7 +20,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
+import { getCourtAvailabilities, getCourtAvailability, type AvailabilitySlot, type CourtAvailability } from '../../api/booking';
 import {
   acceptMatchInvitation,
   acceptParticipant,
@@ -56,6 +56,7 @@ import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { ModalDialog } from '../../components/ui/ModalDialog';
+import { addCalendarMonths, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -161,14 +162,15 @@ const todayDateKey = () => {
   const today = new Date();
   return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
 };
+const maxMatchBookingDate = () => addCalendarMonths(todayDateKey(), maximumAdvanceBookingMonths);
+const maximumMonthDurationFrom = (startDate: string) => {
+  for (let months = maximumAdvanceBookingMonths; months >= 1; months -= 1) {
+    if (addCalendarMonths(startDate, months) <= maxMatchBookingDate()) return months;
+  }
+  return 0;
+};
 export const defaultMatchBookingDate = (availableDateFrom: string, availableDateTo: string, today = todayDateKey()) =>
   today >= availableDateFrom && today <= availableDateTo ? today : availableDateFrom;
-const datesInMonth = (value: string) => {
-  const [year, month] = value.split('-').map(Number);
-  if (!year || !month) return [];
-  return Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) =>
-    [year, String(month).padStart(2, "0"), String(index + 1).padStart(2, "0")].join("-"));
-};
 
 export const MatchDetail = () => {
   const { id } = useParams();
@@ -184,7 +186,7 @@ export const MatchDetail = () => {
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
   const [slotOptions, setSlotOptions] = useState<MatchSlotOption[]>([]);
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, MatchBookingSlotSelection[]>>({});
-  const [bookingMonth, setBookingMonth] = useState('');
+  const [bookingMonths, setBookingMonths] = useState(1);
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
   const [showVenueMap, setShowVenueMap] = useState(false);
   const [showBookingRounds, setShowBookingRounds] = useState(false);
@@ -213,7 +215,6 @@ export const MatchDetail = () => {
       setMatch(result);
       setSelectedVenueId((current) => current ?? result.preferredVenues[0]?.venueId ?? null);
       setBookingDate((current) => current || defaultBookingDate);
-      setBookingMonth((current) => current || defaultBookingDate.slice(0, 7));
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tải phòng ghép trận.');
@@ -347,6 +348,8 @@ export const MatchDetail = () => {
       .map((slot) => String(slot.courtId) + ':' + timePart(slot.startTime)),
     [bookingDate, monthUnavailableSlots],
   );
+  const maximumMonthDuration = maximumMonthDurationFrom(bookingDate);
+  const bookingRangeEnd = addCalendarMonths(bookingDate, bookingMonths);
   const slotMinutes = availability?.slotMinutes ?? 30;
   const selectedSlots = useMemo(
     () => Object.values(selectedSlotsByDate).flat()
@@ -372,25 +375,26 @@ export const MatchDetail = () => {
     });
     setMonthUnavailableSlots((current) => current.filter((slot) => slot.date !== date));
   };
+  const changeBookingDate = (nextDate: string) => {
+    setBookingDate(nextDate);
+    setBookingMonths((current) => Math.min(current, maximumMonthDurationFrom(nextDate)));
+  };
 
-  const applyCurrentSlotsToMonth = async () => {
-    if (!token || !selectedVenueId || !bookingMonth || !selectedSlotsForDate.length) {
-      setError('Hãy chọn ít nhất một slot ở ngày đang xem trước khi áp dụng cho cả tháng.');
+
+  const applyCurrentSlotsForMonths = async () => {
+    if (!token || !selectedVenueId || bookingMonths < 1 || !selectedSlotsForDate.length) {
+      setError('Hãy chọn ít nhất một slot ở ngày đang xem trước khi áp dụng theo số tháng.');
       return;
     }
-    const targetDates = datesInMonth(bookingMonth).filter((date) => date >= todayDateKey());
-    if (!targetDates.length) {
-      setError('Tháng đã chọn không còn ngày nào có thể đặt.');
+    const targetDates = datesForMonthDuration(bookingDate, bookingMonths);
+    if (!targetDates.length || bookingRangeEnd > maxMatchBookingDate()) {
+      setError('Khoảng đặt sân phải kết thúc trong vòng 12 tháng kể từ hôm nay.');
       return;
     }
 
     setIsBusy(true);
     try {
-      // ponytail: reuse the existing daily availability API; add a batch endpoint only if this becomes a bottleneck.
-      const calendars = await Promise.all(targetDates.map(async (date) => ({
-        date,
-        availability: await getCourtAvailability(selectedVenueId, date, token),
-      })));
+      const calendars = await getCourtAvailabilities(selectedVenueId, targetDates, token);
       const unavailable: MonthUnavailableSlot[] = [];
       const pastSlotKeys = new Set<string>();
       const validSlots: MatchBookingSlotSelection[] = [];
@@ -446,7 +450,7 @@ export const MatchDetail = () => {
         ? 'Không áp dụng ' + unavailable.length + ' slot không còn trống. Xem danh sách sân, ngày và giờ bên dưới.'
         : '');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể kiểm tra lịch cả tháng.');
+      setError(reason instanceof Error ? reason.message : 'Không thể kiểm tra lịch theo số tháng.');
     } finally {
       setIsBusy(false);
     }
@@ -892,21 +896,32 @@ export const MatchDetail = () => {
                 <label><span className="mb-1 block text-[13px] font-bold">Cụm sân</span><select className={inputClass} onChange={(event) => { setSelectedVenueId(Number(event.target.value)); setSelectedSlotsByDate({}); setMonthUnavailableSlots([]); }} value={selectedVenueId ?? ''}>{match.preferredVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
                 <label>
                   <span className="mb-1 block text-[13px] font-bold">Ngày đang xem</span>
-                  <input className={inputClass} onChange={(event) => setBookingDate(event.target.value)} type="date" value={bookingDate} />
+                  <input className={inputClass} max={maxMatchBookingDate()} min={todayDateKey()} onChange={(event) => changeBookingDate(event.target.value)} type="date" value={bookingDate} />
                 </label>
                 <div className="md:col-span-2 rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
-                    <label className="min-w-[160px] flex-1"><span className="mb-1 block text-[12px] font-bold text-[#526158]">Áp dụng slot ngày này cho cả tháng</span><input className={inputClass} onChange={(event) => setBookingMonth(event.target.value)} type="month" value={bookingMonth} /></label>
-                    <button className="rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy || !bookingMonth || !selectedSlotsForDate.length} onClick={() => void applyCurrentSlotsToMonth()} type="button">Áp dụng cả tháng</button>
+                    <label className="min-w-[160px] flex-1">
+                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Số tháng áp dụng</span>
+                      <input
+                        className={inputClass}
+                        max={maximumMonthDuration}
+                        min={1}
+                        onChange={(event) => setBookingMonths(Math.max(1, Math.min(maximumMonthDuration, Math.trunc(Number(event.target.value)) || 1)))}
+                        step={1}
+                        type="number"
+                        value={bookingMonths}
+                      />
+                    </label>
+                    <button className="rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy || maximumMonthDuration < 1 || !selectedSlotsForDate.length} onClick={() => void applyCurrentSlotsForMonths()} type="button">Áp dụng {bookingMonths} tháng</button>
                   </div>
-                  <p className="mt-2 text-[12px] font-medium text-[#718077]">Đổi ngày để chọn slot riêng từng ngày. Khi áp dụng cả tháng, các slot đang chọn được sao chép cho mọi ngày còn lại trong tháng.</p>
+                  <p className="mt-2 text-[12px] font-medium text-[#718077]">Sao chép các slot đang chọn từ {formatDateKey(bookingDate)} đến {formatDateKey(bookingRangeEnd)}, bao gồm ngày kết thúc.</p>
                   {monthUnavailableSlots.length > 0 && <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950"><p className="flex items-center gap-2 text-[12px] font-extrabold"><AlertCircle className="h-4 w-4" /> Slot không còn trống ({monthUnavailableSlots.length})</p><div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-y-auto">{monthUnavailableSlots.map((slot) => <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold" key={slotIdentity(slot.courtId, slot.startTime, slot.endTime)}>Sân {slot.courtNumber} · {dateLabel(slot.date)} · {timePart(slot.startTime)}-{timePart(slot.endTime)}</span>)}</div></div>}
                   {selectedDates.length > 0 && (
                     <div className="mt-3 max-h-64 overflow-y-auto pr-1">
                       <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
                         {selectedDates.map((date) => (
                           <div className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (date === bookingDate ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-white text-[#526158]')} key={date}>
-                            <button className="min-w-0 flex-1 text-left" onClick={() => setBookingDate(date)} type="button">
+                            <button className="min-w-0 flex-1 text-left" onClick={() => changeBookingDate(date)} type="button">
                               <span className="block truncate">{dateLabel(date)}</span>
                               <span className="mt-1 block text-[10px]">{selectedSlotsByDate[date].length} slot</span>
                             </button>

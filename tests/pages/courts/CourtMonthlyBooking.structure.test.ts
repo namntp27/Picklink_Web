@@ -5,10 +5,10 @@ import { test } from 'node:test';
 const scheduleSource = readFileSync(new URL('../../../src/pages/courts/CourtScheduleDetail.tsx', import.meta.url), 'utf8');
 const bookingSource = readFileSync(new URL('../../../src/api/booking.ts', import.meta.url), 'utf8');
 
-test('court schedule applies the selected daily slots to available days in a month', () => {
-  assert.match(scheduleSource, /const applyCurrentSlotsToMonth = async/);
-  assert.match(scheduleSource, /datesInMonth\(bookingMonth\)/);
-  assert.match(scheduleSource, /getCourtAvailability\(venueId, targetDate, token\)/);
+test('court schedule applies the selected daily slots through a rolling number of months', () => {
+  assert.match(scheduleSource, /const applyCurrentSlotsForMonths = async/);
+  assert.match(scheduleSource, /datesForMonthDuration\(date, bookingMonths\)/);
+  assert.match(scheduleSource, /getCourtAvailabilities\(venueId, targetDates, token\)/);
   assert.match(scheduleSource, /Slot không còn trống/);
   assert.match(scheduleSource, /disabledSlotKeys=\{unavailableSlotKeysForDate\}/);
   assert.match(scheduleSource, /date: slot\.startTime\.slice\(0, 10\)/);
@@ -35,7 +35,7 @@ test('court schedule completes loading when its latest availability refresh is s
 });
 
 test('court schedule keeps a hold error visible while refreshing availability', () => {
-  assert.match(scheduleSource, /Không thể giữ slot\. Vui lòng tải lại lịch\.'\);\n      await load\(false\);/);
+  assert.match(scheduleSource, /Không thể giữ slot\. Vui lòng tải lại lịch\.'\);\r?\n      await load\(false\);/);
 });
 
 test("court schedule confirms a player's conflicting schedule before holding slots", () => {

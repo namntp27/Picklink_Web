@@ -201,6 +201,24 @@ export const removeFavoriteVenue = (token: string, venueId: number) => apiReques
 
 export const getCourtAvailability = (venueId: number, date: string, token?: string | null) => apiRequest<CourtAvailability>(`/api/player-bookings/venues/${venueId}/availability?date=${encodeURIComponent(date)}`, {}, token ?? undefined);
 
+export const getCourtAvailabilities = async (
+  venueId: number,
+  dates: string[],
+  token?: string | null,
+) => {
+  const calendars: Array<{ date: string; availability: CourtAvailability }> = [];
+  const batchSize = 8;
+  for (let index = 0; index < dates.length; index += batchSize) {
+    const batchDates = dates.slice(index, index + batchSize);
+    const batch = await Promise.all(batchDates.map(async (date) => ({
+      date,
+      availability: await getCourtAvailability(venueId, date, token),
+    })));
+    calendars.push(...batch);
+  }
+  return calendars;
+};
+
 export const createBookingHolding = (token: string, input: { date: string; slots: BookingHoldSlot[]; allowScheduleConflicts?: boolean }) => apiRequest<BookingHolding>('/api/player-bookings/hold', {
   method: 'POST',
   body: JSON.stringify(input),

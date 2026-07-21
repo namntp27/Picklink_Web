@@ -15,7 +15,7 @@ test('court timeline grid matches the venue timetable states from the reference'
     assert.match(gridSource, new RegExp(label));
   }
 
-  assert.match(gridSource, /áp dụng cả tháng/i);
+  assert.match(gridSource, /số tháng áp dụng/i);
   assert.match(gridSource, /buildTimelineTicks/);
   assert.match(gridSource, /gridTemplateColumns/);
   assert.match(gridSource, /timeToMinutes/);
@@ -68,6 +68,15 @@ test('court schedule limits player booking dates to one month from today', () =>
   assert.match(scheduleSource, /value <= maxScheduleDate\(\)/);
   assert.match(scheduleSource, /max=\{maxScheduleDate\(\)\}/);
 });
+test('court schedule applies slots for a rolling number of months', () => {
+  assert.match(scheduleSource, /Số tháng áp dụng/);
+  assert.match(scheduleSource, /type="number"/);
+  assert.match(scheduleSource, /datesForMonthDuration\(date, bookingMonths\)/);
+  assert.match(scheduleSource, /formatDateKey\(bookingRangeEnd\)/);
+  assert.match(scheduleSource, /maximumAdvanceBookingMonths/);
+  assert.doesNotMatch(scheduleSource, /type="month"/);
+});
+
 
 test('court schedule allows non-consecutive slots but one child court per time', () => {
   assert.doesNotMatch(scheduleSource, /Ch? du?c ch?n cï¿½c slot liï¿½n ti?p/);

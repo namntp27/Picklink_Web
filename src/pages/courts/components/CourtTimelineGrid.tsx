@@ -81,7 +81,7 @@ export const CourtTimelineGrid = ({
       </div>
 
       <p className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">
-        <span className="font-black text-[#f97316]">Lưu ý:</span> Bạn có thể chọn các slot rời nhau; dùng mục áp dụng cả tháng để sao chép lịch đang chọn.
+        <span className="font-black text-[#f97316]">Lưu ý:</span> Bạn có thể chọn các slot rời nhau; dùng mục số tháng áp dụng để sao chép lịch đang chọn.
       </p>
       <div className="overflow-x-auto">
         <div className="min-w-[1080px]">
