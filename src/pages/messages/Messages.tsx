@@ -455,6 +455,7 @@ export const Messages = () => {
 
   const handleApproveMember = async (memberUserId: number) => {
     if (!token || !activeConversation?.groupId) return;
+    if (!window.confirm('Duyệt người này vào nhóm?')) return;
     try {
       await approveMember(token, activeConversation.groupId, memberUserId);
       loadSettingsMembers();

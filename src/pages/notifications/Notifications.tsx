@@ -213,6 +213,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
 
   const removeNotification = async (notificationId: number) => {
     if (!token) return;
+    if (!window.confirm('Xóa thông báo này?')) return;
     try {
       await deleteNotification(token, notificationId);
       await loadNotifications();
@@ -223,6 +224,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
 
   const clearReadNotifications = async () => {
     if (!token || !hasReadNotifications) return;
+    if (!window.confirm('Xóa tất cả thông báo đã đọc?')) return;
     try {
       await deleteReadNotifications(token);
       await loadNotifications();

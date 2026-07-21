@@ -99,6 +99,11 @@ export const ClubDetail = () => {
     if (!club) return;
     if (club.myStatus === 'Banned') return;
 
+    if (club.myStatus === 'Accepted'
+      && !window.confirm(`Rời câu lạc bộ “${club.groupName}”?`)) return;
+    if (club.myStatus === 'Pending'
+      && !window.confirm(`Hủy yêu cầu tham gia câu lạc bộ “${club.groupName}”?`)) return;
+
     setActionLoading(true);
     try {
       if (club.myStatus === 'Accepted' || club.myStatus === 'Pending') {

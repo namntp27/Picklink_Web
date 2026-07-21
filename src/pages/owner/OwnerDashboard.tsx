@@ -219,6 +219,9 @@ export const OwnerDashboard = () => {
 
   const updateStatus = async (item: OwnerScheduleItem, status: 'Confirmed' | 'Cancelled') => {
     if (!token) return;
+    const message = status === 'Confirmed'
+      ? `Xác nhận booking #${item.bookingId}?` : `Hủy booking #${item.bookingId}?`;
+    if (!window.confirm(message)) return;
     try {
       await updateOwnerBookingStatus(token, item.bookingId, status);
       setSelectedSlot(null);
@@ -230,6 +233,7 @@ export const OwnerDashboard = () => {
 
   const unlock = async (item: OwnerScheduleItem) => {
     if (!token) return;
+    if (!window.confirm(`Mở khóa lịch “${item.title || `#${item.bookingId}`}” và trả slot về trạng thái trống?`)) return;
     try {
       await deleteOwnerScheduleEntry(token, item.bookingId);
       setSelectedSlot(null);

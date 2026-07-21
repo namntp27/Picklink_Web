@@ -105,6 +105,8 @@ export const AdminTransactions = () => {
       notify('Đơn giá phải lớn hơn 0.', 'error');
       return;
     }
+    if (!window.confirm(`Cập nhật phí lên sàn thành ${currency.format(price)}?`)) return;
+
     setSavingSettings(true);
     try {
       const updated = await updateListingFeeSettings(token, price);
@@ -119,6 +121,7 @@ export const AdminTransactions = () => {
 
   const confirmPayment = async (payment: ListingFeePayment) => {
     if (!token) return;
+    if (!window.confirm(`Xác nhận đã nhận ${currency.format(payment.amount)} phí lên sàn?`)) return;
     setBusyId(payment.venueListingPaymentId);
     try {
       await confirmListingFeePayment(token, payment.venueListingPaymentId);
@@ -135,6 +138,7 @@ export const AdminTransactions = () => {
     if (!token) return;
     const reason = window.prompt('Lý do từ chối biên lai phí lên sàn?')?.trim();
     if (!reason) return;
+    if (!window.confirm('Từ chối biên lai phí lên sàn này?')) return;
     setBusyId(payment.venueListingPaymentId);
     try {
       await rejectListingFeePayment(token, payment.venueListingPaymentId, reason);

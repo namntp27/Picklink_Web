@@ -127,6 +127,9 @@ export const AdminUsers = () => {
       : window.prompt(`Lý do khóa tài khoản ${target.name}?`, '')?.trim();
     if (!target.isLocked && reason === undefined) return;
 
+    const actionLabel = target.isLocked ? 'mở khóa' : 'khóa';
+    if (!window.confirm(`Xác nhận ${actionLabel} tài khoản ${target.name}?`)) return;
+
     setBusyUserId(target.userId);
     try {
       const updated = target.isLocked

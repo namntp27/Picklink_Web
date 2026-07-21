@@ -383,6 +383,7 @@ export const AdminCourts = () => {
 
   const approve = async () => {
     if (!token || !selected) return;
+    if (!window.confirm(`Duyệt cụm sân “${selected.venueName}” và cho phép hiển thị để đặt sân?`)) return;
     setBusy(true);
     try {
       const updated = await approveAdminVenue(selected.venueId, token);
@@ -398,6 +399,7 @@ export const AdminCourts = () => {
 
   const reject = async (reason: string) => {
     if (!token || !selected || reason.length < 3) return;
+    if (!window.confirm(`Từ chối hồ sơ cụm sân “${selected.venueName}”?`)) return;
     setBusy(true);
     try {
       const updated = await rejectAdminVenue(selected.venueId, reason, token);

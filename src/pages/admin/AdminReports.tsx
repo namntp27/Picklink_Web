@@ -110,6 +110,11 @@ export const AdminReports = () => {
       report.resolutionNote ?? '',
     )?.trim();
     if (resolutionNote === undefined) return;
+    const actionLabel = nextStatus === 'Resolved'
+      ? 'đánh dấu báo cáo đã xử lý'
+      : nextStatus === 'Dismissed' ? 'bỏ qua báo cáo' : 'nhận xử lý báo cáo';
+    if (!window.confirm(`Xác nhận ${actionLabel} này?`)) return;
+
 
     setBusyId(report.communityReportId);
     try {

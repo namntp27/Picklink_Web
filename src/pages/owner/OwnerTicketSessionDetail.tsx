@@ -247,6 +247,7 @@ export const OwnerTicketSessionDetail = () => {
 
   const publish = async () => {
     if (!token) return;
+    if (!window.confirm('Đăng bán buổi chơi này để người chơi có thể mua vé?')) return;
     await perform('publish', () => publishOwnerTicketSession(token, ticketSessionId), 'Đã đăng bán vé.');
   };
   const cancel = async () => {

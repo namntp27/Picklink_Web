@@ -93,6 +93,7 @@ export const OwnerTransactionReviewModal = ({
 
   const approve = async () => {
     if (!token || !payment) return;
+    if (!window.confirm(`Xác nhận đã nhận đủ ${currency.format(payment.amount)} từ ${payment.playerName}?`)) return;
     setIsBusy(true);
     setError('');
     try {
@@ -108,6 +109,7 @@ export const OwnerTransactionReviewModal = ({
 
   const reject = async () => {
     if (!token || !payment || rejectReason.trim().length < 3) return;
+    if (!window.confirm(`Từ chối biên lai thanh toán của ${payment.playerName}?`)) return;
     setIsBusy(true);
     setError('');
     try {

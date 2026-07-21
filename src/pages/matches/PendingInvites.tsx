@@ -162,6 +162,7 @@ export const PendingInvites = () => {
 
   const handleLeaveQueue = async () => {
     if (!token) return;
+    if (!window.confirm('Bạn có chắc chắn muốn rời hàng chờ ghép trận này?')) return;
     try {
       await cancelQueue(token);
       void loadQueues();

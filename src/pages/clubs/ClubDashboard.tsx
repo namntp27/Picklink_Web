@@ -598,6 +598,7 @@ export const ClubDashboard = () => {
 
   const approveRequest = async (request: JoinRequest) => {
     if (!token || !isNumericGroupId) return;
+    if (!window.confirm(`Duyệt ${request.name} vào câu lạc bộ?`)) return;
     try {
       await approveMember(token, groupId, request.id);
       await loadMembers();
@@ -608,6 +609,7 @@ export const ClubDashboard = () => {
 
   const rejectRequest = async (requestId: number) => {
     if (!token || !isNumericGroupId) return;
+    if (!window.confirm('Từ chối yêu cầu tham gia câu lạc bộ này?')) return;
     try {
       await declineMember(token, groupId, requestId);
       await loadMembers();
@@ -626,6 +628,9 @@ export const ClubDashboard = () => {
 
   const updateMemberRole = async (memberId: number, role: MemberRole) => {
     if (!token || !isNumericGroupId) return;
+    const targetMember = members.find((member) => member.id === memberId);
+    if (!window.confirm(`Đổi vai trò của ${targetMember?.name ?? 'thành viên này'} thành ${role}?`)) return;
+
 
     const backendRole = uiRoleToBackendRole[role];
     try {
@@ -666,6 +671,7 @@ export const ClubDashboard = () => {
 
   const approvePost = async (postId: number) => {
     if (!token) return;
+    if (!window.confirm('Duyệt bài viết này để hiển thị trong câu lạc bộ?')) return;
     try {
       await approveGroupPost(token, postId);
       await loadGroupPosts();

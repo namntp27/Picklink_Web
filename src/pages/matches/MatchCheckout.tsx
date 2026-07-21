@@ -130,6 +130,8 @@ export const MatchCheckout = () => {
       setError('Vui lòng chọn thành viên và ảnh biên lai trước khi gửi.');
       return;
     }
+    if (!window.confirm(`Gửi biên lai thanh toán cho ${selectedPayerIds.length} thành viên đã chọn?`)) return;
+
     setIsSubmitting(true);
     setError('');
     try {

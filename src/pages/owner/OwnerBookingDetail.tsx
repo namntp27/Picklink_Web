@@ -95,7 +95,9 @@ export const OwnerBookingDetail = () => {
 
   const updateStatus = async (status: 'Confirmed' | 'Cancelled') => {
     if (!token || !booking) return;
-    if (status === 'Cancelled' && !window.confirm('Xác nhận từ chối/hủy booking này?')) return;
+    const message = status === 'Confirmed'
+      ? `Xác nhận booking ${booking.bookingCode}?` : `Từ chối/hủy booking ${booking.bookingCode}?`;
+    if (!window.confirm(message)) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
       await updateOwnerBookingStatus(token, booking.bookingId, status);

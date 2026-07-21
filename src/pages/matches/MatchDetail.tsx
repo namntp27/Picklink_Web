@@ -764,8 +764,8 @@ export const MatchDetail = () => {
                   <div className="flex items-center justify-between gap-2 rounded-md bg-white p-2" key={participant.participantId}>
                     <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p></div>
                     <div className="flex shrink-0 gap-1">
-                      <button className="grid h-7 w-7 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
-                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-7 w-7 !min-h-7 !p-0" disabled={isBusy} onClick={() => token && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
+                      <button className="grid h-7 w-7 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && window.confirm(`Từ chối yêu cầu tham gia của ${participant.playerName}?`) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
+                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-7 w-7 !min-h-7 !p-0" disabled={isBusy} onClick={() => token && window.confirm(`Chấp nhận ${participant.playerName} vào phòng?`) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 ))}
@@ -831,7 +831,7 @@ export const MatchDetail = () => {
                       </span>
                     )}
                     {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
-                      <button className="grid h-7 w-7 shrink-0 place-items-center text-red-600" disabled={isBusy} onClick={() => token && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
+                      <button className="grid h-7 w-7 shrink-0 place-items-center text-red-600" disabled={isBusy} onClick={() => token && window.confirm(`Loại ${participant.playerName} khỏi phòng?`) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </article>
                 );
@@ -968,10 +968,10 @@ export const MatchDetail = () => {
                 <div className="mt-4 border-y border-[#cfe0c8] py-4">
                   <p className="text-center text-[13px] font-extrabold text-[#0b2228]">Bạn được mời tham gia trận này</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button className="community-button-secondary" disabled={isBusy} onClick={() => token && void run(() => declineMatchInvitation(token, matchId))} type="button">
+                    <button className="community-button-secondary" disabled={isBusy} onClick={() => token && window.confirm('Từ chối lời mời tham gia phòng này?') && void run(() => declineMatchInvitation(token, matchId))} type="button">
                       <X className="h-4 w-4" /> Từ chối
                     </button>
-                    <button className="community-button" disabled={isBusy} onClick={() => token && void run(() => acceptMatchInvitation(token, matchId))} type="button">
+                    <button className="community-button" disabled={isBusy} onClick={() => token && window.confirm('Chấp nhận lời mời và tham gia phòng này?') && void run(() => acceptMatchInvitation(token, matchId))} type="button">
                       <Check className="h-4 w-4" /> Chấp nhận
                     </button>
                   </div>
@@ -982,10 +982,10 @@ export const MatchDetail = () => {
               )}
               {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng hoặc thành viên trong phòng duyệt</div>}
               {isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
-                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={() => token && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
+                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={() => token && window.confirm('Bạn có chắc chắn muốn rời phòng ghép trận này?') && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
               )}
               {match.isHost && match.status === 'Recruiting' && isFull && (
-                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
+                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && window.confirm('Xác nhận chốt danh sách và chuyển phòng sang sẵn sàng đặt sân?') && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
               )}
             </section>
           )}

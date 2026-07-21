@@ -108,6 +108,10 @@ export const AdminReviews = () => {
       review.moderationNote ?? '',
     )?.trim();
     if (moderationNote === undefined) return;
+    const actionLabel = nextStatus === 'Hidden' ? 'ẩn'
+      : nextStatus === 'Flagged' ? 'gắn cờ' : 'hiện lại';
+    if (!window.confirm(`Xác nhận ${actionLabel} đánh giá này?`)) return;
+
 
     setBusyId(review.ratingId);
     try {

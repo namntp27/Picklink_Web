@@ -97,6 +97,9 @@ export const OwnerStaff = () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!token || selectedVenueIds.length === 0) return;
+    const actionLabel = accountMode === 'create' ? 'tạo tài khoản Staff mới' : 'gán tài khoản Staff hiện có';
+    if (!window.confirm(`Xác nhận ${actionLabel} với các quyền đã chọn?`)) return;
+
     setIsBusy(true); setError(''); setSuccess('');
     try {
       if (accountMode === 'create') {
@@ -119,6 +122,11 @@ export const OwnerStaff = () => {
 
   const saveAssignment = async (assignment: OwnerStaffAssignment, next: Partial<Pick<OwnerStaffAssignment, 'isActive' | 'permissions'>>) => {
     if (!token) return;
+    const message = next.isActive === false
+      ? `Thu hồi quyền Staff của ${assignment.username}?`
+      : next.isActive === true ? `Cấp lại quyền Staff cho ${assignment.username}?`
+        : `Cập nhật quyền vận hành của ${assignment.username}?`;
+    if (!window.confirm(message)) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
       await updateOwnerStaff(token, assignment.staffId, {
@@ -186,6 +194,8 @@ export const OwnerStaff = () => {
       setError('Nhân viên đang hoạt động cần có ít nhất một quyền.');
       return;
     }
+    if (!window.confirm(`Lưu thay đổi tài khoản và quyền của ${assignment.username}?`)) return;
+
 
     setIsBusy(true); setError(''); setSuccess('');
     try {

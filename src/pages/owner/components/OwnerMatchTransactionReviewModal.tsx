@@ -126,6 +126,7 @@ export const OwnerMatchTransactionReviewModal = ({
 
   const approve = async (payment: BankTransfer) => {
     if (!token) return;
+    if (!window.confirm(`Chấp nhận thanh toán của ${payment.playerName}?`)) return;
     setBusyId(payment.paymentId);
     setError('');
     try {
@@ -144,6 +145,7 @@ export const OwnerMatchTransactionReviewModal = ({
   const reject = async (payment: BankTransfer) => {
     const reason = rejectReasons[payment.paymentId]?.trim() ?? '';
     if (!token || reason.length < 3) return;
+    if (!window.confirm(`Từ chối thanh toán của ${payment.playerName}?`)) return;
     setBusyId(payment.paymentId);
     setError('');
     try {

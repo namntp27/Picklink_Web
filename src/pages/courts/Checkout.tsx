@@ -177,6 +177,8 @@ const CourtCheckout = () => {
     if (remainingSeconds <= 0) { setError('Thời gian giữ chỗ đã hết. Vui lòng chọn lại khung giờ.'); return; }
     if (!transfer?.qrImageUrl) { setError('Sân chưa cấu hình tài khoản nhận chuyển khoản.'); return; }
     if (!receipt) { setError('Vui lòng chọn ảnh biên lai trước khi xác nhận đã chuyển khoản.'); return; }
+    if (!window.confirm(`Gửi biên lai và xác nhận đã chuyển ${currency.format(booking.totalAmount)}?`)) return;
+
     setIsSubmitting(true);
     setError('');
     try {
@@ -225,6 +227,7 @@ const CourtCheckout = () => {
       navigate(schedulePath);
       return;
     }
+    if (!window.confirm('Hủy giữ chỗ hiện tại và quay lại chọn lịch sân?')) return;
 
     setIsReturning(true);
     setError('');

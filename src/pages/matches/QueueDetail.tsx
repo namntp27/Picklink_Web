@@ -234,6 +234,9 @@ export const QueueDetail = () => {
 
   const handleReviewRequest = async (playerId: number, approve: boolean) => {
     if (!token || !queueId) return;
+    const playerName = queue?.queuePlayers.find((player) => player.playerId === playerId)?.playerName ?? 'người chơi này';
+    if (!window.confirm(`${approve ? 'Chấp nhận' : 'Từ chối'} yêu cầu tham gia của ${playerName}?`)) return;
+
     setIsActionBusy(true);
     try {
       await (approve
