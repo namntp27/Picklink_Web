@@ -279,6 +279,10 @@ export type DirectConversation = {
   lastMessageAt: string;
   lastMessage: string;
   unreadMessageCount: number;
+  conversationType?: 'Direct' | 'QueueLobbyChat' | 'LobbyChat' | string;
+  matchId?: number | null;
+  accessRole?: 'Member' | 'Replacement' | string;
+  accessExpiresAt?: string | null;
 };
 
 export const startDirectConversation = (token: string, targetUserId: number) =>

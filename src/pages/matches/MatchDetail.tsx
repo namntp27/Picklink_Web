@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -12,7 +12,6 @@ import {
   MessageCircle,
   Plus,
   Route,
-  Send,
   ShieldCheck,
   Trash2,
   UserCheck,
@@ -29,7 +28,6 @@ import {
   declineMatchInvitation,
   getMatchSlotOptions,
   getMatchDetail,
-  getMatchMessages,
   inviteMatchPlayers,
   joinMatch,
   leaveMatch,
@@ -37,13 +35,11 @@ import {
   rejectParticipant,
   removeParticipant,
   searchMatchVenues,
-  sendMatchMessage,
   unvoteMatchSlot,
   updateMatchInvitation,
   voteMatchSlot,
   type MatchDetailResponse,
   type MatchFormat,
-  type MatchMessage,
   type MatchPreferredVenue,
   type MatchParticipant,
   type MatchSlotOption,
@@ -53,6 +49,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
+import { MatchSlotReplacementPanel } from './MatchSlotReplacementPanel';
 import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { ModalDialog } from '../../components/ui/ModalDialog';
@@ -92,6 +89,9 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
   weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
 }).format(new Date(`${value}T00:00:00`));
 const dateTimeLabel = (value: string) => `${datePart(value)} · ${timePart(value)}`;
+const chatExpiryLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
+  hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric',
+}).format(new Date(value));
 const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency', currency: 'VND', maximumFractionDigits: 0,
@@ -179,8 +179,6 @@ export const MatchDetail = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
   const [match, setMatch] = useState<MatchDetailResponse | null>(null);
-  const [messages, setMessages] = useState<MatchMessage[]>([]);
-  const [message, setMessage] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
   const [bookingDate, setBookingDate] = useState('');
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
@@ -204,7 +202,6 @@ export const MatchDetail = () => {
   const [bookingClock, setBookingClock] = useState(() => Date.now());
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
 
   const loadMatch = async () => {
@@ -221,17 +218,7 @@ export const MatchDetail = () => {
     }
   };
 
-  const loadMessages = async () => {
-    if (!token || !match?.conversationId) return;
-    try {
-      setMessages(await getMatchMessages(token, matchId));
-    } catch {
-      setMessages([]);
-    }
-  };
-
   useEffect(() => { void loadMatch(); }, [matchId, token]);
-  useEffect(() => { void loadMessages(); }, [match?.conversationId, token]);
 
   useEffect(() => {
     const now = Date.now();
@@ -250,11 +237,6 @@ export const MatchDetail = () => {
     }, Math.max(1_000, nextRefresh - now));
     return () => window.clearTimeout(timeout);
   }, [match?.endTime, match?.status, match?.bookingCheckIns]);
-
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
-  }, [messages]);
 
   const loadAvailability = async () => {
     if (!selectedVenueId || !bookingDate || !canBookAnotherRound) {
@@ -285,10 +267,7 @@ export const MatchDetail = () => {
 
   useMatchRealtime((event) => {
     if (event.matchId !== matchId) return;
-    if (event.action === 'MessageSent') {
-      void loadMessages();
-      return;
-    }
+    if (event.action === 'MessageSent') return;
     if (event.action === 'SlotVoteChanged') {
       void loadSlotOptions();
       return;
@@ -592,20 +571,6 @@ export const MatchDetail = () => {
       setIsBusy(false);
     }
   };
-  const sendMessage = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!token || !message.trim()) return;
-    try {
-      const sent = await sendMatchMessage(token, matchId, message.trim());
-      setMessages((current) => current.some((item) => item.messageId === sent.messageId)
-        ? current
-        : [...current, sent]);
-      setMessage('');
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể gửi tin nhắn.');
-    }
-  };
-
 
   if (!match) {
     return (
@@ -979,6 +944,16 @@ export const MatchDetail = () => {
             </section>
           )}
 
+          {!isApprovedMember && match.bookingCheckIns.length > 0 && (
+            <section className="match-checkin-card">
+              <p className="match-eyebrow">tuyển theo buổi</p>
+              <div className="flex items-center justify-between gap-3">
+                <h3>Cần người thay thế</h3>
+                <button className="rounded-lg bg-[#e2ff57] px-3 py-1.5 text-[11px] font-extrabold text-[#092129] hover:bg-white" onClick={() => setShowBookingRounds(true)} type="button">Xem các buổi trống</button>
+              </div>
+              <p className="mt-2 text-[11px] text-white/70">Đăng ký đúng ngày và khung giờ bạn có thể tham gia.</p>
+            </section>
+          )}
           {!(isApprovedMember && match.bookingCheckIns.length > 0) && (
             <section className="community-panel match-side-panel">
               <h3 className="text-[18px] font-bold">Thao tác</h3>
@@ -1034,30 +1009,29 @@ export const MatchDetail = () => {
               )}
             </section>
           )}
-          <section className="community-panel p-4">
-            <h3 className="flex items-center gap-2 text-[18px] font-bold"><MessageCircle className="h-5 w-5 text-primary" /> Chat phòng</h3>
-            {!match.conversationId ? (
-              <p className="mt-3 rounded-lg bg-surface-container-low p-4 text-[13px] leading-6 text-on-surface-variant">
-                Chỉ chủ phòng và thành viên đã được duyệt mới truy cập được chat.
+          {!match.conversationId ? (
+            <section className="community-panel p-4">
+              <p className="rounded-lg bg-surface-container-low p-4 text-[13px] leading-6 text-on-surface-variant">
+                Chủ phòng, thành viên đã được duyệt và người thay thế đang còn hiệu lực mới truy cập được chat.
               </p>
-            ) : (
-              <>
-                <div ref={messagesContainerRef} className="community-scroll mt-4 max-h-[min(34rem,50dvh)] space-y-3 overflow-y-auto overscroll-contain rounded-xl bg-[#edf5e9] p-3">
-                  {messages.map((item) => (
-                    <div className={`max-w-[88%] rounded-xl px-3 py-2 text-[12px] leading-5 ${item.isMine ? 'ml-auto bg-[#0b2228] text-white' : 'bg-white'}`} key={item.messageId}>
-                      {!item.isMine && <p className="mb-1 text-[11px] font-bold text-primary">{item.senderName}</p>}
-                      <p className="whitespace-pre-wrap">{item.content}</p>
-                    </div>
-                  ))}
-                  {messages.length === 0 && <p className="py-6 text-center text-[12px] text-on-surface-variant">Chưa có tin nhắn. Hãy bắt đầu thống nhất sân và lịch chơi.</p>}
-                </div>
-                <form className="mt-3 flex gap-2" onSubmit={sendMessage}>
-                  <input className="community-control min-w-0 flex-1" maxLength={1000} onChange={(event) => setMessage(event.target.value)} placeholder="Nhập tin nhắn..." value={message} />
-                  <button aria-label="Gửi tin nhắn" className="community-button h-10 w-10 !p-0" title="Gửi tin nhắn" type="submit"><Send className="h-4 w-4" /></button>
-                </form>
-              </>
-            )}
-          </section>
+            </section>
+          ) : (
+            <div>
+              <button
+                className="community-button w-full py-3"
+                onClick={() => navigate(`/messages?matchId=${matchId}`)}
+                type="button"
+              >
+                <MessageCircle className="h-5 w-5" /> Chat phòng
+              </button>
+              {match.chatAccessRole === 'Replacement' && (
+                <p className="mt-2 rounded-lg bg-[#fff8e6] px-3 py-2 text-[12px] leading-5 text-[#7a5600]">
+                  <strong>Quyền người thay thế.</strong> Bạn xem tin nhắn từ lúc được duyệt
+                  {match.chatAccessExpiresAt ? ` và được chat đến ${chatExpiryLabel(match.chatAccessExpiresAt)}` : ''}.
+                </p>
+              )}
+            </div>
+          )}
 
         </aside>
       </main>
@@ -1115,6 +1089,14 @@ export const MatchDetail = () => {
                           ) : (
                             <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
                           )}
+                          <MatchSlotReplacementPanel
+                            group={group}
+                            isBusy={isBusy}
+                            canReview={isApprovedMember}
+                            matchId={matchId}
+                            run={run}
+                            token={token}
+                          />
                         </div>
                       ))}
                     </div>

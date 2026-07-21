@@ -61,6 +61,7 @@ export type MatchSummary = {
   acceptedPlayerCount: number;
   pendingRequestCount: number;
   availableSlotCount: number;
+  replacementSlotCount: number;
   preferredVenues: MatchPreferredVenue[];
   courtId?: number | null;
   courtNumber?: number | null;
@@ -109,6 +110,32 @@ export type MatchPlayerRecommendation = {
   matchReason: string;
 };
 
+export type MatchSlotReplacementRequest = {
+  matchSlotReplacementRequestId: number;
+  playerId: number;
+  playerName: string;
+  avatarUrl?: string | null;
+  skillLevel: number;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Withdrawn' | 'Left' | 'Removed';
+  requestedAt: string;
+  respondedAt?: string | null;
+  isMine: boolean;
+};
+
+export type MatchSlotAbsence = {
+  matchSlotAbsenceId: number;
+  unavailablePlayerId: number;
+  unavailablePlayerName: string;
+  unavailablePlayerAvatarUrl?: string | null;
+  status: 'Open' | 'Filled' | 'Cancelled';
+  reason?: string | null;
+  createdAt: string;
+  canCancel: boolean;
+  canApply: boolean;
+  myRequestStatus?: 'Pending' | 'Approved' | 'Rejected' | 'Withdrawn' | 'Left' | 'Removed' | null;
+  replacementRequests?: MatchSlotReplacementRequest[];
+};
+
 export type MatchBookingCheckInGroup = {
   bookingCheckInGroupId: number;
   courtId: number;
@@ -118,6 +145,8 @@ export type MatchBookingCheckInGroup = {
   checkInCode?: string | null;
   checkInStatus: string;
   isCheckInWindowOpen: boolean;
+  canReportUnavailable?: boolean;
+  absences?: MatchSlotAbsence[];
 };
 
 export type MatchBookingCheckIn = {
@@ -131,6 +160,8 @@ export type MatchBookingCheckIn = {
 export type MatchDetailResponse = MatchSummary & {
   bookingId?: number | null;
   conversationId?: number | null;
+  chatAccessRole?: 'Member' | 'Replacement' | string | null;
+  chatAccessExpiresAt?: string | null;
   myPlayerId?: number | null;
   checkInCode?: string | null;
   bookingCheckIns: MatchBookingCheckIn[];
@@ -152,6 +183,7 @@ export type MatchMessage = {
   content: string;
   messageType: string;
   sentAt: string;
+  senderRole?: 'Member' | 'Replacement' | string;
   isMine: boolean;
 };
 
@@ -371,6 +403,40 @@ export const unvoteMatchSlot = (token: string, matchId: number, input: MatchSlot
   }, token);
 export const completeMatch = (token: string, matchId: number) =>
   apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/complete`, { method: 'POST' }, token);
+export const reportMatchSlotUnavailable = (token: string, matchId: number, bookingCheckInGroupId: number, reason?: string) =>
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/check-in-groups/${bookingCheckInGroupId}/unavailable`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason?.trim() || null }),
+  }, token);
+export const withdrawMatchSlotAbsence = (token: string, matchId: number, matchSlotAbsenceId: number) =>
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/slot-absences/${matchSlotAbsenceId}`, { method: 'DELETE' }, token);
+export const applyForMatchSlotReplacement = (token: string, matchId: number, matchSlotAbsenceId: number) =>
+  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}/slot-absences/${matchSlotAbsenceId}/replacement-requests`, { method: 'POST' }, token);
+export const withdrawMatchSlotReplacement = (token: string, matchId: number, matchSlotAbsenceId: number) =>
+  apiRequest<MatchDetailResponse>(
+    `/api/matches/${matchId}/slot-absences/${matchSlotAbsenceId}/replacement-requests/mine`,
+    { method: 'DELETE' },
+    token,
+  );
+export const removeMatchSlotReplacement = (token: string, matchId: number, matchSlotAbsenceId: number, replacementRequestId: number) =>
+  apiRequest<MatchDetailResponse>(
+    `/api/matches/${matchId}/slot-absences/${matchSlotAbsenceId}/replacement-requests/${replacementRequestId}`,
+    { method: 'DELETE' },
+    token,
+  );
+export const acceptMatchSlotReplacement = (token: string, matchId: number, matchSlotAbsenceId: number, replacementRequestId: number) =>
+  apiRequest<MatchDetailResponse>(
+    `/api/matches/${matchId}/slot-absences/${matchSlotAbsenceId}/replacement-requests/${replacementRequestId}/accept`,
+    { method: 'POST' },
+    token,
+  );
+export const rejectMatchSlotReplacement = (token: string, matchId: number, matchSlotAbsenceId: number, replacementRequestId: number) =>
+  apiRequest<MatchDetailResponse>(
+    `/api/matches/${matchId}/slot-absences/${matchSlotAbsenceId}/replacement-requests/${replacementRequestId}/reject`,
+    { method: 'POST' },
+    token,
+  );
+
 
 export const getMatchMessages = (token: string, matchId: number) =>
   apiRequest<MatchMessage[]>(`/api/matches/${matchId}/messages`, {}, token);

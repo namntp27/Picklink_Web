@@ -52,16 +52,21 @@ import {
   type GroupImage,
 } from '../../api/community';
 import { uploadToCloudinary } from '../../api/cloudinary';
+import { getMatchDetail, getMatchMessages, sendMatchMessage } from '../../api/matches';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 
 import {
   directToConversation,
   filterOptions,
   formatMessageTime,
+  formatTemporaryAccessExpiry,
   getLevelLabel,
   groupToConversation,
+  matchToConversation,
   kindLabels,
   toChatMessage,
+  toMatchChatMessage,
   type ChatMessage,
   type Conversation,
   type ConversationFilter,
@@ -86,6 +91,7 @@ export const Messages = () => {
   const [clubConversations, setClubConversations] = useState<Conversation[]>([]);
   const [directConversations, setDirectConversations] = useState<Conversation[]>([]);
   const [clubGroupsLoading, setClubGroupsLoading] = useState(true);
+  const [matchConversations, setMatchConversations] = useState<Conversation[]>([]);
 
   // Group info & settings states
   const [groups, setGroups] = useState<CommunityGroup[]>([]);
@@ -110,13 +116,14 @@ export const Messages = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const chatWithUserId = searchParams.get('chatWithUserId');
 
-  // All conversations = direct + club
+  // All conversations = direct + match room + club
   const allConversations = useMemo(
     () => [
       ...directConversations,
+      ...matchConversations,
       ...clubConversations
     ],
-    [directConversations, clubConversations],
+    [directConversations, matchConversations, clubConversations],
   );
 
   const [activeConversationId, setActiveConversationId] = useState<string>('');
@@ -156,16 +163,40 @@ export const Messages = () => {
         // Fetch direct conversations
         const directData = await getDirectConversations(token);
         if (cancelled) return;
-        const mappedDirect = directData.map(directToConversation);
-        setDirectConversations(mappedDirect);
+        const mappedConversations = directData.map(directToConversation);
+        setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
+        setMatchConversations(mappedConversations.filter((item) => item.kind === 'match'));
 
-        // If chatWithUserId is provided in the URL, start/ensure that chat!
+        let requestedMatchConversation: Conversation | null = null;
+        const requestedMatchId = Number(searchParams.get('matchId'));
+        if (Number.isInteger(requestedMatchId) && requestedMatchId > 0) {
+          try {
+            const matchDetail = await getMatchDetail(token, requestedMatchId);
+            if (cancelled) return;
+            if (matchDetail.conversationId) {
+              const conversation = matchToConversation(matchDetail);
+              requestedMatchConversation = conversation;
+              setMatchConversations((current) => [
+                conversation,
+                ...current.filter((item) => item.id !== conversation.id),
+              ]);
+            } else {
+              notify('Bạn chưa có quyền truy cập chat của phòng trận này.', 'error');
+            }
+          } catch (error) {
+            if (!cancelled) notify(error instanceof Error ? error.message : 'Không thể mở chat phòng trận.', 'error');
+          }
+        }
+        // Open the conversation requested in the URL.
         const chatParam = searchParams.get('chat') || searchParams.get('conversationId');
-        if (chatWithUserId) {
+        if (requestedMatchConversation) {
+          setActiveConversationId(requestedMatchConversation.id);
+          setShowSettings(false);
+        } else if (chatWithUserId) {
           const targetUid = Number(chatWithUserId);
           if (!isNaN(targetUid)) {
             // Check if direct conversation already loaded
-            const existing = mappedDirect.find(c => c.otherUserId === targetUid);
+            const existing = mappedConversations.find(c => c.kind === 'direct' && c.otherUserId === targetUid);
             if (existing) {
               setActiveConversationId(existing.id);
             } else {
@@ -185,8 +216,8 @@ export const Messages = () => {
           setSearchParams({});
         } else {
           // Auto-select first loaded conversation
-          if (mappedDirect.length > 0) {
-            setActiveConversationId(mappedDirect[0].id);
+          if (mappedConversations.length > 0) {
+            setActiveConversationId(mappedConversations[0].id);
           } else if (myGroups.length > 0) {
             setActiveConversationId(groupToConversation(myGroups[0]).id);
           }
@@ -199,7 +230,7 @@ export const Messages = () => {
     };
     load();
     return () => { cancelled = true; };
-  }, [token, chatWithUserId, searchParams, setSearchParams]);
+  }, [token, chatWithUserId, searchParams, setSearchParams, notify]);
   useVisiblePolling(async () => {
     if (!token) return;
     try {
@@ -212,7 +243,9 @@ export const Messages = () => {
       );
       setGroups(myGroups);
       setClubConversations(myGroups.map(groupToConversation));
-      setDirectConversations(directData.map(directToConversation));
+      const mappedConversations = directData.map(directToConversation);
+      setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
+      setMatchConversations(mappedConversations.filter((item) => item.kind === 'match'));
     } catch {
       // Keep the current list while the next visible poll retries.
     }
@@ -225,6 +258,7 @@ export const Messages = () => {
       : conversation;
     setDirectConversations((current) => current.map(clearUnread));
     setClubConversations((current) => current.map(clearUnread));
+    setMatchConversations((current) => current.map(clearUnread));
   }, [activeConversationId]);
 
   const filteredConversations = useMemo(() => {
@@ -251,6 +285,26 @@ export const Messages = () => {
 
   const activeGroup = groups.find((g) => g.groupId === activeConversation?.groupId) ?? null;
   const isManager = !!(activeGroup && ['Owner', 'Admin', 'Moderator'].includes(activeGroup.myRole || ''));
+
+  useMatchRealtime((event) => {
+    const activeMatchId = activeConversation?.matchId;
+    const activeMatchConversationId = activeConversation?.id;
+    if (
+      !token ||
+      !activeMatchId ||
+      event.matchId !== activeMatchId ||
+      event.action !== 'MessageSent'
+    ) return;
+
+    void getMatchMessages(token, activeMatchId)
+      .then((messages) => {
+        setMessagesByConversation((current) => ({
+          ...current,
+          [activeMatchConversationId]: messages.map(toMatchChatMessage),
+        }));
+      })
+      .catch(() => {});
+  });
 
   // Load full group details (including intro images) when a club conversation is selected
   useEffect(() => {
@@ -484,7 +538,8 @@ export const Messages = () => {
     if (!token || !activeConversation) return;
     const isGroup = !!activeConversation.groupId;
     const isDirect = !!activeConversation.conversationId;
-    if (!isGroup && !isDirect) return;
+    const isMatch = !!activeConversation.matchId;
+    if (!isGroup && !isDirect && !isMatch) return;
 
     // Already loaded
     if (messagesByConversation[activeConversation.id]?.length) return;
@@ -493,6 +548,18 @@ export const Messages = () => {
     const load = async () => {
       setClubMessagesLoading(true);
       try {
+        if (isMatch) {
+          const matchMessages = await getMatchMessages(token, activeConversation.matchId!);
+          if (cancelled) return;
+          setMessagesByConversation((prev) => ({
+            ...prev,
+            [activeConversation.id]: matchMessages.map(toMatchChatMessage),
+          }));
+          setPinnedMessagesByConversation((prev) => ({ ...prev, [activeConversation.id]: [] }));
+          setHasMoreByConversation((prev) => ({ ...prev, [activeConversation.id]: false }));
+          return;
+        }
+
         let msgs: CommunityMessage[] = [];
         let pinned: CommunityMessage[] = [];
 
@@ -533,14 +600,15 @@ export const Messages = () => {
     };
     load();
     return () => { cancelled = true; };
-  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId]);
+  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId, activeConversation?.matchId]);
 
   // Poll messages every 8s
   useEffect(() => {
     if (!token || !activeConversation) return;
     const isGroup = !!activeConversation.groupId;
     const isDirect = !!activeConversation.conversationId;
-    if (!isGroup && !isDirect) return;
+    const isMatch = !!activeConversation.matchId;
+    if (!isGroup && !isDirect && !isMatch) return;
 
     let cancelled = false;
 
@@ -557,6 +625,16 @@ export const Messages = () => {
       if (cancelled || document.hidden || isPolling) return;
       isPolling = true;
       try {
+        if (isMatch) {
+          const matchMessages = await getMatchMessages(token, activeConversation.matchId!);
+          if (cancelled) return;
+          setMessagesByConversation((prev) => ({
+            ...prev,
+            [activeConversation.id]: matchMessages.map(toMatchChatMessage),
+          }));
+          return;
+        }
+
         let msgs: CommunityMessage[] = [];
         let pinned: CommunityMessage[] = [];
 
@@ -613,10 +691,11 @@ export const Messages = () => {
       window.clearTimeout(timeoutId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId]);
+  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId, activeConversation?.matchId]);
 
   const loadOlderChatMessages = async () => {
     if (!token || !activeConversation) return;
+    if (activeConversation.matchId) return;
     const isGroup = !!activeConversation.groupId;
     const isDirect = !!activeConversation.conversationId;
     if (!isGroup && !isDirect) return;
@@ -701,6 +780,27 @@ export const Messages = () => {
   const handleSendMessage = async () => {
     const text = draftMessage.trim();
     if (!text) return;
+
+    // If match room conversation, send via the match chat API.
+    if (activeConversation?.matchId && token) {
+      setSending(true);
+      try {
+        const newMsg = await sendMatchMessage(token, activeConversation.matchId, text);
+        const chatMsg = toMatchChatMessage(newMsg);
+        setMessagesByConversation((prev) => {
+          const current = prev[activeConversation.id] ?? [];
+          return current.some((item) => item.id === chatMsg.id)
+            ? prev
+            : { ...prev, [activeConversation.id]: [...current, chatMsg] };
+        });
+        setDraftMessage('');
+      } catch (error) {
+        notify(error instanceof Error ? error.message : 'Không thể gửi tin nhắn phòng.', 'error');
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
 
     // If club conversation, send via API
     if (activeConversation?.groupId && token) {
@@ -841,7 +941,7 @@ export const Messages = () => {
               <div>
                 <h1 className="text-[22px] font-bold text-on-surface">Tin nhắn</h1>
                 <p className="mt-1 text-[13px] font-medium text-on-surface-variant">
-                  Trao đổi riêng với người chơi, CLB và sân.
+                  Trao đổi với người chơi, CLB và phòng trận.
                 </p>
               </div>
             </div>
@@ -972,9 +1072,14 @@ export const Messages = () => {
                   </div>
                   <div className="min-w-0">
                     <h2 className="truncate text-[16px] font-bold text-on-surface">{activeConversation.name}</h2>
-                    <p className="truncate text-[12px] font-bold text-on-surface-variant">
-                      {getLevelLabel(activeConversation)}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold text-on-surface-variant">
+                      <span className="truncate">{getLevelLabel(activeConversation)}</span>
+                      {activeConversation.accessRole === 'Replacement' && (
+                        <span className="rounded-full bg-[#fff3cd] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#7a5600]">
+                          Người thay thế
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 text-on-surface-variant">
@@ -990,6 +1095,15 @@ export const Messages = () => {
                   </button>
                 </div>
               </header>
+
+              {activeConversation.accessRole === 'Replacement' && (
+                <div className="border-b border-[#efd98a] bg-[#fff8e6] px-5 py-2.5 text-[12px] font-medium text-[#7a5600]">
+                  Bạn được chat tạm thời từ lúc chủ phòng duyệt.
+                  {activeConversation.accessExpiresAt
+                    ? ` Quyền truy cập kết thúc lúc ${formatTemporaryAccessExpiry(activeConversation.accessExpiresAt)}.`
+                    : ''}
+                </div>
+              )}
 
               {activeConversation.groupId && pinnedMessages.length > 0 && (
                 <div className="bg-[#f0f3ff] border-b border-outline-variant px-5 py-3 flex flex-col gap-2 shrink-0">
@@ -1028,7 +1142,7 @@ export const Messages = () => {
                   backgroundSize: '18px 18px',
                 }}
               >
-                {clubMessagesLoading && activeConversation.groupId ? (
+                {clubMessagesLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
@@ -1067,6 +1181,11 @@ export const Messages = () => {
                           <div className={`min-w-0 ${message.mine ? 'items-end text-right' : ''}`}>
                             <div className={`mb-1 flex items-center gap-2 ${message.mine ? 'justify-end' : ''}`}>
                               <span className="text-[12px] font-bold text-on-surface-variant">{message.author}</span>
+                              {activeConversation.kind === 'match' && message.senderRole === 'Replacement' && (
+                                <span className="rounded-full bg-[#fff3cd] px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-[#7a5600]">
+                                  Người thay thế
+                                </span>
+                              )}
                               <span className="text-[11px] font-medium text-on-surface-variant">{message.time}</span>
                             </div>
                             <div className="relative flex items-center gap-1.5 group">
@@ -1215,7 +1334,7 @@ export const Messages = () => {
             <div className="flex h-full flex-1 flex-col items-center justify-center p-8 text-center text-on-surface-variant">
               <MessageCircle className="h-12 w-12 text-primary" />
               <p className="mt-4 text-[15px] font-bold text-on-surface">Chưa chọn cuộc trò chuyện nào</p>
-              <p className="mt-1 text-[13px]">Hãy chọn một câu lạc bộ hoặc một người chơi từ danh sách để bắt đầu.</p>
+              <p className="mt-1 text-[13px]">Hãy chọn một phòng trận, câu lạc bộ hoặc người chơi để bắt đầu.</p>
             </div>
           )}
         </main>

@@ -403,6 +403,7 @@ export const PendingInvites = () => {
                         <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px]">{match.matchType}</span>
                         <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">Level {match.minSkillLevel}-{match.maxSkillLevel}</span>
                         {match.isHost && <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Của tôi</span>}
+                        {match.replacementSlotCount > 0 && <span className="community-badge !min-h-5 !bg-[#eef8e6] !px-1.5 !py-1 !text-[10px] !text-[#477313]">Cần {match.replacementSlotCount} người thay thế</span>}
                       </div>
                       <Link className="mt-2 block" to={`/matches/${match.matchId}`}>
                         <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
