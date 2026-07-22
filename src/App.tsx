@@ -2,6 +2,8 @@ import React, { Suspense, type ComponentType } from 'react';
 import { Navigate, Routes, Route, useLocation, useParams } from 'react-router-dom';
 import { ProtectedRoute, PublicOnlyRoute } from './auth/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
+import { RouteExperience } from './components/navigation/RouteExperience';
+import { RouteLoadingFallback } from './components/navigation/RouteLoadingFallback';
 import { ToastProvider } from './components/ui/ToastRegion';
 
 const lazyPage = <TModule extends Record<string, unknown>>(
@@ -73,10 +75,6 @@ const OwnerTicketSessionDetail = lazyPage(() => import('./pages/owner/OwnerTicke
 const OwnerVenueDetail = lazyPage(() => import('./pages/owner/OwnerVenueDetail'), 'OwnerVenueDetail');
 const StaffDashboard = lazyPage(() => import('./pages/staff/StaffDashboard'), 'StaffDashboard');
 
-const RouteFallback = () => (
-  <div aria-label="Đang tải nội dung" className="min-h-dvh bg-background" role="status" />
-);
-
 const LegacyCourtDetailRedirect = () => {
   const { id } = useParams();
   return <Navigate replace to={id ? '/court/' + id + '/schedule' : '/book-court'} />;
@@ -107,7 +105,8 @@ function App() {
   return (
     <ToastProvider>
       <div className="picklink-app-shell" data-motion-scope={motionScope}>
-        <Suspense fallback={<RouteFallback />}>
+        <RouteExperience />
+        <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Home />} />

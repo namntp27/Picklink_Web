@@ -255,17 +255,6 @@ body {
   }
 }
 
-@keyframes picklink-page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.996);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @keyframes picklink-view-reveal {
   from {
     opacity: 0;
@@ -309,10 +298,6 @@ body {
   }
 }
 
-.picklink-app-shell > :first-child {
-  animation: picklink-page-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
 [data-motion-scope] [role="dialog"]:not([data-motion-managed]) {
   animation: picklink-dialog-enter 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   transform-origin: 50% 12%;
@@ -351,22 +336,6 @@ body {
     animation-range: entry 0% cover 22%;
   }
 
-  [data-motion-scope="product"] :where(
-    .owner-stat-card,
-    .owner-panel,
-    .staff-metric,
-    .staff-panel,
-    .profile-form-section,
-    .community-card,
-    section[class*="rounded"]:not([role="dialog"]):not([data-motion-managed]),
-    article[class*="rounded"]:not([role="dialog"]):not([data-motion-managed])
-  ) {
-    animation-name: picklink-view-reveal;
-    animation-fill-mode: both;
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-    animation-timeline: view();
-    animation-range: entry 0% cover 16%;
-  }
 }
 
 .picklink-live-pulse {
@@ -398,7 +367,6 @@ body {
     transition-duration: 0.01ms !important;
   }
 
-  .picklink-app-shell > :first-child,
   [data-motion-scope] :where(section, article),
   [data-motion-scope] [role="dialog"],
   [data-motion-scope] .animate-pulse::after,

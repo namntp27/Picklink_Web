@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL, clearPrefetchedApiData } from '../api/client';
 
 export type PaymentRealtimeEvent = {
   paymentId: number;
@@ -20,6 +20,7 @@ export const usePaymentRealtime = (onPaymentChanged: (event: PaymentRealtimeEven
     const eventSource = new EventSource(`${API_BASE_URL}/api/realtime/payments`);
     const handleChange = (message: MessageEvent<string>) => {
       try {
+        clearPrefetchedApiData();
         callbackRef.current(JSON.parse(message.data) as PaymentRealtimeEvent);
       } catch {
         // Keep the stream alive when a malformed event is received.

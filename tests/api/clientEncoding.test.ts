@@ -55,7 +55,7 @@ test('apiRequest applies a shared timeout signal', async () => {
   assert.ok(requestSignal instanceof AbortSignal);
 });
 
-test('apiRequest serializes duplicate GET generations while unrelated GETs stay parallel', async () => {
+test('apiRequest shares one active GET while unrelated requests stay parallel', async () => {
   const releases: Array<() => void> = [];
   let fetchCount = 0;
   global.fetch = (async () => {
@@ -73,29 +73,29 @@ test('apiRequest serializes duplicate GET generations while unrelated GETs stay 
 
   const first = client.apiRequest('/api/example');
   const sameTick = client.apiRequest('/api/example');
-  assert.equal(first, sameTick);
   await waitForFetchCount(1);
 
-  const queued = client.apiRequest('/api/example');
-  const duplicateQueued = client.apiRequest('/api/example');
+  const laterDuplicate = client.apiRequest('/api/example');
+  const duplicateWithSignal = client.apiRequest('/api/example', {
+    signal: new AbortController().signal,
+  });
   const independent = client.apiRequest('/api/other');
-  assert.notEqual(first, queued);
-  assert.equal(queued, duplicateQueued);
+
+  assert.equal(first, sameTick);
+  assert.equal(first, laterDuplicate);
+  assert.equal(first, duplicateWithSignal);
   await waitForFetchCount(2);
 
   releases.splice(0).forEach((release) => release());
-  await Promise.all([first, sameTick, independent]);
-  await waitForFetchCount(3);
-  releases.splice(0).forEach((release) => release());
-  await Promise.all([queued, duplicateQueued]);
+  await Promise.all([first, sameTick, laterDuplicate, duplicateWithSignal, independent]);
 
   const next = client.apiRequest('/api/example');
-  await waitForFetchCount(4);
+  await waitForFetchCount(3);
   releases.splice(0).forEach((release) => release());
   await next;
 });
 
-test('apiRequest does not share requests across auth sessions or explicit options', async () => {
+test('apiRequest keeps auth sessions and mutations isolated', async () => {
   let fetchCount = 0;
   global.fetch = (async () => {
     fetchCount += 1;
@@ -113,5 +113,28 @@ test('apiRequest does not share requests across auth sessions or explicit option
     client.apiRequest('/api/example', { signal: new AbortController().signal }, 'token-a'),
   ]);
 
-  assert.equal(fetchCount, 5);
+  assert.equal(fetchCount, 4);
+});
+
+test('prefetched GET data is reused once without making polling stale', async () => {
+  let fetchCount = 0;
+  global.fetch = (async () => {
+    fetchCount += 1;
+    return new Response(JSON.stringify({ count: fetchCount }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  const warmed = client.prefetchApiData(() => client.apiRequest<{ count: number }>('/api/example'));
+  await warmed;
+
+  const reused = await client.apiRequest<{ count: number }>('/api/example', {
+    signal: new AbortController().signal,
+  });
+  const refreshed = await client.apiRequest<{ count: number }>('/api/example');
+
+  assert.equal(reused.count, 1);
+  assert.equal(refreshed.count, 2);
+  assert.equal(fetchCount, 2);
 });
