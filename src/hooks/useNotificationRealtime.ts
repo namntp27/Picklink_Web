@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL, clearPrefetchedApiData } from '../api/client';
 
 export type NotificationRealtimeEvent = {
   userId: number;
@@ -54,6 +54,7 @@ const createConnection = (accessToken: string): RealtimeConnection => {
 
             try {
               const event = JSON.parse(dataLine.replace(/^data:\s*/, '')) as NotificationRealtimeEvent;
+              clearPrefetchedApiData();
               listeners.forEach((listener) => listener(event));
             } catch {
               // Keep listening when a malformed SSE payload is received.

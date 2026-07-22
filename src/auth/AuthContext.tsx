@@ -9,6 +9,7 @@ import {
   type AuthUser,
   type RegisterInput,
 } from '../api/auth';
+import { clearPrefetchedApiData } from '../api/client';
 import type { UserRole } from '../types';
 
 type LoginInput = {
@@ -77,6 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isInitializing, setIsInitializing] = useState(Boolean(session));
 
   const saveSession = useCallback((nextSession: AuthSession | null) => {
+    clearPrefetchedApiData();
     setSession(nextSession);
     persistSession(nextSession);
   }, []);

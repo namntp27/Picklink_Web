@@ -3,12 +3,22 @@ import { repairMojibake } from '../utils/textEncoding';
 const configuredBaseUrl = import.meta.env?.VITE_API_BASE_URL?.trim() ?? '';
 
 export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, '');
-type InFlightGet = {
-  started: boolean;
-  current: Promise<unknown>;
-  queued?: Promise<unknown>;
+const inFlightGets = new Map<string, Promise<unknown>>();
+const prefetchedGets = new Map<string, { expiresAt: number; request: Promise<unknown> }>();
+const PREFETCH_TTL_MS = 30_000;
+let isPrefetching = false;
+
+const rememberPrefetch = (key: string, request: Promise<unknown>) => {
+  prefetchedGets.set(key, { expiresAt: Date.now() + PREFETCH_TTL_MS, request });
+  void request.catch(() => {
+    if (prefetchedGets.get(key)?.request === request) prefetchedGets.delete(key);
+  });
 };
-const inFlightGets = new Map<string, InFlightGet>();
+
+const clearReadOptimizations = () => {
+  prefetchedGets.clear();
+  inFlightGets.clear();
+};
 
 export type PaginatedResponse<T> = {
   items: T[];
@@ -127,47 +137,54 @@ export const apiRequest = <T>(
   options: RequestInit = {},
   accessToken?: string,
 ): Promise<T> => {
-  if (Object.keys(options).length > 0) return executeApiRequest<T>(path, options, accessToken);
-
+  const method = (options.method ?? 'GET').toUpperCase();
   const key = `${accessToken ?? ''}\n${path}`;
-  const entry = inFlightGets.get(key);
-  if (entry) {
-    if (!entry.started) return entry.current as Promise<T>;
-    if (entry.queued) return entry.queued as Promise<T>;
 
-    const previous = entry.current;
-    let queued!: Promise<T>;
-    const startQueued = () => {
-      entry.current = queued;
-      entry.queued = undefined;
-      return executeApiRequest<T>(path, options, accessToken);
-    };
-    queued = previous.then(startQueued, startQueued);
-    entry.queued = queued;
-    const clear = () => {
-      if (inFlightGets.get(key) === entry && entry.current === queued && !entry.queued) {
-        inFlightGets.delete(key);
-      }
-    };
-    void queued.then(clear, clear);
-    return queued;
+  if (method !== 'GET') {
+    return executeApiRequest<T>(path, options, accessToken).then((result) => {
+      clearReadOptimizations();
+      return result;
+    });
   }
 
-  const nextEntry: InFlightGet = {
-    started: false,
-    current: Promise.resolve(),
-  };
-  const request = Promise.resolve().then(() => {
-    nextEntry.started = true;
-    return executeApiRequest<T>(path, options, accessToken);
-  });
-  nextEntry.current = request;
-  inFlightGets.set(key, nextEntry);
-  const clear = () => {
-    if (inFlightGets.get(key) === nextEntry && nextEntry.current === request && !nextEntry.queued) {
-      inFlightGets.delete(key);
+  const prefetched = prefetchedGets.get(key);
+  if (prefetched) {
+    if (prefetched.expiresAt > Date.now()) {
+      if (!isPrefetching) prefetchedGets.delete(key);
+      return prefetched.request as Promise<T>;
     }
+    prefetchedGets.delete(key);
+  }
+
+  const inFlight = inFlightGets.get(key);
+  const onlyUsesSignal = Object.keys(options).every((option) => option === 'signal');
+  if (inFlight && onlyUsesSignal) {
+    if (isPrefetching) rememberPrefetch(key, inFlight);
+    return inFlight as Promise<T>;
+  }
+
+  const request = executeApiRequest<T>(path, options, accessToken);
+  if (isPrefetching) rememberPrefetch(key, request);
+
+  if (Object.keys(options).length > 0 && !isPrefetching) return request;
+
+  inFlightGets.set(key, request);
+  const clear = () => {
+    if (inFlightGets.get(key) === request) inFlightGets.delete(key);
   };
   void request.then(clear, clear);
   return request;
+};
+
+export const prefetchApiData = <T>(loader: () => Promise<T>): Promise<T> => {
+  isPrefetching = true;
+  try {
+    return loader();
+  } finally {
+    isPrefetching = false;
+  }
+};
+
+export const clearPrefetchedApiData = () => {
+  clearReadOptimizations();
 };

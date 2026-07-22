@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { RouteLoadingFallback } from '../navigation/RouteLoadingFallback';
 
 export const MainLayout = () => {
   const [showFooter, setShowFooter] = useState(true);
@@ -30,27 +31,29 @@ export const MainLayout = () => {
   const motionScope = pathname === '/' ? 'home' : isProductWorkspace ? 'product' : 'rich';
   const routeInitial = shouldReduceMotion || pathname === '/'
     ? false
-    : { opacity: 0, y: 12, scale: 0.996 };
+    : { opacity: 0, y: 6 };
   const shouldRenderFooter = pathname === '/' && showFooter;
 
   return (
     <div className="flex min-h-dvh min-w-0 flex-col overflow-x-clip bg-background font-sans text-on-background">
       <Header />
       <main className="flex min-w-0 flex-1 flex-col">
-        <AnimatePresence initial={false} mode="wait">
+        <AnimatePresence initial={false} mode="popLayout">
           <motion.div
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            animate={{ opacity: 1, y: 0 }}
             className="picklink-route-stage flex min-w-0 flex-1 flex-col"
             data-motion-scope={motionScope}
-            exit={shouldReduceMotion ? undefined : { opacity: 0, y: -8, scale: 0.998 }}
+            exit={shouldReduceMotion ? undefined : { opacity: 0, y: -3 }}
             initial={routeInitial}
             key={pathname}
             transition={{
-              duration: shouldReduceMotion ? 0.01 : 0.34,
+              duration: shouldReduceMotion ? 0.01 : 0.18,
               ease: [0.2, 0.8, 0.2, 1],
             }}
           >
-            {outlet}
+            <Suspense fallback={<RouteLoadingFallback withHeaderOffset />}>
+              {outlet}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

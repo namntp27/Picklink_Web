@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL, clearPrefetchedApiData } from '../api/client';
 
 export type VenueRealtimeEvent = {
   venueId: number;
@@ -18,6 +18,7 @@ export const useVenueRealtime = (onVenueChanged: (event: VenueRealtimeEvent) => 
     const eventSource = new EventSource(`${API_BASE_URL}/api/realtime/venues`);
     const handleChange = (message: MessageEvent<string>) => {
       try {
+        clearPrefetchedApiData();
         callbackRef.current(JSON.parse(message.data) as VenueRealtimeEvent);
       } catch {
         // Ignore malformed events and keep the stream connected.
