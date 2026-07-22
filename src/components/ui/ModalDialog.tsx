@@ -17,6 +17,7 @@ export const ModalDialog = ({
   className = '',
   closeOnBackdrop = true,
   onRequestClose,
+  style,
   ...accessibleName
 }: ModalDialogProps) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -55,6 +56,11 @@ export const ModalDialog = ({
         if (clickedOutside) requestClose();
       }}
       ref={dialogRef}
+      style={{
+        maxHeight: 'calc(100dvh - 1rem)',
+        maxWidth: 'calc(100vw - 1rem)',
+        ...style,
+      }}
     >
       {children}
     </dialog>

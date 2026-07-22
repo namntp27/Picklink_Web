@@ -87,12 +87,18 @@ export const Header = () => {
   useEffect(() => {
     if (!isMobileMenuOpen) return;
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsMobileMenuOpen(false);
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isMobileMenuOpen]);
 
   const isActivePath = (path: string) => (
@@ -288,7 +294,7 @@ export const Header = () => {
         {isMobileMenuOpen && (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="absolute inset-x-0 top-full max-h-[calc(100dvh-64px)] overflow-y-auto border-t border-[#dbe8d3] bg-[#f8fbf4]/98 px-4 py-5 shadow-[0_20px_46px_rgba(8,29,36,0.13)] supports-[backdrop-filter]:backdrop-blur-xl sm:px-6 min-[1180px]:hidden"
+            className="absolute inset-x-0 top-full max-h-[calc(100dvh-64px)] overscroll-contain overflow-y-auto border-t border-[#dbe8d3] bg-[#f8fbf4]/98 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_20px_46px_rgba(8,29,36,0.13)] supports-[backdrop-filter]:backdrop-blur-xl sm:px-6 min-[1180px]:hidden"
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
             id={mobileMenuId}
             initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowLeft,
   CalendarClock,
   CheckCheck,
   ChevronRight,
@@ -214,8 +215,8 @@ export const Messages = () => {
         } else if (chatParam) {
           setActiveConversationId(chatParam);
           setSearchParams({});
-        } else {
-          // Auto-select first loaded conversation
+        } else if (window.matchMedia('(min-width: 1024px)').matches) {
+          // Desktop keeps the split-view behavior; mobile opens on the conversation list.
           if (mappedConversations.length > 0) {
             setActiveConversationId(mappedConversations[0].id);
           } else if (myGroups.length > 0) {
@@ -276,7 +277,7 @@ export const Messages = () => {
   }, [filter, searchTerm, allConversations]);
 
   const activeConversation =
-    allConversations.find((conversation) => conversation.id === activeConversationId) ?? allConversations[0];
+    allConversations.find((conversation) => conversation.id === activeConversationId) ?? null;
   const activeMessages = messagesByConversation[activeConversation?.id] ?? [];
   const pinnedMessages = useMemo(
     () => pinnedMessagesByConversation[activeConversation?.id] ?? [],
@@ -935,8 +936,8 @@ export const Messages = () => {
 
   return (
     <div className="min-h-dvh bg-[#f9f9ff] pt-[72px] text-on-surface">
-      <div className="flex min-h-[calc(100dvh-72px)] flex-col overflow-hidden border-t border-outline-variant bg-[#f9f9ff] lg:h-[calc(100dvh-72px)] lg:flex-row">
-        <aside className="flex h-[360px] w-full shrink-0 flex-col border-b border-outline-variant bg-white lg:h-full lg:w-[360px] lg:border-b-0 lg:border-r">
+      <div className="flex h-[calc(100dvh-72px)] min-h-0 flex-col overflow-hidden border-t border-outline-variant bg-[#f9f9ff] lg:flex-row">
+        <aside className={`${activeConversationId ? 'hidden lg:flex' : 'flex'} h-full w-full shrink-0 flex-col border-b border-outline-variant bg-white lg:w-[360px] lg:border-b-0 lg:border-r`}>
           <div className="border-b border-outline-variant p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -986,7 +987,7 @@ export const Messages = () => {
               </div>
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map((conversation) => {
-                const isActive = conversation.id === activeConversation?.id;
+                const isActive = conversation.id === activeConversationId;
                 const unread = !isActive && conversation.unreadMessageCount > 0;
 
                 return (
@@ -1056,11 +1057,22 @@ export const Messages = () => {
           </div>
         </aside>
 
-        <main className="flex min-h-[620px] flex-1 flex-col bg-[#f9f9ff] lg:min-h-0">
+        <main className={`${activeConversationId ? 'flex' : 'hidden lg:flex'} min-h-0 min-w-0 flex-1 flex-col bg-[#f9f9ff]`}>
           {activeConversation && (
             <>
-              <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant bg-white px-4 shadow-sm md:h-[72px] md:px-6">
-                <div className="flex min-w-0 items-center gap-3">
+              <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-outline-variant bg-white px-3 shadow-sm md:h-[72px] md:px-6">
+                <button
+                  aria-label="Quay lại danh sách hội thoại"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-on-surface-variant hover:bg-surface-container-low lg:hidden"
+                  onClick={() => {
+                    setActiveConversationId('');
+                    setShowSettings(false);
+                  }}
+                  type="button"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-[15px] font-bold text-white">
                     {activeConversation.avatarUrl ? (
                       <img
@@ -1282,7 +1294,7 @@ export const Messages = () => {
                 )}
               </div>
 
-              <div className="shrink-0 border-t border-outline-variant bg-white p-3 md:p-4">
+              <div className="shrink-0 border-t border-outline-variant bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 md:p-4">
                 <div className="flex items-end gap-2">
                   <input
                     type="file"
@@ -1341,7 +1353,7 @@ export const Messages = () => {
         </main>
 
         {showSettings && activeConversation && (
-          <aside className="custom-scrollbar flex h-full w-[330px] shrink-0 flex-col border-l border-outline-variant bg-white overflow-y-auto">
+          <aside className="custom-scrollbar fixed inset-x-0 bottom-0 top-16 z-[70] flex w-full flex-col overflow-y-auto border-l border-outline-variant bg-white pb-[env(safe-area-inset-bottom)] lg:static lg:h-full lg:w-[330px] lg:shrink-0 lg:pb-0">
             {activeConversation.kind === 'club' && activeGroup ? (
               <>
                 <div className="flex items-center justify-between border-b border-outline-variant p-4 shrink-0">

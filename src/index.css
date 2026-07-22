@@ -353,6 +353,39 @@ body {
     100% { transform: scale(1); opacity: 1; }
 }
 
+html,
+body,
+#root {
+  max-width: 100%;
+}
+
+body,
+#root {
+  min-width: 320px;
+}
+
+#root {
+  overflow-x: clip;
+}
+
+button,
+a,
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+.bottomBookingBar {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

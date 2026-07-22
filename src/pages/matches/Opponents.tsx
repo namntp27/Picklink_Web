@@ -1221,7 +1221,7 @@ export const Opponents = () => {
       {error && (
         <div
           aria-live="assertive"
-          className="fixed bottom-5 left-1/2 z-[1200] flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 items-start gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800 shadow-[0_12px_32px_rgba(80,20,20,0.18)]"
+          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[1200] flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 items-start gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800 shadow-[0_12px_32px_rgba(80,20,20,0.18)]"
           role="alert"
         >
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />

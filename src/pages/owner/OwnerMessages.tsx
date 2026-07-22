@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
+  ArrowLeft,
   CalendarDays,
   ChevronRight,
   Loader2,
@@ -55,6 +56,7 @@ export const OwnerMessages = () => {
   const bookingId = Number(searchParams.get('bookingId')) || null;
   const [conversations, setConversations] = useState<DirectConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [isMobileListOpen, setIsMobileListOpen] = useState(() => !chatWithUserId);
   const [messagesByConversation, setMessagesByConversation] = useState<Record<number, ChatMessage[]>>({});
   const [booking, setBooking] = useState<OwnerBookingRecord | null>(null);
   const [search, setSearch] = useState('');
@@ -66,6 +68,10 @@ export const OwnerMessages = () => {
 
   const activeConversation = conversations.find((item) => item.conversationId === activeConversationId) ?? null;
   const activeMessages = activeConversationId ? messagesByConversation[activeConversationId] ?? [] : [];
+  useEffect(() => {
+    if (chatWithUserId) setIsMobileListOpen(false);
+  }, [chatWithUserId]);
+
   const filteredConversations = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase('vi-VN');
     if (!keyword) return conversations;
@@ -166,6 +172,7 @@ export const OwnerMessages = () => {
 
   const chooseConversation = (conversationId: number) => {
     setActiveConversationId(conversationId);
+    setIsMobileListOpen(false);
     setBooking(null);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('bookingId');
@@ -217,13 +224,13 @@ export const OwnerMessages = () => {
           </div>
           <p className="sr-only">Trao đổi riêng với người đặt sân, xử lý thay đổi lịch và thông báo trước khi hủy booking.</p>
         </div>
-        <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 text-[12px] font-bold" onClick={() => void loadMessages(true)} type="button">
+        <button className="inline-flex h-11 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 text-[12px] font-bold sm:h-9" onClick={() => void loadMessages(true)} type="button">
           <RefreshCw className="h-4 w-4" /> Làm mới
         </button>
       </section>
 
-      <section className="owner-panel grid min-h-[560px] overflow-hidden lg:min-h-0 lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col border-b border-outline-variant bg-[#f7faf5] lg:border-b-0 lg:border-r">
+      <section className="owner-panel grid h-[calc(100dvh-13rem)] min-h-[30rem] overflow-hidden lg:h-full lg:min-h-0 lg:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className={`${isMobileListOpen ? 'flex' : 'hidden'} min-h-0 flex-col border-b border-outline-variant bg-[#f7faf5] lg:flex lg:border-b-0 lg:border-r`}>
           <div className="border-b border-outline-variant p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -278,7 +285,7 @@ export const OwnerMessages = () => {
           </div>
         </aside>
 
-        <div className="flex min-h-[560px] min-w-0 flex-col bg-white lg:min-h-0">
+        <div className={`${isMobileListOpen ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-col bg-white lg:flex`}>
           {!activeConversation ? (
             <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-on-surface-variant">
               <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#edf5e9] text-[#276b3f]"><MessageCircle className="h-8 w-8" /></span>
@@ -287,7 +294,15 @@ export const OwnerMessages = () => {
             </div>
           ) : (
             <>
-              <header className="flex items-center gap-3 border-b border-outline-variant px-4 py-2.5 sm:px-5">
+              <header className="flex items-center gap-2 border-b border-outline-variant px-3 py-2.5 sm:gap-3 sm:px-5">
+                <button
+                  aria-label="Quay lại danh sách hội thoại"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-on-surface-variant hover:bg-surface-container-low lg:hidden"
+                  onClick={() => setIsMobileListOpen(true)}
+                  type="button"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e4eee0] font-black text-[#276b3f]">
                   {activeConversation.otherProfileImageUrl
                     ? <img alt="" className="h-full w-full object-cover" src={activeConversation.otherProfileImageUrl} />
@@ -339,11 +354,11 @@ export const OwnerMessages = () => {
                 </div>
               </div>
 
-              <form className="border-t border-outline-variant bg-white p-2.5 sm:p-3" onSubmit={sendMessage}>
+              <form className="border-t border-outline-variant bg-white px-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 sm:p-3" onSubmit={sendMessage}>
                 <div className="flex items-end gap-2 rounded-xl border border-outline-variant bg-[#f8fbf6] p-2 focus-within:border-[#98d951] focus-within:ring-2 focus-within:ring-[#e2ff57]/40">
                   <textarea
                     aria-label="Nội dung tin nhắn"
-                    className="max-h-20 min-h-8 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] outline-none"
+                    className="max-h-20 min-h-11 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] outline-none"
                     disabled={isSending}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={handleComposerKeyDown}
@@ -351,7 +366,7 @@ export const OwnerMessages = () => {
                     rows={1}
                     value={draft}
                   />
-                  <button aria-label="Gửi tin nhắn" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary disabled:cursor-not-allowed disabled:opacity-50" disabled={!draft.trim() || isSending} type="submit">
+                  <button aria-label="Gửi tin nhắn" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary disabled:cursor-not-allowed disabled:opacity-50" disabled={!draft.trim() || isSending} type="submit">
                     {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
                 </div>
