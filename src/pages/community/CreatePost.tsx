@@ -23,7 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import { getMyMatches, type MatchSummary } from '../../api/matches';
 import { OpenStreetMapLocationPicker } from '../owner/components/OpenStreetMapLocationPicker';
-import { uploadToCloudinary } from '../../api/cloudinary';
+import { deleteUploadedMedia, uploadToCloudinary } from '../../api/cloudinary';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';
 import { useToast } from '../../components/ui/ToastRegion';
@@ -246,7 +246,7 @@ export const CreatePost = () => {
     try {
       const { url } = await uploadToCloudinary(token, file, (progress) => {
         setUploadProgress(progress);
-      });
+      }, 'picklink_posts');
       setImageUrl(url);
     } catch (err: any) {
       notify(err.message || 'Không thể tải ảnh lên.', 'error');
@@ -256,7 +256,12 @@ export const CreatePost = () => {
     }
   };
 
-  const handleDeleteImage = () => setImageUrl('');
+  const handleDeleteImage = () => {
+    if (token && imageUrl) {
+      void deleteUploadedMedia(token, imageUrl);
+    }
+    setImageUrl('');
+  };
 
   const selectedClub = useMemo(() => userGroups.find((g) => g.groupId === selectedGroupId), [userGroups, selectedGroupId]);
   const name = user?.name || '';

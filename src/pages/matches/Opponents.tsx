@@ -749,56 +749,56 @@ export const Opponents = () => {
           {creationMode === 'manual' && (
             <>
               <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">
-            <label>
-              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tiêu đề</span>
-              <input
-                className={inputClass}
-                maxLength={150}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Ví dụ: Kèo cầu tối thứ Bảy"
-                required
-                value={title}
-              />
-            </label>
-            <label>
-              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Số người chơi</span>
-              <select className={inputClass} onChange={(event) => setPlayerCount(Number(event.target.value))} value={playerCount}>
-                {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
-                  <option key={count} value={count}>{count} người</option>
-                ))}
-              </select>
-            </label>
-          </div>
+                <label>
+                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tiêu đề</span>
+                  <input
+                    className={inputClass}
+                    maxLength={150}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Ví dụ: Kèo cầu tối thứ Bảy"
+                    required
+                    value={title}
+                  />
+                </label>
+                <label>
+                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Số người chơi</span>
+                  <select className={inputClass} onChange={(event) => setPlayerCount(Number(event.target.value))} value={playerCount}>
+                    {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
+                      <option key={count} value={count}>{count} người</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label>
-              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Trình độ tối thiểu</span>
-              <select
-                className={inputClass}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  setMinSkillLevel(value);
-                  if (value > maxSkillLevel) setMaxSkillLevel(value);
-                }}
-                value={minSkillLevel}
-              >
-                {['M\u1edbi ch\u01a1i', 'C\u01a1 b\u1ea3n', 'Trung b\u00ecnh', 'Kh\u00e1', 'N\u00e2ng cao'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
-              </select>
-            </label>
-            <label>
-              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Trình độ tối đa</span>
-              <select
-                className={inputClass}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  setMaxSkillLevel(value);
-                  if (value < minSkillLevel) setMinSkillLevel(value);
-                }}
-                value={maxSkillLevel}
-              >
-                {['M\u1edbi ch\u01a1i', 'C\u01a1 b\u1ea3n', 'Trung b\u00ecnh', 'Kh\u00e1', 'N\u00e2ng cao'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
-              </select>
-            </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label>
+                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Trình độ tối thiểu</span>
+                  <select
+                    className={inputClass}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setMinSkillLevel(value);
+                      if (value > maxSkillLevel) setMaxSkillLevel(value);
+                    }}
+                    value={minSkillLevel}
+                  >
+                    {['M\u1edbi ch\u01a1i', 'C\u01a1 b\u1ea3n', 'Trung b\u00ecnh', 'Kh\u00e1', 'N\u00e2ng cao'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Trình độ tối đa</span>
+                  <select
+                    className={inputClass}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setMaxSkillLevel(value);
+                      if (value < minSkillLevel) setMinSkillLevel(value);
+                    }}
+                    value={maxSkillLevel}
+                  >
+                    {['M\u1edbi ch\u01a1i', 'C\u01a1 b\u1ea3n', 'Trung b\u00ecnh', 'Kh\u00e1', 'N\u00e2ng cao'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+                  </select>
+                </label>
               </div>
             </>
           )}
@@ -895,85 +895,85 @@ export const Opponents = () => {
             </label>
 
             {replayType === 'None' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <label>
-                    <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
-                    <input
-                      className={inputClass}
-                      min={today()}
-                      onChange={(event) => {
-                        const nextDateFrom = event.target.value;
-                        setDateFrom(nextDateFrom);
-                        if (nextDateFrom > dateTo) setDateTo(nextDateFrom);
-                        else if (dateTo > lastOneOffDate(nextDateFrom)) setDateTo(lastOneOffDate(nextDateFrom));
-                      }}
-                      type="date"
-                      value={dateFrom}
-                    />
-                  </label>
-                  <label>
-                    <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
-                    <input
-                      className={inputClass}
-                      max={lastOneOffDate(dateFrom)}
-                      min={dateFrom}
-                      onChange={(event) => setDateTo(event.target.value)}
-                      type="date"
-                      value={dateTo}
-                    />
-                  </label>
-                </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label>
+                  <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
+                  <input
+                    className={inputClass}
+                    min={today()}
+                    onChange={(event) => {
+                      const nextDateFrom = event.target.value;
+                      setDateFrom(nextDateFrom);
+                      if (nextDateFrom > dateTo) setDateTo(nextDateFrom);
+                      else if (dateTo > lastOneOffDate(nextDateFrom)) setDateTo(lastOneOffDate(nextDateFrom));
+                    }}
+                    type="date"
+                    value={dateFrom}
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
+                  <input
+                    className={inputClass}
+                    max={lastOneOffDate(dateFrom)}
+                    min={dateFrom}
+                    onChange={(event) => setDateTo(event.target.value)}
+                    type="date"
+                    value={dateTo}
+                  />
+                </label>
+              </div>
             )}
 
             {(replayType === 'None' || replayType === 'Daily') && (
-                <div className="border-t border-[#cfe0c8] pt-3">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
-                    <button
-                      type="button"
-                      onClick={addAvailabilitySlot}
-                      className="community-button-quiet !min-h-8 !px-2.5"
-                      disabled={availabilitySlots.length >= 20}
-                    >
-                      <Plus className="h-4 w-4" /> Thêm
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {availabilitySlots.map((slot, index) => (
-                      <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0">
-                        <div className="grid grid-cols-2 gap-2">
-                          <label>
-                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
-                            <input
-                              type="time"
-                              className={inputClass}
-                              min={replayType === 'None' && dateFrom === today() ? currentTime() : undefined}
-                              value={slot.timeFrom}
-                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
-                            />
-                          </label>
-                          <label>
-                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
-                            <input
-                              type="time"
-                              className={inputClass}
-                              value={slot.timeTo}
-                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeTo', e.target.value)}
-                            />
-                          </label>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={availabilitySlots.length === 1}
-                          onClick={() => removeAvailabilitySlot(slot.id)}
-                          className="mt-[22px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              <div className="border-t border-[#cfe0c8] pt-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
+                  <button
+                    type="button"
+                    onClick={addAvailabilitySlot}
+                    className="community-button-quiet !min-h-8 !px-2.5"
+                    disabled={availabilitySlots.length >= 20}
+                  >
+                    <Plus className="h-4 w-4" /> Thêm
+                  </button>
                 </div>
+                <div className="space-y-3">
+                  {availabilitySlots.map((slot, index) => (
+                    <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0">
+                      <div className="grid grid-cols-2 gap-2">
+                        <label>
+                          <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
+                          <input
+                            type="time"
+                            className={inputClass}
+                            min={replayType === 'None' && dateFrom === today() ? currentTime() : undefined}
+                            value={slot.timeFrom}
+                            onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
+                          <input
+                            type="time"
+                            className={inputClass}
+                            value={slot.timeTo}
+                            onChange={(e) => updateAvailabilitySlot(slot.id, 'timeTo', e.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={availabilitySlots.length === 1}
+                        onClick={() => removeAvailabilitySlot(slot.id)}
+                        className="mt-[22px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {replayType === 'Weekly' && (
@@ -1080,11 +1080,10 @@ export const Opponents = () => {
                             return next;
                           });
                         }}
-                        className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${
-                          selectedDaysOfMonth.includes(d)
+                        className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${selectedDaysOfMonth.includes(d)
                             ? 'border-[#0b2228] bg-[#0b2228] text-white'
                             : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
-                        }`}
+                          }`}
                       >
                         {d}
                       </button>

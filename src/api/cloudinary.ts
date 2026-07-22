@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from './client';
+import { uploadMyAvatar } from './profile';
 
 export type SignatureResponse = {
   signature: string;
@@ -14,6 +15,19 @@ export const getUploadSignature = (token: string, parameters: Record<string, str
   }, token);
 };
 
+export const deleteUploadedMedia = async (token: string, url: string): Promise<boolean> => {
+  if (!url) return false;
+  try {
+    const res = await apiRequest<{ success: boolean }>('/api/upload/delete', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }, token);
+    return res.success;
+  } catch {
+    return false;
+  }
+};
+
 type LocalUploadResponse = {
   url: string;
 };
@@ -27,10 +41,10 @@ const getResourceType = (file: File): string => {
 export const uploadToCloudinary = async (
   token: string,
   file: File,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  folder: string = 'picklink_clubs'
 ): Promise<{ url: string; publicId: string }> => {
   const resourceType = getResourceType(file);
-  const folder = 'picklink_clubs';
 
   // Request signature from backend
   let sigData: SignatureResponse;
@@ -40,6 +54,12 @@ export const uploadToCloudinary = async (
     });
   } catch (error) {
     if (error instanceof ApiError && error.message === 'Cloudinary is not configured on the server.') {
+      if (folder === 'picklink_avatars') {
+        const profile = await uploadMyAvatar(token, file);
+        onProgress?.(100);
+        return { url: profile.profileImageUrl || '', publicId: 'local-avatar' };
+      }
+
       const formData = new FormData();
       formData.append('image', file);
       const localUpload = await apiRequest<LocalUploadResponse>('/api/upload/club-cover', {
