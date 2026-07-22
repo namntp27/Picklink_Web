@@ -18,7 +18,7 @@ import { CommunityHero, CommunityPage } from './CommunityUI';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
-import { uploadToCloudinary } from '../../api/cloudinary';
+import { deleteUploadedMedia, uploadToCloudinary } from '../../api/cloudinary';
 import {
   getGlobalPost,
   getPostComments,
@@ -399,7 +399,7 @@ export const PostDetail = () => {
     if (!file || !token) return;
     setUploadingImage(true);
     try {
-      const { url } = await uploadToCloudinary(token, file);
+      const { url } = await uploadToCloudinary(token, file, undefined, 'picklink_posts');
       setCommentImageUrl(url);
     } catch (err: any) {
       notify(err.message || 'Không thể tải ảnh lên.', 'error');
@@ -646,7 +646,12 @@ export const PostDetail = () => {
                     <div className="mb-2.5 relative w-20 aspect-video rounded-lg overflow-hidden border border-[#d8e4d4] bg-white group">
                       <img src={commentImageUrl} alt="Comment preview" className="w-full h-full object-cover" />
                       <button
-                        onClick={() => setCommentImageUrl('')}
+                        onClick={() => {
+                          if (token && commentImageUrl) {
+                            void deleteUploadedMedia(token, commentImageUrl);
+                          }
+                          setCommentImageUrl('');
+                        }}
                         className="absolute top-1 right-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-[#ba1a1a]"
                       >
                         <X className="h-3 w-3" />

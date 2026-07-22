@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
+import { uploadToCloudinary } from '../../api/cloudinary';
 import { getMyProfile, updateMyProfile, uploadMyAvatar, type PlayerProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
@@ -91,7 +92,23 @@ useEffect(() => {
     setSaving(true);
     setError('');
     try {
-      setProfile(await uploadMyAvatar(token, file));
+      const { url } = await uploadToCloudinary(token, file, undefined, 'picklink_avatars');
+      const updated = await updateMyProfile(token, {
+        username: profile.username,
+        city: profile.city,
+        commune: profile.commune,
+        profileImageUrl: url,
+        skillLevel: profile.skillLevel ?? 0,
+        playerSubType: profile.playerSubType,
+        playFrequency: profile.playFrequency,
+        preferredTimeSlot: profile.preferredTimeSlot,
+        bio: profile.bio,
+        birthDate: profile.birthDate,
+        gender: profile.gender,
+        heightCm: profile.heightCm,
+        weightKg: profile.weightKg,
+      });
+      setProfile(updated);
       await refreshUser();
       setMessage('Đã cập nhật ảnh đại diện.');
     } catch (requestError) {
