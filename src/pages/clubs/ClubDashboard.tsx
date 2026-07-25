@@ -1075,7 +1075,7 @@ export const ClubDashboard = () => {
                         Duyệt
                       </button>
                     )}
-                    <Link aria-label="Xem bài viết" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" to={`/posts/${post.id}`}>
+                    <Link aria-label="Xem bài viết" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low" to={`/posts/${post.id}`}>
                       <Eye className="h-4 w-4" />
                     </Link>
                     <button
@@ -1159,9 +1159,9 @@ export const ClubDashboard = () => {
   const renderChat = () => {
 
     return (
-      <div className="grid h-[680px] grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
-        <section className="flex h-full flex-col overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant px-5">
+      <div className="grid grid-cols-1 gap-6 xl:h-[680px] xl:grid-cols-[minmax(0,1fr)_330px]">
+        <section className="flex h-[calc(100dvh-10rem)] min-h-[32rem] max-h-[46rem] flex-col overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm xl:h-full xl:min-h-0 xl:max-h-none">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant px-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-bold text-white">
                 {groupInfo ? groupInfo.groupName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'HE'}
@@ -1171,7 +1171,7 @@ export const ClubDashboard = () => {
                 <p className="truncate text-[12px] font-bold text-on-surface-variant">{members.length} thành viên trong nhóm</p>
               </div>
             </div>
-            <button aria-label="Mở cài đặt câu lạc bộ" className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low" onClick={() => setActiveTab('settings')} type="button">
+            <button aria-label="Mở cài đặt câu lạc bộ" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low" onClick={() => setActiveTab('settings')} type="button">
               <Settings className="h-5 w-5" />
             </button>
           </header>
@@ -1205,7 +1205,7 @@ export const ClubDashboard = () => {
           )}
 
           <div
-            className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-5"
+            className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-5"
             ref={chatScrollRef}
             onScroll={handleChatScroll}
             style={{
@@ -1272,7 +1272,7 @@ export const ClubDashboard = () => {
             ))}
           </div>
 
-        <div className="shrink-0 border-t border-outline-variant p-4">
+        <div className="shrink-0 border-t border-outline-variant px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:p-4">
           <div className="flex items-end gap-2">
             <textarea
               className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"

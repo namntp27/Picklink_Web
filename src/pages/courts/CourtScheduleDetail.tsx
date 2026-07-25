@@ -396,7 +396,7 @@ export const CourtScheduleDetail = () => {
       <main className="flex min-h-dvh flex-col">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-[linear-gradient(135deg,#081d24_0%,#0f2e32_50%,#143f34_100%)] px-3 py-2 text-white shadow-[0_8px_20px_rgba(8,29,36,0.12)]">
           <Link
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 text-[13px] font-bold text-white transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-white/16 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57] active:translate-y-px"
+            className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 text-[13px] font-bold text-white transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-white/16 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57] active:translate-y-px"
             to="/book-court"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -409,9 +409,9 @@ export const CourtScheduleDetail = () => {
             </h1>
           </div>
 
-          <div className="grid grid-cols-[minmax(150px,1fr)_auto] gap-2">
+          <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-2 sm:w-auto sm:grid-cols-[minmax(150px,1fr)_auto]">
             <Input
-              className="h-9 rounded-md border-white/20 bg-white/18 text-[13px] font-bold text-white [color-scheme:dark]"
+              className="h-11 rounded-md border-white/20 bg-white/18 text-[13px] font-bold text-white [color-scheme:dark]"
               icon={<CalendarDays className="h-4 w-4" />}
               min={localDate()}
               max={maxScheduleDate()}
@@ -421,7 +421,7 @@ export const CourtScheduleDetail = () => {
             />
             <Button
               aria-busy={isLoading}
-              className={buttonBase + ' h-9 rounded-md bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]'}
+              className={buttonBase + ' h-11 rounded-md bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]'}
               disabled={isLoading}
               onClick={() => void load()}
               type="button"
@@ -469,7 +469,7 @@ export const CourtScheduleDetail = () => {
               <div className="border-b border-[#dbe8d3] bg-[#f8fbf4] px-3 py-3">
                 <div className="mx-auto max-w-5xl rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
-                    <label className="min-w-[160px] flex-1">
+                    <label className="w-full min-w-0 flex-1 sm:min-w-[160px]">
                       <span className="mb-1 block text-[12px] font-bold text-[#526158]">Số tháng áp dụng</span>
                       <input
                         className="h-10 w-full rounded-lg border border-[#d8e4d4] bg-white px-3 text-[13px] font-bold text-[#0b2228] outline-none focus:border-[#276b3f]"
@@ -483,7 +483,7 @@ export const CourtScheduleDetail = () => {
                     </label>
                     <Button
                       aria-busy={isApplyingMonth}
-                      className="h-10 rounded-xl bg-[#0b2228] px-3 text-[12px] font-bold text-white hover:bg-[#173a41]"
+                      className="h-11 w-full rounded-xl bg-[#0b2228] px-3 text-[12px] sm:w-auto font-bold text-white hover:bg-[#173a41]"
                       disabled={isApplyingMonth || maximumMonthDuration < 1 || !selectedSlotsForDate.length}
                       onClick={() => void applyCurrentSlotsForMonths()}
                       type="button"

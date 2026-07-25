@@ -486,7 +486,7 @@ export const MatchVenueMapDialog = ({
 
               <button
                 aria-label="Cập nhật vị trí của tôi"
-                className="absolute bottom-5 right-3 z-[500] grid h-11 w-11 place-items-center rounded-xl border border-[#d8e4d4] bg-white text-[#477313] shadow-[0_10px_24px_rgba(8,29,36,0.16)] transition-[background-color,transform,box-shadow] hover:-translate-y-px hover:bg-[#edf5e9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313] disabled:cursor-wait disabled:opacity-55"
+                className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-3 z-[500] grid h-11 w-11 place-items-center rounded-xl border border-[#d8e4d4] bg-white text-[#477313] shadow-[0_10px_24px_rgba(8,29,36,0.16)] transition-[background-color,transform,box-shadow] hover:-translate-y-px hover:bg-[#edf5e9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313] disabled:cursor-wait disabled:opacity-55"
                 disabled={isLocating}
                 onClick={() => locatePlayer()}
                 title="Vị trí của tôi"

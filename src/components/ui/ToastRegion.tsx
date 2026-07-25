@@ -82,7 +82,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       <div
         aria-atomic="false"
         aria-live="polite"
-        className="pointer-events-none fixed left-1/2 top-3 z-[120] grid w-[calc(100%_-_1.5rem)] max-w-md -translate-x-1/2 gap-2 sm:top-4"
+        className="pointer-events-none fixed left-1/2 top-[max(0.75rem,env(safe-area-inset-top))] z-[120] grid w-[calc(100%_-_1.5rem)] max-w-md -translate-x-1/2 gap-2 sm:top-[max(1rem,env(safe-area-inset-top))]"
       >
         <AnimatePresence initial={false}>
           {items.map((item) => {
@@ -109,7 +109,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
                 <p className="min-w-0 flex-1 pt-1 text-[13px] font-bold leading-5">{item.message}</p>
                 <button
                   aria-label="Đóng thông báo"
-                  className="picklink-glow-control grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#718077] hover:bg-[#edf5e9] hover:text-[#0b2228]"
+                  className="picklink-glow-control grid h-11 w-11 shrink-0 place-items-center rounded-lg sm:h-8 sm:w-8 text-[#718077] hover:bg-[#edf5e9] hover:text-[#0b2228]"
                   onClick={() => dismiss(item.id)}
                   type="button"
                 >

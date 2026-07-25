@@ -482,7 +482,7 @@ export const Posts = () => {
         {isAuthenticated && (
           <Link
             aria-label="Tạo bài viết"
-            className="community-button fixed bottom-5 right-4 z-30 h-12 w-12 !rounded-xl !p-0 shadow-[0_14px_30px_rgba(8,29,36,0.2)] md:hidden"
+            className="community-button fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-30 h-12 w-12 !rounded-xl !p-0 shadow-[0_14px_30px_rgba(8,29,36,0.2)] md:hidden"
             title="Tạo bài viết"
             to="/posts/create"
           >

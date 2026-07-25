@@ -628,7 +628,7 @@ export const MatchDetail = () => {
               <div className="flex items-center gap-2">
                 <span className="match-soft-badge">{match.preferredVenues.length} cụm sân</span>
                 {match.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
-                  <button aria-expanded={showInvitationEditor} className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[10px]" disabled={isBusy} onClick={showInvitationEditor ? () => setShowInvitationEditor(false) : openInvitationEditor} type="button">
+                  <button aria-expanded={showInvitationEditor} className="community-button-secondary !min-h-11 !px-2.5 !py-1.5 !text-[10px]" disabled={isBusy} onClick={showInvitationEditor ? () => setShowInvitationEditor(false) : openInvitationEditor} type="button">
                     {showInvitationEditor ? 'Hủy sửa' : 'Sửa lời mời'}
                   </button>
                 )}
@@ -654,7 +654,7 @@ export const MatchDetail = () => {
                   typeof venue.latitude === 'number'
                   && typeof venue.longitude === 'number') && (
                   <button
-                    className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[10px]"
+                    className="community-button-secondary !min-h-11 !px-2.5 !py-1.5 !text-[10px]"
                     onClick={() => setShowVenueMap(true)}
                     title="Xem vị trí, khoảng cách và lộ trình"
                     type="button"
@@ -713,19 +713,19 @@ export const MatchDetail = () => {
               </div>
 
               <div className="rounded-lg border border-[#d8e7d4] bg-white p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[12px] font-extrabold text-[#0b2228]">Các slot có thể chơi</p><p className="text-[10px] text-[#718077]">Bạn có thể thêm các khung giờ rời nhau.</p></div><button className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[11px]" disabled={isBusy || invitationDraft.availabilitySlots.length >= 20} onClick={() => setInvitationDraft((current) => ({ ...current, availabilitySlots: [...current.availabilitySlots, { timeStart: '18:00', timeEnd: '19:00' }] }))} type="button"><Plus className="h-3.5 w-3.5" /> Thêm slot</button></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[12px] font-extrabold text-[#0b2228]">Các slot có thể chơi</p><p className="text-[10px] text-[#718077]">Bạn có thể thêm các khung giờ rời nhau.</p></div><button className="community-button-secondary !min-h-11 !px-2.5 !py-1.5 !text-[11px]" disabled={isBusy || invitationDraft.availabilitySlots.length >= 20} onClick={() => setInvitationDraft((current) => ({ ...current, availabilitySlots: [...current.availabilitySlots, { timeStart: '18:00', timeEnd: '19:00' }] }))} type="button"><Plus className="h-3.5 w-3.5" /> Thêm slot</button></div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {invitationDraft.availabilitySlots.map((slot, index) => (
-                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-end gap-2 rounded-md border border-[#e0ebdc] bg-[#f8fbf7] p-2" key={`slot-${index}`}>
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-end gap-2 rounded-md border border-[#e0ebdc] bg-[#f8fbf7] p-2" key={`slot-${index}`}>
                       <div className="min-w-0"><p className="text-[10px] font-bold text-[#526158]">Bắt đầu</p><button aria-expanded={openInvitationTimePicker?.slotIndex === index && openInvitationTimePicker.field === 'start'} className="community-input mt-1 flex w-full items-center justify-between gap-1 text-left" disabled={isBusy} onClick={() => setOpenInvitationTimePicker((current) => current?.slotIndex === index && current.field === 'start' ? null : { slotIndex: index, field: 'start' })} type="button"><span>{slot.timeStart}</span><ChevronDown className="h-3.5 w-3.5 shrink-0" /></button></div>
                       <div className="min-w-0"><p className="text-[10px] font-bold text-[#526158]">Kết thúc</p><button aria-expanded={openInvitationTimePicker?.slotIndex === index && openInvitationTimePicker.field === 'end'} className="community-input mt-1 flex w-full items-center justify-between gap-1 text-left" disabled={isBusy} onClick={() => setOpenInvitationTimePicker((current) => current?.slotIndex === index && current.field === 'end' ? null : { slotIndex: index, field: 'end' })} type="button"><span>{slot.timeEnd}</span><ChevronDown className="h-3.5 w-3.5 shrink-0" /></button></div>
-                      <button aria-label={`Xóa slot ${index + 1}`} className="grid h-9 w-9 place-items-center rounded-md border border-red-200 text-red-600 disabled:opacity-50" disabled={isBusy || invitationDraft.availabilitySlots.length === 1} onClick={() => setInvitationDraft((current) => ({ ...current, availabilitySlots: current.availabilitySlots.filter((_, itemIndex) => itemIndex !== index) }))} type="button"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button aria-label={`Xóa slot ${index + 1}`} className="grid h-11 w-11 place-items-center rounded-md border border-red-200 text-red-600 disabled:opacity-50" disabled={isBusy || invitationDraft.availabilitySlots.length === 1} onClick={() => setInvitationDraft((current) => ({ ...current, availabilitySlots: current.availabilitySlots.filter((_, itemIndex) => itemIndex !== index) }))} type="button"><Trash2 className="h-3.5 w-3.5" /></button>
                       {openInvitationTimePicker?.slotIndex === index && (
                         <div className="col-span-3 h-[258px] overflow-y-scroll rounded-md border border-[#cfe0c8] bg-white shadow-sm" role="listbox">
                           {invitationTimeOptions.map((time) => {
                             const field = openInvitationTimePicker.field;
                             const selectedTime = field === 'start' ? slot.timeStart : slot.timeEnd;
-                            return <button aria-selected={time === selectedTime} className={`block h-8 w-full px-3 text-left text-[12px] font-semibold hover:bg-[#eff7ec] ${time === selectedTime ? 'bg-[#e5f2df] text-[#265615]' : 'text-[#35433a]'}`} key={time} onClick={() => { setInvitationDraft((current) => ({ ...current, availabilitySlots: current.availabilitySlots.map((item, itemIndex) => itemIndex === index ? (field === 'start' ? { ...item, timeStart: time } : { ...item, timeEnd: time }) : item) })); setOpenInvitationTimePicker(null); }} role="option" type="button">{time}</button>;
+                            return <button aria-selected={time === selectedTime} className={`block h-11 w-full px-3 text-left text-[12px] font-semibold hover:bg-[#eff7ec] ${time === selectedTime ? 'bg-[#e5f2df] text-[#265615]' : 'text-[#35433a]'}`} key={time} onClick={() => { setInvitationDraft((current) => ({ ...current, availabilitySlots: current.availabilitySlots.map((item, itemIndex) => itemIndex === index ? (field === 'start' ? { ...item, timeStart: time } : { ...item, timeEnd: time }) : item) })); setOpenInvitationTimePicker(null); }} role="option" type="button">{time}</button>;
                           })}
                         </div>
                       )}
@@ -735,7 +735,7 @@ export const MatchDetail = () => {
               </div>
 
               <div className="rounded-lg border border-[#d8e7d4] bg-white p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[12px] font-extrabold text-[#0b2228]">Cụm sân mong muốn</p><p className="text-[10px] text-[#718077]">Đổi khu vực rồi tìm lại để chọn cụm sân phù hợp.</p></div><button className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[11px]" disabled={isBusy || isSearchingInvitationVenues} onClick={() => void searchInvitationVenues()} type="button">{isSearchingInvitationVenues ? 'Đang tìm...' : 'Tìm cụm sân'}</button></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[12px] font-extrabold text-[#0b2228]">Cụm sân mong muốn</p><p className="text-[10px] text-[#718077]">Đổi khu vực rồi tìm lại để chọn cụm sân phù hợp.</p></div><button className="community-button-secondary !min-h-11 !px-2.5 !py-1.5 !text-[11px]" disabled={isBusy || isSearchingInvitationVenues} onClick={() => void searchInvitationVenues()} type="button">{isSearchingInvitationVenues ? 'Đang tìm...' : 'Tìm cụm sân'}</button></div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {invitationVenues.map((venue) => <label className="flex cursor-pointer items-start gap-2 rounded-md border border-[#e0ebdc] p-2 text-[11px] font-bold text-[#35433a]" key={venue.venueId}><input checked={invitationDraft.preferredVenueIds.includes(venue.venueId)} className="mt-0.5 h-4 w-4 accent-[#4b7a32]" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, preferredVenueIds: event.target.checked ? [...current.preferredVenueIds, venue.venueId] : current.preferredVenueIds.filter((venueId) => venueId !== venue.venueId) }))} type="checkbox" /><span>{venue.venueName}{venue.distanceKm != null && <small className="mt-0.5 block font-semibold text-[#718077]">Cách {venue.distanceKm.toFixed(1)} km</small>}</span></label>)}
                   {invitationVenues.length === 0 && <p className="text-[11px] text-[#718077]">Chưa có cụm sân. Hãy tìm cụm sân trước khi lưu.</p>}
@@ -764,8 +764,8 @@ export const MatchDetail = () => {
                   <div className="flex items-center justify-between gap-2 rounded-md bg-white p-2" key={participant.participantId}>
                     <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p></div>
                     <div className="flex shrink-0 gap-1">
-                      <button className="grid h-7 w-7 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && window.confirm(`Từ chối yêu cầu tham gia của ${participant.playerName}?`) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
-                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-7 w-7 !min-h-7 !p-0" disabled={isBusy} onClick={() => token && window.confirm(`Chấp nhận ${participant.playerName} vào phòng?`) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
+                      <button className="grid h-11 w-11 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && window.confirm(`Từ chối yêu cầu tham gia của ${participant.playerName}?`) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
+                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-11 w-11 !min-h-11 !p-0" disabled={isBusy} onClick={() => token && window.confirm(`Chấp nhận ${participant.playerName} vào phòng?`) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 ))}
@@ -831,7 +831,7 @@ export const MatchDetail = () => {
                       </span>
                     )}
                     {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
-                      <button className="grid h-7 w-7 shrink-0 place-items-center text-red-600" disabled={isBusy} onClick={() => token && window.confirm(`Loại ${participant.playerName} khỏi phòng?`) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
+                      <button className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50" disabled={isBusy} onClick={() => token && window.confirm(`Loại ${participant.playerName} khỏi phòng?`) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </article>
                 );
@@ -865,7 +865,7 @@ export const MatchDetail = () => {
                 </label>
                 <div className="md:col-span-2 rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
-                    <label className="min-w-[160px] flex-1">
+                    <label className="w-full min-w-0 flex-1 sm:min-w-[160px]">
                       <span className="mb-1 block text-[12px] font-bold text-[#526158]">Số tháng áp dụng</span>
                       <input
                         className={inputClass}
@@ -877,7 +877,7 @@ export const MatchDetail = () => {
                         value={bookingMonths}
                       />
                     </label>
-                    <button className="rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy || maximumMonthDuration < 1 || !selectedSlotsForDate.length} onClick={() => void applyCurrentSlotsForMonths()} type="button">Áp dụng {bookingMonths} tháng</button>
+                    <button className="min-h-11 w-full rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] sm:w-auto font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy || maximumMonthDuration < 1 || !selectedSlotsForDate.length} onClick={() => void applyCurrentSlotsForMonths()} type="button">Áp dụng {bookingMonths} tháng</button>
                   </div>
                   <p className="mt-2 text-[12px] font-medium text-[#718077]">Sao chép các slot đang chọn từ {formatDateKey(bookingDate)} đến {formatDateKey(bookingRangeEnd)}, bao gồm ngày kết thúc.</p>
                   {monthUnavailableSlots.length > 0 && <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950"><p className="flex items-center gap-2 text-[12px] font-extrabold"><AlertCircle className="h-4 w-4" /> Slot không còn trống ({monthUnavailableSlots.length})</p><div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-y-auto">{monthUnavailableSlots.map((slot) => <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold" key={slotIdentity(slot.courtId, slot.startTime, slot.endTime)}>Sân {slot.courtNumber} · {dateLabel(slot.date)} · {timePart(slot.startTime)}-{timePart(slot.endTime)}</span>)}</div></div>}

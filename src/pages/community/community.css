@@ -1447,6 +1447,27 @@ textarea.community-control {
     transform: none;
   }
 
+  .community-control,
+  .community-button,
+  .community-button-secondary,
+  .community-button-quiet,
+  .community-button-danger {
+    min-height: 44px;
+  }
+
+  .community-control {
+    height: 44px;
+  }
+
+  textarea.community-control {
+    height: auto;
+  }
+
+  .community-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
   .community-hero__stats {
     display: none;
   }
