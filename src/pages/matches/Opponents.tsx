@@ -250,7 +250,10 @@ export const Opponents = () => {
       if (requestId !== venueRequestId.current) return;
       const nearbyLookup = new Map(result.map((venue) => [venue.venueId, venue]));
       setVenues(allVenues.map((venue) => nearbyLookup.get(venue.venueId) ?? venue));
-      setError(result.length === 0 ? `Không có cụm sân nào trong bán kính ${nextRadiusKm} km từ vị trí của bạn.` : '');
+      setError('');
+      if (result.length === 0) {
+        setLocationAreaStatus(`Đã lấy tọa độ. Chưa có cụm sân nào trong bán kính ${nextRadiusKm} km.`);
+      }
     } catch (reason) {
       if (requestId !== venueRequestId.current) return;
       setError(reason instanceof Error ? reason.message : 'Không thể tải các cụm sân trong bán kính đã chọn.');
