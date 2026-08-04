@@ -137,9 +137,10 @@ export const OwnerMessages = () => {
     if (showLoading) setIsMessagesLoading(true);
     try {
       const result = await getDirectMessages(token, activeConversationId, undefined, 50);
+      const list = Array.isArray(result) ? result : [];
       setMessagesByConversation((current) => ({
         ...current,
-        [activeConversationId]: result.map(toChatMessage),
+        [activeConversationId]: list.map(toChatMessage),
       }));
       setConversations((current) => current.map((item) => item.conversationId === activeConversationId
         ? { ...item, unreadMessageCount: 0 }

@@ -28,6 +28,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { useConversationRealtime, type ReadReceiptData } from '../../hooks/useConversationRealtime';
 import {
   getGroups,
   getGroup,
@@ -73,7 +74,7 @@ import {
   type ConversationFilter,
 } from './messageModels';
 export const Messages = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
@@ -155,7 +156,7 @@ export const Messages = () => {
         // Fetch groups
         const groupsData = await getGroups(token, undefined, undefined, undefined, 'Mine');
         if (cancelled) return;
-        const myGroups = groupsData.filter(
+        const myGroups = (Array.isArray(groupsData) ? groupsData : []).filter(
           (g) => g.myStatus === 'Accepted' || g.myRole === 'Owner',
         );
         setGroups(myGroups);
@@ -164,7 +165,7 @@ export const Messages = () => {
         // Fetch direct conversations
         const directData = await getDirectConversations(token);
         if (cancelled) return;
-        const mappedConversations = directData.map(directToConversation);
+        const mappedConversations = (Array.isArray(directData) ? directData : []).map(directToConversation);
         setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
         setMatchConversations(mappedConversations.filter((item) => item.kind === 'match'));
 
@@ -239,12 +240,12 @@ export const Messages = () => {
         getGroups(token, undefined, undefined, undefined, 'Mine'),
         getDirectConversations(token),
       ]);
-      const myGroups = groupsData.filter(
+      const myGroups = (Array.isArray(groupsData) ? groupsData : []).filter(
         (group) => group.myStatus === 'Accepted' || group.myRole === 'Owner',
       );
       setGroups(myGroups);
       setClubConversations(myGroups.map(groupToConversation));
-      const mappedConversations = directData.map(directToConversation);
+      const mappedConversations = (Array.isArray(directData) ? directData : []).map(directToConversation);
       setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
       setMatchConversations(mappedConversations.filter((item) => item.kind === 'match'));
     } catch {
@@ -301,10 +302,49 @@ export const Messages = () => {
       .then((messages) => {
         setMessagesByConversation((current) => ({
           ...current,
-          [activeMatchConversationId]: messages.map(toMatchChatMessage),
+          [activeMatchConversationId]: (Array.isArray(messages) ? messages : []).map(toMatchChatMessage),
         }));
       })
-      .catch(() => {});
+  });
+
+  const numericConversationId = activeConversation?.conversationId;
+  const currentUserId = user?.id ? Number(user.id) : null;
+
+  useConversationRealtime(numericConversationId, {
+    onReadReceiptUpdated: useCallback((receipt: ReadReceiptData) => {
+      const receiptUserId = receipt.UserId ?? receipt.userId;
+      const activeConvId = activeConversation?.id;
+      console.log('[React ReadReceipt Received]', { receipt, activeConvId, currentUserId });
+      if (!activeConvId || (currentUserId && receiptUserId === currentUserId)) return;
+
+      const lastReadMessageId = receipt.LastReadMessageId ?? receipt.lastReadMessageId;
+
+      setMessagesByConversation((prev) => {
+        const msgs = prev[activeConvId];
+        if (!msgs || msgs.length === 0) return prev;
+
+        let changed = false;
+        const updatedMsgs = msgs.map((msg) => {
+          if (!msg.mine || msg.read) return msg;
+
+          if (
+            (lastReadMessageId !== undefined && lastReadMessageId !== null && msg.id <= lastReadMessageId) ||
+            receipt.LastReadAt ||
+            receipt.lastReadAt
+          ) {
+            changed = true;
+            return { ...msg, read: true };
+          }
+          return msg;
+        });
+
+        if (changed) {
+          console.log('[React UI] Successfully updated sent messages status to read: true!');
+        }
+
+        return changed ? { ...prev, [activeConvId]: updatedMsgs } : prev;
+      });
+    }, [activeConversation?.id, currentUserId]),
   });
 
   // Load full group details (including intro images) when a club conversation is selected
@@ -519,7 +559,7 @@ export const Messages = () => {
         text: newMsg.content ?? '',
         time: formatMessageTime(newMsg.sentAt),
         mine: true,
-        read: true,
+        read: false,
         avatarUrl: newMsg.senderAvatarUrl,
         mediaUrl: newMsg.mediaUrl,
       };
@@ -555,7 +595,7 @@ export const Messages = () => {
           if (cancelled) return;
           setMessagesByConversation((prev) => ({
             ...prev,
-            [activeConversation.id]: matchMessages.map(toMatchChatMessage),
+            [activeConversation.id]: (Array.isArray(matchMessages) ? matchMessages : []).map(toMatchChatMessage),
           }));
           setPinnedMessagesByConversation((prev) => ({ ...prev, [activeConversation.id]: [] }));
           setHasMoreByConversation((prev) => ({ ...prev, [activeConversation.id]: false }));
@@ -570,10 +610,11 @@ export const Messages = () => {
             getGroupMessages(token, activeConversation.groupId!, undefined, 8),
             getPinnedGroupMessages(token, activeConversation.groupId!).catch(() => []),
           ]);
-          msgs = groupMsgs;
-          pinned = groupPinned;
+          msgs = Array.isArray(groupMsgs) ? groupMsgs : [];
+          pinned = Array.isArray(groupPinned) ? groupPinned : [];
         } else if (isDirect) {
-          msgs = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
+          const res = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
+          msgs = Array.isArray(res) ? res : [];
         }
 
         if (cancelled) return;
@@ -632,7 +673,7 @@ export const Messages = () => {
           if (cancelled) return;
           setMessagesByConversation((prev) => ({
             ...prev,
-            [activeConversation.id]: matchMessages.map(toMatchChatMessage),
+            [activeConversation.id]: (Array.isArray(matchMessages) ? matchMessages : []).map(toMatchChatMessage),
           }));
           return;
         }
@@ -645,10 +686,11 @@ export const Messages = () => {
             getGroupMessages(token, activeConversation.groupId!, undefined, 8),
             getPinnedGroupMessages(token, activeConversation.groupId!).catch(() => []),
           ]);
-          msgs = groupMsgs;
-          pinned = groupPinned;
+          msgs = Array.isArray(groupMsgs) ? groupMsgs : [];
+          pinned = Array.isArray(groupPinned) ? groupPinned : [];
         } else if (isDirect) {
-          msgs = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
+          const res = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
+          msgs = Array.isArray(res) ? res : [];
         }
 
         if (cancelled) return;
@@ -676,7 +718,7 @@ export const Messages = () => {
         console.error('Failed to poll messages', err);
       } finally {
         isPolling = false;
-        schedule();
+        // schedule(); // Commented out to disable recurring REST polling and test pure Firebase Realtime sync
       }
     };
 
@@ -686,7 +728,7 @@ export const Messages = () => {
       void poll();
     };
 
-    schedule();
+    void poll(); // Run once on initial load
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       cancelled = true;
@@ -815,7 +857,7 @@ export const Messages = () => {
           text: newMsg.content ?? '',
           time: formatMessageTime(newMsg.sentAt),
           mine: true,
-          read: true,
+          read: false,
           avatarUrl: newMsg.senderAvatarUrl,
           mediaUrl: newMsg.mediaUrl,
           isPinned: newMsg.isPinned,
@@ -845,7 +887,7 @@ export const Messages = () => {
           text: newMsg.content ?? '',
           time: formatMessageTime(newMsg.sentAt),
           mine: true,
-          read: true,
+          read: false,
           avatarUrl: newMsg.senderAvatarUrl,
           mediaUrl: newMsg.mediaUrl,
           isPinned: newMsg.isPinned,
@@ -1280,9 +1322,11 @@ export const Messages = () => {
                               )}
                             </div>
                             {message.mine && (
-                              <div className="mt-1 flex items-center justify-end gap-1 text-[11px] font-medium text-on-surface-variant">
-                                <CheckCheck className="h-3.5 w-3.5" />
-                                {message.read ? 'Đã xem' : 'Đã gửi'}
+                              <div className="mt-1 flex items-center justify-end gap-1 text-[11px] font-medium">
+                                <CheckCheck className={`h-3.5 w-3.5 transition-colors ${message.read ? 'text-[#0284c7]' : 'text-on-surface-variant/60'}`} />
+                                <span className={message.read ? 'font-bold text-[#0284c7]' : 'text-on-surface-variant/70'}>
+                                  {message.read ? 'Đã xem' : 'Đã gửi'}
+                                </span>
                               </div>
                             )}
                           </div>

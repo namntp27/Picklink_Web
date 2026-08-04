@@ -54,6 +54,7 @@ export type CommunityMessage = {
   sentAt: string;
   isMine: boolean;
   isPinned: boolean;
+  isRead?: boolean;
 };
 
 export type CommunityPost = {
