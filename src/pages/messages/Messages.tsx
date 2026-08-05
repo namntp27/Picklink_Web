@@ -48,6 +48,7 @@ import {
   startDirectConversation,
   getDirectMessages,
   sendDirectMessage,
+  markConversationAsRead,
   type CommunityGroup,
   type CommunityMessage,
   type CommunityMember,
@@ -118,14 +119,13 @@ export const Messages = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const chatWithUserId = searchParams.get('chatWithUserId');
 
-  // All conversations = direct + match room + club
+  // All conversations = direct + club
   const allConversations = useMemo(
     () => [
       ...directConversations,
-      ...matchConversations,
       ...clubConversations
     ],
-    [directConversations, matchConversations, clubConversations],
+    [directConversations, clubConversations],
   );
 
   const [activeConversationId, setActiveConversationId] = useState<string>('');
@@ -233,25 +233,7 @@ export const Messages = () => {
     load();
     return () => { cancelled = true; };
   }, [token, chatWithUserId, searchParams, setSearchParams, notify]);
-  useVisiblePolling(async () => {
-    if (!token) return;
-    try {
-      const [groupsData, directData] = await Promise.all([
-        getGroups(token, undefined, undefined, undefined, 'Mine'),
-        getDirectConversations(token),
-      ]);
-      const myGroups = (Array.isArray(groupsData) ? groupsData : []).filter(
-        (group) => group.myStatus === 'Accepted' || group.myRole === 'Owner',
-      );
-      setGroups(myGroups);
-      setClubConversations(myGroups.map(groupToConversation));
-      const mappedConversations = (Array.isArray(directData) ? directData : []).map(directToConversation);
-      setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
-      setMatchConversations(mappedConversations.filter((item) => item.kind === 'match'));
-    } catch {
-      // Keep the current list while the next visible poll retries.
-    }
-  }, 4_000, Boolean(token));
+  // Conversation list is loaded on mount (lines 200-236) and updated dynamically via real-time Firebase events.
 
   useEffect(() => {
     if (!activeConversationId) return;
@@ -307,14 +289,18 @@ export const Messages = () => {
       })
   });
 
-  const numericConversationId = activeConversation?.conversationId;
+  const numericConversationId = activeConversation?.conversationId ?? (
+    activeConversation
+      ? (messagesByConversation[activeConversation.id]?.[0] as any)?.conversationId
+      : undefined
+  );
   const currentUserId = user?.id ? Number(user.id) : null;
 
   useConversationRealtime(numericConversationId, {
     onReadReceiptUpdated: useCallback((receipt: ReadReceiptData) => {
       const receiptUserId = receipt.UserId ?? receipt.userId;
       const activeConvId = activeConversation?.id;
-      console.log('[React ReadReceipt Received]', { receipt, activeConvId, currentUserId });
+      console.log('[Sender Firebase ReadReceipt Received]', { receipt, activeConvId, currentUserId, receiptUserId });
       if (!activeConvId || (currentUserId && receiptUserId === currentUserId)) return;
 
       const lastReadMessageId = receipt.LastReadMessageId ?? receipt.lastReadMessageId;
@@ -333,18 +319,52 @@ export const Messages = () => {
             receipt.lastReadAt
           ) {
             changed = true;
+            console.log(`[Sender UI Updated] Sent message #${msg.id} marked as Đã xem ✔️✔️ by User #${receiptUserId}`);
             return { ...msg, read: true };
           }
           return msg;
         });
 
         if (changed) {
-          console.log('[React UI] Successfully updated sent messages status to read: true!');
+          console.log('[Sender UI] Successfully updated sent messages status to read: true!');
         }
 
         return changed ? { ...prev, [activeConvId]: updatedMsgs } : prev;
       });
     }, [activeConversation?.id, currentUserId]),
+    onMessagePushed: useCallback((pushedMsg: any) => {
+      const activeConvId = activeConversation?.id;
+      if (!activeConvId || !pushedMsg || !pushedMsg.messageId) return;
+
+      const pushedSenderId = pushedMsg.senderId ?? pushedMsg.SenderId;
+      const isMine = currentUserId ? pushedSenderId === currentUserId : pushedMsg.isMine;
+
+      const chatMsg: ChatMessage = {
+        id: pushedMsg.messageId,
+        author: isMine ? 'Bạn' : (pushedMsg.senderName ?? 'Thành viên'),
+        text: pushedMsg.content ?? '',
+        time: formatMessageTime(pushedMsg.sentAt ?? new Date().toISOString()),
+        mine: isMine,
+        read: isMine ? false : true,
+        avatarUrl: pushedMsg.senderAvatarUrl,
+        mediaUrl: pushedMsg.mediaUrl,
+        isPinned: pushedMsg.isPinned,
+        senderId: pushedSenderId,
+      };
+
+      setMessagesByConversation((prev) => {
+        const currentList = prev[activeConvId] ?? [];
+        if (currentList.some(m => m.id === chatMsg.id)) return prev;
+        return {
+          ...prev,
+          [activeConvId]: [...currentList, chatMsg].sort((a, b) => a.id - b.id),
+        };
+      });
+
+      if (!isMine && token && numericConversationId && !document.hidden) {
+        void markConversationAsRead(token, numericConversationId, pushedMsg.messageId).catch(() => {});
+      }
+    }, [activeConversation?.id, currentUserId, numericConversationId, token]),
   });
 
   // Load full group details (including intro images) when a club conversation is selected
@@ -645,97 +665,7 @@ export const Messages = () => {
     return () => { cancelled = true; };
   }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId, activeConversation?.matchId]);
 
-  // Poll messages every 8s
-  useEffect(() => {
-    if (!token || !activeConversation) return;
-    const isGroup = !!activeConversation.groupId;
-    const isDirect = !!activeConversation.conversationId;
-    const isMatch = !!activeConversation.matchId;
-    if (!isGroup && !isDirect && !isMatch) return;
-
-    let cancelled = false;
-
-    let timeoutId = 0;
-    let isPolling = false;
-
-    const schedule = () => {
-      if (!cancelled && !document.hidden) {
-        timeoutId = window.setTimeout(() => { void poll(); }, 8000);
-      }
-    };
-
-    const poll = async () => {
-      if (cancelled || document.hidden || isPolling) return;
-      isPolling = true;
-      try {
-        if (isMatch) {
-          const matchMessages = await getMatchMessages(token, activeConversation.matchId!);
-          if (cancelled) return;
-          setMessagesByConversation((prev) => ({
-            ...prev,
-            [activeConversation.id]: (Array.isArray(matchMessages) ? matchMessages : []).map(toMatchChatMessage),
-          }));
-          return;
-        }
-
-        let msgs: CommunityMessage[] = [];
-        let pinned: CommunityMessage[] = [];
-
-        if (isGroup) {
-          const [groupMsgs, groupPinned] = await Promise.all([
-            getGroupMessages(token, activeConversation.groupId!, undefined, 8),
-            getPinnedGroupMessages(token, activeConversation.groupId!).catch(() => []),
-          ]);
-          msgs = Array.isArray(groupMsgs) ? groupMsgs : [];
-          pinned = Array.isArray(groupPinned) ? groupPinned : [];
-        } else if (isDirect) {
-          const res = await getDirectMessages(token, activeConversation.conversationId!, undefined, 8);
-          msgs = Array.isArray(res) ? res : [];
-        }
-
-        if (cancelled) return;
-
-        const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
-
-        const mappedPinned: ChatMessage[] = pinned.map(toChatMessage);
-
-        setMessagesByConversation((prev) => {
-          const currentList = prev[activeConversation.id] ?? [];
-          const existingIds = new Set(currentList.map(m => m.id));
-          const newMsgs = chatMessages.filter(m => !existingIds.has(m.id));
-          if (newMsgs.length === 0) return prev;
-          return {
-            ...prev,
-            [activeConversation.id]: [...currentList, ...newMsgs].sort((a, b) => a.id - b.id),
-          };
-        });
-
-        setPinnedMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversation.id]: mappedPinned,
-        }));
-      } catch (err) {
-        console.error('Failed to poll messages', err);
-      } finally {
-        isPolling = false;
-        // schedule(); // Commented out to disable recurring REST polling and test pure Firebase Realtime sync
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden || isPolling) return;
-      window.clearTimeout(timeoutId);
-      void poll();
-    };
-
-    void poll(); // Run once on initial load
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [token, activeConversation?.id, activeConversation?.groupId, activeConversation?.conversationId, activeConversation?.matchId]);
+  // Recurring polling removed: message updates and read receipts refresh strictly on Firebase real-time notice
 
   const loadOlderChatMessages = async () => {
     if (!token || !activeConversation) return;
