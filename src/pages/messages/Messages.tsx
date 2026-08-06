@@ -387,6 +387,50 @@ export const Messages = () => {
     }, [activeConversation?.id, currentUserId, numericConversationId, token]),
   });
 
+  // Automatically mark incoming messages as read when receiver is actively viewing the conversation
+  useEffect(() => {
+    if (!token || !activeConversation?.conversationId) return;
+    const convId = activeConversation.conversationId;
+    const activeKey = activeConversation.id;
+    const currentMsgs = messagesByConversation[activeKey];
+    if (!currentMsgs || currentMsgs.length === 0) return;
+
+    const lastMsg = currentMsgs[currentMsgs.length - 1];
+    if (lastMsg && !lastMsg.mine && !lastMsg.read) {
+      void markConversationAsRead(token, convId, lastMsg.id)
+        .then(() => {
+          setMessagesByConversation((prev) => {
+            const msgs = prev[activeKey];
+            if (!msgs) return prev;
+            return {
+              ...prev,
+              [activeKey]: msgs.map((m) => (m.id === lastMsg.id ? { ...m, read: true } : m)),
+            };
+          });
+        })
+        .catch(() => {});
+    }
+  }, [token, activeConversation?.id, activeConversation?.conversationId, messagesByConversation]);
+
+  // Mark as read when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (!token || !activeConversation?.conversationId) return;
+      const convId = activeConversation.conversationId;
+      const activeKey = activeConversation.id;
+      const currentMsgs = messagesByConversation[activeKey];
+      if (!currentMsgs || currentMsgs.length === 0) return;
+
+      const lastMsg = currentMsgs[currentMsgs.length - 1];
+      if (lastMsg && !lastMsg.mine) {
+        void markConversationAsRead(token, convId, lastMsg.id).catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [token, activeConversation?.id, activeConversation?.conversationId, messagesByConversation]);
+
   // Load full group details (including intro images) when a club conversation is selected
   useEffect(() => {
     if (!token || !activeConversation?.groupId) return;
