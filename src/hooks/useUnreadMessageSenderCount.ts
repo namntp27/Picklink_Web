@@ -25,7 +25,6 @@ export const useUnreadMessageSenderCount = (token?: string | null) => {
     void loadCount();
   }, [loadCount]);
 
-  useVisiblePolling(loadCount, MESSAGE_BADGE_POLL_INTERVAL_MS, Boolean(token));
-
+  // Recurring polling disabled: count is loaded on mount and updated via app interactions
   return count;
 };

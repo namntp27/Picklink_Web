@@ -312,6 +312,13 @@ export const sendDirectMessage = (token: string, conversationId: number, content
     body: JSON.stringify({ content, mediaUrl }),
   }, token);
 
+export const markConversationAsRead = (token: string, conversationId: number, lastReadMessageId?: number) => {
+  const query = lastReadMessageId ? `?lastReadMessageId=${lastReadMessageId}` : '';
+  return apiRequest<boolean>(`/api/community/conversations/direct/${conversationId}/read${query}`, {
+    method: 'POST',
+  }, token);
+};
+
 export type CommunityFriend = {
   userId: number;
   username: string;

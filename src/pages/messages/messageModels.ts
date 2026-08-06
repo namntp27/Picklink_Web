@@ -36,6 +36,7 @@ export type ChatMessage = {
   isPinned?: boolean;
   senderId?: number;
   senderRole?: 'Member' | 'Replacement' | string;
+  conversationId?: number;
 };
 
 export const formatMessageTime = (isoString: string) => {
@@ -68,6 +69,7 @@ export const toChatMessage = (message: CommunityMessage): ChatMessage => ({
   mediaUrl: message.mediaUrl,
   isPinned: message.isPinned,
   senderId: message.senderId,
+  conversationId: message.conversationId,
 });
 export const toMatchChatMessage = (message: MatchMessage): ChatMessage => ({
   id: message.messageId,
@@ -86,7 +88,6 @@ export const filterOptions: Array<{ id: ConversationFilter; label: string }> = [
   { id: 'all', label: 'Tất cả' },
   { id: 'direct', label: 'Cá nhân' },
   { id: 'club', label: 'CLB' },
-  { id: 'match', label: 'Phòng trận' },
 ];
 
 export const kindLabels: Record<ConversationKind, string> = {
@@ -116,6 +117,7 @@ export const groupToConversation = (group: CommunityGroup): Conversation => ({
   contextTitle: group.groupName,
   contextMeta: group.memberCount + ' thành viên',
   groupId: group.groupId,
+  conversationId: (group as any).conversationId ?? (group as any).ConversationId,
 });
 
 export const directToConversation = (direct: DirectConversation): Conversation => {
