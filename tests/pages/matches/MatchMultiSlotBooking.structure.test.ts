@@ -4,9 +4,10 @@ import { test } from 'node:test';
 
 const detailSource = readFileSync(new URL('../../../src/pages/matches/MatchDetail.tsx', import.meta.url), 'utf8');
 const apiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
-const bookingServiceSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/Services/Matches/MatchService.Open.cs', import.meta.url), 'utf8');
+const controllerSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/Controllers/Matches/MatchController.Open.cs', import.meta.url), 'utf8');
+const dtoSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/DTOs/MatchRequest.cs', import.meta.url), 'utf8');
 
-test('match booking permits independent slots, rolling month durations, and rejects unavailable slots', () => {
+test('match booking submits independent slots through the public booking contract', () => {
   assert.ok(detailSource.includes('selectedSlotsByDate, setSelectedSlotsByDate'));
   assert.ok(detailSource.includes('const applyCurrentSlotsForMonths = async () =>'));
   assert.ok(detailSource.includes('datesForMonthDuration(bookingDate, bookingMonths)'));
@@ -20,9 +21,11 @@ test('match booking permits independent slots, rolling month durations, and reje
   assert.ok(detailSource.includes('slots: selectedSlots.map(({ courtId, startTime, endTime })'));
   assert.ok(!detailSource.includes('const consecutive ='));
   assert.ok(apiSource.includes('slots: Array<{ courtId: number; startTime: string; endTime: string }>;'));
-  assert.ok(bookingServiceSource.includes('selectedSlots.Count > 496'));
-  assert.ok(bookingServiceSource.includes('MaximumAdvanceBookingMonths = 12'));
-  assert.ok(!bookingServiceSource.includes('Các slot phải cùng một ngày'));
-  assert.ok(bookingServiceSource.includes('DateOnly.FromDateTime(slot.Start)'));
-  assert.ok(bookingServiceSource.includes('booking.Slots.Add(new BookingSlot'));
+  assert.ok(detailSource.includes('max={maximumMonthDuration}'));
+  assert.ok(dtoSource.includes('class CreateMatchBookingRequest'));
+  assert.ok(dtoSource.includes('[Required, MinLength(1), MaxLength(496)]'));
+  assert.ok(dtoSource.includes('public List<CreateMatchBookingSlotRequest> Slots'));
+  assert.ok(dtoSource.includes('public bool AllowScheduleConflicts'));
+  assert.ok(controllerSource.includes('[HttpPost("{matchId:int}/booking")]'));
+  assert.ok(controllerSource.includes('_matchService.CreateMatchBooking(matchId, request, cancellationToken)'));
 });

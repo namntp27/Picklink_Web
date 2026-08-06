@@ -4,10 +4,14 @@ import { test } from 'node:test';
 
 const detailSource = readFileSync(new URL('../../../src/pages/matches/MatchDetail.tsx', import.meta.url), 'utf8');
 const apiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
-const serviceSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/Services/Matches/MatchService.Open.cs', import.meta.url), 'utf8');
+const controllerSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/Controllers/Matches/MatchController.Open.cs', import.meta.url), 'utf8');
 const dtoSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/DTOs/MatchRequest.cs', import.meta.url), 'utf8');
 
-test('host can edit the full invitation scope and the server persists validated conditions', () => {
+test('host invitation editor submits the full public update contract', () => {
+  const updateStart = apiSource.indexOf('export const updateMatchInvitation');
+  const updateEnd = apiSource.indexOf('export const acceptMatchInvitation');
+  const updateSource = apiSource.slice(updateStart, updateEnd);
+
   assert.ok(detailSource.includes('Chỉnh sửa trực tiếp trong thẻ phạm vi lời mời.'));
   assert.ok(detailSource.includes("{showInvitationEditor ? 'Hủy sửa' : 'Sửa lời mời'}"));
   assert.ok(detailSource.includes('searchInvitationVenues'));
@@ -23,7 +27,10 @@ test('host can edit the full invitation scope and the server persists validated 
   assert.ok(dtoSource.includes('class UpdateOpenMatchInvitationRequest'));
   assert.ok(dtoSource.includes('public List<int> PreferredVenueIds'));
   assert.ok(dtoSource.includes('public List<MatchAvailabilitySlotRequest> AvailabilitySlots'));
-  assert.ok(serviceSource.includes('match.AvailabilitySlots.Clear();'));
-  assert.ok(serviceSource.includes('match.SharedVenues = string.Join'));
-  assert.ok(serviceSource.includes('Khoảng trình độ mới không còn phù hợp với thành viên đã duyệt'));
+  assert.ok(updateStart >= 0 && updateEnd > updateStart);
+  assert.ok(updateSource.includes('`/api/matches/${matchId}`'));
+  assert.ok(updateSource.includes("method: 'PUT'"));
+  assert.ok(updateSource.includes('availabilitySlots: input.availabilitySlots.map'));
+  assert.ok(controllerSource.includes('[HttpPut("{matchId:int}")]'));
+  assert.ok(controllerSource.includes('_matchService.UpdateOpenMatchInvitation(matchId, request, cancellationToken)'));
 });
