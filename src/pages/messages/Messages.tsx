@@ -334,22 +334,30 @@ export const Messages = () => {
     }, [activeConversation?.id, currentUserId]),
     onMessagePushed: useCallback((pushedMsg: any) => {
       const activeConvId = activeConversation?.id;
-      if (!activeConvId || !pushedMsg || !pushedMsg.messageId) return;
+      const messageId = pushedMsg?.messageId ?? pushedMsg?.MessageId;
+      if (!activeConvId || !pushedMsg || !messageId) return;
 
       const pushedSenderId = pushedMsg.senderId ?? pushedMsg.SenderId;
-      const isMine = currentUserId ? pushedSenderId === currentUserId : pushedMsg.isMine;
+      const isMine = currentUserId ? pushedSenderId === currentUserId : (pushedMsg.isMine ?? pushedMsg.IsMine ?? false);
+      const text = pushedMsg.content ?? pushedMsg.Content ?? '';
+      const sentAt = pushedMsg.sentAt ?? pushedMsg.SentAt ?? new Date().toISOString();
+      const senderName = pushedMsg.senderName ?? pushedMsg.SenderName ?? 'Thành viên';
+      const senderAvatarUrl = pushedMsg.senderAvatarUrl ?? pushedMsg.SenderAvatarUrl;
+      const mediaUrl = pushedMsg.mediaUrl ?? pushedMsg.MediaUrl;
+      const isPinned = pushedMsg.isPinned ?? pushedMsg.IsPinned ?? false;
 
       const chatMsg: ChatMessage = {
-        id: pushedMsg.messageId,
-        author: isMine ? 'Bạn' : (pushedMsg.senderName ?? 'Thành viên'),
-        text: pushedMsg.content ?? '',
-        time: formatMessageTime(pushedMsg.sentAt ?? new Date().toISOString()),
+        id: Number(messageId),
+        author: isMine ? 'Bạn' : senderName,
+        text,
+        time: formatMessageTime(sentAt),
         mine: isMine,
         read: isMine ? false : true,
-        avatarUrl: pushedMsg.senderAvatarUrl,
-        mediaUrl: pushedMsg.mediaUrl,
-        isPinned: pushedMsg.isPinned,
+        avatarUrl: senderAvatarUrl,
+        mediaUrl,
+        isPinned,
         senderId: pushedSenderId,
+        conversationId: pushedMsg.conversationId ?? pushedMsg.ConversationId,
       };
 
       setMessagesByConversation((prev) => {
@@ -361,8 +369,20 @@ export const Messages = () => {
         };
       });
 
+      const updateLastMessage = (conv: Conversation) => {
+        if (conv.id !== activeConvId) return conv;
+        return {
+          ...conv,
+          lastMessage: text || (mediaUrl ? '[Hình ảnh]' : 'Tin nhắn mới'),
+          lastTime: formatMessageTime(sentAt),
+        };
+      };
+      setDirectConversations((current) => current.map(updateLastMessage));
+      setClubConversations((current) => current.map(updateLastMessage));
+      setMatchConversations((current) => current.map(updateLastMessage));
+
       if (!isMine && token && numericConversationId && !document.hidden) {
-        void markConversationAsRead(token, numericConversationId, pushedMsg.messageId).catch(() => {});
+        void markConversationAsRead(token, numericConversationId, Number(messageId)).catch(() => {});
       }
     }, [activeConversation?.id, currentUserId, numericConversationId, token]),
   });

@@ -80,8 +80,16 @@ export const useConversationRealtime = (
             }
           });
         } else if (path.startsWith('/messages')) {
-          if (typeof data === 'object') {
-            callbacksRef.current.onMessagePushed?.(data);
+          if (typeof data === 'object' && data !== null) {
+            if (data.MessageId || data.messageId || data.Content || data.content) {
+              callbacksRef.current.onMessagePushed?.(data);
+            } else {
+              Object.values(data).forEach((msg: any) => {
+                if (msg && typeof msg === 'object') {
+                  callbacksRef.current.onMessagePushed?.(msg);
+                }
+              });
+            }
           }
         }
       } catch {
