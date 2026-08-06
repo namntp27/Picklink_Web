@@ -4,7 +4,7 @@ import type { UserRole } from '../types';
 import { getDefaultPathForRole, useAuth } from './AuthContext';
 
 type ProtectedRouteProps = {
-  allowedRoles?: UserRole[];
+  allowedRoles?: readonly UserRole[];
 };
 
 export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
@@ -27,7 +27,7 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   return <Outlet context={context} />;
 };
 
-export const PublicOnlyRoute = () => {
+export const PublicOnlyRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   const { isInitializing, user } = useAuth();
   const context = useOutletContext();
 
@@ -35,7 +35,7 @@ export const PublicOnlyRoute = () => {
     return <div className="flex min-h-dvh items-center justify-center bg-surface text-primary">Đang xác thực...</div>;
   }
 
-  if (user) {
+  if (user && (!allowedRoles || allowedRoles.includes(user.role))) {
     return <Navigate replace to={getDefaultPathForRole(user.role)} />;
   }
 

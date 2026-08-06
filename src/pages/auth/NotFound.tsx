@@ -6,7 +6,11 @@ import {
   authPrimaryButtonClass,
 } from './AuthShell';
 
-export const NotFound = () => {
+type NotFoundProps = {
+  homePath?: string;
+};
+
+export const NotFound = ({ homePath = '/' }: NotFoundProps) => {
   return (
     <AuthShell
       subtitle="Đường dẫn có thể đã đổi, hoặc bạn đang mở một trang không còn tồn tại trong Picklink."
@@ -26,7 +30,7 @@ export const NotFound = () => {
 
       <Link
         className={`mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-[14px] font-black transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${authPrimaryButtonClass}`}
-        to="/"
+        to={homePath}
       >
         <ArrowLeft aria-hidden="true" className="h-5 w-5" />
         Về trang chủ

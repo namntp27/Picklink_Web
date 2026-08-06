@@ -1,6 +1,14 @@
 # Picklink Web
 
-Frontend React/Vite kết nối với API ASP.NET Core tại `../PicklinkBackend/PicklinkBackend`.
+Monorepo frontend gồm ba React/Vite web app độc lập, cùng kết nối với API ASP.NET Core
+tại `../PicklinkBackend/PicklinkBackend`:
+
+- Player Web: trải nghiệm công khai và nghiệp vụ người chơi.
+- Owner Web: vận hành chủ sân và workspace nhân viên sân.
+- Admin Web: quản trị nền tảng.
+
+Ba app dùng chung auth, API client, UI component và domain types trong `src`, nhưng có
+router, dev server và build artifact riêng.
 
 ## Chạy local
 
@@ -15,19 +23,39 @@ dotnet run --project PicklinkBackend\PicklinkBackend.csproj --launch-profile htt
 
 Backend mặc định chạy tại `http://localhost:5209`.
 
-Terminal 2 — frontend:
+Mở Player Web:
 
 ```powershell
 cd D:\SEP490pass\Picklink_Web
 npm install
-npm run dev
+npm run dev:player
 ```
 
-Mở `http://localhost:3000`. Trong môi trường dev, Vite tự chuyển tiếp `/api` và `/uploads` sang backend nên không cần tạo `.env`.
+Mở `http://localhost:3000`.
+
+Owner Web và Admin Web chạy ở terminal riêng khi cần:
+
+```powershell
+npm run dev:owner
+npm run dev:admin
+```
+
+- Player Web: `http://localhost:3000`
+- Owner Web: `http://localhost:3001`
+- Admin Web: `http://localhost:3002`
+
+Trong môi trường dev, cả ba Vite server tự chuyển tiếp `/api` và `/uploads` sang backend
+nên không cần tạo `.env`.
 
 ## Cấu trúc source
 
-Mã nguồn chính nằm trong `src`.
+Entry point của từng web app nằm trong `apps/player`, `apps/owner` và `apps/admin`.
+Mã nguồn dùng chung nằm trong `src`.
+
+- `apps/*/index.html`: HTML entry riêng.
+- `apps/*/src/main.tsx`: mount app qua provider dùng chung.
+- `apps/*/src/*App.tsx`: router chỉ chứa route thuộc đúng web app.
+- `src/apps`: bootstrap và app frame dùng chung.
 
 - `src/pages`: route-level pages. Mỗi file ở đây nên tương ứng với một màn hình
   hoặc một route chính.
@@ -50,6 +78,8 @@ Trong Google Cloud Console, tạo OAuth 2.0 Client ID loại **Web application**
 
 ```text
 http://localhost:3000
+http://localhost:3001
+http://localhost:3002
 ```
 
 Client ID phải giống nhau ở hai nơi:
@@ -73,12 +103,30 @@ Sao chép `.env.example` thành `.env.local` khi cần đổi địa chỉ API. 
 VITE_API_BASE_URL="https://api.example.com"
 ```
 
-Domain frontend cũng cần được cho phép trong CORS của backend.
+Mỗi app tạo artifact riêng:
+
+```powershell
+npm run build:player
+npm run build:owner
+npm run build:admin
+```
+
+Kết quả lần lượt nằm ở `dist/player`, `dist/owner` và `dist/admin`. Lệnh
+`npm run build` sẽ tạo đủ cả ba. Mỗi host phải rewrite route SPA về `index.html`.
+
+Khi deploy trên ba origin khác nhau, thêm đủ ba origin vào:
+
+- `Cors:AllowedOrigins` của backend;
+- Authorized JavaScript origins của Google OAuth.
+
+Phiên đăng nhập hiện lưu trong `localStorage`, vì vậy không tự chia sẻ giữa các origin.
+Người dùng đăng nhập riêng ở đúng web app; không truyền JWT qua URL.
 
 ## Kiểm tra
 
 ```powershell
 npm run lint
+npm test
 npm run build
 ```
 

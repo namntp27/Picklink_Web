@@ -1,7 +1,16 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { prefetchRoute } from '../../navigation/routePrefetch';
+
+export type RoutePrefetcher = (
+  pathname: string,
+  accessToken?: string | null,
+  search?: string,
+) => void;
+
+type RouteExperienceProps = {
+  prefetchRoute: RoutePrefetcher;
+};
 
 const anchorFromEvent = (event: Event) => {
   const target = event.target;
@@ -11,7 +20,7 @@ const anchorFromEvent = (event: Event) => {
   return anchor instanceof HTMLAnchorElement ? anchor : null;
 };
 
-export const RouteExperience = () => {
+export const RouteExperience = ({ prefetchRoute }: RouteExperienceProps) => {
   const { token } = useAuth();
   const { hash, pathname } = useLocation();
   const navigationType = useNavigationType();

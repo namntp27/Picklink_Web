@@ -21,7 +21,13 @@ import {
   authSecondaryLinkClass,
 } from './AuthShell';
 
-interface LoginProps {}
+interface LoginProps {
+  allowedRoles?: readonly UserRole[];
+  portalLabel?: string;
+  showRegistration?: boolean;
+  subtitle?: string;
+  title?: string;
+}
 
 const canReturnToPath = (path: string, role: UserRole) => {
   if (path.startsWith('/admin')) {
@@ -32,21 +38,37 @@ const canReturnToPath = (path: string, role: UserRole) => {
     return role === 'owner';
   }
 
+  if (path.startsWith('/staff')) {
+    return role === 'staff';
+  }
+
   return role === 'player';
 };
 
-export const Login = (_props: Readonly<LoginProps>) => {
+export const Login = ({
+  allowedRoles,
+  portalLabel = 'web app này',
+  showRegistration = true,
+  subtitle,
+  title,
+}: Readonly<LoginProps>) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { googleLogin, login } = useAuth();
+  const { googleLogin, login, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
 
   const navigateAfterLogin = (authUser: { role: UserRole }) => {
+    if (allowedRoles && !allowedRoles.includes(authUser.role)) {
+      logout();
+      setErrorMessage(`Tài khoản này không có quyền truy cập ${portalLabel}. Vui lòng dùng đúng cổng đăng nhập.`);
+      return;
+    }
+
     const defaultPath = getDefaultPathForRole(authUser.role);
     const nextPath = fromPath && canReturnToPath(fromPath, authUser.role) ? fromPath : defaultPath;
     navigate(nextPath, { replace: true });
@@ -79,9 +101,9 @@ export const Login = (_props: Readonly<LoginProps>) => {
 
   return (
     <AuthShell
-      action={<AuthTopAction label="Đăng ký" to="/register" />}
-      subtitle="Đặt sân, ghép hội và theo dõi giải đấu trong một tài khoản gọn gàng."
-      title="Sẵn sàng ra sân."
+      action={showRegistration ? <AuthTopAction label="Đăng ký" to="/register" /> : undefined}
+      subtitle={subtitle ?? 'Đặt sân, ghép hội và theo dõi giải đấu trong một tài khoản gọn gàng.'}
+      title={title ?? 'Sẵn sàng ra sân.'}
     >
       <AuthCardHeader
         subtitle="Chào mừng bạn trở lại. Nhập thông tin để tiếp tục."
@@ -164,15 +186,17 @@ export const Login = (_props: Readonly<LoginProps>) => {
         onError={setErrorMessage}
       />
 
-      <p className="mt-4 text-center text-[13px] font-semibold text-[#66766d] md:hidden">
-        Bạn chưa có tài khoản?{' '}
-        <Link
-          className="font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
-          to="/register"
-        >
-          Đăng ký ngay
-        </Link>
-      </p>
+      {showRegistration && (
+        <p className="mt-4 text-center text-[13px] font-semibold text-[#66766d] md:hidden">
+          Bạn chưa có tài khoản?{' '}
+          <Link
+            className="font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
+            to="/register"
+          >
+            Đăng ký ngay
+          </Link>
+        </p>
+      )}
     </AuthShell>
   );
 };

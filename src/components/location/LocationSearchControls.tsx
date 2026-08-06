@@ -1,5 +1,5 @@
-import { Search } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
+import { Search } from 'lucide-react';
 
 export const submitSearchOnEnter = (
   event: Pick<KeyboardEvent<HTMLInputElement>, 'key' | 'preventDefault'>,

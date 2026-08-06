@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { CircleGauge } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { CircleGauge, LogOut } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { adminNavItems } from '../adminNavigation';
 import type { AdminSectionId } from '../types';
 import { useAuth } from '../../../auth/AuthContext';
@@ -14,10 +14,16 @@ export const AdminShell = ({
   children: ReactNode;
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const initials = user?.name
     ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
     : 'AD';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="min-h-dvh bg-[#f8fbf4] text-[#0b2228]" data-motion-scope="product">
@@ -45,6 +51,15 @@ export const AdminShell = ({
           <div aria-label={user?.name || 'Tài khoản quản trị'} className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-[#e2ff57]/45 bg-[#e2ff57]/10 text-[12px] font-extrabold text-[#e2ff57]">
             {user?.avatar ? <img alt="" className="h-full w-full object-cover" src={user.avatar} /> : initials}
           </div>
+          <button
+            aria-label="Đăng xuất"
+            className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/8 text-white/75 transition hover:border-[#e2ff57]/45 hover:text-[#e2ff57]"
+            onClick={handleLogout}
+            title="Đăng xuất"
+            type="button"
+          >
+            <LogOut aria-hidden="true" className="h-[18px] w-[18px]" />
+          </button>
         </div>
       </header>
 

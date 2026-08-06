@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+const indexHtmlEntries = ['player', 'owner', 'admin'].map((target) => (
+  readFileSync(new URL(`../../apps/${target}/index.html`, import.meta.url), 'utf8')
+));
 const globalCss = readFileSync(new URL('../../src/index.css', import.meta.url), 'utf8');
 const header = readFileSync(new URL('../../src/components/layout/Header.tsx', import.meta.url), 'utf8');
 const messages = readFileSync(new URL('../../src/pages/messages/Messages.tsx', import.meta.url), 'utf8');
@@ -10,9 +12,11 @@ const ownerMessages = readFileSync(new URL('../../src/pages/owner/OwnerMessages.
 const clubDashboard = readFileSync(new URL('../../src/pages/clubs/ClubDashboard.tsx', import.meta.url), 'utf8');
 
 test('mobile viewport and shared controls keep the safe viewport without disabling zoom', () => {
-  assert.match(indexHtml, /lang="vi"/);
-  assert.match(indexHtml, /width=device-width, initial-scale=1/);
-  assert.doesNotMatch(indexHtml, /user-scalable=no|maximum-scale=1/);
+  for (const indexHtml of indexHtmlEntries) {
+    assert.match(indexHtml, /lang="vi"/);
+    assert.match(indexHtml, /width=device-width, initial-scale=1/);
+    assert.doesNotMatch(indexHtml, /user-scalable=no|maximum-scale=1/);
+  }
   assert.match(globalCss, /env\(safe-area-inset-bottom\)/);
   assert.match(globalCss, /font-size: 16px !important/);
 });

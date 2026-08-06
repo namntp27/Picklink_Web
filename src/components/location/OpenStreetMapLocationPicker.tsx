@@ -8,7 +8,7 @@ import {
   reverseGeocodeAddress,
   searchGeocodeAddresses,
   type GeocodingSearchResult,
-} from '../../../api/geocoding';
+} from '../../api/geocoding';
 import 'leaflet/dist/leaflet.css';
 
 type LocationValue = {

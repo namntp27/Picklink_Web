@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { OwnerVenueInput } from '../../../api/owner';
-import { OpenStreetMapLocationPicker } from './OpenStreetMapLocationPicker';
+import { OpenStreetMapLocationPicker } from '../../../components/location/OpenStreetMapLocationPicker';
 
 type VenueFormDraft = {
   venueName: string;

@@ -22,7 +22,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import { getMyMatches, type MatchSummary } from '../../api/matches';
-import { OpenStreetMapLocationPicker } from '../owner/components/OpenStreetMapLocationPicker';
+import { OpenStreetMapLocationPicker } from '../../components/location/OpenStreetMapLocationPicker';
 import { deleteUploadedMedia, uploadToCloudinary } from '../../api/cloudinary';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';

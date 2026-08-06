@@ -22,10 +22,6 @@ const commonRouteLoaders = new Map<string, RouteLoader>([
   ['/messages', () => import('../pages/messages/Messages')],
   ['/notifications', () => import('../pages/notifications/Notifications')],
   ['/profile', () => import('../pages/profile/Profile')],
-  ['/admin', () => import('../pages/admin/AdminDashboard')],
-  ['/owner', () => import('../pages/owner/OwnerDashboard')],
-  ['/owner/schedule', () => import('../pages/owner/OwnerDashboard')],
-  ['/staff', () => import('../pages/staff/StaffDashboard')],
 ]);
 
 const dynamicRouteLoaders: Array<{ pattern: RegExp; loader: RouteLoader }> = [
@@ -83,12 +79,6 @@ const commonDataLoaders = new Map<string, DataLoader>([
   ]) : Promise.resolve()],
   ['/profile', (token) => token ? import('../api/profile')
     .then((api) => prefetch(() => api.getMyProfile(token))) : Promise.resolve()],
-  ['/admin', (token) => token ? import('../api/adminDashboard')
-    .then((api) => prefetch(() => api.getAdminDashboard(token))) : Promise.resolve()],
-  ['/owner', (token) => token ? import('../api/owner')
-    .then((api) => prefetch(() => api.getOwnerSchedule(token, localDate(), 'day'))) : Promise.resolve()],
-  ['/owner/schedule', (token) => token ? import('../api/owner')
-    .then((api) => prefetch(() => api.getOwnerSchedule(token, localDate(), 'day'))) : Promise.resolve()],
 ]);
 
 const prefetchedRoutes = new Set<string>();
@@ -137,7 +127,7 @@ const dynamicDataLoader = (pathname: string): DataLoader | undefined => {
   return undefined;
 };
 
-export const prefetchRoute = (pathname: string, accessToken?: string | null, search = '') => {
+export const prefetchPlayerRoute = (pathname: string, accessToken?: string | null, search = '') => {
   const normalizedPath = normalizePath(pathname);
   const routeLoader = commonRouteLoaders.get(normalizedPath)
     ?? dynamicRouteLoaders.find(({ pattern }) => pattern.test(normalizedPath))?.loader;

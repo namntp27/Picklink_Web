@@ -1,0 +1,1 @@
+export { prefetchPlayerRoute } from './routePrefetch';

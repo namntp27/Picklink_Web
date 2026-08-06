@@ -1,6 +1,6 @@
 type ReverseAddress = (lat: number, lng: number) => Promise<string>;
 
-type LocationValue = {
+export type LocationValue = {
   address: string;
   latitude: string;
   longitude: string;

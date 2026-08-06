@@ -7,11 +7,16 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const readSource = (relativePath: string) => readFileSync(path.join(projectRoot, relativePath), 'utf8');
 
-test('React root is protected by the application error boundary', () => {
-  const main = readSource('src/main.tsx');
+test('all React roots use the shared application error boundary', () => {
+  const mount = readSource('src/apps/mountPicklinkApp.tsx');
 
-  assert.match(main, /import \{ AppErrorBoundary \}/);
-  assert.match(main, /<AppErrorBoundary>[\s\S]*<BrowserRouter>/);
+  assert.match(mount, /import \{ AppErrorBoundary \}/);
+  assert.match(mount, /<AppErrorBoundary>[\s\S]*<BrowserRouter>/);
+
+  for (const target of ['player', 'owner', 'admin']) {
+    const main = readSource(`apps/${target}/src/main.tsx`);
+    assert.match(main, /mountPicklinkApp/);
+  }
 });
 
 test('application error boundary offers recovery without exposing error details', () => {

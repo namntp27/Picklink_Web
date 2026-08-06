@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 const pageSource = readFileSync(new URL('../../../src/pages/owner/OwnerDashboard.tsx', import.meta.url), 'utf8');
 const apiSource = readFileSync(new URL('../../../src/api/owner.ts', import.meta.url), 'utf8');
-const appSource = readFileSync(new URL('../../../src/App.tsx', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../../../apps/owner/src/OwnerApp.tsx', import.meta.url), 'utf8');
 const ownerMessagesSource = readFileSync(new URL('../../../src/pages/owner/OwnerMessages.tsx', import.meta.url), 'utf8');
 const ownerShellSource = readFileSync(new URL('../../../src/pages/owner/components/OwnerShell.tsx', import.meta.url), 'utf8');
 const ownerCssSource = readFileSync(new URL('../../../src/pages/owner/owner.css', import.meta.url), 'utf8');

@@ -8,10 +8,14 @@ import {
   authPrimaryButtonClass,
 } from './AuthShell';
 
-export const Unauthorized = () => {
+type UnauthorizedProps = {
+  fallbackPath?: string;
+};
+
+export const Unauthorized = ({ fallbackPath: requestedFallbackPath }: UnauthorizedProps) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const fallbackPath = user ? getDefaultPathForRole(user.role) : '/login';
+  const fallbackPath = requestedFallbackPath ?? (user ? getDefaultPathForRole(user.role) : '/login');
 
   const handleLogout = () => {
     logout();

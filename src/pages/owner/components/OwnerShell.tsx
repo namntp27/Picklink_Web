@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Banknote,
   Bell,
@@ -9,6 +9,7 @@ import {
   CreditCard,
   Map,
   MessageCircle,
+  LogOut,
   ScanLine,
   Settings,
   Ticket,
@@ -54,7 +55,8 @@ export const OwnerShell = ({
   innerClassName?: string;
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const { token, user } = useAuth();
+  const navigate = useNavigate();
+  const { logout, token, user } = useAuth();
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const unreadMessageSenderCount = useUnreadMessageSenderCount(token);
   const initials = user?.name
@@ -81,6 +83,12 @@ export const OwnerShell = ({
   useNotificationRealtime(token, () => {
     void loadUnreadNotificationCount();
   });
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="owner-root">
       <header className="owner-topbar">
@@ -156,6 +164,15 @@ export const OwnerShell = ({
               <User aria-hidden="true" className="h-[18px] w-[18px]" />
             )}
           </span>
+          <button
+            aria-label="Đăng xuất"
+            className="owner-topbar__action text-white"
+            onClick={handleLogout}
+            title="Đăng xuất"
+            type="button"
+          >
+            <LogOut aria-hidden="true" className="h-[18px] w-[18px]" />
+          </button>
         </div>
       </header>
 

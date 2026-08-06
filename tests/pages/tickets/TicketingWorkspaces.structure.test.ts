@@ -5,15 +5,16 @@ import { test } from 'node:test';
 const read = (path: string) => readFileSync(new URL('../../../' + path, import.meta.url), 'utf8');
 
 test('ticketing routes stay separate from matchmaking and cover every role workspace', () => {
-  const app = read('src/App.tsx');
+  const playerApp = read('apps/player/src/PlayerApp.tsx');
+  const ownerApp = read('apps/owner/src/OwnerApp.tsx');
   const ownerShell = read('src/pages/owner/components/OwnerShell.tsx');
 
-  assert.match(app, /path="ticket-sessions"/);
-  assert.match(app, /path="ticket-sessions\/:id"/);
-  assert.match(app, /path="my-tickets"/);
-  assert.match(app, /path="my-tickets\/:id"/);
-  assert.match(app, /path="\/owner\/ticket-sessions"/);
-  assert.match(app, /path="\/owner\/ticket-sessions\/:id"/);
+  assert.match(playerApp, /path="ticket-sessions"/);
+  assert.match(playerApp, /path="ticket-sessions\/:id"/);
+  assert.match(playerApp, /path="my-tickets"/);
+  assert.match(playerApp, /path="my-tickets\/:id"/);
+  assert.match(ownerApp, /path="\/owner\/ticket-sessions"/);
+  assert.match(ownerApp, /path="\/owner\/ticket-sessions\/:id"/);
   assert.match(ownerShell, /id: 'ticketSessions'/);
   assert.match(ownerShell, /id: 'matchBookings'/);
 });
@@ -50,7 +51,8 @@ test('owner schedule renders ticket sessions without exposing schedule-entry del
   assert.match(timeline, /TicketSession: 'Xé vé'/);
 });
 test('owner shell exposes realtime payment and ticket notifications', () => {
-  const app = read('src/App.tsx');
+  const playerApp = read('apps/player/src/PlayerApp.tsx');
+  const ownerApp = read('apps/owner/src/OwnerApp.tsx');
   const ownerShell = read('src/pages/owner/components/OwnerShell.tsx');
   const ownerNotifications = read('src/pages/owner/OwnerNotifications.tsx');
   const notificationsApi = read('src/api/notifications.ts');
@@ -58,9 +60,9 @@ test('owner shell exposes realtime payment and ticket notifications', () => {
 
   assert.match(ownerShell, /getUnreadNotificationCount/);
   assert.match(ownerShell, /useNotificationRealtime/);
-  assert.match(app, /allowedRoles=\{\['player'\]\}[\s\S]*?<Route path="notifications"/);
-  assert.equal((app.match(/path="notifications"/g) ?? []).length, 1);
-  assert.match(app, /path="\/owner\/notifications"/);
+  assert.match(playerApp, /allowedRoles=\{\['player'\]\}[\s\S]*?<Route path="notifications"/);
+  assert.equal((playerApp.match(/path="notifications"/g) ?? []).length, 1);
+  assert.match(ownerApp, /path="\/owner\/notifications"/);
   assert.match(ownerShell, /to="\/owner\/notifications"/);
   assert.match(ownerNotifications, /OwnerShell activeId="notifications"/);
   assert.match(ownerNotifications, /Notifications workspace="owner"/);
