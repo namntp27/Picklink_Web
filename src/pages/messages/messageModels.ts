@@ -117,6 +117,7 @@ export const groupToConversation = (group: CommunityGroup): Conversation => ({
   contextTitle: group.groupName,
   contextMeta: group.memberCount + ' thành viên',
   groupId: group.groupId,
+  conversationId: (group as any).conversationId ?? (group as any).ConversationId,
 });
 
 export const directToConversation = (direct: DirectConversation): Conversation => {

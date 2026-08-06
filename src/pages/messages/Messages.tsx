@@ -657,6 +657,13 @@ export const Messages = () => {
           msgs = Array.isArray(res) ? res : [];
         }
 
+        if (isDirect && msgs.length > 0) {
+          const lastMsg = msgs[msgs.length - 1];
+          if (!lastMsg.isMine && activeConversation.conversationId) {
+            void markConversationAsRead(token, activeConversation.conversationId, lastMsg.messageId).catch(() => {});
+          }
+        }
+
         if (cancelled) return;
 
         const chatMessages: ChatMessage[] = msgs.map(toChatMessage);
@@ -801,22 +808,27 @@ export const Messages = () => {
       setSending(true);
       try {
         const newMsg = await sendGroupMessage(token, activeConversation.groupId, { content: text });
+        const messageId = Number(newMsg.messageId ?? (newMsg as any).MessageId);
         const chatMsg: ChatMessage = {
-          id: newMsg.messageId,
+          id: messageId,
           author: 'Bạn',
-          text: newMsg.content ?? '',
-          time: formatMessageTime(newMsg.sentAt),
+          text: newMsg.content ?? (newMsg as any).Content ?? '',
+          time: formatMessageTime(newMsg.sentAt ?? (newMsg as any).SentAt ?? new Date().toISOString()),
           mine: true,
           read: false,
-          avatarUrl: newMsg.senderAvatarUrl,
-          mediaUrl: newMsg.mediaUrl,
-          isPinned: newMsg.isPinned,
-          senderId: newMsg.senderId,
+          avatarUrl: newMsg.senderAvatarUrl ?? (newMsg as any).SenderAvatarUrl,
+          mediaUrl: newMsg.mediaUrl ?? (newMsg as any).MediaUrl,
+          isPinned: newMsg.isPinned ?? (newMsg as any).IsPinned ?? false,
+          senderId: newMsg.senderId ?? (newMsg as any).SenderId,
         };
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
-        }));
+        setMessagesByConversation((prev) => {
+          const current = prev[activeConversation.id] ?? [];
+          if (current.some((m) => m.id === chatMsg.id)) return prev;
+          return {
+            ...prev,
+            [activeConversation.id]: [...current, chatMsg],
+          };
+        });
         setDraftMessage('');
       } catch (error) {
         notify(error instanceof Error ? error.message : 'Không thể gửi tin nhắn nhóm.', 'error');
@@ -831,22 +843,27 @@ export const Messages = () => {
       setSending(true);
       try {
         const newMsg = await sendDirectMessage(token, activeConversation.conversationId, text);
+        const messageId = Number(newMsg.messageId ?? (newMsg as any).MessageId);
         const chatMsg: ChatMessage = {
-          id: newMsg.messageId,
+          id: messageId,
           author: 'Bạn',
-          text: newMsg.content ?? '',
-          time: formatMessageTime(newMsg.sentAt),
+          text: newMsg.content ?? (newMsg as any).Content ?? '',
+          time: formatMessageTime(newMsg.sentAt ?? (newMsg as any).SentAt ?? new Date().toISOString()),
           mine: true,
           read: false,
-          avatarUrl: newMsg.senderAvatarUrl,
-          mediaUrl: newMsg.mediaUrl,
-          isPinned: newMsg.isPinned,
-          senderId: newMsg.senderId,
+          avatarUrl: newMsg.senderAvatarUrl ?? (newMsg as any).SenderAvatarUrl,
+          mediaUrl: newMsg.mediaUrl ?? (newMsg as any).MediaUrl,
+          isPinned: newMsg.isPinned ?? (newMsg as any).IsPinned ?? false,
+          senderId: newMsg.senderId ?? (newMsg as any).SenderId,
         };
-        setMessagesByConversation((prev) => ({
-          ...prev,
-          [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
-        }));
+        setMessagesByConversation((prev) => {
+          const current = prev[activeConversation.id] ?? [];
+          if (current.some((m) => m.id === chatMsg.id)) return prev;
+          return {
+            ...prev,
+            [activeConversation.id]: [...current, chatMsg],
+          };
+        });
         setDraftMessage('');
       } catch (error) {
         notify(error instanceof Error ? error.message : 'Không thể gửi tin nhắn.', 'error');
