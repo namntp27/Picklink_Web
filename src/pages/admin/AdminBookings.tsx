@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CalendarCheck, CreditCard, Loader2, Search } from 'lucide-react';
 import {
   listAdminBookings,
@@ -68,6 +68,7 @@ export const AdminBookings = () => {
   const [data, setData] = useState<PaginatedResponse<AdminBookingSummary>>(emptyPage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const requestEpoch = useRef(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -79,20 +80,24 @@ export const AdminBookings = () => {
 
   const loadBookings = useCallback(async () => {
     if (!token) return;
+    const requestId = ++requestEpoch.current;
     setLoading(true);
     setError('');
     try {
-      setData(await listAdminBookings(token, {
+      const response = await listAdminBookings(token, {
         search: debouncedSearch,
         status,
         paymentStatus,
         page,
         pageSize: PAGE_SIZE,
-      }));
+      });
+      if (requestId === requestEpoch.current) setData(response);
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking toàn sàn.');
+      if (requestId === requestEpoch.current) {
+        setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking toàn sàn.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestEpoch.current) setLoading(false);
     }
   }, [debouncedSearch, page, paymentStatus, status, token]);
 

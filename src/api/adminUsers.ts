@@ -9,6 +9,7 @@ export type AdminUserSummary = {
   role: AdminUserRole | string;
   roleLabel: string;
   isLocked: boolean;
+  lockReason?: string | null;
   city?: string | null;
   commune?: string | null;
   avatarUrl?: string | null;

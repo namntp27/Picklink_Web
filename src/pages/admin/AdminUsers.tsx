@@ -260,7 +260,12 @@ export const AdminUsers = () => {
                   </td>
                   <td className="px-4 py-3">
                     {account.isLocked ? (
-                      <StatusBadge tone="danger">Đã khóa</StatusBadge>
+                      <>
+                        <StatusBadge tone="danger">Đã khóa</StatusBadge>
+                        {account.lockReason && (
+                          <p className="mt-1 max-w-52 text-xs text-error">{account.lockReason}</p>
+                        )}
+                      </>
                     ) : (
                       <StatusBadge tone="success">Đang hoạt động</StatusBadge>
                     )}

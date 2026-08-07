@@ -71,6 +71,7 @@ export const AdminDashboard = () => {
   const { token } = useAuth();
   const [dashboard, setDashboard] = useState<AdminDashboardMetrics>(emptyDashboard);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState('');
 
   const loadDashboard = useCallback(async () => {
@@ -78,7 +79,9 @@ export const AdminDashboard = () => {
     setLoading(true);
     setError('');
     try {
-      setDashboard(await getAdminDashboard(token));
+      const response = await getAdminDashboard(token);
+      setDashboard(response);
+      setHasLoaded(true);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải tổng quan admin.');
     } finally {
@@ -140,12 +143,23 @@ export const AdminDashboard = () => {
       </section>
 
       {error && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error">
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error" role="alert">
           <AlertTriangle className="h-5 w-5 shrink-0" />{error}
           <button className="ml-auto underline" onClick={() => void loadDashboard()} type="button">Thử lại</button>
         </div>
       )}
 
+      {loading && !hasLoaded && (
+        <section className="grid min-h-56 place-items-center rounded-2xl border border-outline-variant bg-white">
+          <div className="text-center text-on-surface-variant">
+            <Loader2 className="mx-auto h-7 w-7 animate-spin text-primary" />
+            <p className="mt-3 text-sm font-semibold">Đang tải số liệu vận hành...</p>
+          </div>
+        </section>
+      )}
+
+      {hasLoaded && (
+        <>
       <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
@@ -264,6 +278,8 @@ export const AdminDashboard = () => {
           </section>
         </aside>
       </div>
+        </>
+      )}
     </AdminShell>
   );
 };

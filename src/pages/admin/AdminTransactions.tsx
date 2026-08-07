@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Banknote, CheckCircle2, Loader2, Search, Settings2, XCircle } from 'lucide-react';
 import {
   confirmListingFeePayment,
@@ -62,41 +62,79 @@ export const AdminTransactions = () => {
   const [settings, setSettings] = useState<ListingFeeSettings | null>(null);
   const [priceDraft, setPriceDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState<ListingFeePaymentListParams['status']>('PendingReview');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<PaginatedResponse<ListingFeePayment>>(emptyPage);
   const [loading, setLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+  const paymentsRequestEpoch = useRef(0);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const loadSettings = useCallback(async () => {
     if (!token) return;
+    setSettingsLoading(true);
+    setSettingsError('');
+    try {
+      const nextSettings = await getListingFeeSettings(token);
+      setSettings(nextSettings);
+      setPriceDraft(String(nextSettings.pricePerCourtPerMonth || ''));
+    } catch (requestError) {
+      setSettingsError(requestError instanceof ApiError ? requestError.message : 'Unable to load listing fee settings.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, [token]);
+
+  const loadPayments = useCallback(async () => {
+    if (!token) return;
+    const requestEpoch = ++paymentsRequestEpoch.current;
     setLoading(true);
     setError('');
     try {
-      const [nextSettings, payments] = await Promise.all([
-        getListingFeeSettings(token),
-        listListingFeePayments(token, {
-          status,
-          search: search.trim(),
-          page,
-          pageSize: PAGE_SIZE,
-        }),
-      ]);
-      setSettings(nextSettings);
-      setPriceDraft(String(nextSettings.pricePerCourtPerMonth || ''));
+      const payments = await listListingFeePayments(token, {
+        status,
+        search: debouncedSearch,
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      if (requestEpoch !== paymentsRequestEpoch.current) return;
+
+      const lastPage = Math.max(payments.totalPages, 1);
+      if (page > lastPage) {
+        setPage(lastPage);
+        return;
+      }
       setData(payments);
     } catch (requestError) {
+      if (requestEpoch !== paymentsRequestEpoch.current) return;
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải dữ liệu phí lên sàn.');
     } finally {
-      setLoading(false);
+      if (requestEpoch === paymentsRequestEpoch.current) setLoading(false);
     }
-  }, [page, search, status, token]);
+  }, [debouncedSearch, page, status, token]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    void loadPayments();
+    return () => {
+      paymentsRequestEpoch.current += 1;
+    };
+  }, [loadPayments]);
 
   const saveSettings = async () => {
     if (!token) return;
@@ -126,7 +164,7 @@ export const AdminTransactions = () => {
     try {
       await confirmListingFeePayment(token, payment.venueListingPaymentId);
       notify('Đã xác nhận phí lên sàn.', 'success');
-      await load();
+      await loadPayments();
     } catch (requestError) {
       notify(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận giao dịch.', 'error');
     } finally {
@@ -143,7 +181,7 @@ export const AdminTransactions = () => {
     try {
       await rejectListingFeePayment(token, payment.venueListingPaymentId, reason);
       notify('Đã từ chối biên lai phí lên sàn.', 'success');
-      await load();
+      await loadPayments();
     } catch (requestError) {
       notify(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối giao dịch.', 'error');
     } finally {
@@ -220,7 +258,7 @@ export const AdminTransactions = () => {
       {error && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error">
           <AlertTriangle className="h-5 w-5 shrink-0" />{error}
-          <button className="ml-auto underline" onClick={() => void load()} type="button">Thử lại</button>
+          <button className="ml-auto underline" onClick={() => void loadPayments()} type="button">Thử lại</button>
         </div>
       )}
 
