@@ -93,7 +93,8 @@ test('upload falls back to the local club cover endpoint when Cloudinary is not 
 
     if (url.endsWith('/api/upload/signature')) {
       return new Response(JSON.stringify({
-        message: 'Cloudinary is not configured on the server.',
+        errorCode: 'CLOUDINARY_NOT_CONFIGURED',
+        message: 'Máy chủ chưa cấu hình Cloudinary.',
       }), {
         headers: { 'content-type': 'application/json' },
         status: 500,

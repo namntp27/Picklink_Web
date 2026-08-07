@@ -35,10 +35,19 @@ export type PaginationParams = {
 
 type ApiErrorBody = {
   detail?: string;
+  errorCode?: string;
   errors?: Record<string, string[]>;
   message?: string;
   title?: string;
 };
+
+/**
+ * Stable, language-independent identifiers mirroring DTOs/ApiErrorCodes.cs.
+ * Branch on these instead of `message`, which is human-facing and translatable.
+ */
+export const ApiErrorCodes = {
+  cloudinaryNotConfigured: 'CLOUDINARY_NOT_CONFIGURED',
+} as const;
 
 const repairResponseText = (value: unknown): unknown => {
   if (typeof value === 'string') return repairMojibake(value);

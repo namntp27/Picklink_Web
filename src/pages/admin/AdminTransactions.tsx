@@ -91,7 +91,7 @@ export const AdminTransactions = () => {
       setSettings(nextSettings);
       setPriceDraft(String(nextSettings.pricePerCourtPerMonth || ''));
     } catch (requestError) {
-      setSettingsError(requestError instanceof ApiError ? requestError.message : 'Unable to load listing fee settings.');
+      setSettingsError(requestError instanceof ApiError ? requestError.message : 'Không thể tải cấu hình phí lên sàn.');
     } finally {
       setSettingsLoading(false);
     }

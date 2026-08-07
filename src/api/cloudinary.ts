@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from './client';
+import { ApiError, ApiErrorCodes, apiRequest } from './client';
 import { uploadMyAvatar } from './profile';
 
 export type SignatureResponse = {
@@ -53,7 +53,7 @@ export const uploadToCloudinary = async (
       folder,
     });
   } catch (error) {
-    if (error instanceof ApiError && error.message === 'Cloudinary is not configured on the server.') {
+    if (error instanceof ApiError && error.body?.errorCode === ApiErrorCodes.cloudinaryNotConfigured) {
       if (folder === 'picklink_avatars') {
         const profile = await uploadMyAvatar(token, file);
         onProgress?.(100);
