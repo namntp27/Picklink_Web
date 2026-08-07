@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* Vite's root is apps/<target>, so Tailwind's auto-detection never reaches the shared src/ tree. */
+@source "../src/**/*.{ts,tsx}";
+@source "../apps/**/*.{ts,tsx,html}";
+
 @theme {
   --color-primary: #081d24;
   --color-on-primary: #e2ff57;
