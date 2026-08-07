@@ -27,8 +27,10 @@ test('staff dashboard scan atomically checks in without a second present command
   assert.doesNotMatch(api, /checkInCode:/);
   assert.doesNotMatch(styles, /\.staff-list-scroll\s*\{[^}]*max-height/s);
   assert.doesNotMatch(dashboard, /await load\(\);/);
-  assert.match(dashboard, /void getStaffNotifications\(token, \{ signal \}\)/);
-  assert.match(dashboard, /const controller = new AbortController\(\)/);
-  assert.match(dashboard, /return \(\) => controller\.abort\(\)/);
+  // Notifications are their own query, so a slow notification feed cannot hold up the booking
+  // queue, and useApiQuery discards results from runs a newer one superseded.
+  assert.match(dashboard, /\['staff-notifications', token\]/);
+  assert.match(dashboard, /getStaffNotifications\(token!\)\.catch\(\(\) => emptyNotifications\)/);
+  assert.doesNotMatch(dashboard, /getStaffNotifications\([^)]*\),\r?\n\s*\]\)/);
   assert.doesNotMatch(dashboard, /bookingResult, notificationResult/);
 });

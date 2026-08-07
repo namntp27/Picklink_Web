@@ -14,6 +14,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
@@ -34,6 +35,7 @@ const statusClasses: Record<TicketSessionStatus, string> = {
 const emptyPage: PaginatedResponse<TicketSession> = {
   items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0,
 };
+const emptyVenues: OwnerVenue[] = [];
 const tomorrow = () => {
   const value = new Date();
   value.setDate(value.getDate() + 1);
@@ -167,38 +169,24 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
 export const OwnerTicketSessions = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
-  const [result, setResult] = useState(emptyPage);
-  const [venues, setVenues] = useState<OwnerVenue[]>([]);
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const load = useCallback(async (showLoading = true) => {
-    if (!token) return;
-    if (showLoading) setLoading(true);
-    setError('');
-    try {
-      setResult(await getOwnerTicketSessions(token, {
-        status: status || undefined,
-        page,
-        pageSize: 10,
-      }));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách buổi xé vé.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [page, status, token]);
+  const { data: result = emptyPage, error, loading, refresh: load } = useApiQuery(
+    ['owner-ticket-sessions', token, status, page],
+    () => getOwnerTicketSessions(token!, { status: status || undefined, page, pageSize: 10 }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách buổi xé vé.' },
+  );
 
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    if (!token) return;
-    void getOwnerVenues(token).then(setVenues).catch(() => setVenues([]));
-  }, [token]);
-  useScheduleRealtime((event) => { if (event.entryType === 'TicketSession') void load(false); });
-  usePaymentRealtime(() => { void load(false); });
+  const { data: venues = emptyVenues } = useApiQuery(
+    ['owner-venues', token],
+    () => getOwnerVenues(token!),
+    { enabled: Boolean(token) },
+  );
+
+  useScheduleRealtime((event) => { if (event.entryType === 'TicketSession') void load(); });
+  usePaymentRealtime(() => { void load(); });
 
   return (
     <OwnerShell activeId="ticketSessions">

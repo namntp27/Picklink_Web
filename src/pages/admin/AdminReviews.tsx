@@ -9,6 +9,7 @@ import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
@@ -62,9 +63,6 @@ export const AdminReviews = () => {
   const [targetType, setTargetType] = useState('all');
   const [score, setScore] = useState<number | 'all'>('all');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<PaginatedResponse<AdminReview>>(emptyPage);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -75,29 +73,24 @@ export const AdminReviews = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const loadReviews = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      setData(await listAdminReviews(token, {
-        search: debouncedSearch,
-        moderationStatus,
-        targetType,
-        score,
-        page,
-        pageSize: PAGE_SIZE,
-      }));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách đánh giá.');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, moderationStatus, page, score, targetType, token]);
-
-  useEffect(() => {
-    void loadReviews();
-  }, [loadReviews]);
+  const {
+    data = emptyPage,
+    error,
+    loading,
+    refresh: loadReviews,
+    setData,
+  } = useApiQuery(
+    ['admin-reviews', token, debouncedSearch, moderationStatus, targetType, score, page],
+    () => listAdminReviews(token!, {
+      search: debouncedSearch,
+      moderationStatus,
+      targetType,
+      score,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách đánh giá.' },
+  );
 
   const hiddenOnPage = useMemo(() => data.items.filter((item) => item.isHidden).length, [data.items]);
 
@@ -120,10 +113,13 @@ export const AdminReviews = () => {
         moderationStatus: nextStatus,
         moderationNote,
       });
-      setData((current) => ({
-        ...current,
-        items: current.items.map((item) => item.ratingId === updated.ratingId ? updated : item),
-      }));
+      setData((current) => {
+        const page = current ?? emptyPage;
+        return {
+          ...page,
+          items: page.items.map((item) => item.ratingId === updated.ratingId ? updated : item),
+        };
+      });
       notify('Đã cập nhật đánh giá.', 'success');
     } catch (requestError) {
       notify(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật đánh giá.', 'error');

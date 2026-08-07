@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Activity,
@@ -25,6 +25,7 @@ import {
 import { XCircle } from 'lucide-react';
 import './club-pages.css';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
 import {
   type CommunityGroup,
@@ -39,6 +40,14 @@ import {
 
 type DetailTab = 'overview' | 'schedule' | 'members' | 'posts';
 
+const emptyMembers: CommunityMember[] = [];
+const emptyPosts: CommunityPost[] = [];
+const emptyDetail: {
+  club: CommunityGroup | null;
+  members: CommunityMember[];
+  posts: CommunityPost[];
+} = { club: null, members: emptyMembers, posts: emptyPosts };
+
 export const ClubDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -46,46 +55,38 @@ export const ClubDetail = () => {
   const notify = useToast();
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
 
-  const [club, setClub] = useState<CommunityGroup | null>(null);
-  const [members, setMembers] = useState<CommunityMember[]>([]);
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const groupId = Number(id);
+  const hasValidId = Boolean(groupId) && !Number.isNaN(groupId);
 
-  useEffect(() => {
-    if (!groupId || isNaN(groupId)) {
-      setError('ID câu lạc bộ không hợp lệ.');
-      setLoading(false);
-      return;
-    }
+  const { data, error: loadError, loading, setData } = useApiQuery(
+    ['club-detail', groupId, token],
+    async () => {
+      // Members and posts do not depend on the group payload, so all three go out together
+      // instead of waiting for the group request to come back first.
+      const [group, members, posts] = await Promise.all([
+        getGroup(groupId, token),
+        token ? getGroupMembers(token, groupId).catch(() => emptyMembers) : Promise.resolve(emptyMembers),
+        token ? getGroupPosts(token, groupId).catch(() => emptyPosts) : Promise.resolve(emptyPosts),
+      ]);
+      return { club: group, members, posts };
+    },
+    { enabled: hasValidId, errorMessage: 'Không thể tải thông tin câu lạc bộ.' },
+  );
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const groupData = await getGroup(groupId, token);
-        setClub(groupData);
+  const club = data?.club ?? null;
+  const members = data?.members ?? emptyMembers;
+  const posts = data?.posts ?? emptyPosts;
+  const error = hasValidId ? (loadError || null) : 'ID câu lạc bộ không hợp lệ.';
 
-        // Fetch members & posts in parallel (these may require auth)
-        const results = await Promise.allSettled([
-          token ? getGroupMembers(token, groupId) : Promise.resolve([]),
-          token ? getGroupPosts(token, groupId) : Promise.resolve([]),
-        ]);
+  const setClub = useCallback((updated: CommunityGroup) => {
+    setData((current) => ({ ...(current ?? emptyDetail), club: updated }));
+  }, [setData]);
 
-        if (results[0].status === 'fulfilled') setMembers(results[0].value);
-        if (results[1].status === 'fulfilled') setPosts(results[1].value);
-      } catch (err: any) {
-        setError(err?.message || 'Không thể tải thông tin câu lạc bộ.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [groupId, token]);
+  const setMembers = useCallback((updated: CommunityMember[]) => {
+    setData((current) => ({ ...(current ?? emptyDetail), members: updated }));
+  }, [setData]);
 
   const isManager = useMemo(() => {
     return club?.myRole === 'Owner' || club?.myRole === 'Admin' || club?.myRole === 'Moderator';

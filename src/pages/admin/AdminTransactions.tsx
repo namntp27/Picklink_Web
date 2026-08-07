@@ -14,6 +14,7 @@ import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
@@ -59,20 +60,13 @@ const formatDate = (value?: string | null) => value ? dateTime.format(new Date(v
 export const AdminTransactions = () => {
   const { token } = useAuth();
   const notify = useToast();
-  const [settings, setSettings] = useState<ListingFeeSettings | null>(null);
   const [priceDraft, setPriceDraft] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState<ListingFeePaymentListParams['status']>('PendingReview');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<PaginatedResponse<ListingFeePayment>>(emptyPage);
-  const [loading, setLoading] = useState(true);
-  const [settingsLoading, setSettingsLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [error, setError] = useState('');
-  const [settingsError, setSettingsError] = useState('');
-  const paymentsRequestEpoch = useRef(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -82,59 +76,42 @@ export const AdminTransactions = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const loadSettings = useCallback(async () => {
-    if (!token) return;
-    setSettingsLoading(true);
-    setSettingsError('');
-    try {
-      const nextSettings = await getListingFeeSettings(token);
-      setSettings(nextSettings);
-      setPriceDraft(String(nextSettings.pricePerCourtPerMonth || ''));
-    } catch (requestError) {
-      setSettingsError(requestError instanceof ApiError ? requestError.message : 'Không thể tải cấu hình phí lên sàn.');
-    } finally {
-      setSettingsLoading(false);
-    }
-  }, [token]);
-
-  const loadPayments = useCallback(async () => {
-    if (!token) return;
-    const requestEpoch = ++paymentsRequestEpoch.current;
-    setLoading(true);
-    setError('');
-    try {
-      const payments = await listListingFeePayments(token, {
-        status,
-        search: debouncedSearch,
-        page,
-        pageSize: PAGE_SIZE,
-      });
-      if (requestEpoch !== paymentsRequestEpoch.current) return;
-
-      const lastPage = Math.max(payments.totalPages, 1);
-      if (page > lastPage) {
-        setPage(lastPage);
-        return;
-      }
-      setData(payments);
-    } catch (requestError) {
-      if (requestEpoch !== paymentsRequestEpoch.current) return;
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải dữ liệu phí lên sàn.');
-    } finally {
-      if (requestEpoch === paymentsRequestEpoch.current) setLoading(false);
-    }
-  }, [debouncedSearch, page, status, token]);
+  const {
+    data: settings = null,
+    error: settingsError,
+    loading: settingsLoading,
+    setData: setSettings,
+  } = useApiQuery(
+    ['admin-listing-fee-settings', token],
+    () => getListingFeeSettings(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải cấu hình phí lên sàn.' },
+  );
 
   useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
+    if (settings) setPriceDraft(String(settings.pricePerCourtPerMonth || ''));
+  }, [settings]);
 
+  const {
+    data = emptyPage,
+    error,
+    loading,
+    refresh: loadPayments,
+  } = useApiQuery(
+    ['admin-listing-fee-payments', token, status, debouncedSearch, page],
+    () => listListingFeePayments(token!, {
+      status,
+      search: debouncedSearch,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải dữ liệu phí lên sàn.' },
+  );
+
+  // A filter change can leave the current page past the end of the new result set.
   useEffect(() => {
-    void loadPayments();
-    return () => {
-      paymentsRequestEpoch.current += 1;
-    };
-  }, [loadPayments]);
+    const lastPage = Math.max(data.totalPages, 1);
+    if (page > lastPage) setPage(lastPage);
+  }, [data.totalPages, page]);
 
   const saveSettings = async () => {
     if (!token) return;

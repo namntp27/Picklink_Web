@@ -29,6 +29,7 @@ import {
   type OwnerScheduleSlot,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
@@ -107,51 +108,50 @@ const checkInStatusLabel: Record<string, string> = {
 export const OwnerDashboard = () => {
   const { token } = useAuth();
   const [date, setDate] = useState(toLocalDate);
-  const [schedule, setSchedule] = useState<OwnerSchedule | null>(null);
   const [venueFilter, setVenueFilter] = useState('all');
   const [courtId, setCourtId] = useState('');
   const [entryType, setEntryType] = useState<OwnerScheduleEntryType>('Blocked');
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('08:30');
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [selectedSlot, setSelectedSlot] = useState<OwnerScheduleSlot | null>(null);
 
-  const load = async (showLoading = true) => {
-    if (!token) return;
-    setError('');
-    if (showLoading) setIsLoading(true);
-    try {
-      const result = await getOwnerSchedule(token, date, 'day');
-      setSchedule(result);
-      const firstCourt = result.venues
-        .flatMap((venue) => venue.courts)
-        .find((court) => court.availabilityStatus !== 'Inactive');
-      setCourtId((current) =>
-        result.venues.some((venue) => venue.courts.some((court) => court.courtId.toString() === current))
-          ? current
-          : firstCourt?.courtId.toString() || '',
-      );
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
-    } finally {
-      if (showLoading) setIsLoading(false);
-    }
-  };
+  const {
+    data: schedule = null,
+    error: loadError,
+    loading: isLoading,
+    refresh: load,
+  } = useApiQuery(
+    ['owner-schedule', token, date],
+    () => getOwnerSchedule(token!, date, 'day'),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải lịch sân.' },
+  );
 
+  const error = actionError || loadError;
+  const setError = setActionError;
+
+  // Keep the selected court valid for whichever schedule is on screen.
   useEffect(() => {
-    void load();
-  }, [token, date]);
+    if (!schedule) return;
+    const firstCourt = schedule.venues
+      .flatMap((venue) => venue.courts)
+      .find((court) => court.availabilityStatus !== 'Inactive');
+    setCourtId((current) =>
+      schedule.venues.some((venue) => venue.courts.some((court) => court.courtId.toString() === current))
+        ? current
+        : firstCourt?.courtId.toString() || '',
+    );
+  }, [schedule]);
 
   useScheduleRealtime((notification) => {
     const visibleVenue = schedule?.venues.some((venue) => venue.venueId === notification.venueId);
-    if (visibleVenue && notification.startTime.slice(0, 10) === date) void load(false);
+    if (visibleVenue && notification.startTime.slice(0, 10) === date) void load();
   });
 
   usePaymentRealtime((notification) => {
-    if (schedule?.venues.some((venue) => venue.venueId === notification.venueId)) void load(false);
+    if (schedule?.venues.some((venue) => venue.venueId === notification.venueId)) void load();
   });
 
   const visibleVenueIds = useMemo(

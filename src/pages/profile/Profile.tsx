@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   Activity,
@@ -20,6 +20,7 @@ import { ApiError } from '../../api/client';
 import { uploadToCloudinary } from '../../api/cloudinary';
 import { getMyProfile, updateMyProfile, uploadMyAvatar, type PlayerProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import './profile.css';
 
@@ -37,18 +38,28 @@ const toOptionalNumber = (value: string) => value === '' ? null : Number(value);
 export const Profile = () => {
   const { token, refreshUser } = useAuth();
   const shouldReduceMotion = useReducedMotion();
+  // The form owns an editable draft; the query only seeds it, so a refresh can never overwrite
+  // fields the user is part-way through changing.
   const [profile, setProfile] = useState<PlayerProfile>(emptyProfile);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-useEffect(() => {
-    if (!token) return;
-    getMyProfile(token)
-      .then(setProfile)
-      .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải hồ sơ.'))
-      .finally(() => setLoading(false));
-  }, [token]);
+  const [actionError, setActionError] = useState('');
+
+  const { data: loadedProfile, error: loadError, loading } = useApiQuery(
+    ['my-profile', token],
+    () => getMyProfile(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải hồ sơ.' },
+  );
+
+  const error = actionError || loadError;
+  const setError = setActionError;
+
+  const seededProfileRef = useRef<PlayerProfile | null>(null);
+  useEffect(() => {
+    if (!loadedProfile || seededProfileRef.current === loadedProfile) return;
+    seededProfileRef.current = loadedProfile;
+    setProfile(loadedProfile);
+  }, [loadedProfile]);
 
   const setField = <Key extends keyof PlayerProfile>(key: Key, value: PlayerProfile[Key]) => {
     setProfile((current) => ({ ...current, [key]: value }));

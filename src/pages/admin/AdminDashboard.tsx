@@ -19,6 +19,7 @@ import {
 } from '../../api/adminDashboard';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
@@ -69,29 +70,18 @@ const actionHref = (item: AdminDashboardActionItem) => item.linkTo || '/admin';
 
 export const AdminDashboard = () => {
   const { token } = useAuth();
-  const [dashboard, setDashboard] = useState<AdminDashboardMetrics>(emptyDashboard);
-  const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [error, setError] = useState('');
+  const {
+    data: dashboard = emptyDashboard,
+    error,
+    loading,
+    refresh: loadDashboard,
+  } = useApiQuery(
+    ['admin-dashboard', token],
+    () => getAdminDashboard(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải tổng quan admin.' },
+  );
 
-  const loadDashboard = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      const response = await getAdminDashboard(token);
-      setDashboard(response);
-      setHasLoaded(true);
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải tổng quan admin.');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    void loadDashboard();
-  }, [loadDashboard]);
+  const hasLoaded = dashboard !== emptyDashboard;
 
   const stats = useMemo(() => [
     {

@@ -26,8 +26,12 @@ import {
 } from '../../api/community';
 import { Dropdown, type DropdownOption } from '../../components/ui/Dropdown';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
 import './club-pages.css';
+
+const pageSize = 3;
+const emptyClubs: CommunityGroup[] = [];
 
 // Color gradient pairs for club cards without cover images
 const cardGradients = [
@@ -68,18 +72,18 @@ export const Clubs = () => {
   }, [setShowFooter]);
 
   // API state
-  const [clubs, setClubs] = useState<CommunityGroup[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [joiningId, setJoiningId] = useState<number | null>(null);
 
   // Filter & Pagination states
   const [typeFilter, setTypeFilter] = useState<'All' | 'Public' | 'Private' | 'Mine'>('All');
   const [sortBy, setSortBy] = useState<'newest' | 'members' | 'active'>('newest');
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  // Pages beyond the first are appended here; the first page stays owned by the query below so a
+  // revisit can paint it before the network answers.
+  const [extraClubs, setExtraClubs] = useState<CommunityGroup[]>([]);
+  const pageRef = useRef(1);
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -87,42 +91,59 @@ export const Clubs = () => {
   const buildSearchQuery = useCallback((search: string, area: string) => `${search} ${area}`.trim(), []);
   const areaFilter = [selectedWard, selectedProvince].filter(Boolean).join(' ');
 
-  const loadClubs = useCallback(
-    async (pageNum: number = 1, replace: boolean = false) => {
-      if (pageNum === 1) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      setError(null);
-      try {
-        const queryVal = buildSearchQuery(searchTerm, areaFilter) || undefined;
-        const data = await getGroups(token, queryVal, pageNum, 3, typeFilter, sortBy);
-        if (replace || pageNum === 1) {
-          setClubs(data);
-        } else {
-          setClubs((prev) => {
-            const existingIds = new Set(prev.map((c) => c.groupId));
-            const newItems = data.filter((c) => !existingIds.has(c.groupId));
-            return [...prev, ...newItems];
-          });
-        }
-        setHasMore(data.length === 3);
-      } catch (err: any) {
-        setError(err?.message ?? 'Không thể tải danh sách câu lạc bộ.');
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [token, typeFilter, sortBy, searchTerm, areaFilter, buildSearchQuery],
+  const searchQuery = buildSearchQuery(searchTerm, areaFilter) || undefined;
+
+  const {
+    data: firstPage = emptyClubs,
+    error: loadError,
+    loading,
+    refresh: reloadFirstPage,
+  } = useApiQuery(
+    ['clubs', token, typeFilter, sortBy, areaFilter],
+    () => getGroups(token, searchQuery, 1, pageSize, typeFilter, sortBy),
+    { errorMessage: 'Không thể tải danh sách câu lạc bộ.' },
   );
 
-  // Load page 1 on filter or sort change
+  const error = loadError || null;
+  const clubs = useMemo(() => {
+    const seen = new Set(firstPage.map((club) => club.groupId));
+    return [...firstPage, ...extraClubs.filter((club) => !seen.has(club.groupId))];
+  }, [extraClubs, firstPage]);
+
+  // A new filter set means the accumulated tail belongs to the previous query.
   useEffect(() => {
-    setPage(1);
-    loadClubs(1, true);
+    pageRef.current = 1;
+    setExtraClubs(emptyClubs);
+    setHasMore(true);
   }, [token, typeFilter, sortBy, areaFilter]);
+
+  useEffect(() => {
+    setHasMore(firstPage.length === pageSize);
+  }, [firstPage]);
+
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const nextPage = pageRef.current + 1;
+      const data = await getGroups(token, searchQuery, nextPage, pageSize, typeFilter, sortBy);
+      pageRef.current = nextPage;
+      setExtraClubs((prev) => {
+        const existingIds = new Set(prev.map((club) => club.groupId));
+        return [...prev, ...data.filter((club) => !existingIds.has(club.groupId))];
+      });
+      setHasMore(data.length === pageSize);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [searchQuery, sortBy, token, typeFilter]);
+
+  const loadClubs = useCallback(async () => {
+    pageRef.current = 1;
+    setExtraClubs(emptyClubs);
+    await reloadFirstPage();
+  }, [reloadFirstPage]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -131,22 +152,17 @@ export const Clubs = () => {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         observer.unobserve(sentinel);
-        setPage((prev) => {
-          const next = prev + 1;
-          void loadClubs(next, false);
-          return next;
-        });
+        void loadMore();
       }
     }, { rootMargin: '240px 0px' });
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [loading, loadingMore, hasMore, loadClubs]);
+  }, [hasMore, loadMore, loading, loadingMore]);
 
   const handleSearch = (event?: React.FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
-    setPage(1);
-    loadClubs(1, true);
+    void loadClubs();
   };
 
   const handleJoin = async (groupId: number) => {
@@ -157,8 +173,7 @@ export const Clubs = () => {
     setJoiningId(groupId);
     try {
       await joinGroup(token, groupId);
-      setPage(1);
-      await loadClubs(1, true);
+      await loadClubs();
       notify('Yêu cầu tham gia câu lạc bộ đã được gửi.', 'success');
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : 'Không thể gửi yêu cầu tham gia.', 'error');

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
@@ -32,9 +32,13 @@ import {
   type NotificationTone,
   type NotificationType,
 } from '../../api/notifications';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 
 const pageSize = 10;
+
+const emptyNotifications: NotificationItem[] = [];
+const emptyPagination = { page: 1, pageSize, totalCount: 0, totalPages: 1 };
 
 const filterOptions: Array<{ label: string; value: NotificationFilter }> = [
   { label: 'Tất cả', value: 'all' },
@@ -124,56 +128,38 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
   const shouldReduceMotion = useReducedMotion();
   const { token } = useAuth();
   const notify = useToast();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize,
-    totalCount: 0,
-    totalPages: 1,
-  });
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(Boolean(token));
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const loadNotifications = useCallback(async () => {
-    if (!token) {
-      setNotifications([]);
-      setPagination({ page: 1, pageSize, totalCount: 0, totalPages: 1 });
-      setUnreadCount(0);
-      setError('Vui lòng đăng nhập để xem thông báo.');
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
+  const { data, error: loadError, loading: isLoading, refresh: loadNotifications } = useApiQuery(
+    ['notifications', token, page, activeFilter],
+    async () => {
       const [result, unreadResult] = await Promise.all([
-        listNotifications(token, {
+        listNotifications(token!, {
           page,
           pageSize,
           unreadOnly: activeFilter === 'unread',
           type: activeFilter !== 'all' && activeFilter !== 'unread' ? activeFilter : undefined,
         }),
-        getUnreadNotificationCount(token),
+        getUnreadNotificationCount(token!),
       ]);
-      setNotifications(result.items);
-      setPagination(result);
-      setUnreadCount(unreadResult.count);
-      setError('');
-    } catch (requestError) {
-      const message = getErrorMessage(requestError, 'Không thể tải thông báo.');
-      setError(message);
-      notify(message, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeFilter, notify, page, token]);
+      return { result, unreadCount: unreadResult.count };
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải thông báo.' },
+  );
+
+  const notifications = data?.result.items ?? emptyNotifications;
+  const pagination = data?.result ?? emptyPagination;
+  const unreadCount = data?.unreadCount ?? 0;
+  const error = actionError
+    || loadError
+    || (token ? '' : 'Vui lòng đăng nhập để xem thông báo.');
+  const setError = setActionError;
 
   useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
+    if (loadError) notify(loadError, 'error');
+  }, [loadError, notify]);
 
   useNotificationRealtime(token, () => {
     void loadNotifications();

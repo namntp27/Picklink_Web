@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -15,8 +15,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { getBookingHolding, type BookingHolding } from '../../api/booking';
-import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
@@ -71,40 +71,29 @@ const primaryLinkButton = `${linkButtonBase} border border-[#e2ff57] bg-[#e2ff57
 export const BookingDetail = () => {
   const bookingId = Number(useParams().id);
   const { token } = useAuth();
-  const [booking, setBooking] = useState<BookingHolding | null>(null);
-  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
   const shouldReduceMotion = useReducedMotion();
 
-  const load = async (silent = false) => {
-    if (!token || !Number.isInteger(bookingId)) {
-      setError('Mã booking không hợp lệ.');
-      setLoading(false);
-      return;
-    }
-    try {
-      setBooking(await getBookingHolding(token, bookingId));
-      setError('');
-    } catch (requestError) {
-      if (!silent) setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải chi tiết booking.');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
+  const isValidRequest = Boolean(token) && Number.isInteger(bookingId);
+  const { data: booking = null, error: loadError, loading, refresh: load, setData } = useApiQuery(
+    ['booking-detail', token, bookingId],
+    () => getBookingHolding(token!, bookingId),
+    { enabled: isValidRequest, errorMessage: 'Không thể tải chi tiết booking.' },
+  );
 
-  useEffect(() => { void load(); }, [bookingId, token]);
+  const error = isValidRequest ? loadError : 'Mã booking không hợp lệ.';
+
   usePaymentRealtime((event) => {
     if (event.bookingId !== bookingId) return;
-    setBooking((current) => current ? {
+    setData((current) => current ? {
       ...current,
       paymentStatus: event.paymentStatus,
       status: event.paymentStatus === 'Paid' ? 'Confirmed' : current.status,
-    } : current);
-    void load(true);
+    } : current as BookingHolding);
+    void load();
   });
   useScheduleRealtime((event) => {
-    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void load(true);
+    if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void load();
   });
 
   const copyCode = async () => {

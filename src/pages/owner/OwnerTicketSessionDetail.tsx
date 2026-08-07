@@ -35,6 +35,7 @@ import {
   type TicketSessionStatus,
 } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -129,52 +130,43 @@ const RefundModal = ({ target, busy, onClose, onSubmit }: {
   );
 };
 
+const emptyVenues: OwnerVenue[] = [];
+
 export const OwnerTicketSessionDetail = () => {
   const { id } = useParams();
   const ticketSessionId = Number(id);
   const { token } = useAuth();
   const notify = useToast();
-  const [details, setDetails] = useState<TicketSessionParticipants | null>(null);
-  const [venues, setVenues] = useState<OwnerVenue[]>([]);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [edit, setEdit] = useState<EditState | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [checkInCode, setCheckInCode] = useState('');
   const [refundTarget, setRefundTarget] = useState<RefundTarget | null>(null);
 
-  const load = useCallback(async (showLoading = true) => {
-    if (!token) return;
-    if (!Number.isInteger(ticketSessionId) || ticketSessionId < 1) {
-      setDetails(null);
-      setError('Mã buổi xé vé không hợp lệ.');
-      setLoading(false);
-      return;
-    }
-    if (showLoading) setLoading(true);
-    setError('');
-    try {
-      setDetails(await getOwnerTicketSessionParticipants(token, ticketSessionId));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải buổi xé vé.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [ticketSessionId, token]);
+  const hasValidId = Boolean(token) && Number.isInteger(ticketSessionId) && ticketSessionId >= 1;
+  const { data: details = null, error: loadError, loading, refresh: load } = useApiQuery(
+    ['owner-ticket-session-participants', token, ticketSessionId],
+    () => getOwnerTicketSessionParticipants(token!, ticketSessionId),
+    { enabled: hasValidId, errorMessage: 'Không thể tải buổi xé vé.' },
+  );
 
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    if (!token) return;
-    void getOwnerVenues(token).then(setVenues).catch(() => setVenues([]));
-  }, [token]);
+  const { data: venues = emptyVenues } = useApiQuery(
+    ['owner-venues', token],
+    () => getOwnerVenues(token!),
+    { enabled: Boolean(token) },
+  );
+
+  const error = actionError
+    || (hasValidId || !token ? loadError : 'Mã buổi xé vé không hợp lệ.');
+  const setError = setActionError;
   useScheduleRealtime((event) => {
     const session = details?.session;
-    if (event.entryType === 'TicketSession' && (!session || event.venueId === session.venueId)) void load(false);
+    if (event.entryType === 'TicketSession' && (!session || event.venueId === session.venueId)) void load();
   });
   usePaymentRealtime((event) => {
-    if (event.bookingId === details?.session.bookingId || details?.tickets.some((ticket) => ticket.paymentId === event.paymentId)) void load(false);
+    if (event.bookingId === details?.session.bookingId || details?.tickets.some((ticket) => ticket.paymentId === event.paymentId)) void load();
   });
 
   const session = details?.session;
@@ -207,7 +199,7 @@ export const OwnerTicketSessionDetail = () => {
     try {
       await action();
       notify(success, 'success');
-      await load(false);
+      await load();
       return true;
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể thực hiện thao tác.');

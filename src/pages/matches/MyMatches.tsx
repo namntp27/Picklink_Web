@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   CalendarRange,
@@ -21,6 +21,7 @@ import { createManualQueueRoom, getMyQueues, cancelQueue, resumeQueue, type Queu
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
 import { PaginationControls } from '../../components/PaginationControls';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
 
@@ -85,74 +86,39 @@ const matchListRefreshActions = new Set([
   'InvitationDeclined',
 ]);
 
-type MyMatchesResult = Awaited<ReturnType<typeof getMyMatches>>;
-
-let myMatchesCache: {
-  token: string;
-  page: number;
-  result: MyMatchesResult;
-} | null = null;
+const emptyMatches: MatchSummary[] = [];
+const emptyQueues: QueueStatusResponse[] = [];
+const emptyPagination = { page: 1, pageSize: 9, totalCount: 0, totalPages: 1 };
 
 export const MyMatches = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
-  const cachedPage = myMatchesCache?.token === token && myMatchesCache.page === 1
-    ? myMatchesCache.result
-    : null;
-  const [matches, setMatches] = useState<MatchSummary[]>(() => cachedPage?.items ?? []);
-  const [myQueues, setMyQueues] = useState<QueueStatusResponse[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(
-    () => cachedPage ?? { page: 1, pageSize: 9, totalCount: 0, totalPages: 1 },
-  );
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(Boolean(token) && !cachedPage);
-  const requestIdRef = useRef(0);
+  const [actionError, setActionError] = useState('');
 
-  const load = async (
-    options: Pick<RequestInit, 'signal'> = {},
-    behavior: { silent?: boolean } = {},
-  ) => {
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    if (!behavior.silent) setIsLoading(true);
-    try {
+  const { data, error: loadError, loading: isLoading, refresh } = useApiQuery(
+    ['my-matches', token, page],
+    async () => {
       const [result, queues] = await Promise.all([
-        getMyMatches(token, { page, pageSize: 9 }, options),
-        getMyQueues(token).catch(() => []),
+        getMyMatches(token!, { page, pageSize: 9 }),
+        getMyQueues(token!).catch(() => emptyQueues),
       ]);
-      if (requestId !== requestIdRef.current) return;
-      myMatchesCache = { token, page, result };
-      setMatches(result.items);
-      setPagination(result);
-      setMyQueues(queues);
-      setError('');
-    } catch (reason) {
-      if (options.signal?.aborted || requestId !== requestIdRef.current) return;
-      setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách phòng.');
-    } finally {
-      if (requestId === requestIdRef.current) setIsLoading(false);
-    }
-  };
+      return { result, queues };
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách phòng.' },
+  );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    if (myMatchesCache?.token === token && myMatchesCache.page === page) {
-      setMatches(myMatchesCache.result.items);
-      setPagination(myMatchesCache.result);
-    }
-    void load({ signal: controller.signal });
-    return () => controller.abort();
-  }, [page, token]);
+  const matches = data?.result.items ?? emptyMatches;
+  const myQueues = data?.queues ?? emptyQueues;
+  const pagination = data?.result ?? emptyPagination;
+  const error = actionError || loadError;
+  const load = refresh;
+  const setError = setActionError;
 
   useMatchRealtime((event) => {
     if (!matchListRefreshActions.has(event.action)) return;
-    void load({}, { silent: true });
+    void refresh();
   });
 
   const visible = useMemo(() => {

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarCheck, CreditCard, Loader2, Search } from 'lucide-react';
 import {
   listAdminBookings,
   type AdminBookingSummary,
 } from '../../api/adminBookings';
-import { ApiError, type PaginatedResponse } from '../../api/client';
+import { type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
@@ -65,11 +66,6 @@ export const AdminBookings = () => {
   const [status, setStatus] = useState('all');
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<PaginatedResponse<AdminBookingSummary>>(emptyPage);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const requestEpoch = useRef(0);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -78,32 +74,17 @@ export const AdminBookings = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const loadBookings = useCallback(async () => {
-    if (!token) return;
-    const requestId = ++requestEpoch.current;
-    setLoading(true);
-    setError('');
-    try {
-      const response = await listAdminBookings(token, {
-        search: debouncedSearch,
-        status,
-        paymentStatus,
-        page,
-        pageSize: PAGE_SIZE,
-      });
-      if (requestId === requestEpoch.current) setData(response);
-    } catch (requestError) {
-      if (requestId === requestEpoch.current) {
-        setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking toàn sàn.');
-      }
-    } finally {
-      if (requestId === requestEpoch.current) setLoading(false);
-    }
-  }, [debouncedSearch, page, paymentStatus, status, token]);
-
-  useEffect(() => {
-    void loadBookings();
-  }, [loadBookings]);
+  const { data = emptyPage, error, loading, refresh: loadBookings } = useApiQuery(
+    ['admin-bookings', token, debouncedSearch, status, paymentStatus, page],
+    () => listAdminBookings(token!, {
+      search: debouncedSearch,
+      status,
+      paymentStatus,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải booking toàn sàn.' },
+  );
 
   const waitingPayments = useMemo(
     () => data.items.filter((booking) => booking.paymentStatus === 'WaitingForConfirmation').length,

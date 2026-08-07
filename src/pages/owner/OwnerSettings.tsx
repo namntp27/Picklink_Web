@@ -10,6 +10,7 @@ import {
 import { ApiError } from '../../api/client';
 import { getOwnerBankAccount, saveOwnerBankAccount } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
 
 type PayoutSettings = {
@@ -58,46 +59,31 @@ export const OwnerSettings = () => {
   const { token } = useAuth();
   const [payout, setPayout] = useState<PayoutSettings>(initialPayout);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(token));
   const [isSaving, setIsSaving] = useState(false);
 
+  const { data: account, error: loadError, loading: isLoading } = useApiQuery(
+    ['owner-bank-account', token],
+    // No payout account configured yet is a normal state, not a failure.
+    () => getOwnerBankAccount(token!).catch((requestError) => {
+      if (requestError instanceof ApiError && requestError.status === 404) return null;
+      throw requestError;
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải tài khoản nhận tiền.' },
+  );
+
   useEffect(() => {
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    if (!account) return;
+    setPayout({
+      bankCode: account.bankCode,
+      bankName: account.bankName,
+      accountNumber: account.accountNumber,
+      accountHolder: account.accountHolderName,
+    });
+  }, [account]);
 
-    let active = true;
-    setIsLoading(true);
-    setFeedback(null);
-
-    getOwnerBankAccount(token)
-      .then((account) => {
-        if (!active) return;
-        setPayout({
-          bankCode: account.bankCode,
-          bankName: account.bankName,
-          accountNumber: account.accountNumber,
-          accountHolder: account.accountHolderName,
-        });
-      })
-      .catch((requestError) => {
-        if (!active || (requestError instanceof ApiError && requestError.status === 404)) return;
-        setFeedback({
-          message: requestError instanceof ApiError
-            ? requestError.message
-            : 'Không thể tải tài khoản nhận tiền.',
-          tone: 'error',
-        });
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [token]);
+  useEffect(() => {
+    if (loadError) setFeedback({ message: loadError, tone: 'error' });
+  }, [loadError]);
 
   const payoutIsValid = Boolean(
     payout.bankCode

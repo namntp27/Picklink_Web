@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Building2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
-import { getOwnerVenue, updateOwnerVenue, type OwnerVenue, type OwnerVenueInput } from '../../api/owner';
+import { getOwnerVenue, updateOwnerVenue, type OwnerVenueInput } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerVenueForm } from './components/OwnerVenueForm';
 
@@ -12,18 +13,18 @@ export const OwnerCourtEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const venueId = Number(id);
-  const [venue, setVenue] = useState<OwnerVenue | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  useEffect(() => {
-    if (!token || !Number.isInteger(venueId)) return;
-    getOwnerVenue(token, venueId)
-      .then(setVenue)
-      .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải cụm sân.'))
-      .finally(() => setIsLoading(false));
-  }, [token, venueId]);
+  const hasValidId = Boolean(token) && Number.isInteger(venueId);
+  const { data: venue = null, error: loadError, loading: isLoading } = useApiQuery(
+    ['owner-venue', token, venueId],
+    () => getOwnerVenue(token!, venueId),
+    { enabled: hasValidId, errorMessage: 'Không thể tải cụm sân.' },
+  );
+
+  const error = actionError || loadError;
+  const setError = setActionError;
 
   const handleSubmit = async (input: OwnerVenueInput) => {
     if (!token) return;

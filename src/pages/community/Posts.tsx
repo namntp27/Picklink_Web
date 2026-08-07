@@ -22,6 +22,7 @@ import {
   removeReaction,
 } from '../../api/community';
 import { CommunityFeedShell, CommunityPage } from './CommunityUI';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
 
 export interface DisplayPost {
@@ -70,7 +71,45 @@ export const parsePostContent = (rawContent: string | null) => {
   return { title: '', body: rawContent };
 };
 
-export const PostCard = ({ 
+const emptyPosts: DisplayPost[] = [];
+
+const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number]): DisplayPost => {
+  const parsed = parsePostContent(post.content);
+
+  let formattedDate = 'Vừa xong';
+  try {
+    formattedDate = new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(post.createdAt));
+  } catch {
+    // Ignore date format error
+  }
+
+  return {
+    id: String(post.postId),
+    authorName: post.authorName || 'Thành viên Picklink',
+    avatar: post.authorAvatarUrl || '',
+    level: '',
+    location: parsed.location || '',
+    createdAt: formattedDate,
+    title: parsed.title || 'Bài viết',
+    content: parsed.body,
+    image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
+    tags: parsed.tags || [],
+    lookingFor: parsed.lookingFor && parsed.slots
+      ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
+      : undefined,
+    likes: post.likeCount || 0,
+    comments: post.commentCount || 0,
+    liked: post.likedByMe || false,
+    matchId: parsed.matchId,
+  };
+};
+
+export const PostCard = ({
   post, 
   onLikeToggle, 
   onShareClick 
@@ -205,10 +244,13 @@ export const Posts = () => {
   const { user, token, isAuthenticated } = useAuth();
   const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
-  const [posts, setPosts] = useState<DisplayPost[]>([]);
-  const [loading, setLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const { data: posts = emptyPosts, loading, setData: setPosts } = useApiQuery(
+    ['global-posts', token],
+    async () => (await getGlobalPosts(token)).map(toDisplayPost),
+  );
 
 
   const sharePost = async (post: DisplayPost) => {
@@ -231,59 +273,6 @@ export const Posts = () => {
       notify(error instanceof Error ? error.message : 'Không thể chia sẻ bài viết.', 'error');
     }
   };
-
-  const loadPosts = async () => {
-    setLoading(true);
-    try {
-      const res = await getGlobalPosts(token);
-      const mapped = res.map((post): DisplayPost => {
-        const parsed = parsePostContent(post.content);
-        
-        let formattedDate = 'Vừa xong';
-        try {
-          formattedDate = new Intl.DateTimeFormat('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(new Date(post.createdAt));
-        } catch {
-          // Ignore date format error
-        }
-
-        return {
-          id: String(post.postId),
-          authorName: post.authorName || 'Thành viên Picklink',
-          avatar: post.authorAvatarUrl || '',
-          level: '',
-          location: parsed.location || '',
-          createdAt: formattedDate,
-          title: parsed.title || 'Bài viết',
-          content: parsed.body,
-          image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
-          tags: parsed.tags || [],
-          lookingFor: parsed.lookingFor && parsed.slots
-            ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
-            : undefined,
-          likes: post.likeCount || 0,
-          comments: post.commentCount || 0,
-          liked: post.likedByMe || false,
-          matchId: parsed.matchId
-        };
-      });
-
-      setPosts(mapped);
-    } catch (err) {
-      console.error('Failed to load posts from API:', err);
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadPosts();
-  }, [token]);
 
   useEffect(() => {
     if (token && user?.role === 'player') {
@@ -320,7 +309,7 @@ export const Posts = () => {
 
     // Optimistically update local UI state
     setPosts((prevPosts) =>
-      prevPosts.map((p) =>
+      (prevPosts ?? emptyPosts).map((p) =>
         p.id === postId
           ? {
               ...p,
@@ -341,7 +330,7 @@ export const Posts = () => {
       // Silently sync state with server
       const backendPost = await getGlobalPost(postNumId, token);
       setPosts((prevPosts) =>
-        prevPosts.map((p) =>
+        (prevPosts ?? emptyPosts).map((p) =>
           p.id === postId
             ? {
                 ...p,
@@ -355,7 +344,7 @@ export const Posts = () => {
       console.error('Failed to react to post:', err);
       // Revert on error
       setPosts((prevPosts) =>
-        prevPosts.map((p) =>
+        (prevPosts ?? emptyPosts).map((p) =>
           p.id === postId
             ? {
                 ...p,

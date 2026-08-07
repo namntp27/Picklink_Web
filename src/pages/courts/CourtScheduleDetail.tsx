@@ -12,6 +12,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { createBookingHolding, getCourtAvailabilities, getCourtAvailability, type AvailabilitySlot, type BookingScheduleConflict, type CourtAvailability } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
@@ -82,16 +83,12 @@ export const CourtScheduleDetail = () => {
   const { token } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const [date, setDate] = useState(() => validScheduleDate(searchParams.get('date')));
-  const [availability, setAvailability] = useState<CourtAvailability | null>(null);
-  const [availabilityDate, setAvailabilityDate] = useState<string | null>(null);
-  const availabilityRequestId = useRef(0);
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, CourtSlotSelection[]>>({});
   const [bookingMonths, setBookingMonths] = useState(1);
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isApplyingMonth, setIsApplyingMonth] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const motionProps = prefersReducedMotion
     ? {}
@@ -101,30 +98,21 @@ export const CourtScheduleDetail = () => {
         transition: { duration: 0.28, ease: [0.2, 0.8, 0.2, 1] as const },
       };
 
-  const load = async (showLoading = true) => {
-    if (!Number.isInteger(venueId)) return;
-    const requestId = ++availabilityRequestId.current;
-    const requestedDate = date;
-    if (showLoading) {
-      setIsLoading(true);
-      setError('');
-    }
-    try {
-      const nextAvailability = await getCourtAvailability(venueId, requestedDate, token);
-      if (availabilityRequestId.current !== requestId) return;
-      setAvailability(nextAvailability);
-      setAvailabilityDate(requestedDate);
-    } catch (requestError) {
-      if (availabilityRequestId.current !== requestId) return;
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sân.');
-    } finally {
-      if (availabilityRequestId.current === requestId) setIsLoading(false);
-    }
-  };
+  const {
+    data: availability = null,
+    error: loadError,
+    loading: isLoading,
+    refresh: load,
+  } = useApiQuery(
+    ['court-availability', venueId, date, token],
+    () => getCourtAvailability(venueId, date, token),
+    { enabled: Number.isInteger(venueId), errorMessage: 'Không thể tải lịch sân.' },
+  );
 
-  useEffect(() => {
-    void load();
-  }, [venueId, date, token]);
+  // The query key carries the date, so whatever is rendered always belongs to the selected day.
+  const availabilityDate = availability ? date : null;
+  const error = actionError || loadError;
+  const setError = setActionError;
 
   const selectedSlotsForDate = useMemo(
     () => selectedSlotsByDate[date] ?? [],
@@ -215,11 +203,11 @@ export const CourtScheduleDetail = () => {
       });
       setError('Khung giờ bạn vừa chọn đã được cập nhật và không còn trống. Vui lòng chọn slot khác.');
     }
-    void load(false);
+    void load();
   });
 
   useVenueRealtime((notification) => {
-    if (notification.venueId === venueId) void load(false);
+    if (notification.venueId === venueId) void load();
   });
 
   const selectSlot = (slot: AvailabilitySlot) => {
@@ -373,7 +361,7 @@ export const CourtScheduleDetail = () => {
         return;
       }
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể giữ slot. Vui lòng tải lại lịch.');
-      await load(false);
+      await load();
     } finally {
       setIsHolding(false);
     }

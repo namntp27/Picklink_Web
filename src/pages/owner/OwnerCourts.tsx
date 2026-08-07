@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowRight, Building2, MapPin, Plus, Power, RefreshCw, Send, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
@@ -10,6 +10,7 @@ import {
   type OwnerVenue,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -20,25 +21,26 @@ const approvalClass: Record<OwnerVenue['approvalStatus'], string> = {
   Draft: 'bg-slate-100 text-slate-700', Pending: 'bg-amber-100 text-amber-800', Approved: 'bg-emerald-100 text-emerald-800', Rejected: 'bg-red-100 text-red-700',
 };
 
+const emptyVenues: OwnerVenue[] = [];
+
 export const OwnerCourts = () => {
   const { token } = useAuth();
-  const [venues, setVenues] = useState<OwnerVenue[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [busyVenueId, setBusyVenueId] = useState<number | null>(null);
 
-  const load = async () => {
-    if (!token) return;
-    setError('');
-    try {
-      const result = await getOwnerVenues(token);
-      setVenues(result);
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.');
-    } finally { setIsLoading(false); }
-  };
+  const {
+    data: venues = emptyVenues,
+    error: loadError,
+    loading: isLoading,
+    refresh: load,
+  } = useApiQuery(
+    ['owner-venues', token],
+    () => getOwnerVenues(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách sân.' },
+  );
 
-  useEffect(() => { void load(); }, [token]);
+  const error = actionError || loadError;
+  const setError = setActionError;
 
   const stats = useMemo(() => ({
     venues: venues.length,

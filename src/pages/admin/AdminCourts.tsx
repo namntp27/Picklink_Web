@@ -28,6 +28,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
@@ -315,9 +316,6 @@ export const AdminCourts = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState<AdminVenueApprovalStatus | 'all'>('Pending');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<PaginatedResponse<AdminVenueSummary>>(emptyPage);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selected, setSelected] = useState<AdminVenueDetail | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -332,27 +330,21 @@ export const AdminCourts = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const loadVenues = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      setData(await listAdminVenues(token, {
-        search: debouncedSearch,
-        status,
-        page,
-        pageSize: PAGE_SIZE,
-      }));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, page, status, token]);
-
-  useEffect(() => {
-    void loadVenues();
-  }, [loadVenues]);
+  const {
+    data = emptyPage(),
+    error,
+    loading,
+    refresh: loadVenues,
+  } = useApiQuery(
+    ['admin-venues', token, debouncedSearch, status, page],
+    () => listAdminVenues(token!, {
+      search: debouncedSearch,
+      status,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách sân.' },
+  );
 
   useVenueRealtime((event) => {
     if (!token) return;

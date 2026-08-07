@@ -20,17 +20,21 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
-import { getMyProfile, type PlayerProfile } from '../../api/profile';
+import { getMyProfile } from '../../api/profile';
 import { getMyMatches, type MatchSummary } from '../../api/matches';
 import { OpenStreetMapLocationPicker } from '../../components/location/OpenStreetMapLocationPicker';
 import { deleteUploadedMedia, uploadToCloudinary } from '../../api/cloudinary';
 import { CommunityHero, CommunityPage } from './CommunityUI';
 import { Dropdown } from '../../components/ui/Dropdown';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { createGlobalPost, createGroupPost, getGroups, type CommunityGroup } from '../../api/community';
 
 type Visibility = 'public' | 'club' | 'friends';
 type PostMode = 'discussion' | 'find_players' | 'review' | 'training';
+
+const emptyMatches: MatchSummary[] = [];
+const emptyGroups: CommunityGroup[] = [];
 
 const modeOptions: Array<{ label: string; value: PostMode }> = [
   { label: 'Thảo luận', value: 'discussion' },
@@ -62,7 +66,7 @@ export const CreatePost = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
   const notify = useToast();
-  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+
   const [searchParams] = useSearchParams();
 
   const initialLocation = '';
@@ -126,13 +130,32 @@ export const CreatePost = () => {
 
   const [published, setPublished] = useState(false);
 
-  const [hostedMatches, setHostedMatches] = useState<MatchSummary[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
-  const [loadingMatches, setLoadingMatches] = useState(false);
 
-  const [userGroups, setUserGroups] = useState<CommunityGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [loadingGroups, setLoadingGroups] = useState(false);
+
+  const { data: profile = null } = useApiQuery(
+    ['my-profile', token],
+    () => getMyProfile(token!),
+    { enabled: Boolean(token) && user?.role === 'player' },
+  );
+
+  const { data: hostedMatches = emptyMatches, loading: loadingMatches } = useApiQuery(
+    ['hosted-open-matches', token],
+    async () => {
+      const result = await getMyMatches(token!, { page: 1, pageSize: 50 });
+      return result.items.filter(
+        (match) => match.isHost && (match.status === 'Recruiting' || match.status === 'ReadyToBook'),
+      );
+    },
+    { enabled: Boolean(token) && lookingFor },
+  );
+
+  const { data: userGroups = emptyGroups, loading: loadingGroups } = useApiQuery(
+    ['my-groups', token],
+    () => getGroups(token!, undefined, undefined, undefined, 'Mine'),
+    { enabled: Boolean(token) },
+  );
 
   const [linkMatchRoom, setLinkMatchRoom] = useState(false);
 
@@ -144,22 +167,6 @@ export const CreatePost = () => {
     }
   }, [hostedMatches]);
 
-  useEffect(() => {
-    if (lookingFor && token) {
-      setLoadingMatches(true);
-      getMyMatches(token, { page: 1, pageSize: 50 })
-        .then((res) => {
-          const hosted = res.items.filter((m) => m.isHost && (m.status === 'Recruiting' || m.status === 'ReadyToBook'));
-          setHostedMatches(hosted);
-        })
-        .catch((err) => {
-          console.error('Failed to load hosted matches:', err);
-        })
-        .finally(() => {
-          setLoadingMatches(false);
-        });
-    }
-  }, [lookingFor, token]);
 
   const handleMatchSelect = (matchIdVal: string) => {
     const matchIdNum = Number(matchIdVal);
@@ -212,30 +219,11 @@ export const CreatePost = () => {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
+  // Default the club picker to the first club the player belongs to.
   useEffect(() => {
-    if (token && user?.role === 'player') {
-      getMyProfile(token)
-        .then((p) => {
-          setProfile(p);
-        })
-        .catch(() => {});
-    }
-  }, [token, user]);
-
-  useEffect(() => {
-    if (token) {
-      setLoadingGroups(true);
-      getGroups(token, undefined, undefined, undefined, 'Mine')
-        .then((groups) => {
-          setUserGroups(groups);
-          if (groups.length > 0) {
-            setSelectedGroupId(groups[0].groupId);
-          }
-        })
-        .catch((err) => console.error('Failed to load user clubs:', err))
-        .finally(() => setLoadingGroups(false));
-    }
-  }, [token]);
+    const firstGroup = userGroups[0];
+    if (firstGroup) setSelectedGroupId((current) => current ?? firstGroup.groupId);
+  }, [userGroups]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

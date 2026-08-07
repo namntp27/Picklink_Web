@@ -16,7 +16,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getBookingVenues, type BookingVenue } from '../../api/booking';
 import { getGroups, type CommunityGroup } from '../../api/community';
@@ -24,7 +24,12 @@ import { getOpenMatches, type MatchSummary } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { Button } from '../../components/ui/Button';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+
+const emptyVenues: BookingVenue[] = [];
+const emptyClubs: CommunityGroup[] = [];
+const emptyInvitations: MatchSummary[] = [];
 
 const benefits = [
   { label: 'Đặt sân nhanh', icon: Zap },
@@ -82,19 +87,8 @@ export const Home = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
-  const [openInvitations, setOpenInvitations] = useState<MatchSummary[]>([]);
-  const [openInvitationCount, setOpenInvitationCount] = useState(0);
-  const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
-  const [invitationError, setInvitationError] = useState('');
-  const [venues, setVenues] = useState<BookingVenue[]>([]);
-  const [clubs, setClubs] = useState<CommunityGroup[]>([]);
-  const [isLoadingVenues, setIsLoadingVenues] = useState(true);
-  const [isLoadingClubs, setIsLoadingClubs] = useState(true);
-  const [venueError, setVenueError] = useState('');
-  const [clubError, setClubError] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
-  const [reloadKey, setReloadKey] = useState(0);
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 18 };
   const selectedArea = [selectedWard, selectedProvince].filter(Boolean).join(' ');
   const selectedAreaLabel = [selectedWard, selectedProvince].filter(Boolean).join(', ');
@@ -102,68 +96,42 @@ export const Home = () => {
     ? '/book-court?area=' + encodeURIComponent(selectedArea)
     : '/book-court';
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let active = true;
+  const {
+    data: venuePage,
+    error: venueError,
+    loading: isLoadingVenues,
+    refresh: reloadVenues,
+  } = useApiQuery(
+    ['home-venues', token, selectedArea],
+    () => getBookingVenues({ area: selectedArea || undefined, page: 1, pageSize: 4 }, token),
+    { errorMessage: 'Không thể tải danh sách sân.' },
+  );
 
-    setIsLoadingVenues(true);
-    setIsLoadingClubs(true);
-    setVenueError('');
-    setClubError('');
-    setVenues([]);
-    setClubs([]);
+  const {
+    data: clubs = emptyClubs,
+    error: clubError,
+    loading: isLoadingClubs,
+    refresh: reloadClubs,
+  } = useApiQuery(
+    ['home-clubs', token, selectedArea],
+    () => getGroups(token, selectedArea || undefined, 1, 3, 'All', 'members'),
+    { errorMessage: 'Không thể tải danh sách câu lạc bộ.' },
+  );
 
-    void getBookingVenues(
-      { area: selectedArea || undefined, page: 1, pageSize: 4 },
-      token,
-      controller.signal,
-    )
-      .then((result) => {
-        if (active) setVenues(result.items);
-      })
-      .catch((reason) => {
-        if (!active || controller.signal.aborted) return;
-        setVenueError(reason instanceof Error ? reason.message : 'Không thể tải danh sách sân.');
-      })
-      .finally(() => {
-        if (active) setIsLoadingVenues(false);
-      });
+  const {
+    data: invitationPage,
+    error: invitationError,
+    loading: isLoadingInvitations,
+    refresh: loadOpenInvitations,
+  } = useApiQuery(
+    ['home-open-matches', token],
+    () => getOpenMatches(token ?? undefined, { page: 1, pageSize: 3 }),
+    { errorMessage: 'Không thể tải danh sách lời mời.' },
+  );
 
-    void getGroups(token, selectedArea || undefined, 1, 3, 'All', 'members')
-      .then((result) => {
-        if (active) setClubs(result);
-      })
-      .catch((reason) => {
-        if (!active) return;
-        setClubError(reason instanceof Error ? reason.message : 'Không thể tải danh sách câu lạc bộ.');
-      })
-      .finally(() => {
-        if (active) setIsLoadingClubs(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [reloadKey, selectedArea, token]);
-
-  const loadOpenInvitations = useCallback(async () => {
-    setIsLoadingInvitations(true);
-    try {
-      const result = await getOpenMatches(token ?? undefined, { page: 1, pageSize: 3 });
-      setOpenInvitations(result.items);
-      setOpenInvitationCount(result.totalCount);
-      setInvitationError('');
-    } catch (reason) {
-      setInvitationError(reason instanceof Error ? reason.message : 'Không thể tải danh sách lời mời.');
-    } finally {
-      setIsLoadingInvitations(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    void loadOpenInvitations();
-  }, [loadOpenInvitations]);
+  const venues = venuePage?.items ?? emptyVenues;
+  const openInvitations = invitationPage?.items ?? emptyInvitations;
+  const openInvitationCount = invitationPage?.totalCount ?? 0;
 
   useMatchRealtime(() => {
     void loadOpenInvitations();
@@ -345,7 +313,7 @@ export const Home = () => {
               <p className="mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">{venueError}</p>
               <button
                 className={'mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#0b2228] px-4 py-2.5 text-[14px] font-bold text-white ' + interactiveLinkClass}
-                onClick={() => setReloadKey((value) => value + 1)}
+                onClick={() => void reloadVenues()}
                 type="button"
               >
                 <RefreshCw aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
@@ -563,7 +531,7 @@ export const Home = () => {
               <p className="mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">{clubError}</p>
               <button
                 className={'mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#0b2228] px-4 py-2.5 text-[14px] font-bold text-white ' + interactiveLinkClass}
-                onClick={() => setReloadKey((value) => value + 1)}
+                onClick={() => void reloadClubs()}
                 type="button"
               >
                 <RefreshCw aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />

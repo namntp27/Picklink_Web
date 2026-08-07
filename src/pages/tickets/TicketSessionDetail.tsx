@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -19,6 +19,7 @@ import { ApiError } from '../../api/client';
 import { buySessionTicket, getTicketSession, type TicketSession } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 
@@ -47,42 +48,26 @@ export const TicketSessionDetail = () => {
   const { token, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [session, setSession] = useState<TicketSession | null>(null);
-  const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const load = async (silent = false) => {
-    if (!Number.isInteger(ticketSessionId) || ticketSessionId <= 0) {
-      setError('Mã buổi xé vé không hợp lệ.');
-      setLoading(false);
-      return;
-    }
-    if (!silent) setLoading(true);
-    try {
-      setSession(await getTicketSession(ticketSessionId));
-      setError('');
-    } catch (requestError) {
-      setError(requestError instanceof ApiError
-        ? requestError.message
-        : 'Không thể tải thông tin buổi xé vé.');
-      if (silent && requestError instanceof ApiError && requestError.status === 404) setSession(null);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
+  const hasValidId = Number.isInteger(ticketSessionId) && ticketSessionId > 0;
+  const { data: session = null, error: loadError, loading, refresh: load } = useApiQuery(
+    ['ticket-session', ticketSessionId],
+    () => getTicketSession(ticketSessionId),
+    { enabled: hasValidId, errorMessage: 'Không thể tải thông tin buổi xé vé.' },
+  );
 
-  useEffect(() => {
-    void load();
-  }, [ticketSessionId]);
+  const error = actionError || (hasValidId ? loadError : 'Mã buổi xé vé không hợp lệ.');
+  const setError = setActionError;
 
   useScheduleRealtime((event) => {
     if (!session || event.entryType !== 'TicketSession') return;
-    if (event.venueId === session.venueId && event.courtId === session.courtId) void load(true);
+    if (event.venueId === session.venueId && event.courtId === session.courtId) void load();
   });
 
   usePaymentRealtime((event) => {
-    if (session && event.bookingId === session.bookingId) void load(true);
+    if (session && event.bookingId === session.bookingId) void load();
   });
 
   const purchase = async () => {
@@ -104,7 +89,7 @@ export const TicketSessionDetail = () => {
       setError(requestError instanceof ApiError
         ? requestError.message
         : 'Không thể giữ vé. Vui lòng thử lại.');
-      await load(true);
+      await load();
     } finally {
       setBuying(false);
     }

@@ -32,6 +32,7 @@ import { getOwnerBookings } from '../../api/owner';
 import type { BankTransfer } from '../../api/booking';
 import { getOperatorBookingPayments, getOperatorPayment } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
@@ -127,18 +128,23 @@ const normalizePaymentStatus = (status: string): BookingPaymentStatus =>
 const normalizeBookingStatus = (status: string): BookingStatus =>
   status === 'Confirmed' ? 'confirmed' : status === 'Cancelled' || status === 'Expired' ? 'cancelled' : 'holding';
 
+const emptyBookings: OwnerBookingListItem[] = [];
+const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
+
+type OwnerBookingsPage = {
+  pagination: typeof emptyPagination;
+  bookings: OwnerBookingListItem[];
+};
+
 export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind }) => {
   const { token } = useAuth();
   const isMatchBooking = kind === 'match';
   const today = useMemo(getLocalDateValue, []);
-  const [bookings, setBookings] = useState<OwnerBookingListItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [bookingStateFilter, setBookingStateFilter] = useState<BookingStateFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [transactionTarget, setTransactionTarget] = useState<{
     paymentId: number;
     bookingCode: string;
@@ -212,12 +218,16 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     return prefetched;
   }, [token]);
 
-  const load = useCallback(async (showLoading = true) => {
-    if (!token) return;
-    if (showLoading) setIsLoading(true);
-    setError('');
-    try {
-      const result = await getOwnerBookings(token, {
+  const {
+    data,
+    error: loadError,
+    loading: isLoading,
+    refresh: load,
+    setData,
+  } = useApiQuery<OwnerBookingsPage>(
+    ['owner-bookings', token, kind, selectedDate, searchTerm.trim(), page],
+    async () => {
+      const result = await getOwnerBookings(token!, {
         bookingType: kind,
         from: selectedDate,
         to: selectedDate,
@@ -225,30 +235,49 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
         page,
         pageSize: 10,
       });
-      setPagination(result);
-      setBookings(result.items.map((record) => ({
-        ...ownerBookingToDetail(record),
-        paymentId: record.paymentId,
-        matchId: record.matchId,
-        matchType: record.matchType,
-        requiredPlayerCount: record.requiredPlayerCount,
-        acceptedPlayerCount: record.acceptedPlayerCount,
-        matchPlayers: record.matchPlayers ?? [],
-      })));
-    }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải booking.'); }
-    finally { if (showLoading) setIsLoading(false); }
-  }, [kind, page, searchTerm, selectedDate, token]);
+      return {
+        pagination: {
+          page: result.page,
+          pageSize: result.pageSize,
+          totalCount: result.totalCount,
+          totalPages: result.totalPages,
+        },
+        bookings: result.items.map((record) => ({
+          ...ownerBookingToDetail(record),
+          paymentId: record.paymentId,
+          matchId: record.matchId,
+          matchType: record.matchType,
+          requiredPlayerCount: record.requiredPlayerCount,
+          acceptedPlayerCount: record.acceptedPlayerCount,
+          matchPlayers: record.matchPlayers ?? [],
+        })),
+      };
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải booking.' },
+  );
+
+  const bookings = data?.bookings ?? emptyBookings;
+  const pagination = data?.pagination ?? emptyPagination;
+  const error = actionError || loadError;
+  const setError = setActionError;
+
+  const setBookings = useCallback((
+    updater: (current: OwnerBookingListItem[]) => OwnerBookingListItem[],
+  ) => {
+    setData((current) => ({
+      pagination: current?.pagination ?? emptyPagination,
+      bookings: updater(current?.bookings ?? emptyBookings),
+    }));
+  }, [setData]);
 
   const scheduleRealtimeReload = useCallback(() => {
     if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
     realtimeReloadTimer.current = window.setTimeout(() => {
       realtimeReloadTimer.current = null;
-      void load(false);
+      void load();
     }, 120);
   }, [load]);
 
-  useEffect(() => { void load(); }, [load]);
   useEffect(() => () => {
     if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
   }, []);
@@ -589,7 +618,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                 initialPayments={matchTransactionTarget.prefetched?.data}
                 initialPaymentsRequest={matchTransactionTarget.prefetched?.promise}
                 onClose={() => setMatchTransactionTarget(null)}
-                onUpdated={() => load(false)}
+                onUpdated={() => load()}
               />
             )}
     </OwnerShell>

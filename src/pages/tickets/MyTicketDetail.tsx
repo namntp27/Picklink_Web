@@ -31,6 +31,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
@@ -163,34 +164,32 @@ export const MyTicketDetail = () => {
   const notify = useToast();
   const navigationTicket = (location.state as { ticket?: SessionTicket } | null)?.ticket;
   const initialTicket = navigationTicket?.sessionTicketId === ticketId ? navigationTicket : null;
-  const [ticket, setTicket] = useState<SessionTicket | null>(initialTicket);
-  const [loading, setLoading] = useState(!initialTicket);
   const [busyAction, setBusyAction] = useState<'cancel' | 'retry' | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [now, setNow] = useState(Date.now());
 
-  const load = async (silent = false) => {
-    if (!token || !Number.isInteger(ticketId) || ticketId <= 0) {
-      if (!token) setError('Phiên đăng nhập không còn hợp lệ.');
-      else setError('Mã vé không hợp lệ.');
-      setLoading(false);
-      return;
-    }
-    if (!silent) setLoading(true);
-    try {
-      setTicket(await getPlayerTicket(token, ticketId));
-      setError('');
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải chi tiết vé.');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
+  const hasValidRequest = Boolean(token) && Number.isInteger(ticketId) && ticketId > 0;
+  const {
+    data,
+    error: loadError,
+    loading: queryLoading,
+    refresh: load,
+    setData: setTicket,
+  } = useApiQuery(
+    ['my-ticket', token, ticketId],
+    () => getPlayerTicket(token!, ticketId),
+    { enabled: hasValidRequest, errorMessage: 'Không thể tải chi tiết vé.' },
+  );
 
-  useEffect(() => {
-    void load(Boolean(initialTicket));
-  }, [ticketId, token]);
+  // Arriving straight from a purchase carries the ticket in navigation state, so the screen can
+  // render before the confirming request lands.
+  const ticket = data ?? initialTicket;
+  const loading = queryLoading && !initialTicket;
+  const error = actionError
+    || loadError
+    || (token ? (hasValidRequest ? '' : 'Mã vé không hợp lệ.') : 'Phiên đăng nhập không còn hợp lệ.');
+  const setError = setActionError;
 
   const isPending = ticket?.status === 'PendingPayment';
   useEffect(() => {
@@ -201,17 +200,17 @@ export const MyTicketDetail = () => {
   }, [isPending, ticket?.holdExpiresAt]);
 
   usePaymentRealtime((event) => {
-    if (ticket && event.paymentId === ticket.paymentId) void load(true);
+    if (ticket && event.paymentId === ticket.paymentId) void load();
   });
 
   useScheduleRealtime((event) => {
     const session = ticket?.session;
     if (!session || event.entryType !== 'TicketSession') return;
-    if (event.venueId === session.venueId && event.courtId === session.courtId) void load(true);
+    if (event.venueId === session.venueId && event.courtId === session.courtId) void load();
   });
 
   useVisiblePolling(
-    () => load(true),
+    load,
     7_500,
     Boolean(ticket && ticket.status === 'PendingPayment'),
   );

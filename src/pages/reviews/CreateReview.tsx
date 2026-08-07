@@ -5,6 +5,7 @@ import { getBookingHolding, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { createBookingReview, type BookingReview } from '../../api/reviews';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 
 const quickTags = ['Sân sạch', 'Ánh sáng tốt', 'Dễ tìm', 'Check-in nhanh', 'Giá hợp lý', 'Có chỗ gửi xe'];
 
@@ -12,27 +13,24 @@ export const CreateReview = () => {
   const { token } = useAuth();
   const [searchParams] = useSearchParams();
   const bookingId = Number(searchParams.get('bookingId'));
-  const [booking, setBooking] = useState<BookingHolding | null>(null);
   const [review, setReview] = useState<BookingReview | null>(null);
   const [score, setScore] = useState(5);
   const [comment, setComment] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  useEffect(() => {
-    if (!token || !Number.isInteger(bookingId) || bookingId <= 0) {
-      setError('Booking không hợp lệ. Hãy mở đánh giá từ trang Booking của tôi.');
-      setLoading(false);
-      return;
-    }
-    getBookingHolding(token, bookingId)
-      .then(setBooking)
-      .catch((requestError) => setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking.'))
-      .finally(() => setLoading(false));
-  }, [bookingId, token]);
+  const hasValidBooking = Boolean(token) && Number.isInteger(bookingId) && bookingId > 0;
+  const { data: booking = null, error: loadError, loading, setData: setBooking } = useApiQuery(
+    ['review-booking', token, bookingId],
+    () => getBookingHolding(token!, bookingId),
+    { enabled: hasValidBooking, errorMessage: 'Không thể tải booking.' },
+  );
+
+  const error = actionError
+    || (hasValidBooking ? loadError : 'Booking không hợp lệ. Hãy mở đánh giá từ trang Booking của tôi.');
+  const setError = setActionError;
 
   const toggleTag = (tag: string) => setTags((current) =>
     current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]);

@@ -33,11 +33,14 @@ import { getMyProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { CommunityPage } from '../community/CommunityUI';
 import { getCourtAvailability, type CourtAvailability } from '../../api/booking';
 import { MapContainer, TileLayer, Marker, Popup as LeafletPopup } from 'react-leaflet';
 import { divIcon, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+const emptyVenues: MatchPreferredVenue[] = [];
 
 const dayOfWeekOrder: Record<string, number> = {
   Monday: 1,
@@ -109,8 +112,6 @@ export const QueueDetail = () => {
   const { token, user } = useAuth();
   const notify = useToast();
 
-  const [queue, setQueue] = useState<QueueStatusResponse | null>(null);
-  const [venues, setVenues] = useState<MatchPreferredVenue[]>([]);
   const [friends, setFriends] = useState<CommunityFriend[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<number | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -118,57 +119,56 @@ export const QueueDetail = () => {
   const [courtAvailability, setCourtAvailability] = useState<CourtAvailability | null>(null);
   const [isLoadingCourts, setIsLoadingCourts] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [isActionBusy, setIsActionBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const loadQueue = async () => {
-    if (!token || !queueId) {
-      setIsLoading(false);
-      return;
-    }
-    setError('');
-    try {
+  const {
+    data,
+    error: loadError,
+    loading: isLoading,
+    refresh: loadQueue,
+  } = useApiQuery(
+    ['queue-detail', token, queueId],
+    async (): Promise<{ queue: QueueStatusResponse; venues: MatchPreferredVenue[] }> => {
       const [myQueues, publicQueues] = await Promise.all([
-        getMyQueues(token).catch(() => []),
-        getPublicQueues(token).catch(() => [])
+        getMyQueues(token!).catch((): QueueStatusResponse[] => []),
+        getPublicQueues(token!).catch((): QueueStatusResponse[] => []),
       ]);
 
-      const foundQueue =
-        myQueues.find((q) => q.matchmakingQueueId === queueId) ||
-        publicQueues.find((q) => q.matchmakingQueueId === queueId);
-
-      if (foundQueue) {
-        if (foundQueue.matchId) {
-          navigate(`/matches/${foundQueue.matchId}`, { replace: true });
-          return;
-        }
-        setQueue(foundQueue);
-        if (foundQueue.sharedVenues) {
-          const venueIds = foundQueue.sharedVenues.split(',').map(Number);
-          const allVenues = await searchMatchVenues({
-            radiusKm: 10,
-            latitude: foundQueue.searchLatitude ?? undefined,
-            longitude: foundQueue.searchLongitude ?? undefined,
-            province: foundQueue.province ?? undefined,
-            ward: foundQueue.ward ?? undefined
-          });
-          const filtered = allVenues.filter((v) => venueIds.includes(v.venueId));
-          setVenues(filtered);
-        }
-      } else {
-        setError('Không tìm thấy lời mời ghép trận này hoặc bạn không có quyền xem.');
+      const foundQueue = myQueues.find((item) => item.matchmakingQueueId === queueId)
+        || publicQueues.find((item) => item.matchmakingQueueId === queueId);
+      if (!foundQueue) {
+        throw new Error('Không tìm thấy lời mời ghép trận này hoặc bạn không có quyền xem.');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể tải chi tiết lời mời ghép trận.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (foundQueue.matchId || !foundQueue.sharedVenues) {
+        return { queue: foundQueue, venues: emptyVenues };
+      }
 
+      const venueIds = foundQueue.sharedVenues.split(',').map(Number);
+      const allVenues = await searchMatchVenues({
+        radiusKm: 10,
+        latitude: foundQueue.searchLatitude ?? undefined,
+        longitude: foundQueue.searchLongitude ?? undefined,
+        province: foundQueue.province ?? undefined,
+        ward: foundQueue.ward ?? undefined,
+      });
+      return { queue: foundQueue, venues: allVenues.filter((venue) => venueIds.includes(venue.venueId)) };
+    },
+    {
+      enabled: Boolean(token && queueId),
+      errorMessage: 'Không thể tải chi tiết lời mời ghép trận.',
+    },
+  );
+
+  const queue = data?.queue ?? null;
+  const venues = data?.venues ?? emptyVenues;
+  const error = actionError || loadError;
+  const setError = setActionError;
+
+  // Once the queue turns into a real match the detail screen belongs to that match.
   useEffect(() => {
-    void loadQueue();
-  }, [queueId, token]);
+    if (queue?.matchId) navigate(`/matches/${queue.matchId}`, { replace: true });
+  }, [navigate, queue?.matchId]);
 
   useEffect(() => {
     if (token) {

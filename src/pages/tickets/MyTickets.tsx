@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertCircle,
   CalendarDays,
@@ -9,7 +9,6 @@ import {
   Ticket,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ApiError } from '../../api/client';
 import {
   getPlayerTickets,
   type SessionTicket,
@@ -19,9 +18,13 @@ import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
+
+const emptyTickets: SessionTicket[] = [];
+const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -80,59 +83,31 @@ const statusClass = (status: SessionTicketStatus) => {
 
 export const MyTickets = () => {
   const { token } = useAuth();
-  const [tickets, setTickets] = useState<SessionTicket[]>([]);
   const [status, setStatus] = useState<'' | SessionTicketStatus>('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 10,
-    totalCount: 0,
-    totalPages: 1,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const load = async (showLoading = true) => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    if (showLoading) setLoading(true);
-    try {
-      const result = await getPlayerTickets(token, {
-        status: status || undefined,
-        page,
-        pageSize: 10,
-      });
-      setTickets(result.items);
-      setPagination(result);
-      setError('');
-    } catch (requestError) {
-      setError(requestError instanceof ApiError
-        ? requestError.message
-        : 'Không thể tải lịch sử vé.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  };
+  const { data, error, loading, refresh: load } = useApiQuery(
+    ['my-tickets', token, page, status],
+    () => getPlayerTickets(token!, { status: status || undefined, page, pageSize: 10 }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải lịch sử vé.' },
+  );
 
-  useEffect(() => {
-    void load();
-  }, [page, status, token]);
+  const tickets = data?.items ?? emptyTickets;
+  const pagination = data ?? emptyPagination;
 
   usePaymentRealtime((event) => {
-    if (tickets.some((ticket) => ticket.paymentId === event.paymentId)) void load(false);
+    if (tickets.some((ticket) => ticket.paymentId === event.paymentId)) void load();
   });
 
   useScheduleRealtime((event) => {
     if (event.entryType !== 'TicketSession') return;
     if (tickets.some((ticket) => ticket.session?.venueId === event.venueId
-      && ticket.session?.courtId === event.courtId)) void load(false);
+      && ticket.session?.courtId === event.courtId)) void load();
   });
 
   useVisiblePolling(
-    () => load(false),
+    load,
     10_000,
     tickets.some((ticket) => ticket.status === 'PendingPayment'),
   );

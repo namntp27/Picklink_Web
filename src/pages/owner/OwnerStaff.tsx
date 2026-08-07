@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, History, Pencil, Save, ShieldCheck, UserMinus, UserPlus, UsersRound, XCircle } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import {
   assignOwnerStaff,
   createOwnerStaffAccount,
@@ -36,11 +37,13 @@ type StaffEditDraft = {
   isActive: boolean;
 };
 
+const emptyStaff: OwnerStaffAssignment[] = [];
+const emptyVenues: OwnerVenue[] = [];
+const emptyHistory: OwnerCheckInHistory[] = [];
+const emptyHistoryPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
+
 export const OwnerStaff = () => {
   const { token } = useAuth();
-  const [staff, setStaff] = useState<OwnerStaffAssignment[]>([]);
-  const [venues, setVenues] = useState<OwnerVenue[]>([]);
-  const [history, setHistory] = useState<OwnerCheckInHistory[]>([]);
   const [email, setEmail] = useState('');
   const [accountMode, setAccountMode] = useState<'create' | 'assign'>('create');
   const [username, setUsername] = useState('');
@@ -53,42 +56,47 @@ export const OwnerStaff = () => {
   const [historyVenueId, setHistoryVenueId] = useState(0);
   const [historyDate, setHistoryDate] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
-  const [historyPagination, setHistoryPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
-  const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<number | null>(null);
   const [staffEdit, setStaffEdit] = useState<StaffEditDraft | null>(null);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
+  const setError = setActionError;
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    setIsLoading(true);
-    setError('');
-    try {
-      const [staffResult, venueResult, historyResult] = await Promise.all([
-        getOwnerStaff(token),
-        getOwnerVenues(token),
-        getOwnerCheckInHistory(token, {
+  const {
+    data,
+    error: loadError,
+    loading: isLoading,
+    refresh: load,
+  } = useApiQuery(
+    ['owner-staff', token, historyVenueId, historyDate, historyPage],
+    async () => {
+      const [staff, venues, historyResult] = await Promise.all([
+        getOwnerStaff(token!),
+        getOwnerVenues(token!),
+        getOwnerCheckInHistory(token!, {
           venueId: historyVenueId || undefined,
           date: historyDate || undefined,
           page: historyPage,
           pageSize: 10,
         }),
       ]);
-      setStaff(staffResult);
-      setVenues(venueResult);
-      setHistory(historyResult.items);
-      setHistoryPagination(historyResult);
-      setSelectedVenueIds((current) => current.length || !venueResult[0] ? current : [venueResult[0].venueId]);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể tải dữ liệu nhân viên.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [historyDate, historyPage, historyVenueId, token]);
+      return { staff, venues, history: historyResult.items, historyPagination: historyResult };
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải dữ liệu nhân viên.' },
+  );
 
-  useEffect(() => { void load(); }, [load]);
+  const staff = data?.staff ?? emptyStaff;
+  const venues = data?.venues ?? emptyVenues;
+  const history = data?.history ?? emptyHistory;
+  const historyPagination = data?.historyPagination ?? emptyHistoryPagination;
+  const error = actionError || loadError;
+
+  // Default the venue picker to the first venue once one is known.
+  useEffect(() => {
+    const firstVenue = venues[0];
+    if (firstVenue) setSelectedVenueIds((current) => current.length ? current : [firstVenue.venueId]);
+  }, [venues]);
 
   const activeCount = useMemo(() => staff.filter((item) => item.isActive).length, [staff]);
   const checkedInCount = useMemo(() => history.filter((item) => item.checkInStatus === 'CheckedIn').length, [history]);

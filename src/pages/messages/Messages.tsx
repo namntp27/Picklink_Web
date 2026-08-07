@@ -153,18 +153,19 @@ export const Messages = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        // Fetch groups
-        const groupsData = await getGroups(token, undefined, undefined, undefined, 'Mine');
+        // Clubs and direct conversations are independent, so they go out together.
+        const [groupsData, directData] = await Promise.all([
+          getGroups(token, undefined, undefined, undefined, 'Mine'),
+          getDirectConversations(token),
+        ]);
         if (cancelled) return;
+
         const myGroups = (Array.isArray(groupsData) ? groupsData : []).filter(
           (g) => g.myStatus === 'Accepted' || g.myRole === 'Owner',
         );
         setGroups(myGroups);
         setClubConversations(myGroups.map(groupToConversation));
 
-        // Fetch direct conversations
-        const directData = await getDirectConversations(token);
-        if (cancelled) return;
         const mappedConversations = (Array.isArray(directData) ? directData : []).map(directToConversation);
         setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
         setMatchConversations(mappedConversations.filter((item) => item.kind === 'match'));

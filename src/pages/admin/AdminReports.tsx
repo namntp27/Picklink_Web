@@ -10,6 +10,7 @@ import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
@@ -65,9 +66,6 @@ export const AdminReports = () => {
   const [status, setStatus] = useState<AdminReportStatus | 'all'>('Open');
   const [targetType, setTargetType] = useState('all');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<PaginatedResponse<AdminReport>>(emptyPage);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -78,28 +76,23 @@ export const AdminReports = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const loadReports = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      setData(await listAdminReports(token, {
-        search: debouncedSearch,
-        status,
-        targetType,
-        page,
-        pageSize: PAGE_SIZE,
-      }));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách báo cáo.');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, page, status, targetType, token]);
-
-  useEffect(() => {
-    void loadReports();
-  }, [loadReports]);
+  const {
+    data = emptyPage,
+    error,
+    loading,
+    refresh: loadReports,
+    setData,
+  } = useApiQuery(
+    ['admin-reports', token, debouncedSearch, status, targetType, page],
+    () => listAdminReports(token!, {
+      search: debouncedSearch,
+      status,
+      targetType,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách báo cáo.' },
+  );
 
   const openOnPage = useMemo(() => data.items.filter((item) => item.status === 'Open').length, [data.items]);
 
@@ -119,10 +112,13 @@ export const AdminReports = () => {
     setBusyId(report.communityReportId);
     try {
       const updated = await reviewAdminReport(token, report.communityReportId, { status: nextStatus, resolutionNote });
-      setData((current) => ({
-        ...current,
-        items: current.items.map((item) => item.communityReportId === updated.communityReportId ? updated : item),
-      }));
+      setData((current) => {
+        const page = current ?? emptyPage;
+        return {
+          ...page,
+          items: page.items.map((item) => item.communityReportId === updated.communityReportId ? updated : item),
+        };
+      });
       notify('Đã cập nhật báo cáo.', 'success');
     } catch (requestError) {
       notify(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật báo cáo.', 'error');

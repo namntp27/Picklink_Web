@@ -9,105 +9,95 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { getGroups, getGroupPosts, reactToPost, removeReaction, getGlobalPost } from '../../api/community';
 import { PostCard, parsePostContent, type DisplayPost } from './Posts';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
+
+const emptyPosts: DisplayPost[] = [];
+
+type ClubPost = Awaited<ReturnType<typeof getGroupPosts>>[number] & {
+  groupName: string;
+  groupId: number;
+};
+
+const toClubDisplayPost = (post: ClubPost): DisplayPost => {
+  const parsed = parsePostContent(post.content);
+
+  let formattedDate = 'Vừa xong';
+  try {
+    formattedDate = new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(post.createdAt));
+  } catch {
+    // Ignore
+  }
+
+  return {
+    id: String(post.postId),
+    authorName: post.authorName || 'Thành viên Picklink',
+    avatar: post.authorAvatarUrl || '',
+    level: '',
+    location: parsed.location || '',
+    createdAt: formattedDate,
+    title: parsed.title || 'Bài viết',
+    content: parsed.body,
+    image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
+    tags: parsed.tags || [],
+    lookingFor: parsed.lookingFor && parsed.slots
+      ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
+      : undefined,
+    likes: post.likeCount || 0,
+    comments: post.commentCount || 0,
+    liked: post.likedByMe || false,
+    matchId: parsed.matchId,
+    groupName: post.groupName,
+    groupId: post.groupId,
+  };
+};
 
 export const ClubPosts = () => {
   const { token, isAuthenticated } = useAuth();
   const notify = useToast();
-  const [posts, setPosts] = useState<DisplayPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const loadClubPosts = async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      // 1. Get joined clubs
-      const joinedGroups = await getGroups(token, undefined, 1, 100, 'Mine');
-      const activeGroups = joinedGroups.filter((g) => g.myStatus === 'Accepted');
+  const {
+    data: posts = emptyPosts,
+    error: loadError,
+    loading,
+    refresh: loadClubPosts,
+    setData: setPosts,
+  } = useApiQuery(
+    ['club-posts', token],
+    async () => {
+      const joinedGroups = await getGroups(token!, undefined, 1, 100, 'Mine');
+      const activeGroups = joinedGroups.filter((group) => group.myStatus === 'Accepted');
+      if (activeGroups.length === 0) return emptyPosts;
 
-      if (activeGroups.length === 0) {
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch posts of each club
-      const postsPromises = activeGroups.map(async (group) => {
+      const results = await Promise.all(activeGroups.map(async (group) => {
         try {
-          const groupPosts = await getGroupPosts(token, group.groupId);
-          return groupPosts.map((p) => ({
-            ...p,
+          const groupPosts = await getGroupPosts(token!, group.groupId);
+          return groupPosts.map((post) => ({
+            ...post,
             groupName: group.groupName,
             groupId: group.groupId,
           }));
         } catch {
           return [];
         }
-      });
+      }));
 
-      const results = await Promise.all(postsPromises);
-      const allPosts = results.flat();
+      return results
+        .flat()
+        .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime())
+        .map(toClubDisplayPost);
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải bài viết từ các câu lạc bộ.' },
+  );
 
-      // 3. Sort by createdAt descending
-      allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      // 4. Map to DisplayPost
-      const mapped = allPosts.map((post: any): DisplayPost => {
-        const parsed = parsePostContent(post.content);
-        
-        let formattedDate = 'Vừa xong';
-        try {
-          formattedDate = new Intl.DateTimeFormat('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(new Date(post.createdAt));
-        } catch {
-          // Ignore
-        }
-
-        return {
-          id: String(post.postId),
-          authorName: post.authorName || 'Thành viên Picklink',
-          avatar: post.authorAvatarUrl || '',
-          level: '',
-          location: parsed.location || '',
-          createdAt: formattedDate,
-          title: parsed.title || 'Bài viết',
-          content: parsed.body,
-          image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
-          tags: parsed.tags || [],
-          lookingFor: parsed.lookingFor && parsed.slots
-            ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
-            : undefined,
-          likes: post.likeCount || 0,
-          comments: post.commentCount || 0,
-          liked: post.likedByMe || false,
-          matchId: parsed.matchId,
-          groupName: post.groupName,
-          groupId: post.groupId,
-        };
-      });
-
-      setPosts(mapped);
-    } catch (err: any) {
-      setError(err?.message || 'Không thể tải bài viết từ các câu lạc bộ.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadClubPosts();
-  }, [token]);
+  const error = loadError || null;
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -135,7 +125,7 @@ export const ClubPosts = () => {
 
     // Optimistic UI update
     setPosts((prevPosts) =>
-      prevPosts.map((p) =>
+      (prevPosts ?? emptyPosts).map((p) =>
         p.id === postId
           ? {
               ...p,
@@ -155,7 +145,7 @@ export const ClubPosts = () => {
       
       const backendPost = await getGlobalPost(postNumId, token);
       setPosts((prevPosts) =>
-        prevPosts.map((p) =>
+        (prevPosts ?? emptyPosts).map((p) =>
           p.id === postId
             ? {
                 ...p,
@@ -168,7 +158,7 @@ export const ClubPosts = () => {
     } catch (err) {
       console.error('Failed to react to post:', err);
       setPosts((prevPosts) =>
-        prevPosts.map((p) =>
+        (prevPosts ?? emptyPosts).map((p) =>
           p.id === postId
             ? {
                 ...p,

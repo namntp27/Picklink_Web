@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -18,8 +18,9 @@ import {
   XCircle,
 } from 'lucide-react';
 import { cancelPlayerBooking, getMyBookingHistory, retryBookingPayment, type BookingHolding } from '../../api/booking';
-import { ApiError } from '../../api/client';
+import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -102,6 +103,11 @@ const matchesFilter = (booking: BookingHolding, filter: BookingFilter) => {
   return booking.status === 'Cancelled' || booking.status === 'Expired';
 };
 
+const emptyBookings: BookingHolding[] = [];
+const emptyPagination: PaginatedResponse<BookingHolding> = {
+  items: emptyBookings, page: 1, pageSize: 10, totalCount: 0, totalPages: 1,
+};
+
 const linkButtonBase = 'inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#e2ff57]/75 active:translate-y-px active:scale-[0.99]';
 const primaryLinkButton = `${linkButtonBase} border border-[#e2ff57] bg-[#e2ff57] text-[#081d24] shadow-[0_5px_14px_rgba(226,255,87,0.18)] hover:border-[#d6f64d] hover:bg-[#d6f64d] hover:shadow-[0_7px_16px_rgba(226,255,87,0.24)]`;
 const outlineLinkButton = `${linkButtonBase} border border-outline-variant bg-surface-container-lowest text-on-surface hover:border-[#e2ff57] hover:bg-[#081d24] hover:text-[#e2ff57]`;
@@ -109,43 +115,38 @@ const outlineLinkButton = `${linkButtonBase} border border-outline-variant bg-su
 export const MyBookings = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
-  const [bookings, setBookings] = useState<BookingHolding[]>([]);
   const [activeFilter, setActiveFilter] = useState<BookingFilter>('all');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [cancelTarget, setCancelTarget] = useState<BookingHolding | null>(null);
   const shouldReduceMotion = useReducedMotion();
 
-  const load = async (showLoading = true) => {
-    if (!token) return;
-    if (showLoading) setLoading(true);
-    setError('');
-    try {
-      const result = await getMyBookingHistory(token, { page, pageSize: 10 });
-      setBookings(result.items);
-      setPagination(result);
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải lịch sử đặt sân.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  };
+  const { data, error: loadError, loading, refresh, setData } = useApiQuery(
+    ['my-bookings', token, page],
+    () => getMyBookingHistory(token!, { page, pageSize: 10 }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải lịch sử đặt sân.' },
+  );
 
-  useEffect(() => { void load(); }, [page, token]);
-  useScheduleRealtime(() => { void load(false); });
+  const bookings = data?.items ?? emptyBookings;
+  const pagination = data ?? emptyPagination;
+  const error = actionError || loadError;
+
+  useScheduleRealtime(() => { void refresh(); });
   usePaymentRealtime((event) => {
-    setBookings((current) => current.map((booking) => event.bookingId === booking.bookingId
-      ? {
-        ...booking,
-        paymentStatus: event.paymentStatus,
-        status: event.paymentStatus === 'Paid' ? 'Confirmed' : booking.status,
-      }
-      : booking));
-    void load(false);
+    // Reflect the payment straight away, then confirm it against the server.
+    setData((current) => ({
+      ...(current ?? emptyPagination),
+      items: (current?.items ?? []).map((booking) => event.bookingId === booking.bookingId
+        ? {
+          ...booking,
+          paymentStatus: event.paymentStatus,
+          status: event.paymentStatus === 'Paid' ? 'Confirmed' : booking.status,
+        }
+        : booking),
+    }));
+    void refresh();
   });
 
   const filtered = useMemo(() => {
@@ -167,13 +168,13 @@ export const MyBookings = () => {
   const cancel = async (reason: string) => {
     if (!token || !cancelTarget) return;
     setBusyId(cancelTarget.bookingId);
-    setError('');
+    setActionError('');
     try {
       await cancelPlayerBooking(token, cancelTarget.bookingId, reason);
       setCancelTarget(null);
-      await load(false);
+      await refresh();
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.');
+      setActionError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.');
     } finally {
       setBusyId(null);
     }
@@ -182,7 +183,7 @@ export const MyBookings = () => {
   const retryPayment = async (booking: BookingHolding) => {
     if (!token) return;
     setBusyId(booking.bookingId);
-    setError('');
+    setActionError('');
     try {
       const updatedBooking = await retryBookingPayment(token, booking.bookingId);
       const range = getBookingRange(updatedBooking);
@@ -191,7 +192,7 @@ export const MyBookings = () => {
         { state: { booking: updatedBooking } },
       );
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể thanh toán lại.');
+      setActionError(requestError instanceof ApiError ? requestError.message : 'Không thể thanh toán lại.');
     } finally {
       setBusyId(null);
     }

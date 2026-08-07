@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { CommunityHero, CommunityPage } from './CommunityUI';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
@@ -150,6 +151,51 @@ const buildCommentTree = (flatComments: any[]): DisplayComment[] => {
   return roots;
 };
 
+const emptyComments: DisplayComment[] = [];
+const emptyDetail: { post: DisplayPost | null; comments: DisplayComment[] } = {
+  post: null,
+  comments: emptyComments,
+};
+
+type PostUpdater = DisplayPost | null | ((current: DisplayPost | null) => DisplayPost | null);
+type CommentsUpdater = DisplayComment[] | ((current: DisplayComment[]) => DisplayComment[]);
+
+const toDisplayPost = (backendPost: Awaited<ReturnType<typeof getGlobalPost>>): DisplayPost => {
+  const parsed = parsePostContent(backendPost.content);
+
+  let formattedDate = 'Vừa xong';
+  try {
+    formattedDate = new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(backendPost.createdAt));
+  } catch {
+    // ignore date parse issues
+  }
+
+  return {
+    id: String(backendPost.postId),
+    authorName: backendPost.authorName || 'Thành viên Picklink',
+    avatar: backendPost.authorAvatarUrl || '',
+    level: '',
+    location: parsed.location || '',
+    createdAt: formattedDate,
+    title: parsed.title || 'Bài viết',
+    content: parsed.body,
+    image: backendPost.mediaUrls && backendPost.mediaUrls.length > 0 ? backendPost.mediaUrls[0] : undefined,
+    tags: parsed.tags || [],
+    lookingFor: parsed.lookingFor && parsed.slots
+      ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
+      : undefined,
+    likes: backendPost.likeCount || 0,
+    comments: backendPost.commentCount || 0,
+    liked: backendPost.likedByMe || false,
+    matchId: parsed.matchId,
+  };
+};
+
 const CommentItem = ({
   comment,
   nested = false,
@@ -228,77 +274,57 @@ export const PostDetail = () => {
   const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
 
-  const [post, setPost] = useState<DisplayPost | null>(null);
-  const [comments, setComments] = useState<DisplayComment[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
   const [commentImageUrl, setCommentImageUrl] = useState('');
   const [commentLocation, setCommentLocation] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  const loadPostDetails = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
+  const {
+    data,
+    loading,
+    refresh: loadPostDetails,
+    setData,
+  } = useApiQuery(
+    ['post-detail', id, token],
+    async () => {
       const postNumId = Number(id);
-      if (!Number.isInteger(postNumId) || postNumId <= 0) {
-        setPost(null);
-        setComments([]);
-        return;
-      }
+      if (!Number.isInteger(postNumId) || postNumId <= 0) return emptyDetail;
+
       const backendPost = await getGlobalPost(postNumId, token);
-      const parsed = parsePostContent(backendPost.content);
+      // Comments are only readable while signed in.
+      const comments = token
+        ? buildCommentTree(await getPostComments(postNumId, token))
+        : emptyComments;
 
-      let formattedDate = 'Vừa xong';
-      try {
-        formattedDate = new Intl.DateTimeFormat('vi-VN', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        }).format(new Date(backendPost.createdAt));
-      } catch {
-        // ignore date parse issues
-      }
+      return { post: toDisplayPost(backendPost), comments };
+    },
+    { enabled: Boolean(id) },
+  );
 
-      setPost({
-        id: String(backendPost.postId),
-        authorName: backendPost.authorName || 'Thành viên Picklink',
-        avatar: backendPost.authorAvatarUrl || '',
-        level: '',
-        location: parsed.location || '',
-        createdAt: formattedDate,
-        title: parsed.title || 'Bài viết',
-        content: parsed.body,
-        image: backendPost.mediaUrls && backendPost.mediaUrls.length > 0 ? backendPost.mediaUrls[0] : undefined,
-        tags: parsed.tags || [],
-        lookingFor: parsed.lookingFor && parsed.slots
-          ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
-          : undefined,
-        likes: backendPost.likeCount || 0,
-        comments: backendPost.commentCount || 0,
-        liked: backendPost.likedByMe || false,
-        matchId: parsed.matchId
-      });
+  const post = data?.post ?? null;
+  const comments = data?.comments ?? emptyComments;
 
-      // Load comments if authenticated
-      if (token) {
-        const flatComments = await getPostComments(postNumId, token);
-        const commentTree = buildCommentTree(flatComments);
-        setComments(commentTree);
-      }
-    } catch (err) {
-      console.error('Failed to load post details:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const setPost = useCallback((updater: PostUpdater) => {
+    setData((current) => {
+      const previous = current ?? emptyDetail;
+      return {
+        ...previous,
+        post: typeof updater === 'function' ? updater(previous.post) : updater,
+      };
+    });
+  }, [setData]);
 
-  useEffect(() => {
-    void loadPostDetails();
-  }, [id, token]);
+  const setComments = useCallback((updater: CommentsUpdater) => {
+    setData((current) => {
+      const previous = current ?? emptyDetail;
+      return {
+        ...previous,
+        comments: typeof updater === 'function' ? updater(previous.comments) : updater,
+      };
+    });
+  }, [setData]);
 
   useEffect(() => {
     if (token) {

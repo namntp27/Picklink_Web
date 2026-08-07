@@ -23,6 +23,7 @@ import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
@@ -78,9 +79,6 @@ export const AdminUsers = () => {
   const [role, setRole] = useState<AdminUserRole | 'all'>('all');
   const [lockedOnly, setLockedOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<PaginatedResponse<AdminUserSummary>>(emptyPage);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [busyUserId, setBusyUserId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -91,11 +89,15 @@ export const AdminUsers = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const loadUsers = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
+  const {
+    data = emptyPage,
+    error,
+    loading,
+    refresh: loadUsers,
+    setData,
+  } = useApiQuery(
+    ['admin-users', token, debouncedSearch, role, lockedOnly, page],
+    () => {
       const params: AdminUserListParams = {
         search: debouncedSearch,
         role,
@@ -103,17 +105,10 @@ export const AdminUsers = () => {
         page,
         pageSize: PAGE_SIZE,
       };
-      setData(await listAdminUsers(token, params));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách người dùng.');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, lockedOnly, page, role, token]);
-
-  useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
+      return listAdminUsers(token!, params);
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách người dùng.' },
+  );
 
   const toggleLock = async (target: AdminUserSummary) => {
     if (!token) return;
@@ -135,10 +130,13 @@ export const AdminUsers = () => {
       const updated = target.isLocked
         ? await unlockAdminUser(target.userId, token)
         : await lockAdminUser(target.userId, reason ?? '', token);
-      setData((current) => ({
-        ...current,
-        items: current.items.map((item) => item.userId === updated.userId ? updated : item),
-      }));
+      setData((current) => {
+        const page = current ?? emptyPage;
+        return {
+          ...page,
+          items: page.items.map((item) => item.userId === updated.userId ? updated : item),
+        };
+      });
       notify(target.isLocked ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.', 'success');
       if (lockedOnly && target.isLocked) {
         await loadUsers();

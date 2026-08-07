@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getOwnerBooking, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
@@ -47,25 +48,20 @@ export const OwnerBookingDetail = () => {
   const { id } = useParams();
   const { token } = useAuth();
   const bookingId = Number(id);
-  const [booking, setBooking] = useState<OwnerBookingRecord | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const load = useCallback(async () => {
-    if (!token || !Number.isInteger(bookingId) || bookingId <= 0) {
-      setError('Mã booking không hợp lệ.');
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true); setError('');
-    try { setBooking(await getOwnerBooking(token, bookingId)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Không thể tải chi tiết booking.'); }
-    finally { setIsLoading(false); }
-  }, [bookingId, token]);
+  const hasValidId = Boolean(token) && Number.isInteger(bookingId) && bookingId > 0;
+  const { data: booking = null, error: loadError, loading: isLoading, refresh: load } = useApiQuery(
+    ['owner-booking-detail', token, bookingId],
+    () => getOwnerBooking(token!, bookingId),
+    { enabled: hasValidId, errorMessage: 'Không thể tải chi tiết booking.' },
+  );
 
-  useEffect(() => { void load(); }, [load]);
+  const error = actionError || (hasValidId ? loadError : 'Mã booking không hợp lệ.');
+  const setError = setActionError;
+
   useScheduleRealtime((event) => {
     if (booking && event.venueId === booking.venueId && event.courtId === booking.courtId) void load();
   });

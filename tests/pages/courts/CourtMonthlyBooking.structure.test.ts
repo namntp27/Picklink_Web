@@ -16,9 +16,11 @@ test('court schedule applies the selected daily slots through a rolling number o
 });
 
 test('court schedule validates selections only against the availability for the displayed date', () => {
-  assert.match(scheduleSource, /const \[availabilityDate, setAvailabilityDate\] = useState<string \| null>\(null\)/);
-  assert.match(scheduleSource, /const requestedDate = date/);
-  assert.match(scheduleSource, /setAvailabilityDate\(requestedDate\)/);
+  // The date is part of the query key, so a response can only ever be applied to the day it was
+  // requested for; `availabilityDate` derives from that rather than being tracked separately.
+  assert.match(scheduleSource, /\['court-availability', venueId, date, token\]/);
+  assert.match(scheduleSource, /getCourtAvailability\(venueId, date, token\)/);
+  assert.match(scheduleSource, /const availabilityDate = availability \? date : null/);
   assert.match(scheduleSource, /availabilityDate !== date/);
 });
 
@@ -31,11 +33,16 @@ test('court schedule shows selected dates as removable slot cards', () => {
 });
 
 test('court schedule completes loading when its latest availability refresh is silent', () => {
-  assert.match(scheduleSource, /if \(availabilityRequestId\.current === requestId\) setIsLoading\(false\);/);
+  // useApiQuery owns the loading flag and drops superseded runs, so the page never keeps a
+  // spinner alive after a refresh that a newer request overtook.
+  assert.match(scheduleSource, /loading: isLoading,\r?\n\s*refresh: load,\r?\n\s*\} = useApiQuery\(/);
+  assert.doesNotMatch(scheduleSource, /setIsLoading\(/);
 });
 
 test('court schedule keeps a hold error visible while refreshing availability', () => {
-  assert.match(scheduleSource, /Không thể giữ slot\. Vui lòng tải lại lịch\.'\);\r?\n      await load\(false\);/);
+  // The hold failure lives in its own state, so refreshing availability cannot clear it.
+  assert.match(scheduleSource, /Không thể giữ slot\. Vui lòng tải lại lịch\.'\);\r?\n      await load\(\);/);
+  assert.match(scheduleSource, /const error = actionError \|\| loadError;/);
 });
 
 test("court schedule confirms a player's conflicting schedule before holding slots", () => {

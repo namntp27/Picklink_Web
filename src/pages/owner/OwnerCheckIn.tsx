@@ -24,6 +24,7 @@ import {
 import { getOwnerVenues, type OwnerVenue } from '../../api/owner';
 import type { StaffBooking } from '../../api/staff';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
 
 const money = new Intl.NumberFormat('vi-VN', {
@@ -70,28 +71,32 @@ type BookingAction = (token: string, bookingId: number) => Promise<StaffBooking>
 type GroupAction = (token: string, bookingId: number, groupId: number) => Promise<StaffBooking>;
 type ParticipantAction = (token: string, bookingId: number, playerId: number) => Promise<StaffBooking>;
 
+const emptyBookings: StaffBooking[] = [];
+const emptyVenues: OwnerVenue[] = [];
+
 export const OwnerCheckIn = () => {
   const { token } = useAuth();
   const [date, setDate] = useState(localToday);
   const [bookingType, setBookingType] = useState<'all' | 'Court' | 'Match'>('all');
-  const [venues, setVenues] = useState<OwnerVenue[]>([]);
   const [venueId, setVenueId] = useState(0);
-  const [bookings, setBookings] = useState<StaffBooking[]>([]);
   const [selected, setSelected] = useState<StaffBooking | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [code, setCode] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [busyKey, setBusyKey] = useState('');
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const loadBookings = useCallback(async () => {
-    if (!token) return;
-    setIsLoading(true);
-    setError('');
-    try {
+  const {
+    data: bookings = emptyBookings,
+    error: bookingsError,
+    loading: isLoading,
+    refresh: loadBookings,
+    setData: setBookings,
+  } = useApiQuery(
+    ['owner-check-in', token, date, bookingType, venueId],
+    async () => {
       const getPage = (page: number) => getOwnerCheckInBookings(
-        token,
+        token!,
         date,
         { page, pageSize: 100 },
         bookingType === 'all' ? undefined : bookingType,
@@ -103,36 +108,26 @@ export const OwnerCheckIn = () => {
         { length: Math.max(0, firstPage.totalPages - 1) },
         (_, index) => getPage(index + 2),
       ));
-      const items = [firstPage, ...remainingPages].flatMap((page) => page.items);
-      setBookings(items);
-      setSelected((current) => current
-        ? items.find((item) => item.bookingId === current.bookingId) ?? null
-        : null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách check-in.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [bookingType, date, token, venueId]);
+      return [firstPage, ...remainingPages].flatMap((page) => page.items);
+    },
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách check-in.' },
+  );
 
-  useEffect(() => {
-    void loadBookings();
-  }, [loadBookings]);
+  const { data: venues = emptyVenues, error: venuesError } = useApiQuery(
+    ['owner-venues', token],
+    () => getOwnerVenues(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách cụm sân.' },
+  );
 
+  const error = actionError || bookingsError || venuesError;
+  const setError = setActionError;
+
+  // Keep the open detail pane pointing at the freshest copy of its booking.
   useEffect(() => {
-    if (!token) return;
-    let active = true;
-    void getOwnerVenues(token)
-      .then((result) => {
-        if (active) setVenues(result);
-      })
-      .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách cụm sân.');
-      });
-    return () => {
-      active = false;
-    };
-  }, [token]);
+    setSelected((current) => current
+      ? bookings.find((item) => item.bookingId === current.bookingId) ?? null
+      : null);
+  }, [bookings]);
 
   const selectedGroup = useMemo(
     () => selected?.checkInGroups.find((item) => item.bookingCheckInGroupId === selectedGroupId) ?? null,
@@ -150,7 +145,8 @@ export const OwnerCheckIn = () => {
   };
 
   const updateBooking = (booking: StaffBooking) => {
-    setBookings((items) => {
+    setBookings((current) => {
+      const items = current ?? emptyBookings;
       const exists = items.some((item) => item.bookingId === booking.bookingId);
       return exists
         ? items.map((item) => item.bookingId === booking.bookingId ? booking : item)

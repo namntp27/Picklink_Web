@@ -8,6 +8,7 @@ import {
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 
@@ -31,33 +32,30 @@ const units: Record<string, string> = {
 const formatDateTime = (value?: string | null) =>
   value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Chưa cập nhật';
 
+const emptySettings: AdminSetting[] = [];
+
 export const AdminSettings = () => {
   const { token } = useAuth();
   const notify = useToast();
-  const [settings, setSettings] = useState<AdminSetting[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const loadSettings = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      const response = await getAdminSettings(token);
-      setSettings(response);
-      setDrafts(Object.fromEntries(response.map((item) => [item.settingKey, item.settingValue])));
-    } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải cấu hình hệ thống.');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+  const {
+    data: settings = emptySettings,
+    error,
+    loading,
+    refresh: loadSettings,
+    setData: setSettings,
+  } = useApiQuery(
+    ['admin-settings', token],
+    () => getAdminSettings(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải cấu hình hệ thống.' },
+  );
 
+  // Editable drafts follow whatever the server last returned.
   useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
+    setDrafts(Object.fromEntries(settings.map((item) => [item.settingKey, item.settingValue])));
+  }, [settings]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, AdminSetting[]>();
@@ -75,7 +73,7 @@ export const AdminSettings = () => {
     setBusyKey(setting.settingKey);
     try {
       const updated = await updateAdminSetting(token, setting.settingKey, settingValue);
-      setSettings((current) => current.map((item) => item.settingKey === updated.settingKey ? updated : item));
+      setSettings((current) => (current ?? emptySettings).map((item) => item.settingKey === updated.settingKey ? updated : item));
       setDrafts((current) => ({ ...current, [updated.settingKey]: updated.settingValue }));
       notify('Đã lưu cấu hình.', 'success');
     } catch (requestError) {

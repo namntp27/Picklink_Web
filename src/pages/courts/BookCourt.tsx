@@ -18,8 +18,9 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useOutletContext } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import { addFavoriteVenue, getBookingVenues, removeFavoriteVenue, type BookingVenue } from '../../api/booking';
-import { ApiError } from '../../api/client';
+import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -101,20 +102,22 @@ const MapViewport = ({ venues, playerLocation, selectedVenue }: {
   return null;
 };
 
+const emptyVenues: BookingVenue[] = [];
+const emptyPagination: PaginatedResponse<BookingVenue> = {
+  items: emptyVenues, page: 1, pageSize: 10, totalCount: 0, totalPages: 1,
+};
+
 export const BookCourt = () => {
   const { token } = useAuth();
   const { setShowFooter } = useOutletContext<MainLayoutContext>() ?? {};
-  const [venues, setVenues] = useState<BookingVenue[]>([]);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') ?? '');
   const [selectedProvince, setSelectedProvince] = useState(() => new URLSearchParams(window.location.search).get('area') ?? '');
   const [selectedWard, setSelectedWard] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(() => new URLSearchParams(window.location.search).get('favorites') === 'true');
-  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
   const [showRouteMap, setShowRouteMap] = useState(false);
   const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(() => readCachedPlayerLocation());
@@ -124,52 +127,53 @@ export const BookCourt = () => {
     : 'Bấm Vị trí của tôi để xem sân gần bạn.');
   const shouldReduceMotion = useReducedMotion();
   const areaFilter = [selectedWard, selectedProvince].filter(Boolean).join(' ');
-  const venueRequestController = useRef<AbortController | null>(null);
+
+  // Typed filters should not fire a request per keystroke; the area dropdowns change discretely
+  // and apply straight away.
+  const [typedFilters, setTypedFilters] = useState(() => ({ search, minPrice, maxPrice }));
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTypedFilters({ search, minPrice, maxPrice }), 250);
+    return () => window.clearTimeout(timer);
+  }, [maxPrice, minPrice, search]);
 
   useEffect(() => {
     setShowFooter?.(false);
     return () => setShowFooter?.(true);
   }, [setShowFooter]);
 
-  const loadVenues = useCallback(async (silent = false) => {
-    venueRequestController.current?.abort();
-    const controller = new AbortController();
-    venueRequestController.current = controller;
-    if (!silent) setIsLoading(true);
+  const {
+    data,
+    error: loadError,
+    loading: isLoading,
+    refresh: loadVenues,
+    setData,
+  } = useApiQuery(
+    ['booking-venues', token, typedFilters, areaFilter, favoritesOnly, page],
+    () => getBookingVenues({
+      search: typedFilters.search,
+      area: areaFilter,
+      minPrice: typedFilters.minPrice ? Number(typedFilters.minPrice) : undefined,
+      maxPrice: typedFilters.maxPrice ? Number(typedFilters.maxPrice) : undefined,
+      favoritesOnly,
+      page,
+      pageSize: 10,
+    }, token),
+    { errorMessage: 'Không thể tải danh sách sân.' },
+  );
 
-    try {
-      const result = await getBookingVenues({
-        search,
-        area: areaFilter,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        favoritesOnly,
-        page,
-        pageSize: 10,
-      }, token, controller.signal);
-      if (controller.signal.aborted) return;
-      setVenues(result.items);
-      setPagination(result);
-      setError('');
-    } catch (requestError) {
-      if (controller.signal.aborted) return;
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải danh sách sân.');
-    } finally {
-      if (!controller.signal.aborted && venueRequestController.current === controller) {
-        setIsLoading(false);
-      }
-    }
-  }, [areaFilter, favoritesOnly, maxPrice, minPrice, page, search, token]);
+  const venues = data?.items ?? emptyVenues;
+  const pagination = data ?? emptyPagination;
+  const error = actionError || loadError;
+  const setError = setActionError;
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadVenues(); }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      venueRequestController.current?.abort();
-    };
-  }, [loadVenues]);
+  const setVenues = useCallback((updater: (current: BookingVenue[]) => BookingVenue[]) => {
+    setData((current) => ({
+      ...(current ?? emptyPagination),
+      items: updater(current?.items ?? emptyVenues),
+    }));
+  }, [setData]);
 
-  useVenueRealtime(() => { void loadVenues(true); });
+  useVenueRealtime(() => { void loadVenues(); });
 
   const visibleVenues = useMemo(() => {
     const keyword = search.trim().toLowerCase();

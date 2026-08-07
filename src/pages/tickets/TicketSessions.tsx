@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   AlertCircle,
   CalendarDays,
@@ -16,12 +16,15 @@ import {
   type TicketSession,
   type TicketSessionSearch,
 } from '../../api/ticketing';
-import { ApiError } from '../../api/client';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+
+const emptySessions: TicketSession[] = [];
+const emptyPagination = { page: 1, pageSize: 9, totalCount: 0, totalPages: 1 };
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -76,72 +79,37 @@ const toSearch = (draft: FilterDraft): TicketSessionSearch => ({
 });
 
 export const TicketSessions = () => {
-  const [sessions, setSessions] = useState<TicketSession[]>([]);
   const [draft, setDraft] = useState<FilterDraft>(emptyFilters);
   const [filters, setFilters] = useState<TicketSessionSearch>({});
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 9,
-    totalCount: 0,
-    totalPages: 1,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [filterError, setFilterError] = useState('');
 
-  const load = async (showLoading = true) => {
-    if (showLoading) setLoading(true);
-    try {
-      const result = await getTicketSessions({ ...filters, page, pageSize: 9 });
-      setSessions(result.items);
-      setPagination(result);
-      setError('');
-    } catch (requestError) {
-      setError(requestError instanceof ApiError
-        ? requestError.message
-        : 'Không thể tải danh sách buổi xé vé.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  };
+  const { data, error: loadError, loading, refresh: load } = useApiQuery(
+    ['ticket-sessions', filters, page],
+    () => getTicketSessions({ ...filters, page, pageSize: 9 }),
+    { errorMessage: 'Không thể tải danh sách buổi xé vé.' },
+  );
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    getTicketSessions({ ...filters, page, pageSize: 9 })
-      .then((result) => {
-        if (!active) return;
-        setSessions(result.items);
-        setPagination(result);
-        setError('');
-      })
-      .catch((requestError: unknown) => {
-        if (!active) return;
-        setError(requestError instanceof ApiError
-          ? requestError.message
-          : 'Không thể tải danh sách buổi xé vé.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, [filters, page]);
+  const sessions = data?.items ?? emptySessions;
+  const pagination = data ?? emptyPagination;
+  const error = filterError || loadError;
 
   useScheduleRealtime((event) => {
-    if (event.entryType === 'TicketSession') void load(false);
+    if (event.entryType === 'TicketSession') void load();
   });
 
   usePaymentRealtime((event) => {
-    if (sessions.some((session) => session.bookingId === event.bookingId)) void load(false);
+    if (sessions.some((session) => session.bookingId === event.bookingId)) void load();
   });
 
   const applyFilters = (event: FormEvent) => {
     event.preventDefault();
     const next = toSearch(draft);
     if (next.minPrice !== undefined && next.maxPrice !== undefined && next.minPrice > next.maxPrice) {
-      setError('Giá tối thiểu không được lớn hơn giá tối đa.');
+      setFilterError('Giá tối thiểu không được lớn hơn giá tối đa.');
       return;
     }
+    setFilterError('');
     setPage(1);
     setFilters(next);
   };
@@ -150,7 +118,7 @@ export const TicketSessions = () => {
     setDraft(emptyFilters);
     setFilters({});
     setPage(1);
-    setError('');
+    setFilterError('');
   };
 
   return (

@@ -23,6 +23,7 @@ import { getOpenMatches, searchMatchVenues, type MatchFormat, type MatchPreferre
 import { getPublicQueues, joinPublicQueue, cancelQueue, type QueueStatusResponse } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { PaginationControls } from '../../components/PaginationControls';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
@@ -78,13 +79,14 @@ const queueDateRange = (queue: QueueStatusResponse) => {
 
 
 const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
+
+const emptyQueues: QueueStatusResponse[] = [];
+const emptyMatches: MatchSummary[] = [];
+const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
 export const PendingInvites = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'manual' | 'queue'>('manual');
-  const [queues, setQueues] = useState<QueueStatusResponse[]>([]);
-  const [queuesLoading, setQueuesLoading] = useState(false);
-  const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [selectedHost, setSelectedHost] = useState<Pick<
     MatchSummary,
     'hostPlayerId' | 'hostName' | 'hostAvatarUrl'
@@ -97,27 +99,21 @@ export const PendingInvites = () => {
   const [mappedQueue, setMappedQueue] = useState<QueueStatusResponse | null>(null);
   const [filters, setFilters] = useState<Filters>(defaults);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
   const [debouncedProvince, setDebouncedProvince] = useState(filters.province);
   const [debouncedWard, setDebouncedWard] = useState(filters.ward);
-  const abortRef = useRef<AbortController | null>(null);
-  const requestIdRef = useRef(0);
+  const setError = setActionError;
 
-  const loadQueues = useCallback(async () => {
-    setQueuesLoading(true);
-    try {
-      const res = await getPublicQueues(token);
-      setQueues(res);
-      setError('');
-    } catch (err) {
-      console.error('Failed to load public queues', err);
-      setError(err instanceof Error ? err.message : 'Không thể tải danh sách hàng chờ.');
-    } finally {
-      setQueuesLoading(false);
-    }
-  }, [token]);
+  const {
+    data: queues = emptyQueues,
+    error: queuesError,
+    loading: queuesLoading,
+    refresh: loadQueues,
+  } = useApiQuery(
+    ['public-queues', token],
+    () => getPublicQueues(token),
+    { enabled: activeTab === 'queue', errorMessage: 'Không thể tải danh sách hàng chờ.' },
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -180,55 +176,34 @@ export const PendingInvites = () => {
     return () => window.clearTimeout(timerId);
   }, [filters.province, filters.ward]);
 
-  const load = useCallback(async (options?: { silent?: boolean }) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    requestIdRef.current += 1;
-    const requestId = requestIdRef.current;
+  const {
+    data: matchPage,
+    error: matchesError,
+    loading: isLoading,
+    refresh: load,
+  } = useApiQuery(
+    ['open-matches', token, page, filters.owner, filters.format, filters.skill, filters.date,
+      debouncedProvince, debouncedWard],
+    () => getOpenMatches(token ?? undefined, {
+      page,
+      pageSize: 10,
+      owner: filters.owner,
+      matchType: filters.format === 'all' ? undefined : filters.format,
+      skillLevel: filters.skill === 'all' ? undefined : Number(filters.skill),
+      from: filters.date || undefined,
+      to: filters.date || undefined,
+      province: debouncedProvince || undefined,
+      ward: debouncedWard || undefined,
+    }),
+    { enabled: activeTab === 'manual', errorMessage: 'Không thể tải danh sách lời mời.' },
+  );
 
-    if (!options?.silent) setIsLoading(true);
-    try {
-      const result = await getOpenMatches(token ?? undefined, {
-        page,
-        pageSize: 10,
-        owner: filters.owner,
-        matchType: filters.format === 'all' ? undefined : filters.format,
-        skillLevel: filters.skill === 'all' ? undefined : Number(filters.skill),
-        from: filters.date || undefined,
-        to: filters.date || undefined,
-        province: debouncedProvince || undefined,
-        ward: debouncedWard || undefined,
-      }, { signal: controller.signal });
-
-      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
-      setMatches(result.items);
-      setPagination(result);
-      setError('');
-    } catch (reason) {
-      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
-      setError(reason instanceof Error ? reason.message : 'Không thể tải danh sách lời mời.');
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-        if (abortRef.current === controller) abortRef.current = null;
-      }
-    }
-  }, [debouncedProvince, debouncedWard, filters.date, filters.format, filters.owner, filters.skill, page, token]);
-
-  useEffect(() => {
-    if (activeTab === 'manual') {
-      void load();
-    } else {
-      void loadQueues();
-    }
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, [load, loadQueues, activeTab]);
+  const matches = matchPage?.items ?? emptyMatches;
+  const pagination = matchPage ?? emptyPagination;
+  const error = actionError || (activeTab === 'manual' ? matchesError : queuesError);
 
   useMatchRealtime(() => {
-    void load({ silent: true });
+    void load();
   });
 
   const visibleMatches = matches;

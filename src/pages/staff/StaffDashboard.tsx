@@ -18,6 +18,7 @@ import {
   UserX,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import {
   confirmStaffAtCourtPayment,
   getStaffAssignments,
@@ -126,14 +127,15 @@ const vietnameseMessage = (value: string) => value
 type BookingTypeFilter = 'all' | 'Court' | 'Match';
 type WorkspaceMode = 'bookings' | 'tickets';
 
+const emptyAssignments: StaffAssignment[] = [];
+const emptyBookings: StaffBooking[] = [];
+const emptyNotifications: StaffNotification[] = [];
+const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
+
 export const StaffDashboard = () => {
   const { token, user, logout } = useAuth();
   const shouldReduceMotion = useReducedMotion();
-  const [assignments, setAssignments] = useState<StaffAssignment[]>([]);
-  const [bookings, setBookings] = useState<StaffBooking[]>([]);
   const [bookingsPage, setBookingsPage] = useState(1);
-  const [bookingPagination, setBookingPagination] = useState({ page: 1, pageSize: 10, totalCount: 0, totalPages: 1 });
-  const [notifications, setNotifications] = useState<StaffNotification[]>([]);
   const [selected, setSelected] = useState<StaffBooking | null>(null);
   const [selectedCheckInGroupId, setSelectedCheckInGroupId] = useState<number | null>(null);
   const [searchCode, setSearchCode] = useState('');
@@ -147,9 +149,8 @@ export const StaffDashboard = () => {
   const [ticketParticipants, setTicketParticipants] = useState<StaffTicketParticipant[]>([]);
   const [isTicketLoading, setIsTicketLoading] = useState(false);
   const [isTicketDetailLoading, setIsTicketDetailLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
   const detailPanelRef = useRef<HTMLElement | null>(null);
 
@@ -200,48 +201,67 @@ export const StaffDashboard = () => {
     }
   };
 
-  const load = useCallback(async (signal: AbortSignal) => {
-    if (!token || workspaceMode !== 'bookings') return;
-    setIsLoading(true);
-    setError('');
-    try {
-      void getStaffNotifications(token, { signal })
-        .then((result) => {
-          if (!signal.aborted) setNotifications(result);
-        })
-        .catch(() => {
-          if (!signal.aborted) setNotifications([]);
-        });
-      const [assignmentResult, bookingResult] = await Promise.all([
-        getStaffAssignments(token, { signal }),
+  const {
+    data: shift,
+    error: loadError,
+    loading: isLoading,
+    setData: setShift,
+  } = useApiQuery(
+    ['staff-shift', token, date, bookingsPage, bookingTypeFilter],
+    async () => {
+      const [assignments, bookingResult] = await Promise.all([
+        getStaffAssignments(token!),
         getTodayStaffBookings(
-          token,
+          token!,
           date,
           { page: bookingsPage, pageSize: 10 },
           bookingTypeFilter === 'all' ? undefined : bookingTypeFilter,
-          { signal },
         ),
       ]);
-      if (signal.aborted) return;
-      setAssignments(assignmentResult);
-      setBookings(bookingResult.items);
-      setBookingPagination(bookingResult);
-      setSelected((current) => current
-        ? bookingResult.items.find((item) => item.bookingId === current.bookingId) ?? null
-        : null);
-    } catch (reason) {
-      if (signal.aborted) return;
-      setError(reason instanceof Error ? vietnameseMessage(reason.message) : 'Không thể tải ca vận hành.');
-    } finally {
-      if (!signal.aborted) setIsLoading(false);
-    }
-  }, [bookingTypeFilter, bookingsPage, date, token, workspaceMode]);
+      return {
+        assignments,
+        bookings: bookingResult.items,
+        bookingPagination: {
+          page: bookingResult.page,
+          pageSize: bookingResult.pageSize,
+          totalCount: bookingResult.totalCount,
+          totalPages: bookingResult.totalPages,
+        },
+      };
+    },
+    {
+      enabled: Boolean(token) && workspaceMode === 'bookings',
+      errorMessage: 'Không thể tải ca vận hành.',
+    },
+  );
 
+  // Notifications are a side panel: they must never hold up the booking queue.
+  const { data: notifications = emptyNotifications } = useApiQuery(
+    ['staff-notifications', token],
+    () => getStaffNotifications(token!).catch(() => emptyNotifications),
+    { enabled: Boolean(token) && workspaceMode === 'bookings' },
+  );
+
+  const assignments = shift?.assignments ?? emptyAssignments;
+  const bookings = shift?.bookings ?? emptyBookings;
+  const bookingPagination = shift?.bookingPagination ?? emptyPagination;
+  const error = actionError || (loadError ? vietnameseMessage(loadError) : '');
+  const setError = setActionError;
+
+  const setBookings = useCallback((updater: (current: StaffBooking[]) => StaffBooking[]) => {
+    setShift((current) => ({
+      assignments: current?.assignments ?? emptyAssignments,
+      bookingPagination: current?.bookingPagination ?? emptyPagination,
+      bookings: updater(current?.bookings ?? emptyBookings),
+    }));
+  }, [setShift]);
+
+  // Keep the open detail pane pointing at the freshest copy of its booking.
   useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+    setSelected((current) => current
+      ? bookings.find((item) => item.bookingId === current.bookingId) ?? null
+      : null);
+  }, [bookings]);
 
   const loadTicketSessions = useCallback(async (signal: AbortSignal) => {
     if (!token || workspaceMode !== 'tickets') return;
