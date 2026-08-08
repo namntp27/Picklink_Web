@@ -5,6 +5,8 @@ import { test } from 'node:test';
 const source = readFileSync(new URL('../../../src/pages/owner/OwnerBookings.tsx', import.meta.url), 'utf8');
 const adapterSource = readFileSync(new URL('../../../src/pages/owner/ownerBookingAdapter.ts', import.meta.url), 'utf8');
 const detailSource = readFileSync(new URL('../../../src/pages/owner/OwnerBookingDetail.tsx', import.meta.url), 'utf8');
+const slotSummarySource = readFileSync(new URL('../../../src/pages/owner/components/OwnerBookingSlotSummary.tsx', import.meta.url), 'utf8');
+const transactionModalSource = readFileSync(new URL('../../../src/pages/owner/components/OwnerTransactionReviewModal.tsx', import.meta.url), 'utf8');
 
 test('regular owner bookings filter the selected day by creation date', () => {
   assert.match(source, /const matchesSelectedDate = getLocalDateValue\(new Date\(booking\.createdAt\)\) === selectedDate;/);
@@ -34,7 +36,22 @@ test('owner keeps completed action responses in the receipt cache', () => {
 
 test('regular owner bookings retain and render every selected child-court slot', () => {
   assert.match(adapterSource, /slots: record\.slots/);
-  assert.match(source, /booking\.slots\.map\(\(slot\)/);
+  assert.match(source, /<OwnerBookingSlotSummary[\s\S]*slots=\{booking\.slots\}/);
+});
+
+test('owner bookings collapse long court schedules into a scrollable detail dialog', () => {
+  assert.match(slotSummarySource, /slotGroups\.length > OWNER_SLOT_DETAIL_THRESHOLD/);
+  assert.match(slotSummarySource, /Xem chi tiết slot/);
+  assert.match(slotSummarySource, /max-h-\[min\(65dvh,560px\)\][^\"]*overflow-y-auto/);
+  assert.match(transactionModalSource, /<OwnerBookingSlotSummary slots=\{paymentSlots\}/);
+});
+
+test('owner bookings use the compact operations layout', () => {
+  assert.match(source, /owner-bookings-page/);
+  assert.match(source, /owner-bookings-metrics/);
+  assert.match(source, /aria-label="Lọc theo trạng thái"/);
+  assert.match(source, /<OwnerBookingSlotSummary[\s\S]*dense/);
+  assert.match(source, /min-w-\[1040px\]/);
 });
 
 test('owner booking detail summarizes child-court slots', () => {

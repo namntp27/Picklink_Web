@@ -56,6 +56,17 @@ test('checkout summarizes selected child-court slots instead of the parent booki
   assert.doesNotMatch(checkoutSource, /timeText\(booking\.startTime\)} - \{timeText\(booking\.endTime\)/);
 });
 
+test('checkout keeps a large slot schedule compact and opens details on demand', () => {
+  assert.match(checkoutSource, /CHECKOUT_SLOT_DETAIL_THRESHOLD = 3/);
+  assert.match(checkoutSource, /hasManySlotSummaries/);
+  assert.match(checkoutSource, /Xem chi tiết slot/);
+  assert.match(checkoutSource, /showSlotDetails && \(/);
+  assert.match(checkoutSource, /checkout-slot-details-title/);
+  assert.match(checkoutSource, /max-h-\[min\(65dvh,560px\)\]/);
+  assert.match(checkoutSource, /width: 'min\(640px, calc\(100vw - 2rem\)\)'/);
+  assert.match(checkoutSource, /setShowSlotDetails\(false\)/);
+});
+
 test('checkout renders an owner-rejected receipt as a red alert', () => {
   assert.match(checkoutSource, /transfer\?\.rejectionReason && status === 'Pending'/);
   assert.match(checkoutSource, /border-red-300 bg-red-50/);

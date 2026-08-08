@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Building2,
   CheckCircle2,
+  ChevronRight,
   Clipboard,
   Clock,
   Loader2,
@@ -13,6 +14,7 @@ import {
   ReceiptText,
   ShieldCheck,
   Upload,
+  X,
 } from 'lucide-react';
 import { cancelBookingHolding, getBookingHolding, type BankTransfer, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
@@ -20,6 +22,7 @@ import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { Button } from '../../components/ui/Button';
+import { ModalDialog } from '../../components/ui/ModalDialog';
 import { MatchCheckout } from '../matches/MatchCheckout';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -34,6 +37,7 @@ const statusText: Record<string, string> = {
 };
 const PAYMENT_EXPIRED_MESSAGE = 'Thời gian thanh toán đã hết hạn. Đang chuyển về lịch sân...';
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
+const CHECKOUT_SLOT_DETAIL_THRESHOLD = 3;
 const ALLOWED_RECEIPT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const utcTimestamp = (value: string) => {
   // API serializes DateTime values in Vietnam wall-clock time without an offset.
@@ -85,6 +89,7 @@ const CourtCheckout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showSlotDetails, setShowSlotDetails] = useState(false);
   const [error, setError] = useState('');
   const shouldReduceMotion = useReducedMotion();
 
@@ -104,6 +109,10 @@ const CourtCheckout = () => {
   useEffect(() => {
     void loadBooking();
   }, [bookingId, token]);
+
+  useEffect(() => {
+    setShowSlotDetails(false);
+  }, [bookingId]);
 
   useEffect(() => {
     if (!isHoldCountdownActive) return;
@@ -243,6 +252,7 @@ const CourtCheckout = () => {
   const isWaiting = isPaymentAwaitingReview;
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 10 };
   const slotSummaries = buildSlotSummaries(booking);
+  const hasManySlotSummaries = slotSummaries.length > CHECKOUT_SLOT_DETAIL_THRESHOLD;
   const selectedCourtNumbers = Array.from(new Set(slotSummaries.map((slot) => slot.courtNumber))).sort((left, right) => left - right);
   const selectedDurationHours = booking.slots.length ? booking.slots.length * 0.5 : booking.durationHours;
 
@@ -425,18 +435,33 @@ const CourtCheckout = () => {
               </div>
               <div className="flex gap-3">
                 <Clock className="h-5 w-5 shrink-0 text-primary" />
-                <div>
-                  <div className="space-y-2 text-[#66766d]">
-                    {slotSummaries.map((slot) => (
-                      <p key={`${slot.courtId}-${slot.startTime}`}>
-                        <strong className="block text-[#0b2228]">{dateText(slot.startTime)}</strong>
-                        <span className="mt-0.5 block">
-                          {slotSummaries.length > 1 ? `Sân ${slot.courtNumber}: ` : ''}{timeText(slot.startTime)} - {timeText(slot.endTime)}
-                        </span>
-                      </p>
-                    ))}
-                    <p>{hoursText(selectedDurationHours)} giờ</p>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  {hasManySlotSummaries ? (
+                    <div className="rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
+                      <p className="font-extrabold text-[#0b2228]">{slotSummaries.length} slot đã chọn</p>
+                      <p className="mt-1 text-[12px] font-semibold text-[#66766d]">Tổng thời lượng {hoursText(selectedDurationHours)} giờ</p>
+                      <button
+                        className="mt-3 flex min-h-10 w-full items-center justify-between rounded-lg bg-[#0b2228] px-3 text-[12px] font-extrabold text-white transition-colors hover:bg-[#173a41] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#276b3f]"
+                        onClick={() => setShowSlotDetails(true)}
+                        type="button"
+                      >
+                        Xem chi tiết slot
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-[#66766d]">
+                      {slotSummaries.map((slot) => (
+                        <p key={`${slot.courtId}-${slot.startTime}`}>
+                          <strong className="block text-[#0b2228]">{dateText(slot.startTime)}</strong>
+                          <span className="mt-0.5 block">
+                            {slotSummaries.length > 1 ? `Sân ${slot.courtNumber}: ` : ''}{timeText(slot.startTime)} - {timeText(slot.endTime)}
+                          </span>
+                        </p>
+                      ))}
+                      <p>{hoursText(selectedDurationHours)} giờ</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -459,6 +484,41 @@ const CourtCheckout = () => {
             </div>
           </aside>
         </div>
+
+        {showSlotDetails && (
+          <ModalDialog
+            aria-labelledby="checkout-slot-details-title"
+            className="m-auto overflow-hidden rounded-2xl bg-white text-[#0b2228] shadow-2xl"
+            onRequestClose={() => setShowSlotDetails(false)}
+            style={{ width: 'min(640px, calc(100vw - 2rem))', maxWidth: '640px' }}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#dbe8d3] bg-[#f8fbf4] px-5 py-4">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#276b3f]">Lịch đặt sân</p>
+                <h2 className="mt-1 text-xl font-black" id="checkout-slot-details-title">Chi tiết slot đã chọn</h2>
+                <p className="mt-1 text-[12px] font-semibold text-[#66766d]">{slotSummaries.length} slot · {hoursText(selectedDurationHours)} giờ</p>
+              </div>
+              <button
+                aria-label="Đóng chi tiết slot"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dbe8d3] bg-white hover:bg-[#eef8e6]"
+                onClick={() => setShowSlotDetails(false)}
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[min(65dvh,560px)] space-y-2 overflow-y-auto p-4">
+              {slotSummaries.map((slot) => (
+                <article className="rounded-xl border border-[#dbe8d3] bg-white px-4 py-3" key={`${slot.courtId}-${slot.startTime}`}>
+                  <strong className="block text-[13px] text-[#0b2228]">{dateText(slot.startTime)}</strong>
+                  <span className="mt-1 block text-[12px] font-semibold text-[#66766d]">
+                    Sân {slot.courtNumber} · {timeText(slot.startTime)} - {timeText(slot.endTime)}
+                  </span>
+                </article>
+              ))}
+            </div>
+          </ModalDialog>
+        )}
       </main>
     </div>
   );

@@ -41,6 +41,7 @@ import { preloadReceiptImage } from '../../utils/receiptImage';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 import { OwnerMatchTransactionReviewModal } from './components/OwnerMatchTransactionReviewModal';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
+import { OwnerBookingSlotSummary } from './components/OwnerBookingSlotSummary';
 
 type BookingStateFilter = 'all' | BookingStatus | 'ready_checkin';
 type OwnerBookingKind = 'regular' | 'match';
@@ -409,91 +410,91 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     .reduce((total, booking) => total + booking.totalAmount, 0);
 
   return (
-    <OwnerShell activeId={isMatchBooking ? 'matchBookings' : 'bookings'} innerClassName="max-w-[1320px]">
-            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700">{error}</div>}
-            {isLoading && <div className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-[13px] font-bold text-on-surface-variant">Đang tải booking thực tế...</div>}
-            <section className="owner-page-header">
+    <OwnerShell activeId={isMatchBooking ? 'matchBookings' : 'bookings'} innerClassName="owner-bookings-page max-w-[1320px]">
+            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-bold text-red-700">{error}</div>}
+            {isLoading && <div className="rounded-lg border border-outline-variant bg-white px-3 py-2 text-[12px] font-bold text-on-surface-variant">Đang tải booking thực tế...</div>}
+            <section className="owner-bookings-header owner-page-header">
               <div>
                 <p className="owner-kicker">
-                  {isMatchBooking ? <UsersRound className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+                  {isMatchBooking ? <UsersRound className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}
                   {isMatchBooking ? 'Danh sách đơn ghép trận' : 'Danh sách đơn đặt sân'}
                 </p>
-                <h1 className="mt-2">
+                <h1 className="mt-1">
                   {isMatchBooking ? 'Quản lý đơn ghép trận' : 'Quản lý đơn đặt sân'}
                 </h1>
-                <p className="mt-2">
+                <p className="mt-1">
                   {isMatchBooking
                     ? 'Theo dõi các trận ghép sử dụng sân của bạn, số người tham gia và trạng thái thanh toán.'
                     : 'Theo dõi đơn mới, trạng thái thanh toán, check-in và xử lý nhanh từng lịch đặt của người chơi.'}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:flex">
+              <div className="owner-bookings-header-actions grid grid-cols-2 gap-2 sm:flex">
                 <Link
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary px-3 text-[12px] font-bold text-primary hover:bg-primary/10"
                   to="/owner"
                 >
-                  <CalendarDays className="h-5 w-5" />
+                  <CalendarDays className="h-4 w-4" />
                   Xem lịch sân
                 </Link>
                 <Link
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white hover:bg-primary/90"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-[12px] font-bold text-white hover:bg-primary/90"
                   to="/owner/courts"
                 >
-                  <Map className="h-5 w-5" />
+                  <Map className="h-4 w-4" />
                   Quản lý sân
                 </Link>
               </div>
             </section>
 
-            <section className="owner-stat-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+            <section aria-label="Tổng quan đơn đặt sân" className="owner-bookings-metrics owner-panel">
               {[
                 { label: isMatchBooking ? 'Tổng trận ghép' : 'Tổng đơn', value: bookings.length, icon: isMatchBooking ? UsersRound : CreditCard, helper: `${pendingBookings.length} đơn chờ xử lý` },
                 { label: 'Đã xác nhận', value: confirmedBookings.length, icon: CheckCircle2, helper: 'Đang giữ sân cho khách' },
                 { label: 'Sẵn sàng check-in', value: readyCheckIns.length, icon: UserRound, helper: 'Có thể check-in tại quầy' },
-                { label: 'Doanh thu đã trả', value: formatBookingCurrency(totalRevenue), icon: Banknote, helper: 'Từ các đơn đã thanh toán' },
+                { label: 'Doanh thu', value: formatBookingCurrency(totalRevenue), icon: Banknote, helper: 'Từ các đơn đã thanh toán' },
               ].map((stat) => (
-                <div className="owner-stat-card" key={stat.label}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[13px] font-bold text-on-surface-variant">{stat.label}</p>
-                      <p className="mt-2 font-mono text-[24px] font-extrabold leading-tight text-on-surface">{stat.value}</p>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <stat.icon className="h-5 w-5" />
-                    </div>
+                <div className="owner-bookings-metric" key={stat.label}>
+                  <div className="owner-bookings-metric__icon">
+                    <stat.icon className="h-4 w-4" />
                   </div>
-                  <p className="mt-3 text-[12px] font-medium text-on-surface-variant">{stat.helper}</p>
+                  <div className="min-w-0">
+                    <div className="owner-bookings-metric__main flex items-baseline gap-2">
+                      <p className="truncate text-[11px] font-bold text-on-surface-variant">{stat.label}</p>
+                      <p className="font-mono text-[18px] font-extrabold leading-none text-on-surface">{stat.value}</p>
+                    </div>
+                    <p className="owner-bookings-metric__helper mt-1 truncate text-[10px] font-medium text-on-surface-variant">{stat.helper}</p>
+                  </div>
                 </div>
               ))}
             </section>
 
-            <section className="owner-panel">
-              <div className="flex flex-col gap-4 border-b border-outline-variant p-5 xl:flex-row xl:items-center xl:justify-between">
+            <section className="owner-bookings-table owner-panel">
+              <div className="owner-bookings-toolbar flex flex-col gap-3 border-b border-outline-variant p-4 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <h2 className="text-[20px] font-bold">
+                  <h2 className="text-[17px] font-bold">
                     {selectedDate === today
                       ? isMatchBooking ? 'Đơn ghép trận hôm nay' : 'Đơn đặt sân hôm nay'
                       : isMatchBooking ? 'Đơn ghép trận theo ngày chơi' : 'Đơn đặt sân theo ngày'}
                   </h2>
-                  <p className="mt-1 text-[13px] text-on-surface-variant">
+                  <p className="mt-0.5 text-[11px] text-on-surface-variant">
                     Có {pagination.totalCount} {isMatchBooking ? '\u0111\u01a1n gh\u00e9p tr\u1eadn \u0111\u01b0\u1ee3c \u0111\u1eb7t' : '\u0111\u01a1n \u0111\u01b0\u1ee3c \u0111\u1eb7t'} ngày {formatBookingDate(selectedDate)}.
                   </p>
                 </div>
-                <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap xl:w-auto xl:flex-nowrap">
                   <div className="flex items-center gap-2">
                     <button
                       aria-label="Xem ngày trước"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low"
+                      className="owner-bookings-control flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low"
                       onClick={() => changeSelectedDate(-1)}
                       type="button"
                     >
-                      <ChevronLeft className="h-5 w-5" />
+                      <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <label className="relative min-w-0 flex-1 sm:w-[180px]">
+                    <label className="relative min-w-0 flex-1 sm:w-[156px]">
                       <span className="sr-only">{isMatchBooking ? 'Chọn ngày chơi đơn ghép trận' : 'Chọn ngày đặt sân'}</span>
                       <input
-                        className="h-11 w-full rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="owner-bookings-control h-9 w-full rounded-lg border border-outline-variant bg-white px-2.5 text-[12px] font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         max="9999-12-31"
                         onChange={(event) => {
                           setSelectedDate(event.target.value);
@@ -505,17 +506,17 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                     </label>
                     <button
                       aria-label="Xem ngày tiếp theo"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low"
+                      className="owner-bookings-control flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low"
                       onClick={() => changeSelectedDate(1)}
                       type="button"
                     >
-                      <ChevronRight className="h-5 w-5" />
+                      <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="relative w-full sm:w-[320px]">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                  <div className="relative w-full sm:w-[240px]">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-on-surface-variant" />
                     <input
-                      className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="owner-bookings-control h-9 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-8 pr-2.5 text-[12px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                       onChange={(event) => {
                         setSearchTerm(event.target.value);
                         setPage(1);
@@ -525,11 +526,24 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       value={searchTerm}
                     />
                   </div>
+                  <label className="block w-full sm:w-[164px]">
+                    <span className="sr-only">Lọc theo trạng thái</span>
+                    <select
+                      aria-label="Lọc theo trạng thái"
+                      className="owner-bookings-control h-9 w-full rounded-lg border border-outline-variant bg-white px-2.5 text-[11px] font-bold text-on-surface outline-none focus:border-primary"
+                      onChange={(event) => setBookingStateFilter(event.target.value as BookingStateFilter)}
+                      value={bookingStateFilter}
+                    >
+                      {bookingStateFilterOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1120px] text-left">
+                <table className="owner-bookings-table__grid w-full min-w-[1040px] text-left">
                   <thead className="bg-surface-container-low">
                     <tr>
                       <th className="w-16 px-5 py-4 text-center text-[12px] font-bold uppercase text-on-surface-variant">STT</th>
@@ -540,20 +554,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                       <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Sân</th>
                       <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Giờ chơi</th>
                       <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Giá tiền</th>
-                      <th className="px-5 py-3 text-[12px] font-bold uppercase text-on-surface-variant">
-                        <label className="block">
-                          <span className="sr-only">Lọc theo trạng thái</span>
-                          <select
-                            className="h-9 min-w-40 rounded-lg border border-outline-variant bg-white px-3 text-[12px] font-bold normal-case text-on-surface outline-none focus:border-primary"
-                            onChange={(event) => setBookingStateFilter(event.target.value as BookingStateFilter)}
-                            value={bookingStateFilter}
-                          >
-                            {bookingStateFilterOptions.map((option) => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </th>
+                      <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</th>
                       <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant text-right">Thao tác</th>
                     </tr>
                   </thead>
@@ -589,15 +590,24 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                           <p className="text-[14px] font-bold">{booking.courtName}</p>
                         </td>
                         <td className="px-5 py-4">
-                          {booking.slots?.length ? booking.slots.map((slot) => (
-                            <p className="text-[14px] font-bold" key={`${slot.courtId}-${slot.startTime}`}>Sân {slot.courtNumber}: {slot.startTime} - {slot.endTime}</p>
-                          )) : <p className="text-[14px] font-bold">{booking.startTime} - {booking.endTime}</p>}
-                          <p className="mt-1 text-[12px] text-on-surface-variant">{formatPlayDate(booking.date)}</p>
-                          <p className="mt-1 text-[12px] text-on-surface-variant">{booking.durationHours} giờ</p>
+                          {booking.slots?.length ? (
+                            <OwnerBookingSlotSummary
+                              dense
+                              durationHours={booking.durationHours}
+                              showDuration
+                              slots={booking.slots}
+                            />
+                          ) : (
+                            <>
+                              <p className="text-[14px] font-bold">{booking.startTime} - {booking.endTime}</p>
+                              <p className="mt-1 text-[12px] text-on-surface-variant">{formatPlayDate(booking.date)}</p>
+                              <p className="mt-1 text-[12px] text-on-surface-variant">{booking.durationHours} giờ</p>
+                            </>
+                          )}
                         </td>
-                        <td className="px-5 py-4 text-[13px] font-bold">{formatBookingCurrency(booking.totalAmount)}</td>
+                        <td className="px-5 py-4 font-mono text-[12px] font-bold">{formatBookingCurrency(booking.totalAmount)}</td>
                         <td className="px-5 py-4">
-                          <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${getBookingStatusClassName(booking)}`}>
+                          <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold ${getBookingStatusClassName(booking)}`}>
                             {getBookingStatusLabel(booking)}
                           </span>
                         </td>
@@ -605,7 +615,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                           <div className="flex justify-end gap-2">
                             <button
                               aria-label={`Xem ${booking.code}`}
-                              className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low"
+                              className="grid h-8 w-8 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
                               onClick={() => {
                                 if (isMatchBooking) {
                                   setError('');
@@ -646,7 +656,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                               title={isMatchBooking ? 'Xem biên lai của nhóm' : 'Kiểm tra giao dịch'}
                               type="button"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </td>
@@ -663,7 +673,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                   </tbody>
                 </table>
               </div>
-              <div className="border-t border-outline-variant p-4">
+              <div className="border-t border-outline-variant p-3">
                 <PaginationControls page={pagination} onPageChange={setPage} />
               </div>
             </section>

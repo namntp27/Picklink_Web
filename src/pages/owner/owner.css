@@ -465,6 +465,99 @@
   transform: translateY(-1px);
 }
 
+.owner-bookings-page > .owner-content__motion {
+  gap: 12px;
+}
+
+.owner-bookings-header {
+  gap: 10px;
+  padding-bottom: 11px;
+}
+
+.owner-root .owner-bookings-header h1 {
+  font-size: clamp(1.35rem, 2.3vw, 1.75rem) !important;
+}
+
+.owner-bookings-header p:last-child {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.owner-bookings-header-actions a {
+  min-height: 34px !important;
+}
+
+.owner-bookings-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.owner-bookings-metric {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.owner-bookings-metric:nth-child(odd) {
+  border-right: 1px solid var(--owner-line);
+}
+
+.owner-bookings-metric:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--owner-line);
+}
+
+.owner-bookings-metric__icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--owner-soft);
+  color: var(--owner-green);
+}
+
+.owner-bookings-control {
+  min-height: 36px !important;
+  max-height: 36px !important;
+}
+
+.owner-bookings-table__grid th {
+  padding: 8px 10px !important;
+}
+
+.owner-bookings-table__grid td {
+  padding: 9px 10px !important;
+}
+
+@media (max-width: 639px) {
+  .owner-bookings-metric__main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+
+  .owner-bookings-metric__helper {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .owner-bookings-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .owner-bookings-metric:not(:last-child) {
+    border-right: 1px solid var(--owner-line);
+  }
+
+  .owner-bookings-metric:nth-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
 .owner-root :is(button, a)[class*="py-3"],
 .owner-root :is(button, a)[class*="py-2.5"] {
   min-height: 40px;

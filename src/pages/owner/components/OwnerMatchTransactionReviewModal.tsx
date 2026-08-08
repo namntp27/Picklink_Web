@@ -12,6 +12,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
 import { preloadReceiptImage } from '../../../utils/receiptImage';
+import { OwnerBookingSlotSummary, mergeAdjacentBookingSlots } from './OwnerBookingSlotSummary';
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -34,19 +35,7 @@ const statusClasses: Record<string, string> = {
   Cancelled: 'bg-red-100 text-red-700',
 };
 
-type BookingSlot = NonNullable<BankTransfer['slots']>[number];
-
-export const mergeAdjacentBookingSlots = (slots: BookingSlot[]) => {
-  const merged: BookingSlot[] = [];
-  [...slots]
-    .sort((left, right) => left.startTime.slice(0, 10).localeCompare(right.startTime.slice(0, 10)) || left.courtNumber - right.courtNumber || left.startTime.localeCompare(right.startTime))
-    .forEach((slot) => {
-      const previous = merged.at(-1);
-      if (previous && previous.courtId === slot.courtId && previous.startTime.slice(0, 10) === slot.startTime.slice(0, 10) && previous.endTime === slot.startTime) previous.endTime = slot.endTime;
-      else merged.push({ ...slot });
-    });
-  return merged;
-};
+export { mergeAdjacentBookingSlots } from './OwnerBookingSlotSummary';
 type OwnerMatchTransactionReviewModalProps = {
   bookingId: number;
   bookingCode: string;
@@ -290,7 +279,7 @@ export const OwnerMatchTransactionReviewModal = ({
               <h3 className="flex items-center gap-2 text-lg font-extrabold"><ReceiptText className="h-5 w-5 text-primary" /> Thông tin booking</h3>
               <div className="mt-4 space-y-4 text-[13px]">
                 <div className="flex gap-3"><MapPin className="h-5 w-5 shrink-0 text-primary" /><div><strong>{booking.courtName}</strong><p className="mt-1 text-on-surface-variant">{booking.address}</p></div></div>
-                <div className="flex gap-3"><Clock className="h-5 w-5 shrink-0 text-primary" /><div>{bookingTimeGroups.map((slot) => <p className="mt-1 text-on-surface-variant" key={`${slot.courtId}-${slot.startTime}`}>Sân {slot.courtNumber}: {slot.startTime.slice(0, 10).split('-').reverse().join('/')} · {slot.startTime.slice(11, 16)} - {slot.endTime.slice(11, 16)}</p>)}</div></div>
+                <div className="flex gap-3"><Clock className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><OwnerBookingSlotSummary slots={bookingTimeGroups} /></div></div>
               </div>
               <div className="my-4 border-t border-dashed border-outline-variant" />
               <div className="space-y-2 text-[14px]"><div className="flex justify-between gap-3"><span>Phần mỗi người</span><strong>{currency.format(amountPerPlayer)}</strong></div><div className="flex justify-between gap-3"><span>Tổng booking</span><strong>{currency.format(booking.totalAmount)}</strong></div></div>
