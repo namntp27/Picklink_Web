@@ -7,6 +7,7 @@ const bookingSource = readFileSync(new URL('../../../src/api/booking.ts', import
 
 test('court schedule applies the selected daily slots through a rolling number of months', () => {
   assert.match(scheduleSource, /const applyCurrentSlotsForMonths = async/);
+  assert.match(scheduleSource, /const slotIdentity = bookingSlotIdentity/);
   assert.match(scheduleSource, /datesForMonthDuration\(date, bookingMonths\)/);
   assert.match(scheduleSource, /getCourtAvailabilities\(venueId, targetDates, token\)/);
   assert.match(scheduleSource, /Slot không còn trống/);

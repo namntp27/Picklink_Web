@@ -20,6 +20,18 @@ test('owner bookings patch payment updates without reloading the full page', () 
   assert.doesNotMatch(source, /usePaymentRealtime\(\(event\) => \{[\s\S]*scheduleRealtimeReload\(\);[\s\S]*\}\);/);
 });
 
+test('owner preloads fresh receipt details as soon as a realtime payment event arrives', () => {
+  assert.match(source, /const prefetched = prefetchPayment\(event\.paymentId\)/);
+  assert.match(source, /prefetched\?\.promise[\s\S]*applyPaymentUpdate\(payment\)/);
+  assert.match(source, /fallbackPayment: booking\.fallbackPayment[\s\S]*\.\.\.payment/);
+  assert.match(source, /if \(!event\.action\.startsWith\('Payment'\)\) scheduleRealtimeReload\(\)/);
+});
+
+test('owner keeps completed action responses in the receipt cache', () => {
+  assert.match(source, /paymentPrefetchCache\.current\.set\(transactionTarget\.paymentId, prefetched\)/);
+  assert.match(source, /preloadReceiptImage\(payment\.receiptImageUrl\)/);
+});
+
 test('regular owner bookings retain and render every selected child-court slot', () => {
   assert.match(adapterSource, /slots: record\.slots/);
   assert.match(source, /booking\.slots\.map\(\(slot\)/);
@@ -27,6 +39,12 @@ test('regular owner bookings retain and render every selected child-court slot',
 
 test('owner booking detail summarizes child-court slots', () => {
   assert.match(detailSource, /const bookingSlots = booking\.slots\.length/);
+});
+
+test('owner receipt review falls back to receipt data from the booking list when the detail endpoint is empty', () => {
+  assert.match(source, /payment\.paymentId === paymentId \? payment : fallbackPayment/);
+  assert.match(source, /receiptImageUrl: record\.receiptImageUrl/);
+  assert.match(source, /fallbackPayment,/);
 });
 
 test('owner booking tables show price and booking status without payment filters', () => {

@@ -53,7 +53,7 @@ import { MatchSlotReplacementPanel } from './MatchSlotReplacementPanel';
 import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { ModalDialog } from '../../components/ui/ModalDialog';
-import { addCalendarMonths, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -108,8 +108,7 @@ const timeFromMinutes = (value: number) => {
   return `${hours}:${minutes}`;
 };
 const invitationTimeOptions = Array.from({ length: 48 }, (_, index) => timeFromMinutes(index * 30));
-const slotIdentity = (courtId: number, startTimeValue: string, endTimeValue: string) =>
-  `${courtId}|${startTimeValue}|${endTimeValue}`;
+const slotIdentity = bookingSlotIdentity;
 type MatchBookingSlotSelection = {
   courtId: number;
   startTime: string;

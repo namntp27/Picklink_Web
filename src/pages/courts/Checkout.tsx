@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Upload,
 } from 'lucide-react';
-import { cancelBookingHolding, getBookingHolding, type BookingHolding } from '../../api/booking';
+import { cancelBookingHolding, getBookingHolding, type BankTransfer, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
@@ -32,10 +32,13 @@ const statusText: Record<string, string> = {
   Expired: 'Đã hết hạn',
   Cancelled: 'Đã hủy',
 };
+const PAYMENT_EXPIRED_MESSAGE = 'Thời gian thanh toán đã hết hạn. Đang chuyển về lịch sân...';
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const utcTimestamp = (value: string) => {
-  const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`;
+  // API serializes DateTime values in Vietnam wall-clock time without an offset.
+  // Holding deadlines must therefore be parsed as UTC+07:00, not as UTC.
+  const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}+07:00`;
   return new Date(normalized).getTime();
 };
 
@@ -95,9 +98,10 @@ const CourtCheckout = () => {
     }
   };
 
-  const isHoldCountdownActive = booking?.status === 'Holding' && booking.paymentStatus === 'Pending';
+  const isHoldCountdownActive = booking?.status === 'Holding'
+    && booking.paymentStatus === 'Pending'
+    && Boolean(booking.holdExpiresAt);
   useEffect(() => {
-    if (initialBooking) return;
     void loadBooking();
   }, [bookingId, token]);
 
@@ -128,11 +132,24 @@ const CourtCheckout = () => {
 
   usePaymentRealtime((event) => {
     if (event.bookingId === bookingId && !isSubmitting) {
-      setBooking((current) => current ? {
-        ...current,
-        paymentStatus: event.paymentStatus,
-        status: event.paymentStatus === 'Paid' ? 'Confirmed' : current.status,
-      } : current);
+      setBooking((current) => {
+        if (!current) return current;
+        const nextPaymentStatus = event.paymentStatus as BankTransfer['paymentStatus'];
+        const nextBookingStatus = event.paymentStatus === 'Paid' ? 'Confirmed' : current.status;
+        return {
+          ...current,
+          paymentStatus: nextPaymentStatus,
+          status: nextBookingStatus,
+          bankTransfer: current.bankTransfer ? {
+            ...current.bankTransfer,
+            paymentStatus: nextPaymentStatus,
+            bookingStatus: nextBookingStatus,
+            rejectionReason: event.action === 'Rejected'
+              ? 'Biên lai đã bị chủ sân từ chối'
+              : event.paymentStatus === 'Paid' ? null : current.bankTransfer.rejectionReason,
+          } : current.bankTransfer,
+        };
+      });
       if (!token) return;
       void getPlayerBookingPayment(token, bookingId)
         .then((payment) => setBooking((current) => current ? {
@@ -152,12 +169,18 @@ const CourtCheckout = () => {
   const transfer = booking?.bankTransfer;
   const scheduleDate = params.get('date') ?? booking?.startTime.slice(0, 10) ?? '';
   const schedulePath = booking ? `/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}` : '/book-court';
-  const isPaymentExpired = booking?.status === 'Expired' || booking?.paymentStatus === 'Expired' ||
-    Boolean(booking && isHoldCountdownActive && remainingSeconds <= 0);
+  const isPaymentAwaitingReview = booking?.paymentStatus === 'WaitingForConfirmation';
+  const isPaymentExpired = !isSubmitting && !isPaymentAwaitingReview && (
+    booking?.status === 'Expired' || booking?.paymentStatus === 'Expired' ||
+    Boolean(booking && isHoldCountdownActive && remainingSeconds <= 0)
+  );
 
   useEffect(() => {
-    if (!isPaymentExpired) return;
-    setError('Thời gian thanh toán đã hết hạn. Đang chuyển về lịch sân...');
+    if (!isPaymentExpired) {
+      setError((current) => current === PAYMENT_EXPIRED_MESSAGE ? '' : current);
+      return;
+    }
+    setError(PAYMENT_EXPIRED_MESSAGE);
     const timer = window.setTimeout(() => navigate(schedulePath, { replace: true }), 1500);
     return () => window.clearTimeout(timer);
   }, [isPaymentExpired, navigate, schedulePath]);
@@ -186,8 +209,10 @@ const CourtCheckout = () => {
       setBooking((current) => current ? {
         ...current,
         paymentStatus: updatedPayment.paymentStatus,
+        holdExpiresAt: updatedPayment.holdExpiresAt,
         bankTransfer: updatedPayment,
       } : current);
+      setError('');
       setReceipt(null);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi xác nhận chuyển khoản.');
@@ -215,7 +240,7 @@ const CourtCheckout = () => {
 
   const status = booking.paymentStatus;
   const isPaid = status === 'Paid';
-  const isWaiting = status === 'WaitingForConfirmation';
+  const isWaiting = isPaymentAwaitingReview;
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 10 };
   const slotSummaries = buildSlotSummaries(booking);
   const selectedCourtNumbers = Array.from(new Set(slotSummaries.map((slot) => slot.courtNumber))).sort((left, right) => left - right);
@@ -268,7 +293,9 @@ const CourtCheckout = () => {
             </div>
             <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right">
               <p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p>
-              <p className="font-mono text-[32px] font-black leading-none text-[#e2ff57]">{isHoldCountdownActive ? countdown : '--:--'}</p>
+              <p className="font-mono text-[32px] font-black leading-none text-[#e2ff57]">
+                {isHoldCountdownActive ? countdown : isWaiting ? 'Đã dừng' : '--:--'}
+              </p>
               <p className="mt-1 text-[13px] font-bold text-white/82">{statusText[status] ?? status}</p>
             </div>
           </div>

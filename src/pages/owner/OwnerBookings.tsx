@@ -46,6 +46,7 @@ type BookingStateFilter = 'all' | BookingStatus | 'ready_checkin';
 type OwnerBookingKind = 'regular' | 'match';
 type OwnerBookingListItem = BookingDetail & {
   paymentId?: number | null;
+  fallbackPayment?: BankTransfer;
   matchId?: number | null;
   matchType?: string | null;
   requiredPlayerCount?: number | null;
@@ -128,6 +129,11 @@ const normalizePaymentStatus = (status: string): BookingPaymentStatus =>
 const normalizeBookingStatus = (status: string): BookingStatus =>
   status === 'Confirmed' ? 'confirmed' : status === 'Cancelled' || status === 'Expired' ? 'cancelled' : 'holding';
 
+const normalizeBankTransferStatus = (status: string): BankTransfer['paymentStatus'] => {
+  if (status === 'WaitingForConfirmation' || status === 'Paid' || status === 'Expired' || status === 'Cancelled') return status;
+  return 'Pending';
+};
+
 const emptyBookings: OwnerBookingListItem[] = [];
 const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
 
@@ -166,13 +172,18 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
           ...booking,
           paymentId: payment.paymentId,
           paymentStatus: normalizePaymentStatus(payment.paymentStatus),
-          bookingStatus: normalizeBookingStatus(payment.bookingStatus),
+          bookingStatus: payment.bookingStatus
+            ? normalizeBookingStatus(payment.bookingStatus)
+            : payment.paymentStatus === 'Paid' ? 'confirmed' : booking.bookingStatus,
           holdExpiresAt: payment.holdExpiresAt ?? booking.holdExpiresAt,
+          fallbackPayment: booking.fallbackPayment
+            ? { ...booking.fallbackPayment, ...payment }
+            : payment,
         }
       : booking));
   }, []);
 
-  const prefetchPayment = useCallback((paymentId: number) => {
+  const prefetchPayment = useCallback((paymentId: number, fallbackPayment?: BankTransfer) => {
     if (!token) return null;
     const cached = paymentPrefetchCache.current.get(paymentId);
     if (cached) return cached;
@@ -182,9 +193,11 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     };
     prefetched.promise = getOperatorPayment(token, paymentId)
       .then((payment) => {
-        prefetched.data = payment;
-        preloadReceiptImage(payment.receiptImageUrl);
-        return payment;
+        const resolvedPayment = payment.paymentId === paymentId ? payment : fallbackPayment;
+        if (!resolvedPayment) throw new Error('API không trả về thông tin giao dịch.');
+        prefetched.data = resolvedPayment;
+        preloadReceiptImage(resolvedPayment.receiptImageUrl);
+        return resolvedPayment;
       })
       .catch((reason) => {
         paymentPrefetchCache.current.delete(paymentId);
@@ -242,15 +255,54 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
           totalCount: result.totalCount,
           totalPages: result.totalPages,
         },
-        bookings: result.items.map((record) => ({
-          ...ownerBookingToDetail(record),
-          paymentId: record.paymentId,
-          matchId: record.matchId,
-          matchType: record.matchType,
-          requiredPlayerCount: record.requiredPlayerCount,
-          acceptedPlayerCount: record.acceptedPlayerCount,
-          matchPlayers: record.matchPlayers ?? [],
-        })),
+        bookings: result.items.map((record) => {
+          const fallbackPayment: BankTransfer | undefined = record.paymentId ? {
+            paymentId: record.paymentId,
+            groupPaymentCount: 1,
+            groupTotalAmount: record.totalAmount,
+            bookingId: record.bookingId,
+            bookingCode: record.bookingCode,
+            bookingStatus: record.bookingStatus,
+            paymentStatus: normalizeBankTransferStatus(record.paymentStatus),
+            amount: record.totalAmount,
+            transferCode: record.transferCode,
+            transferContent: record.transferCode,
+            receiptImageUrl: record.receiptImageUrl,
+            verifiedAt: record.paymentVerifiedAt,
+            rejectionReason: record.rejectionReason,
+            holdExpiresAt: record.holdExpiresAt,
+            venueId: record.venueId,
+            venueName: record.venueName,
+            courtNumber: record.courtNumber,
+            startTime: record.startTime,
+            endTime: record.endTime,
+            playerName: record.playerName,
+            slots: record.slots.map((slot) => ({
+              courtId: slot.courtId,
+              courtNumber: slot.courtNumber,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+            })),
+            history: record.paymentHistory.map((entry) => ({
+              fromStatus: entry.fromStatus,
+              toStatus: entry.toStatus,
+              action: entry.action,
+              reason: entry.reason,
+              createdAt: entry.createdAt,
+            })),
+          } : undefined;
+
+          return {
+            ...ownerBookingToDetail(record),
+            paymentId: record.paymentId,
+            fallbackPayment,
+            matchId: record.matchId,
+            matchType: record.matchType,
+            requiredPlayerCount: record.requiredPlayerCount,
+            acceptedPlayerCount: record.acceptedPlayerCount,
+            matchPlayers: record.matchPlayers ?? [],
+          };
+        }),
       };
     },
     { enabled: Boolean(token), errorMessage: 'Không thể tải booking.' },
@@ -281,7 +333,9 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   useEffect(() => () => {
     if (realtimeReloadTimer.current !== null) window.clearTimeout(realtimeReloadTimer.current);
   }, []);
-  useScheduleRealtime(scheduleRealtimeReload);
+  useScheduleRealtime((event) => {
+    if (!event.action.startsWith('Payment')) scheduleRealtimeReload();
+  });
   useMatchRealtime(() => {
     if (kind === 'match') scheduleRealtimeReload();
   });
@@ -293,8 +347,24 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
           ...booking,
           paymentStatus: normalizePaymentStatus(event.paymentStatus),
           bookingStatus: event.paymentStatus === 'Paid' ? 'confirmed' : booking.bookingStatus,
+          fallbackPayment: booking.fallbackPayment ? {
+            ...booking.fallbackPayment,
+            paymentStatus: normalizeBankTransferStatus(event.paymentStatus),
+            bookingStatus: event.paymentStatus === 'Paid' ? 'Confirmed' : booking.fallbackPayment.bookingStatus,
+          } : booking.fallbackPayment,
         }
       : booking));
+
+    if (kind === 'match') {
+      const prefetched = prefetchMatchPayments(event.bookingId);
+      void prefetched?.promise.catch(() => undefined);
+      return;
+    }
+
+    const prefetched = prefetchPayment(event.paymentId);
+    void prefetched?.promise
+      .then((payment) => applyPaymentUpdate(payment))
+      .catch(() => undefined);
   });
 
   const filteredBookings = useMemo(() => {
@@ -552,7 +622,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                                   setError(`Đơn ${booking.code} chưa có giao dịch thanh toán để kiểm tra.`);
                                   return;
                                 }
-                                const prefetched = prefetchPayment(booking.paymentId);
+                                const prefetched = prefetchPayment(booking.paymentId, booking.fallbackPayment);
                                 if (!prefetched) return;
                                 setError('');
                                 setTransactionTarget({
@@ -563,15 +633,15 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                               }}
                               onFocus={() => {
                                 if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
-                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId, booking.fallbackPayment);
                               }}
                               onMouseEnter={() => {
                                 if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
-                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId, booking.fallbackPayment);
                               }}
                               onPointerDown={() => {
                                 if (isMatchBooking) prefetchMatchPayments(Number(booking.id));
-                                else if (booking.paymentId) prefetchPayment(booking.paymentId);
+                                else if (booking.paymentId) prefetchPayment(booking.paymentId, booking.fallbackPayment);
                               }}
                               title={isMatchBooking ? 'Xem biên lai của nhóm' : 'Kiểm tra giao dịch'}
                               type="button"
@@ -604,7 +674,9 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                 initialPaymentRequest={transactionTarget.prefetched.promise}
                 onClose={() => setTransactionTarget(null)}
                 onUpdated={(payment) => {
-                  paymentPrefetchCache.current.delete(transactionTarget.paymentId);
+                  const prefetched = { data: payment, promise: Promise.resolve(payment) };
+                  paymentPrefetchCache.current.set(transactionTarget.paymentId, prefetched);
+                  preloadReceiptImage(payment.receiptImageUrl);
                   applyPaymentUpdate(payment);
                 }}
                 paymentId={transactionTarget.paymentId}

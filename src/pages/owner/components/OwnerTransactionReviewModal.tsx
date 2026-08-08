@@ -98,8 +98,8 @@ export const OwnerTransactionReviewModal = ({
     setError('');
     try {
       const updatedPayment = await approveOperatorPayment(token, payment.paymentId);
-      onClose();
       void onUpdated(updatedPayment);
+      onClose();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.');
     } finally {
@@ -114,8 +114,8 @@ export const OwnerTransactionReviewModal = ({
     setError('');
     try {
       const updatedPayment = await rejectOperatorPayment(token, payment.paymentId, rejectReason.trim());
-      onClose();
       void onUpdated(updatedPayment);
+      onClose();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.');
 

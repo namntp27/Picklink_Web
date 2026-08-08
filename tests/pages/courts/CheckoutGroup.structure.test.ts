@@ -17,6 +17,37 @@ test('checkout loads and submits one booking', () => {
   assert.doesNotMatch(checkoutSource, /paymentGroupId/);
 });
 
+test('checkout refreshes navigation state so the latest owner bank account is used', () => {
+  assert.match(checkoutSource, /const \[booking, setBooking\] = useState<BookingHolding \| null>\(initialBooking\)/);
+  assert.match(checkoutSource, /useEffect\(\(\) => \{\s*void loadBooking\(\);\s*\}, \[bookingId, token\]\)/);
+  assert.doesNotMatch(checkoutSource, /if \(initialBooking\) return/);
+});
+
+test('checkout treats unzoned holding deadlines as Vietnam time', () => {
+  assert.match(checkoutSource, /\$\{value\}\+07:00/);
+  assert.doesNotMatch(checkoutSource, /\$\{value\}Z/);
+});
+
+test('checkout stops showing a countdown after the receipt is submitted', () => {
+  assert.match(checkoutSource, /booking\?\.status === 'Holding'[\s\S]*booking\.paymentStatus === 'Pending'[\s\S]*Boolean\(booking\.holdExpiresAt\)/);
+  assert.match(checkoutSource, /isWaiting \? 'Đã dừng' : '--:--'/);
+  assert.match(checkoutSource, /holdExpiresAt: updatedPayment\.holdExpiresAt/);
+});
+
+test('owner review events update checkout immediately while fresh details load in the background', () => {
+  assert.match(checkoutSource, /const nextPaymentStatus = event\.paymentStatus/);
+  assert.match(checkoutSource, /paymentStatus: nextPaymentStatus/);
+  assert.match(checkoutSource, /rejectionReason: event\.action === 'Rejected'/);
+  assert.match(checkoutSource, /getPlayerBookingPayment\(token, bookingId\)/);
+  assert.match(checkoutSource, /Boolean\(booking\.holdExpiresAt\)/);
+});
+
+test('a submitted receipt cancels any stale expiry warning and redirect', () => {
+  assert.match(checkoutSource, /const isPaymentExpired = !isSubmitting && !isPaymentAwaitingReview/);
+  assert.match(checkoutSource, /current === PAYMENT_EXPIRED_MESSAGE \? '' : current/);
+  assert.match(checkoutSource, /setError\(''\);\s*setReceipt\(null\)/);
+});
+
 test('checkout summarizes selected child-court slots instead of the parent booking span', () => {
   assert.match(checkoutSource, /buildSlotSummaries/);
   assert.match(checkoutSource, /booking\.slots\.length/);

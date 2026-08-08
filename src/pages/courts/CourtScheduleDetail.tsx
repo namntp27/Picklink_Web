@@ -18,7 +18,7 @@ import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { CourtTimelineGrid } from './components/CourtTimelineGrid';
-import { addCalendarMonths, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
 const maxBookingSlots = 496;
 const localDate = () => {
@@ -42,8 +42,7 @@ const validScheduleDate = (value: string | null) =>
 const time = (value: string) => value.slice(11, 16);
 const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const slotKey = (courtId: number, startTime: string) => courtId + ':' + startTime;
-const slotIdentity = (courtId: number, startTime: string, endTime: string) =>
-  courtId + '|' + startTime + '|' + endTime;
+const slotIdentity = bookingSlotIdentity;
 const minuteOfDay = (value: string) => {
   const [hour, minute] = value.split(':').map(Number);
   return hour * 60 + minute;
