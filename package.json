@@ -8,6 +8,7 @@
     "dev:player": "vite --host=0.0.0.0 --config vite.player.config.ts --configLoader runner",
     "dev:owner": "vite --host=0.0.0.0 --config vite.owner.config.ts --configLoader runner",
     "dev:admin": "vite --host=0.0.0.0 --config vite.admin.config.ts --configLoader runner",
+    "dev:all": "node scripts/dev-all.mjs",
     "build": "npm run clean && npm run build:player && npm run build:owner && npm run build:admin && npm run verify:build-isolation",
     "build:player": "vite build --config vite.player.config.ts --configLoader runner",
     "build:owner": "vite build --config vite.owner.config.ts --configLoader runner",

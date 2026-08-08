@@ -40,6 +40,16 @@ npm run dev:owner
 npm run dev:admin
 ```
 
+Nếu muốn chạy cả ba trong một terminal:
+
+```powershell
+npm run dev:all
+```
+
+Lệnh này khởi động ba Vite dev server song song, log của mỗi app được gắn prefix
+`[player]`, `[owner]`, `[admin]`. Nhấn `Ctrl+C` một lần để tắt cả ba; nếu một server
+tự tắt (ví dụ port bị chiếm) thì hai server còn lại cũng dừng theo.
+
 - Player Web: `http://localhost:3000`
 - Owner Web: `http://localhost:3001`
 - Admin Web: `http://localhost:3002`

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
@@ -23,6 +23,7 @@ import type { BookingDetail } from '../../data/bookings';
 import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
 import { getOwnerRevenueReport } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
@@ -168,27 +169,26 @@ export const OwnerRevenue = () => {
   const [activePeriod, setActivePeriod] = useState<RevenuePeriod>('month');
   const [activeStatus, setActiveStatus] = useState<TransactionStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [ownerBookings, setOwnerBookings] = useState<BookingDetail[]>([]);
   const periodDates = useMemo(() => getDateRange(activePeriod), [activePeriod]);
+  const from = periodDates[0];
+  const to = periodDates[periodDates.length - 1];
 
-  const loadRevenue = useCallback(async () => {
-    if (!token) return;
-    const from = periodDates[0];
-    const to = periodDates[periodDates.length - 1];
-    if (!from || !to) return;
-    const report = await getOwnerRevenueReport(token, from, to);
-    setOwnerBookings(report.bookings.map(ownerBookingToDetail));
-  }, [periodDates, token]);
+  const { data: ownerBookings, refresh: loadRevenue } = useApiQuery<BookingDetail[]>(
+    ['owner-revenue', from, to],
+    async () => {
+      const report = await getOwnerRevenueReport(token!, from!, to!);
+      return report.bookings.map(ownerBookingToDetail);
+    },
+    { enabled: Boolean(token && from && to) },
+  );
 
-  useEffect(() => { void loadRevenue().catch(() => setOwnerBookings([])); }, [loadRevenue]);
-
-  const reloadRevenue = () => { void loadRevenue().catch(() => undefined); };
+  const reloadRevenue = () => { void loadRevenue(); };
   useScheduleRealtime(reloadRevenue);
   usePaymentRealtime(reloadRevenue);
 
   const transactions = useMemo<PaymentTransaction[]>(
     () =>
-      ownerBookings.map((booking) => ({
+      (ownerBookings ?? []).map((booking) => ({
         id: `pay-${booking.id}`,
         booking,
         status: getTransactionStatus(booking),
