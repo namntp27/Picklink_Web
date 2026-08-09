@@ -265,7 +265,7 @@ export const OwnerCheckIn = () => {
       <section className="owner-panel p-4 sm:p-5">
         <form className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_auto]" onSubmit={verifyCode}>
           <label>
-            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã check-in khung giờ / người chơi</span>
+            <span className="mb-1.5 block text-[11px] font-extrabold text-on-surface-variant">Mã booking / khung giờ / người chơi</span>
             <span className="flex h-11 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
               <QrCode className="h-4 w-4 shrink-0 text-primary" />
               <input
@@ -273,7 +273,7 @@ export const OwnerCheckIn = () => {
                 autoFocus
                 className="min-w-0 flex-1 bg-transparent text-[14px] font-bold outline-none"
                 onChange={(event) => setCode(event.target.value)}
-                placeholder="Quét hoặc nhập mã check-in"
+                placeholder="Quét hoặc nhập mã PL- / CI-"
                 value={code}
               />
             </span>
