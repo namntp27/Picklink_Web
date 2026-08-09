@@ -15,6 +15,17 @@ export type BookingVenue = {
   isFavorite: boolean;
 };
 
+export type PlayerVenueReview = {
+  ratingId: number;
+  reviewerName: string;
+  courtNumber?: number | null;
+  score: number;
+  comment?: string | null;
+  tags: string[];
+  isAnonymous: boolean;
+  createdAt: string;
+};
+
 export type BookingCourt = {
   courtId: number;
   courtNumber: number;
@@ -194,6 +205,9 @@ export const getBookingVenues = (filters: VenueFilters = {}, token?: string | nu
   const query = params.toString();
   return apiRequest<PaginatedResponse<BookingVenue>>(`/api/player-bookings/venues${query ? `?${query}` : ''}`, signal ? { signal } : {}, token ?? undefined);
 };
+
+export const getPlayerVenueReviews = (venueId: number, token?: string | null) =>
+  apiRequest<PlayerVenueReview[]>(`/api/player-bookings/venues/${venueId}/reviews`, {}, token ?? undefined);
 
 export const addFavoriteVenue = (token: string, venueId: number) => apiRequest<void>(`/api/player-bookings/favorites/${venueId}`, { method: 'PUT' }, token);
 

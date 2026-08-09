@@ -21,3 +21,17 @@ test('owner court list keeps child-court editing inside the selected venue', () 
   assert.match(manager, /deleteOwnerCourt/);
   assert.match(edit, /navigate\(`\/owner\/courts\/\$\{venueId\}`/);
 });
+
+test('each owner venue exposes a read-only player review dialog', () => {
+  const list = read('src/pages/owner/OwnerCourts.tsx');
+  const dialog = read('src/pages/owner/components/OwnerVenueReviewsDialog.tsx');
+  const api = read('src/api/owner.ts');
+
+  assert.match(list, /Xem đánh giá/);
+  assert.match(list, /<OwnerVenueReviewsDialog/);
+  assert.match(api, /getOwnerVenueReviews/);
+  assert.match(api, /\/api\/owner\/venues\/\$\{venueId\}\/reviews/);
+  assert.match(dialog, /Đánh giá của Player/);
+  assert.match(dialog, /Chỉ xem/);
+  assert.doesNotMatch(dialog, /<textarea|contentEditable|moderateOwner|updateOwnerVenueReview|deleteOwnerVenueReview/);
+});

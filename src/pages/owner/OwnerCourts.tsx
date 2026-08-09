@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Building2, MapPin, Plus, Power, RefreshCw, Send, Trash2 } from 'lucide-react';
+import { ArrowRight, Building2, MapPin, MessageSquareText, Plus, Power, RefreshCw, Send, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import {
@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerVenueReviewsDialog } from './components/OwnerVenueReviewsDialog';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const approvalLabel: Record<OwnerVenue['approvalStatus'], string> = {
@@ -27,6 +28,7 @@ export const OwnerCourts = () => {
   const { token } = useAuth();
   const [actionError, setActionError] = useState('');
   const [busyVenueId, setBusyVenueId] = useState<number | null>(null);
+  const [reviewVenue, setReviewVenue] = useState<OwnerVenue | null>(null);
 
   const {
     data: venues = emptyVenues,
@@ -87,6 +89,7 @@ export const OwnerCourts = () => {
                   <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-[20px] font-bold">{venue.venueName}</h2><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${approvalClass[venue.approvalStatus]}`}>{approvalLabel[venue.approvalStatus]}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${venue.isOpen ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-700'}`}>{venue.isOpen ? 'Đang mở' : 'Đã đóng'}</span></div><p className="mt-1 flex items-center gap-2 text-[13px] text-on-surface-variant"><MapPin className="h-4 w-4" /> {venue.address}</p><p className="mt-2 text-[13px] font-medium">{venue.openTime.slice(0, 5)}-{venue.closeTime.slice(0, 5)} · từ {currency.format(venue.basePrice)}/giờ · {venue.courts.length} sân con · {venue.images.length} ảnh</p>{venue.rejectionReason && <p className="mt-2 text-[12px] font-bold text-red-700">Lý do từ chối: {venue.rejectionReason}</p>}</div>
                 </Link>
                 <div className="flex flex-wrap gap-2">
+                  <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold hover:bg-surface-container-low" onClick={() => setReviewVenue(venue)} type="button"><MessageSquareText className="h-4 w-4" /> Xem đánh giá</button>
                   <Link className="inline-flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-[13px] font-bold text-primary hover:bg-primary/5" to={`/owner/courts/${venue.venueId}`}><ArrowRight className="h-4 w-4" /> Quản lý sân</Link>
                   <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold disabled:opacity-50" disabled={disabled} onClick={() => token && void runVenueAction(venue.venueId, () => setOwnerVenueOpenStatus(token, venue.venueId, !venue.isOpen))} type="button"><Power className="h-4 w-4" /> {venue.isOpen ? 'Đóng sân' : 'Mở sân'}</button>
                   {venue.approvalStatus !== 'Pending' && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={disabled} onClick={() => token && window.confirm('Gửi hồ sơ cụm sân cho Admin duyệt?') && void runVenueAction(venue.venueId, () => submitOwnerVenue(token, venue.venueId))} type="button"><Send className="h-4 w-4" /> Gửi duyệt</button>}
@@ -97,6 +100,8 @@ export const OwnerCourts = () => {
           );
         })}
       </div>
+
+      {reviewVenue && <OwnerVenueReviewsDialog onClose={() => setReviewVenue(null)} venue={reviewVenue} />}
     </OwnerShell>
   );
 };

@@ -42,6 +42,18 @@ export type OwnerVenue = {
   courts: OwnerCourt[];
 };
 
+export type OwnerVenueReview = {
+  ratingId: number;
+  bookingId?: number | null;
+  reviewerName: string;
+  courtNumber?: number | null;
+  score: number;
+  comment?: string | null;
+  tags: string[];
+  isAnonymous: boolean;
+  createdAt: string;
+};
+
 export type OwnerVenueInput = {
   venueName: string;
   address: string;
@@ -243,6 +255,9 @@ const normalizeOwnerVenue = (venue: OwnerVenue): OwnerVenue => ({
 export const getOwnerVenues = async (token: string) => (await apiRequest<OwnerVenue[]>('/api/owner/venues', {}, token)).map(normalizeOwnerVenue);
 
 export const getOwnerVenue = async (token: string, venueId: number) => normalizeOwnerVenue(await apiRequest<OwnerVenue>(`/api/owner/venues/${venueId}`, {}, token));
+
+export const getOwnerVenueReviews = (token: string, venueId: number) =>
+  apiRequest<OwnerVenueReview[]>(`/api/owner/venues/${venueId}/reviews`, {}, token);
 
 export const createOwnerVenue = async (token: string, input: OwnerVenueInput) => normalizeOwnerVenue(await apiRequest<OwnerVenue>('/api/owner/venues', {
   method: 'POST',

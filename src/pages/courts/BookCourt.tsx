@@ -28,6 +28,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../utils/playerLocation';
 import { MatchVenueMapDialog } from '../matches/components/MatchVenueMapDialog';
+import { VenueReviewsDialog } from './components/VenueReviewsDialog';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
@@ -119,6 +120,7 @@ export const BookCourt = () => {
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
+  const [reviewVenue, setReviewVenue] = useState<BookingVenue | null>(null);
   const [showRouteMap, setShowRouteMap] = useState(false);
   const [playerLocation, setPlayerLocation] = useState<PlayerLocation | null>(() => readCachedPlayerLocation());
   const [isLocating, setIsLocating] = useState(false);
@@ -402,10 +404,16 @@ export const BookCourt = () => {
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="min-w-0 break-words text-[15px] font-extrabold leading-snug">{venue.venueName}</h3>
                       <div className="flex shrink-0 items-center gap-1">
-                        <span className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold ${selected ? 'bg-white/10 text-white' : 'border border-[#dbe8d3] bg-white text-[#66766d]'}`}>
+                        <button
+                          aria-label={`Xem đánh giá ${venue.venueName}`}
+                          className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selected ? 'bg-white/10 text-white hover:bg-white/15' : 'border border-[#dbe8d3] bg-white text-[#66766d] hover:bg-[#eef8e6] hover:text-primary'}`}
+                          onClick={() => setReviewVenue(venue)}
+                          title="Xem đánh giá của Player"
+                          type="button"
+                        >
                           <Star className="h-3.5 w-3.5 fill-primary text-primary" />
                           {venue.overallRating.toFixed(1)}
-                        </span>
+                        </button>
                         <button
                           aria-label={venue.isFavorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
                           className={`flex h-8 w-8 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${venue.isFavorite ? 'bg-error-container text-error' : 'bg-[#f0f8e8] text-[#66766d] hover:text-primary'}`}
@@ -529,6 +537,7 @@ export const BookCourt = () => {
           venues={mappedVenues}
         />
       )}
+      {reviewVenue && <VenueReviewsDialog onClose={() => setReviewVenue(null)} venue={reviewVenue} />}
     </div>
   );
 };
