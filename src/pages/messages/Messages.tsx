@@ -119,13 +119,14 @@ export const Messages = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const chatWithUserId = searchParams.get('chatWithUserId');
 
-  // All conversations = direct + club
+  // All conversations = match rooms + direct + clubs
   const allConversations = useMemo(
     () => [
+      ...matchConversations,
       ...directConversations,
       ...clubConversations
     ],
-    [directConversations, clubConversations],
+    [matchConversations, directConversations, clubConversations],
   );
 
   const [activeConversationId, setActiveConversationId] = useState<string>('');

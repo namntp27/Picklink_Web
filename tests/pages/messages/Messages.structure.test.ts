@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 const source = readFileSync(new URL('../../../src/pages/messages/Messages.tsx', import.meta.url), 'utf8');
 const modelsSource = readFileSync(new URL('../../../src/pages/messages/messageModels.ts', import.meta.url), 'utf8');
+const matchesApiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
 
 test('messages page keeps data types and helpers in a companion module', () => {
   assert.match(source, /from '\.\/messageModels';/);
@@ -20,4 +21,12 @@ test('messages list distinguishes unread conversations', () => {
   assert.match(source, /tin chưa đọc/);
   assert.match(source, /Math\.min\(conversation\.unreadMessageCount, 99\)/);
   assert.match(source, /unreadMessageCount: 0/);
+});
+
+test('messages page includes a matchId room in the active conversation list', () => {
+  assert.match(source, /const requestedMatchId = Number\(searchParams\.get\('matchId'\)\)/);
+  assert.match(source, /const allConversations = useMemo\([\s\S]*?\.\.\.matchConversations,[\s\S]*?\.\.\.directConversations,[\s\S]*?\.\.\.clubConversations/);
+  assert.match(source, /\[matchConversations, directConversations, clubConversations\]/);
+  assert.match(source, /sendMatchMessage\(token, activeConversation\.matchId, text\)/);
+  assert.match(matchesApiSource, /if \(!message \|\| !Number\.isInteger\(message\.messageId\)\)/);
 });

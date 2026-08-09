@@ -441,11 +441,18 @@ export const rejectMatchSlotReplacement = (token: string, matchId: number, match
 
 export const getMatchMessages = (token: string, matchId: number) =>
   apiRequest<MatchMessage[]>(`/api/matches/${matchId}/messages`, {}, token);
-export const sendMatchMessage = (token: string, matchId: number, content: string) =>
-  apiRequest<MatchMessage>(`/api/matches/${matchId}/messages`, {
+export const sendMatchMessage = async (token: string, matchId: number, content: string) => {
+  const message = await apiRequest<MatchMessage | undefined>(`/api/matches/${matchId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content }),
   }, token);
+
+  if (!message || !Number.isInteger(message.messageId)) {
+    throw new Error('Máy chủ chưa trả về tin nhắn vừa gửi. Vui lòng thử lại.');
+  }
+
+  return message;
+};
 
 export const getMatchReviews = (token: string, matchId: number) =>
   apiRequest<MatchPlayerReview[]>(`/api/matches/${matchId}/reviews`, {}, token);

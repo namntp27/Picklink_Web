@@ -50,10 +50,10 @@ const SlotTimeSlider = ({ timeFrom, timeTo, onChange }: SlotTimeSliderProps) => 
   const startMin = hhmmToMinutes(timeFrom);
   const endMin = hhmmToMinutes(timeTo, true);
 
-  const currentDuration = Math.max(90, endMin > startMin ? endMin - startMin : 120);
+  const currentDuration = Math.max(30, endMin > startMin ? endMin - startMin : 120);
 
   const handleDurationChange = (delta: number) => {
-    const newDuration = Math.min(1440, Math.max(90, currentDuration + delta));
+    const newDuration = Math.min(1440, Math.max(30, currentDuration + delta));
     let newEnd = startMin + newDuration;
     let newStart = startMin;
     if (newEnd > 1440) {
@@ -111,7 +111,7 @@ const SlotTimeSlider = ({ timeFrom, timeTo, onChange }: SlotTimeSliderProps) => 
           <button
             type="button"
             onClick={() => handleDurationChange(-30)}
-            disabled={currentDuration <= 90}
+            disabled={currentDuration <= 30}
             className="grid h-7 w-7 place-items-center rounded-lg border border-[#c3d5be] bg-white text-[#0b2228] font-bold hover:bg-[#edf5e9] disabled:opacity-30 transition-colors shadow-2xs"
             title="Giảm 30 phút"
           >
@@ -735,8 +735,8 @@ export const Opponents = () => {
 
       for (const block of blocks) {
         const durationMinutes = block.endMin - timeToMinutes(block.start);
-        if (durationMinutes < 90) {
-          return `Chuỗi khung giờ chơi liên tục ở ${contextName} (${block.start} - ${block.end}) phải kéo dài ít nhất 90 phút (1 tiếng 30 phút).`;
+        if (durationMinutes < 30) {
+          return `Chuỗi khung giờ chơi liên tục ở ${contextName} (${block.start} - ${block.end}) phải kéo dài ít nhất 30 phút.`;
         }
       }
       return null;

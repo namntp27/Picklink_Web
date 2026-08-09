@@ -25,9 +25,10 @@ test('opponents page keeps province and ward updates atomic and race-safe', () =
   assert.doesNotMatch(source, /const \[ward, setWard\]/);
 });
 
-test('opponents create form enforces playable one-off dates and 90-minute slots', () => {
+test('opponents create form enforces playable one-off dates and 30-minute slots', () => {
   assert.match(source, /type="time"/);
-  assert.match(source, /timeToMinutes\(slot\.timeTo\) - timeToMinutes\(slot\.timeFrom\) < 90/);
+  assert.match(source, /durationMinutes < 30/);
+  assert.match(source, /disabled=\{currentDuration <= 30\}/);
   assert.match(source, /dateFrom < today\(\)/);
   assert.match(source, /dateTo > lastOneOffDate\(dateFrom\)/);
   assert.match(source, /max=\{lastOneOffDate\(dateFrom\)\}/);
