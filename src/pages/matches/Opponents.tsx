@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, Crosshair, ListChecks, MapPin, Plus, PlusCircle, Route, Sparkles, Trash2, Trophy, X, Settings, Repeat, User } from 'lucide-react';
+import { AlertTriangle, Crosshair, ListChecks, MapPin, Moon, Plus, PlusCircle, Route, SlidersHorizontal, Sparkles, Trash2, Trophy, X, Settings, Repeat, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -19,6 +19,178 @@ import { AdministrativeAreaSelects } from '../../components/location/Administrat
 import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../utils/playerLocation';
 
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
+
+const minutesToHHMM = (totalMinutes: number) => {
+  const normalized = Math.min(1440, Math.max(0, totalMinutes));
+  if (normalized === 1440) return '00:00';
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+const hhmmToMinutes = (timeStr: string, isEnd = false) => {
+  if (!timeStr) return 0;
+  if (isEnd && timeStr === '00:00') return 1440;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+interface SlotTimeSliderProps {
+  timeFrom: string;
+  timeTo: string;
+  onChange: (timeFrom: string, timeTo: string) => void;
+}
+
+const SlotTimeSlider = ({ timeFrom, timeTo, onChange }: SlotTimeSliderProps) => {
+  const startMin = hhmmToMinutes(timeFrom);
+  const endMin = hhmmToMinutes(timeTo, true);
+
+  const currentDuration = Math.max(90, endMin > startMin ? endMin - startMin : 120);
+
+  const handleDurationChange = (delta: number) => {
+    const newDuration = Math.min(1440, Math.max(90, currentDuration + delta));
+    let newEnd = startMin + newDuration;
+    let newStart = startMin;
+    if (newEnd > 1440) {
+      newEnd = 1440;
+      newStart = Math.max(0, 1440 - newDuration);
+    }
+    onChange(minutesToHHMM(newStart), minutesToHHMM(newEnd));
+  };
+
+  const handleStartChange = (val: number) => {
+    let newStart = val;
+    let newEnd = newStart + currentDuration;
+    if (newEnd > 1440) {
+      newEnd = 1440;
+      newStart = 1440 - currentDuration;
+    }
+    onChange(minutesToHHMM(newStart), minutesToHHMM(newEnd));
+  };
+
+  const handleTypeStart = (newStartStr: string) => {
+    if (!newStartStr) return;
+    const newStartMin = hhmmToMinutes(newStartStr);
+    let newEndMin = newStartMin + currentDuration;
+    let finalStartMin = newStartMin;
+
+    if (newEndMin > 1440) {
+      newEndMin = 1440;
+      finalStartMin = Math.max(0, 1440 - currentDuration);
+    }
+    onChange(minutesToHHMM(finalStartMin), minutesToHHMM(newEndMin));
+  };
+
+  const handleTypeEnd = (newEndStr: string) => {
+    if (!newEndStr) return;
+    const newEndMin = hhmmToMinutes(newEndStr, true);
+    let newStartMin = newEndMin - currentDuration;
+    let finalEndMin = newEndMin;
+
+    if (newStartMin < 0) {
+      newStartMin = 0;
+      finalEndMin = currentDuration;
+    }
+    onChange(minutesToHHMM(newStartMin), minutesToHHMM(finalEndMin));
+  };
+
+  const startPercent = (startMin / 1440) * 100;
+  const blockWidthPercent = (currentDuration / 1440) * 100;
+  const durationHours = (currentDuration / 60).toFixed(1).replace('.0', '');
+
+  return (
+    <div className="space-y-3 rounded-xl border border-[#d8e4d4] bg-[#f7fbf6] p-3.5 shadow-xs">
+      <div className="flex items-center justify-between gap-3 border-b border-[#e2e9df] pb-2.5 flex-wrap">
+        <span className="text-[11px] font-extrabold text-[#526158]">Thời lượng chơi mong muốn:</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleDurationChange(-30)}
+            disabled={currentDuration <= 90}
+            className="grid h-7 w-7 place-items-center rounded-lg border border-[#c3d5be] bg-white text-[#0b2228] font-bold hover:bg-[#edf5e9] disabled:opacity-30 transition-colors shadow-2xs"
+            title="Giảm 30 phút"
+          >
+            -
+          </button>
+          <span className="min-w-[120px] text-center font-bold text-[12px] text-[#0b2228] bg-white px-3 py-1 rounded-lg border border-[#d8e4d4]">
+            {durationHours} tiếng ({currentDuration} phút)
+          </span>
+          <button
+            type="button"
+            onClick={() => handleDurationChange(30)}
+            disabled={currentDuration >= 1440}
+            className="grid h-7 w-7 place-items-center rounded-lg border border-[#c3d5be] bg-white text-[#0b2228] font-bold hover:bg-[#edf5e9] disabled:opacity-30 transition-colors shadow-2xs"
+            title="Tăng 30 phút"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 text-[12px] font-extrabold text-[#0b2228] flex-wrap">
+        <span className="text-[11px] text-[#718077]">Khung giờ đã chọn:</span>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1">
+            <span className="text-[11px] font-bold text-[#718077]">Bắt đầu:</span>
+            <input
+              type="time"
+              value={timeFrom}
+              onChange={(e) => handleTypeStart(e.target.value)}
+              className="rounded-lg border border-[#c3d5be] bg-white px-2 py-1 font-mono text-[12px] font-bold text-[#0b2228] focus:border-[#477313] focus:outline-none shadow-2xs"
+            />
+          </label>
+          <span className="text-[#718077]">đến</span>
+          <label className="flex items-center gap-1">
+            <span className="text-[11px] font-bold text-[#718077]">Kết thúc:</span>
+            <input
+              type="time"
+              value={timeTo}
+              onChange={(e) => handleTypeEnd(e.target.value)}
+              className="rounded-lg border border-[#c3d5be] bg-white px-2 py-1 font-mono text-[12px] font-bold text-[#0b2228] focus:border-[#477313] focus:outline-none shadow-2xs"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="relative pt-1 pb-4">
+        <div className="relative h-4 w-full rounded-full bg-[#dce7d8] overflow-hidden">
+          <div
+            className="absolute top-0 bottom-0 rounded-full bg-gradient-to-r from-[#477313] to-[#71a32a] shadow-md transition-all"
+            style={{ left: `${startPercent}%`, width: `${blockWidthPercent}%` }}
+          />
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={Math.max(0, 1440 - currentDuration)}
+          step={15}
+          value={startMin}
+          onChange={(e) => handleStartChange(Number(e.target.value))}
+          className="absolute top-1 left-0 h-4 w-full cursor-pointer appearance-none bg-transparent accent-[#0b2228]"
+        />
+
+        <div className="mt-1 flex justify-between text-[9px] font-extrabold text-[#86968c]">
+          <span>00:00</span>
+          <span>06:00</span>
+          <span>12:00</span>
+          <span>18:00</span>
+          <span>24:00</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const nextDateStr = (dateStr: string) => {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + 1);
+  const yr = dt.getFullYear();
+  const mo = String(dt.getMonth() + 1).padStart(2, '0');
+  const dy = String(dt.getDate()).padStart(2, '0');
+  return `${yr}-${mo}-${dy}`;
+};
 
 const hanoiCenter: LatLngTuple = [21.0285, 105.8542];
 const distanceBetweenKm = (
@@ -141,6 +313,7 @@ export const Opponents = () => {
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlotInput[]>([
     { id: 1, timeFrom: '18:00', timeTo: '20:00' },
   ]);
+  const [useSliderMode, setUseSliderMode] = useState(true);
   const [format, setFormat] = useState<MatchFormat>('2vs2');
   const [playerCount, setPlayerCount] = useState(4);
   const [minSkillLevel, setMinSkillLevel] = useState(1);
@@ -501,6 +674,8 @@ export const Opponents = () => {
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError('');
+
     if (creationMode === 'manual' && !title.trim()) {
       setError('Vui lòng nhập tiêu đề lời mời.');
       return;
@@ -514,30 +689,50 @@ export const Opponents = () => {
       return;
     }
 
-    const timeToMinutes = (t: string) => {
+    const timeToMinutes = (t: string, isEndTime = false) => {
+      if (!t) return 0;
       const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
+      const min = (h || 0) * 60 + (m || 0);
+      if (isEndTime && t === '00:00') return 24 * 60; // 1440 minutes (Midnight end of day)
+      return min;
     };
 
     const validateSlotList = (slots: AvailabilitySlotInput[], contextName: string) => {
-      const ordered = [...slots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom));
-      const hasMissing = ordered.some((slot) => !slot.timeFrom || !slot.timeTo);
+      const hasMissing = slots.some((slot) => !slot.timeFrom || !slot.timeTo);
       if (hasMissing) {
         return `Vui lòng chọn đầy đủ giờ bắt đầu và giờ kết thúc cho mỗi slot ở ${contextName}.`;
       }
-      const hasInvalid = ordered.some((slot) => {
-        if (!slot.timeFrom || !slot.timeTo) return false;
-        return timeToMinutes(slot.timeTo) - timeToMinutes(slot.timeFrom) < 90;
-      });
-      if (hasInvalid) {
-        return `Giờ kết thúc của mỗi slot ở ${contextName} phải lớn hơn giờ bắt đầu ít nhất 90 phút.`;
+
+      const hasReversed = slots.some((slot) => timeToMinutes(slot.timeFrom) >= timeToMinutes(slot.timeTo, true));
+      if (hasReversed) {
+        return `Giờ kết thúc của mỗi slot ở ${contextName} phải lớn hơn giờ bắt đầu (ví dụ: 18:00 đến 20:00). Slot trong ngày không được qua đêm.`;
       }
-      const hasOverlap = ordered.some((slot, index) => {
-        const previous = ordered[index - 1];
-        return previous && slot.timeFrom < previous.timeTo;
-      });
-      if (hasOverlap) {
-        return `Các slot chơi ở ${contextName} không được trùng hoặc chồng thời gian.`;
+
+      const sorted = [...slots].sort((left, right) => timeToMinutes(left.timeFrom) - timeToMinutes(right.timeFrom));
+      const blocks: { start: string; end: string; endMin: number }[] = [];
+      for (const slot of sorted) {
+        const startMin = timeToMinutes(slot.timeFrom);
+        const endMin = timeToMinutes(slot.timeTo, true);
+        if (blocks.length === 0) {
+          blocks.push({ start: slot.timeFrom, end: slot.timeTo, endMin });
+        } else {
+          const current = blocks[blocks.length - 1];
+          if (startMin <= current.endMin) {
+            if (endMin > current.endMin) {
+              current.end = slot.timeTo;
+              current.endMin = endMin;
+            }
+          } else {
+            blocks.push({ start: slot.timeFrom, end: slot.timeTo, endMin });
+          }
+        }
+      }
+
+      for (const block of blocks) {
+        const durationMinutes = block.endMin - timeToMinutes(block.start);
+        if (durationMinutes < 90) {
+          return `Chuỗi khung giờ chơi liên tục ở ${contextName} (${block.start} - ${block.end}) phải kéo dài ít nhất 90 phút (1 tiếng 30 phút).`;
+        }
       }
       return null;
     };
@@ -573,15 +768,22 @@ export const Opponents = () => {
           setError('Khoảng ngày có thể chơi không được vượt quá 31 ngày.');
           return;
         }
-        if (dateFrom === today() && orderedAvailabilitySlots.some((slot) => slot.timeFrom <= currentTime())) {
-          setError('Giờ bắt đầu của hôm nay phải ở trong tương lai.');
+        if (dateFrom === today() && orderedAvailabilitySlots.some((slot) => slot.timeTo <= currentTime())) {
+          setError('Khung giờ được chọn cho hôm nay đã trôi qua. Vui lòng chọn khung giờ trong tương lai.');
           return;
         }
 
-        let current = new Date(dateFrom);
-        const end = new Date(dateTo);
-        while (current <= end) {
-          const dateStr = current.toISOString().slice(0, 10);
+        const [y1, m1, d1] = dateFrom.split('-').map(Number);
+        const [y2, m2, d2] = dateTo.split('-').map(Number);
+        const curDate = new Date(y1, m1 - 1, d1);
+        const endDate = new Date(y2, m2 - 1, d2);
+
+        while (curDate <= endDate) {
+          const year = curDate.getFullYear();
+          const monthStr = String(curDate.getMonth() + 1).padStart(2, '0');
+          const dayStr = String(curDate.getDate()).padStart(2, '0');
+          const dateStr = `${year}-${monthStr}-${dayStr}`;
+
           orderedAvailabilitySlots.forEach((slot) => {
             queueSlots.push({
               specificDate: dateStr,
@@ -589,7 +791,7 @@ export const Opponents = () => {
               timeEnd: slot.timeTo,
             });
           });
-          current.setDate(current.getDate() + 1);
+          curDate.setDate(curDate.getDate() + 1);
         }
       }
     } else if (replayType === 'Weekly') {
@@ -723,7 +925,7 @@ export const Opponents = () => {
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#edf2ea] p-1">
             <button
               type="button"
-              onClick={() => setCreationMode('auto')}
+              onClick={() => { setCreationMode('auto'); setError(''); }}
               className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-1 text-[11px] font-extrabold transition-colors ${creationMode === 'auto' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
                 }`}
             >
@@ -732,7 +934,7 @@ export const Opponents = () => {
             </button>
             <button
               type="button"
-              onClick={() => setCreationMode('manual')}
+              onClick={() => { setCreationMode('manual'); setError(''); }}
               className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-1 text-[11px] font-extrabold transition-colors ${creationMode === 'manual' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
                 }`}
             >
@@ -930,8 +1132,19 @@ export const Opponents = () => {
 
             {(replayType === 'None' || replayType === 'Daily') && (
               <div className="border-t border-[#cfe0c8] pt-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
+                <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setUseSliderMode((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#b8caa0] bg-[#eef6ec] px-2.5 py-1 text-[11px] font-extrabold text-[#2a4530] hover:bg-[#e0edd9] transition-colors shadow-xs"
+                      title="Bấm để chuyển đổi giữa Thanh Trượt 24h và Nhập giờ thủ công"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-[#477313]" />
+                      <span>{useSliderMode ? 'Đang bật: Thanh Trượt (Slider 24h)' : 'Đang bật: Nhập Thủ Công'}</span>
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={addAvailabilitySlot}
@@ -941,35 +1154,48 @@ export const Opponents = () => {
                     <Plus className="h-4 w-4" /> Thêm
                   </button>
                 </div>
+
                 <div className="space-y-3">
                   {availabilitySlots.map((slot, index) => (
-                    <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0">
-                      <div className="grid grid-cols-2 gap-2">
-                        <label>
-                          <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
-                          <input
-                            type="time"
-                            className={inputClass}
-                            min={replayType === 'None' && dateFrom === today() ? currentTime() : undefined}
-                            value={slot.timeFrom}
-                            onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
-                          />
-                        </label>
-                        <label>
-                          <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
-                          <input
-                            type="time"
-                            className={inputClass}
-                            value={slot.timeTo}
-                            onChange={(e) => updateAvailabilitySlot(slot.id, 'timeTo', e.target.value)}
-                          />
-                        </label>
-                      </div>
+                    <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0 items-start">
+                      {useSliderMode ? (
+                        <SlotTimeSlider
+                          timeFrom={slot.timeFrom}
+                          timeTo={slot.timeTo}
+                          onChange={(newFrom, newTo) => {
+                            setAvailabilitySlots((prev) =>
+                              prev.map((item) => (item.id === slot.id ? { ...item, timeFrom: newFrom, timeTo: newTo } : item))
+                            );
+                          }}
+                        />
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <label>
+                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
+                            <input
+                              type="time"
+                              className={inputClass}
+                              min={replayType === 'None' && dateFrom === today() ? currentTime() : undefined}
+                              value={slot.timeFrom}
+                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
+                            <input
+                              type="time"
+                              className={inputClass}
+                              value={slot.timeTo}
+                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeTo', e.target.value)}
+                            />
+                          </label>
+                        </div>
+                      )}
                       <button
                         type="button"
                         disabled={availabilitySlots.length === 1}
                         onClick={() => removeAvailabilitySlot(slot.id)}
-                        className="mt-[22px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
+                        className="mt-[18px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -1084,8 +1310,8 @@ export const Opponents = () => {
                           });
                         }}
                         className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${selectedDaysOfMonth.includes(d)
-                            ? 'border-[#0b2228] bg-[#0b2228] text-white'
-                            : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
+                          ? 'border-[#0b2228] bg-[#0b2228] text-white'
+                          : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
                           }`}
                       >
                         {d}
@@ -1152,6 +1378,21 @@ export const Opponents = () => {
             )}
 
           </div>
+
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-red-800 text-[12px] font-bold">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+              <span className="flex-1 leading-5">{error}</span>
+              <button
+                aria-label="Đóng cảnh báo"
+                className="grid h-5 w-5 shrink-0 place-items-center rounded text-red-600 hover:bg-red-100"
+                onClick={() => setError('')}
+                type="button"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           <button className="community-button w-full" disabled={isCreating} type="submit">
             <PlusCircle className="h-5 w-5" />
@@ -1223,18 +1464,18 @@ export const Opponents = () => {
       {error && (
         <div
           aria-live="assertive"
-          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[1200] flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 items-start gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800 shadow-[0_12px_32px_rgba(80,20,20,0.18)]"
+          className="fixed top-20 right-4 sm:right-6 z-[9999] flex w-[calc(100%-2rem)] max-w-md items-start gap-2.5 rounded-xl border border-red-200 bg-red-50/95 p-3.5 text-red-900 shadow-xl backdrop-blur"
           role="alert"
         >
-          <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
-          <p className="min-w-0 flex-1 text-[13px] font-bold leading-5">{error}</p>
+          <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+          <p className="min-w-0 flex-1 text-[12px] font-extrabold leading-5">{error}</p>
           <button
             aria-label="Đóng cảnh báo"
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-red-700 transition-colors hover:bg-red-100"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-red-600 transition-colors hover:bg-red-100"
             onClick={() => setError('')}
             type="button"
           >
-            <X aria-hidden="true" className="h-4 w-4" />
+            <X aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

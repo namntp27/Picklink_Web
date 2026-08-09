@@ -383,7 +383,8 @@ export const MatchDetail = () => {
           const endTime = date + 'T' + timePart(templateSlot.endTime) + ':00';
           const currentSlot = dailyAvailability.slots.find((slot) =>
             slot.courtId === templateSlot.courtId && timePart(slot.startTime) === timePart(templateSlot.startTime));
-          if (new Date(startTime).getTime() <= Date.now()) {
+          const parseSlotTime = (str: string) => new Date(str.includes('Z') || str.includes('+') ? str : str + '+07:00').getTime();
+          if (parseSlotTime(startTime) <= Date.now()) {
             pastSlotKeys.add(slotIdentity(templateSlot.courtId, startTime, endTime));
             continue;
           }
@@ -437,9 +438,10 @@ export const MatchDetail = () => {
 
 
   const selectSlot = (slot: AvailabilitySlot) => {
+    const parseSlotTime = (str: string) => new Date(str.includes('Z') || str.includes('+') ? str : str + '+07:00').getTime();
     if (slot.status !== 'Available'
       || unavailableSlotKeysForDate.includes(slotKey(slot))
-      || new Date(slot.startTime).getTime() <= Date.now()
+      || parseSlotTime(slot.startTime) <= Date.now()
       || !bookingDate) return;
     const court = availability?.courts.find((item) => item.courtId === slot.courtId);
     const key = slotIdentity(slot.courtId, slot.startTime, slot.endTime);

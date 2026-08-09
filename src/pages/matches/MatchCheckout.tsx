@@ -41,17 +41,24 @@ export const MatchCheckout = () => {
     }
     try {
       const detail = await getMatchDetail(token, matchId);
+      console.log('[MatchCheckout] Loaded match detail:', detail);
       if (detail.bookingId !== bookingId) throw new Error('Booking không thuộc phòng ghép trận này.');
       setMatch(detail);
       setError('');
     } catch (reason) {
+      console.error('[MatchCheckout] Error loading match:', reason);
       setError(reason instanceof Error ? reason.message : 'Không thể tải thanh toán ghép trận.');
     }
   };
 
   useEffect(() => { void loadMatch(); }, [bookingId, matchId, token]);
 
-  const paymentTargets = useMemo(() => match?.participants.filter((participant) => approved(participant.status) && participant.paymentId) ?? [], [match]);
+  const paymentTargets = useMemo(() => {
+    const targets = match?.participants.filter((participant) => approved(participant.status) && participant.paymentId) ?? [];
+    console.log('[MatchCheckout] All participants:', match?.participants);
+    console.log('[MatchCheckout] Filtered payment targets:', targets);
+    return targets;
+  }, [match]);
   const pendingPayerIds = useMemo(() => new Set(paymentTargets.filter((participant) => participant.paymentStatus === 'Pending').map((participant) => participant.playerId)), [paymentTargets]);
   const rejectedPayment = paymentTargets.find((participant) => participant.paymentStatus === 'Pending' && participant.paymentRejectionReason);
   const myPaymentApproved = match?.myPaymentStatus === 'Paid';
@@ -87,13 +94,17 @@ export const MatchCheckout = () => {
     }
     let cancelled = false;
     setPreview(null);
+    console.log('[MatchCheckout] Requesting batch payment preview for payers:', selectedKey);
     void previewBatchPayment(token, bookingId, selectedKey.split(',').map(Number))
       .then((value) => {
         if (cancelled) return;
+        console.log('[MatchCheckout] Batch payment preview response:', value);
         setPreview(value);
-        void loadMatch();
       })
-      .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Không thể tạo mã thanh toán.'); });
+      .catch((reason) => {
+        console.error('[MatchCheckout] Batch payment preview error:', reason);
+        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Không thể tạo mã thanh toán.');
+      });
     return () => { cancelled = true; };
   }, [bookingId, paymentExpired, selectedKey, token]);
 

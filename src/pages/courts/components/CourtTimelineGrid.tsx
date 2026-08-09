@@ -27,6 +27,10 @@ export const buildTimelineTicks = (openTime: string, closeTime: string, slotMinu
 
 const slotTime = (value: string) => value.slice(11, 16);
 const slotKey = (courtId: number, startTime: string) => `${courtId}:${startTime}`;
+const parseSlotDate = (str: string) => {
+  if (!str) return 0;
+  return new Date(str.includes('Z') || str.includes('+') ? str : str + '+07:00').getTime();
+};
 
 const statusLabel: Record<AvailabilitySlot['status'], string> = {
   Available: 'Trống',
@@ -109,7 +113,7 @@ export const CourtTimelineGrid = ({
                 const slot = slotsByCourtAndStart.get(`${court.courtId}-${tick}`);
                 const forcedUnavailable = disabledSlotKeys.includes(slotKey(court.courtId, tick));
                 const selected = selectedSlotKeys.includes(slotKey(court.courtId, tick));
-                const past = slot ? new Date(slot.startTime).getTime() <= Date.now() : false;
+                const past = slot ? parseSlotDate(slot.startTime) <= Date.now() : false;
                 const resumableHolding = Boolean(slot?.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId);
                 const disabled = forcedUnavailable || !slot || (!resumableHolding && (slot.status !== 'Available' || past));
                 const statusClass = forcedUnavailable
