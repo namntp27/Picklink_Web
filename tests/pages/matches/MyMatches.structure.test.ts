@@ -15,3 +15,11 @@ test('manual invitations show the selected venue names in their detail card', ()
   assert.match(source, /venue\.venueName/);
   assert.match(source, /Chưa chọn sân cụ thể/);
 });
+
+test('the default my-matches tab renders joined rooms together with manual queues', () => {
+  assert.match(source, /currentQueues !== null && currentQueues\.map/);
+  assert.match(source, /activeFilter !== 'ActiveQueues' && visible\.map/);
+  assert.match(source, /visible\.length > 0 \|\| \(activeFilter === 'all'/);
+  assert.match(source, /activeFilter !== 'ActiveQueues' && \(/);
+  assert.doesNotMatch(source, /currentQueues !== null \? \(/);
+});

@@ -21,3 +21,19 @@ test('a booked match can submit another booking from the frontend', () => {
   assert.ok(controllerSource.includes('[HttpPost("{matchId:int}/booking")]'));
   assert.ok(controllerSource.includes('_matchService.CreateMatchBooking(matchId, request, cancellationToken)'));
 });
+
+test('a full recruiting room can transition to the visible booking form', () => {
+  const readyApiStart = apiSource.indexOf('export const markMatchReadyToBook');
+  const createBookingStart = apiSource.indexOf('export const createMatchBooking');
+  const readyApiSource = apiSource.slice(readyApiStart, createBookingStart);
+
+  assert.ok(readyApiStart >= 0 && createBookingStart > readyApiStart);
+  assert.ok(readyApiSource.includes('/api/matches/${matchId}/ready'));
+  assert.ok(readyApiSource.includes("method: 'POST'"));
+  assert.ok(detailSource.includes("match.status === 'Recruiting' && isFull"));
+  assert.ok(detailSource.includes('markMatchReadyToBook(token, matchId)'));
+  assert.ok(detailSource.includes("match?.status === 'ReadyToBook'"));
+  assert.ok(detailSource.includes('{isApprovedMember && canBookAnotherRound && ('));
+  assert.ok(controllerSource.includes('[HttpPost("{matchId:int}/ready")]'));
+  assert.ok(controllerSource.includes('_matchService.MarkReadyToBook(matchId, cancellationToken)'));
+});

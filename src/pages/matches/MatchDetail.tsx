@@ -1088,8 +1088,8 @@ export const MatchDetail = () => {
                       {booking.checkInGroups.map((group) => (
                         <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={group.bookingCheckInGroupId}>
                           <p className="text-[11px] font-bold text-white">Sân {group.courtNumber} · {dateTimeLabel(group.startTime)}–{timePart(group.endTime)}</p>
-                          {group.checkInCode && <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Mã check-in cá nhân của bạn</p>}
-                          {group.checkInCode ? (
+                          {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen && <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Mã check-in cá nhân của bạn</p>}
+                          {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen ? (
                             <div className="match-checkin-code">{group.checkInCode}</div>
                           ) : (
                             <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>

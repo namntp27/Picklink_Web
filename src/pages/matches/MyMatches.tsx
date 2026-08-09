@@ -169,6 +169,10 @@ export const MyMatches = () => {
     return null;
   }, [activeFilter, myQueues]);
 
+  const hasVisibleCards = activeFilter === 'ActiveQueues'
+    ? (currentQueues?.length ?? 0) > 0
+    : visible.length > 0 || (activeFilter === 'all' && (currentQueues?.length ?? 0) > 0);
+
   const attentionCount = matches.filter(
     (match) => match.myParticipantStatus === 'Invited'
       || match.status === 'ReadyToBook'
@@ -289,15 +293,7 @@ export const MyMatches = () => {
             </>
           )}
 
-          {currentQueues !== null ? (
-            currentQueues.length === 0 ? (
-              <div className="col-span-full py-8 text-center text-sm font-semibold text-[#526158]">
-                {activeFilter === 'all'
-                  ? 'Không có lời mời ghép trận thủ công.'
-                  : 'Không có lời mời ghép trận tự động nào đang hoạt động.'}
-              </div>
-            ) : (
-              currentQueues.map((queue) => {
+          {currentQueues !== null && currentQueues.map((queue) => {
                 const approvedPlayers = queue.queuePlayers.filter((player) => player.status !== 'Pending' && player.status !== 'Rejected');
                 const host = approvedPlayers.find((player) => player.isHost);
                 const maxCap = queue.playerCount ?? (queue.matchType === '1vs1' ? 2 : 4);
@@ -462,10 +458,9 @@ export const MyMatches = () => {
                   </div>
                 </article>
                 );
-              })
-            )
-          ) : (
-            visible.map((match) => {
+              })}
+
+          {activeFilter !== 'ActiveQueues' && visible.map((match) => {
               const status = statusConfig[match.status];
               const StatusIcon = status.icon;
               const isInvitation = match.myParticipantStatus === 'Invited';
@@ -533,10 +528,9 @@ export const MyMatches = () => {
                   </div>
                 </article>
               );
-            })
-          )}
+            })}
 
-          {!isLoading && (currentQueues !== null ? currentQueues.length === 0 : visible.length === 0) && (
+          {!isLoading && !hasVisibleCards && (
             <div className="sm:col-span-2 lg:col-span-3">
               <CommunityEmptyState
                 action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}
@@ -546,7 +540,7 @@ export const MyMatches = () => {
               />
             </div>
           )}
-          {currentQueues === null && (
+          {activeFilter !== 'ActiveQueues' && (
             <div className="sm:col-span-2 lg:col-span-3">
               <PaginationControls page={pagination} onPageChange={setPage} />
             </div>
