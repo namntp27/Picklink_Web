@@ -27,6 +27,7 @@ import {
   markStaffBookingNoShow,
   markStaffCheckInGroupNoShow,
   markStaffMatchParticipantNoShow,
+  searchStaffBooking,
   verifyStaffBookingCodeByCode,
   type StaffAssignment,
   type StaffBooking,
@@ -346,6 +347,13 @@ export const StaffDashboard = () => {
     setError('');
     setSuccess('');
     try {
+      if (searchCode.trim().toUpperCase().startsWith('PL-')) {
+        const booking = await searchStaffBooking(token, searchCode.trim());
+        selectBooking(booking);
+        setSuccess('Đã tìm thấy booking. Mã booking chỉ dùng để xem thông tin; hãy quét mã check-in để check-in.');
+        return;
+      }
+
       const verified = await verifyStaffBookingCodeByCode(token, searchCode.trim());
       const group = verified.verifiedCheckInGroupId
         ? verified.checkInGroups.find(
@@ -542,12 +550,12 @@ export const StaffDashboard = () => {
             </span>
             <div className="min-w-0">
               <p className="text-[13px] font-extrabold">
-                {workspaceMode === 'tickets' ? 'Quét mã để check-in vé' : 'Nhập hoặc quét mã check-in'}
+                {workspaceMode === 'tickets' ? 'Quét mã để check-in vé' : 'Tra cứu booking hoặc quét mã check-in'}
               </p>
               <p className="mt-0.5 truncate text-[10px] font-medium text-[#627168]">
                 {workspaceMode === 'tickets'
                   ? 'Chỉ vé đã thanh toán tại sân được phân công'
-                  : 'Mã khung giờ hoặc mã cá nhân của player'}
+                  : 'Mã PL- chỉ xem thông tin; mã CI- hoặc mã cá nhân mới check-in'}
               </p>
             </div>
           </div>
@@ -558,7 +566,7 @@ export const StaffDashboard = () => {
               autoFocus
               className="staff-control"
               onChange={(event) => setSearchCode(event.target.value)}
-              placeholder={workspaceMode === 'tickets' ? 'VD: TK-...' : 'VD: CI-... hoặc mã cá nhân'}
+              placeholder={workspaceMode === 'tickets' ? 'VD: TK-...' : 'VD: PL-... để xem, CI-... để check-in'}
               value={searchCode}
             />
           </div>
@@ -570,8 +578,14 @@ export const StaffDashboard = () => {
           >
             {workspaceMode === 'tickets'
               ? <UserCheck aria-hidden="true" className="h-4 w-4" />
-              : <ShieldCheck aria-hidden="true" className="h-4 w-4" />}
-            {workspaceMode === 'tickets' ? 'Check-in vé' : 'Quét & check-in'}
+              : searchCode.trim().toUpperCase().startsWith('PL-')
+                ? <Search aria-hidden="true" className="h-4 w-4" />
+                : <ShieldCheck aria-hidden="true" className="h-4 w-4" />}
+            {workspaceMode === 'tickets'
+              ? 'Check-in vé'
+              : searchCode.trim().toUpperCase().startsWith('PL-')
+                ? 'Xem thông tin'
+                : 'Quét & check-in'}
           </button>
         </form>
 

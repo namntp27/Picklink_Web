@@ -8,6 +8,7 @@ import {
   QrCode,
   RefreshCw,
   ScanLine,
+  Search,
   Ticket,
   UsersRound,
   UserX,
@@ -19,6 +20,7 @@ import {
   markOwnerBookingGroupNoShow,
   markOwnerBookingNoShow,
   markOwnerMatchParticipantNoShow,
+  searchOwnerCheckInBooking,
   verifyOwnerCheckInCode,
 } from '../../api/ownerCheckIn';
 import { getOwnerVenues, type OwnerVenue } from '../../api/owner';
@@ -163,6 +165,18 @@ export const OwnerCheckIn = () => {
     setError('');
     setSuccess('');
     try {
+      if (normalized.toUpperCase().startsWith('PL-')) {
+        const booking = await searchOwnerCheckInBooking(token, normalized);
+        updateBooking(booking);
+        setSelectedGroupId(
+          booking.checkInGroups.find((item) => item.isCheckInWindowOpen)?.bookingCheckInGroupId
+          ?? booking.checkInGroups[0]?.bookingCheckInGroupId
+          ?? null,
+        );
+        setSuccess('Đã tìm thấy booking. Mã booking chỉ dùng để xem thông tin; hãy quét mã check-in để check-in.');
+        return;
+      }
+
       const booking = await verifyOwnerCheckInCode(token, normalized);
       const group = booking.verifiedCheckInGroupId
         ? booking.checkInGroups.find(
@@ -292,8 +306,12 @@ export const OwnerCheckIn = () => {
             disabled={!code.trim() || busyKey === 'verify'}
             type="submit"
           >
-            {busyKey === 'verify' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}
-            Quét & check-in
+            {busyKey === 'verify'
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : code.trim().toUpperCase().startsWith('PL-')
+                ? <Search className="h-4 w-4" />
+                : <ScanLine className="h-4 w-4" />}
+            {code.trim().toUpperCase().startsWith('PL-') ? 'Xem thông tin' : 'Quét & check-in'}
           </button>
         </form>
 

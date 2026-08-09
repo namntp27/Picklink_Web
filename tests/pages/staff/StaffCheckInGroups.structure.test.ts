@@ -11,10 +11,14 @@ test('staff dashboard scan atomically checks in without a second present command
   const styles = await readFile(path.join(root, 'src/pages/staff/staff.css'), 'utf8');
 
   assert.match(api, /verifyStaffBookingCodeByCode/);
+  assert.match(api, /searchStaffBooking/);
   assert.doesNotMatch(api, /checkInStaff(?:Booking|CheckInGroup|MatchParticipant)/);
   assert.match(api, /markStaffCheckInGroupNoShow/);
   assert.match(dashboard, /verified\.checkInGroups\.find/);
   assert.match(dashboard, /verifyStaffBookingCodeByCode/);
+  assert.match(dashboard, /searchStaffBooking/);
+  assert.match(dashboard, /startsWith\('PL-'\)/);
+  assert.match(dashboard, /Mã booking chỉ dùng để xem thông tin/);
   assert.match(dashboard, /verified\.verifiedCheckInGroupId/);
   assert.match(dashboard, /verified\.verifiedPlayerId/);
   assert.match(dashboard, /attendanceStatus === 'Present'/);

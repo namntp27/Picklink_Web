@@ -25,6 +25,9 @@ test('owner check-in loads every page instead of stopping at 100 bookings', () =
 });
 
 test('owner scan atomically checks in the resolved group or player', () => {
+  assert.ok(pageSource.includes('searchOwnerCheckInBooking'));
+  assert.ok(pageSource.includes("startsWith('PL-')"));
+  assert.ok(pageSource.includes('Mã booking chỉ dùng để xem thông tin'));
   assert.ok(pageSource.includes('booking.verifiedPlayerId'));
   assert.ok(pageSource.includes('booking.verifiedCheckInGroupId'));
   assert.ok(pageSource.includes("attendanceStatus === 'Present'"));

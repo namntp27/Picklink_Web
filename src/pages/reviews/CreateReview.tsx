@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Star } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, Star } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getBookingHolding, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
@@ -61,7 +61,7 @@ export const CreateReview = () => {
   return <div className="min-h-dvh bg-surface-container-low pt-[72px] text-on-surface">
     <section className="bg-primary text-white"><div className="mx-auto max-w-[980px] px-4 py-9"><Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/80" to={booking ? `/bookings/${booking.bookingId}` : '/my-bookings'}><ArrowLeft className="h-4 w-4" /> Quay lại booking</Link><h1 className="mt-5 text-[34px] font-bold md:text-[44px]">Đánh giá sân</h1><p className="mt-2 text-white/80">Mỗi Player chỉ được đánh giá một lần cho một booking đủ điều kiện.</p></div></section>
 
-    <main className="mx-auto grid max-w-[980px] gap-6 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <main className="mx-auto max-w-[980px] px-4 py-8">
       <section className="rounded-2xl border border-outline-variant bg-white p-6 shadow-sm">
         {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-[14px] font-bold text-red-700">{error}</div>}
         {booking && <div className="rounded-xl bg-surface-container-low p-4"><p className="text-[12px] font-bold uppercase text-primary">{booking.bookingCode}</p><h2 className="mt-1 text-[21px] font-bold">{booking.venueName} · Sân {booking.courtNumber}</h2><p className="mt-1 text-[13px] text-on-surface-variant">{booking.address}</p></div>}
@@ -77,7 +77,6 @@ export const CreateReview = () => {
         </div>}
       </section>
 
-      <aside className="h-fit rounded-2xl border border-primary bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 text-[19px] font-bold"><ShieldCheck className="h-5 w-5 text-primary" /> Điều kiện đánh giá</h2><div className="mt-4 space-y-3 text-[13px] leading-6 text-on-surface-variant"><p>Booking phải thuộc chính Player đang đăng nhập.</p><p>BookingStatus là Completed, hoặc CheckInStatus là CheckedIn.</p><p>Mỗi Player chỉ được đánh giá một lần cho một booking.</p></div></aside>
     </main>
   </div>;
 };
