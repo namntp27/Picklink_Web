@@ -221,6 +221,7 @@ export type MatchPlayerReview = {
 
 export type MatchSearchFilters = PaginationParams & {
   owner?: 'mine' | 'other';
+  source?: 'community' | 'manual';
   matchType?: MatchFormat;
   skillLevel?: number;
   from?: string;
@@ -264,7 +265,7 @@ export const getMatchPlayerRecommendations = (token: string, input: {
 export const getOpenMatches = (
   token?: string,
   filters: MatchSearchFilters = {},
-  options: Pick<RequestInit, 'signal'> = {},
+  options: Pick<RequestInit, 'signal' | 'cache'> = {},
 ) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/matches/open${queryString(filters)}`, options, token);
 
 export const getMyMatches = (

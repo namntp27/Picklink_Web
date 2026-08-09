@@ -12,7 +12,12 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { forwardGeocodeArea, reverseGeocodeArea } from '../../api/geocoding';
 import { resolveAdministrativeArea } from '../../api/locations';
-import { joinSoloQueue, type JoinSoloQueueRequest, type QueueSlotRequest } from '../../api/matchmaking';
+import {
+  createManualQueueRoom,
+  joinSoloQueue,
+  type JoinSoloQueueRequest,
+  type QueueSlotRequest,
+} from '../../api/matchmaking';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
@@ -855,7 +860,7 @@ export const Opponents = () => {
 
     setIsCreating(true);
     try {
-      await joinSoloQueue(token, {
+      const queue = await joinSoloQueue(token, {
         ...(creationMode === 'manual' ? {
           title: title.trim(),
           playerCount,
@@ -875,6 +880,21 @@ export const Opponents = () => {
         sharedVenues: selectedVenueIds.length > 0 ? selectedVenueIds.join(',') : null,
         queueSlots,
       });
+
+      if (creationMode === 'manual') {
+        if (queue.matchId != null) {
+          navigate(`/matches/${queue.matchId}`);
+          return;
+        }
+        if (queue.matchmakingQueueId == null) {
+          throw new Error('Không thể xác định lời mời thủ công vừa tạo.');
+        }
+
+        const { matchId } = await createManualQueueRoom(token, queue.matchmakingQueueId);
+        navigate(`/matches/${matchId}`);
+        return;
+      }
+
       navigate('/my-matches');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể đăng ký hàng chờ ghép trận.');

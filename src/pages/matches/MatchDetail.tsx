@@ -525,12 +525,16 @@ export const MatchDetail = () => {
     }
   };
 
-  const run = async (action: () => Promise<unknown>) => {
+  const run = async (action: () => Promise<unknown>, onSuccess?: () => void) => {
     setIsBusy(true);
     setError('');
     try {
       await action();
-      await loadMatch();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        await loadMatch();
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể thực hiện thao tác.');
     } finally {
@@ -972,14 +976,14 @@ export const MatchDetail = () => {
                     <button className="community-button-secondary" disabled={isBusy} onClick={() => token && window.confirm('Từ chối lời mời tham gia phòng này?') && void run(() => declineMatchInvitation(token, matchId))} type="button">
                       <X className="h-4 w-4" /> Từ chối
                     </button>
-                    <button className="community-button" disabled={isBusy} onClick={() => token && window.confirm('Chấp nhận lời mời và tham gia phòng này?') && void run(() => acceptMatchInvitation(token, matchId))} type="button">
+                    <button className="community-button" disabled={isBusy} onClick={() => token && window.confirm('Chấp nhận lời mời và tham gia phòng này?') && void run(() => acceptMatchInvitation(token, matchId), () => navigate('/my-matches'))} type="button">
                       <Check className="h-4 w-4" /> Chấp nhận
                     </button>
                   </div>
                 </div>
               )}
               {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.myParticipantStatus !== 'Invited' && match.status === 'Recruiting' && (
-                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
+                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId), () => navigate('/my-matches'))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
               )}
               {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng hoặc thành viên trong phòng duyệt</div>}
               {isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status) && (

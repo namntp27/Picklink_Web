@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Building2,
   CalendarRange,
   CheckCircle2,
   Clock,
@@ -16,7 +17,13 @@ import {
   LogOut,
   MessageSquare,
 } from 'lucide-react';
-import { getMyMatches, type MatchStatus, type MatchSummary } from '../../api/matches';
+import {
+  getMyMatches,
+  searchMatchVenues,
+  type MatchPreferredVenue,
+  type MatchStatus,
+  type MatchSummary,
+} from '../../api/matches';
 import { createManualQueueRoom, getMyQueues, cancelQueue, resumeQueue, type QueueStatusResponse } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
@@ -62,6 +69,11 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
 
 const timePart = (value: string) => value.slice(11, 16);
 
+const queueVenueIds = (sharedVenues?: string | null) => sharedVenues
+  ?.split(',')
+  .map(Number)
+  .filter(Number.isInteger) ?? [];
+
 const queueDateRange = (queue: QueueStatusResponse) => {
   const dates = queue.queueSlots.flatMap((slot) => slot.specificDate ? [slot.specificDate] : []).sort();
   if (!dates.length) return queue.replayType === 'Daily' ? 'Hằng ngày' : queue.replayType;
@@ -104,13 +116,35 @@ export const MyMatches = () => {
         getMyMatches(token!, { page, pageSize: 9 }),
         getMyQueues(token!).catch(() => emptyQueues),
       ]);
-      return { result, queues };
+
+      const selectedVenueIds = new Set(
+        queues
+          .filter((queue) => queue.isPublic)
+          .flatMap((queue) => queueVenueIds(queue.sharedVenues)),
+      );
+      const venues = selectedVenueIds.size > 0
+        ? await searchMatchVenues({ radiusKm: 0 }).catch((): MatchPreferredVenue[] => [])
+        : [];
+      const venuesById = new Map(venues.map((venue) => [venue.venueId, venue]));
+      const queueVenues: Record<number, MatchPreferredVenue[]> = {};
+
+      queues.forEach((queue) => {
+        if (!queue.isPublic || queue.matchmakingQueueId == null) return;
+        queueVenues[queue.matchmakingQueueId] = queueVenueIds(queue.sharedVenues)
+          .flatMap((venueId) => {
+            const venue = venuesById.get(venueId);
+            return venue ? [venue] : [];
+          });
+      });
+
+      return { result, queues, queueVenues };
     },
     { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách phòng.' },
   );
 
   const matches = data?.result.items ?? emptyMatches;
   const myQueues = data?.queues ?? emptyQueues;
+  const queueVenues = data?.queueVenues ?? {};
   const pagination = data?.result ?? emptyPagination;
   const error = actionError || loadError;
   const load = refresh;
@@ -268,6 +302,7 @@ export const MyMatches = () => {
                 const host = approvedPlayers.find((player) => player.isHost);
                 const maxCap = queue.playerCount ?? (queue.matchType === '1vs1' ? 2 : 4);
                 const isCurrentUserHost = approvedPlayers.some((player) => player.isHost && String(player.playerId) === user?.id);
+                const selectedVenues = queue.matchmakingQueueId == null ? [] : queueVenues[queue.matchmakingQueueId] ?? [];
 
                 return (
                 <article
@@ -342,6 +377,20 @@ export const MyMatches = () => {
                             <div className="community-scroll mt-1 flex max-h-20 flex-wrap gap-1 overflow-y-auto pr-1">
                               {formatQueueSlots(queue.queueSlots, queue.replayType, true).map((slot, sIdx) => <span key={sIdx} className="inline-flex min-h-5 items-center rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0b2228]">{slot.timeStart} - {slot.timeEnd}</span>)}
                             </div>
+                          </div>
+                          <div className="px-2.5 py-2">
+                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Building2 className="h-3 w-3 text-[#477313]" />Các sân đã chọn</p>
+                            {selectedVenues.length > 0 ? (
+                              <div className="community-scroll mt-1 flex max-h-20 flex-wrap gap-1 overflow-y-auto pr-1">
+                                {selectedVenues.map((venue) => (
+                                  <span className="inline-flex min-h-5 items-center rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#0b2228]" key={venue.venueId}>
+                                    {venue.venueName}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-0.5 text-[10px] text-[#718077]">Chưa chọn sân cụ thể</p>
+                            )}
                           </div>
                           <div className="px-2.5 py-2">
                             <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên nhóm ({approvedPlayers.length}/{maxCap})</p>

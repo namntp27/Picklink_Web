@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Building2,
   CalendarRange,
   ChevronRight,
   Clock,
@@ -20,7 +21,13 @@ import {
   Settings,
 } from 'lucide-react';
 import { getOpenMatches, searchMatchVenues, type MatchFormat, type MatchPreferredVenue, type MatchSummary } from '../../api/matches';
-import { getPublicQueues, joinPublicQueue, cancelQueue, type QueueStatusResponse } from '../../api/matchmaking';
+import {
+  cancelQueue,
+  createManualQueueRoom,
+  getPublicQueues,
+  joinPublicQueue,
+  type QueueStatusResponse,
+} from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
 import { useApiQuery } from '../../hooks/useApiQuery';
@@ -36,7 +43,6 @@ const MatchVenueMapDialog = lazy(async () => {
 });
 
 type Filters = {
-  owner: 'mine' | 'other';
   format: 'all' | MatchFormat;
   skill: string;
   province: string;
@@ -45,7 +51,6 @@ type Filters = {
 };
 
 const defaults: Filters = {
-  owner: 'other',
   format: 'all',
   skill: 'all',
   province: '',
@@ -100,6 +105,7 @@ export const PendingInvites = () => {
   const [filters, setFilters] = useState<Filters>(defaults);
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
+  const [openingQueueId, setOpeningQueueId] = useState<number | null>(null);
   const [debouncedProvince, setDebouncedProvince] = useState(filters.province);
   const [debouncedWard, setDebouncedWard] = useState(filters.ward);
   const setError = setActionError;
@@ -167,6 +173,29 @@ export const PendingInvites = () => {
     }
   };
 
+  const handleOpenQueueMatch = async (queue: QueueStatusResponse) => {
+    if (queue.matchId != null) {
+      navigate(`/matches/${queue.matchId}`);
+      return;
+    }
+
+    const queueId = queue.matchmakingQueueId;
+    if (queueId == null) {
+      setError('Không thể xác định lời mời thủ công này.');
+      return;
+    }
+
+    setOpeningQueueId(queueId);
+    try {
+      const { matchId } = await createManualQueueRoom(token!, queueId);
+      navigate(`/matches/${matchId}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể mở phòng trận đấu.');
+    } finally {
+      setOpeningQueueId(null);
+    }
+  };
+
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       setDebouncedProvince(filters.province.trim());
@@ -182,51 +211,54 @@ export const PendingInvites = () => {
     loading: isLoading,
     refresh: load,
   } = useApiQuery(
-    ['open-matches', token, page, filters.owner, filters.format, filters.skill, filters.date,
+    ['open-matches-v5', activeTab, token, page, filters.format, filters.skill, filters.date,
       debouncedProvince, debouncedWard],
     () => getOpenMatches(token ?? undefined, {
       page,
       pageSize: 10,
-      owner: filters.owner,
+      source: activeTab === 'queue' ? 'manual' : 'community',
       matchType: filters.format === 'all' ? undefined : filters.format,
       skillLevel: filters.skill === 'all' ? undefined : Number(filters.skill),
       from: filters.date || undefined,
       to: filters.date || undefined,
       province: debouncedProvince || undefined,
       ward: debouncedWard || undefined,
-    }),
-    { enabled: activeTab === 'manual', errorMessage: 'Không thể tải danh sách lời mời.' },
+    }, { cache: 'no-store' }),
+    { errorMessage: 'Không thể tải danh sách lời mời.' },
   );
 
   const matches = matchPage?.items ?? emptyMatches;
   const pagination = matchPage ?? emptyPagination;
-  const error = actionError || (activeTab === 'manual' ? matchesError : queuesError);
+  const error = actionError || matchesError || (activeTab === 'queue' ? queuesError : '');
 
   useMatchRealtime(() => {
     void load();
   });
 
-  const visibleMatches = matches;
+  const visibleMatches = matches.filter((match) =>
+    match.status === 'Recruiting' && match.availableSlotCount > 0);
   
   const filteredQueues = useMemo(() => {
     return queues.filter((q) => {
       if (!q.isPublic) return false;
+      const maxCapacity = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
+      const approvedPlayerCount = q.queuePlayers.filter((player) => player.status === 'Approved').length;
+      if (approvedPlayerCount >= maxCapacity) return false;
+      const currentPlayer = q.queuePlayers.find((player) =>
+        player.isCurrentPlayer || String(player.playerId) === user?.id || player.playerName === user?.name);
+      if (currentPlayer?.status === 'Approved') return false;
       if (filters.format !== 'all' && q.matchType !== filters.format) return false;
       if (filters.province && q.province !== filters.province) return false;
       if (filters.ward && q.ward !== filters.ward) return false;
       
-      const isMine = q.queuePlayers.some((p) => String(p.playerId) === user?.id && p.status !== 'Pending' && p.status !== 'Rejected');
-      if (filters.owner === 'mine' && !isMine) return false;
-      if (filters.owner === 'other' && isMine) return false;
       return true;
     });
-  }, [queues, filters.format, filters.province, filters.ward, filters.owner, user?.id]);
+  }, [queues, filters.format, filters.province, filters.ward, user?.id, user?.name]);
 
   const remainingSlots = useMemo(() => {
-    if (activeTab === 'manual') {
-      return visibleMatches.reduce((sum, match) => sum + match.availableSlotCount, 0);
-    }
-    return filteredQueues.reduce((sum, q) => {
+    const matchSlots = visibleMatches.reduce((sum, match) => sum + match.availableSlotCount, 0);
+    if (activeTab === 'manual') return matchSlots;
+    return matchSlots + filteredQueues.reduce((sum, q) => {
       const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
       return sum + Math.max(0, maxCap - q.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected').length);
     }, 0);
@@ -259,10 +291,10 @@ export const PendingInvites = () => {
           <div className="grid grid-cols-2 gap-5">
             <div>
               <p className="font-mono text-[28px] font-extrabold text-[#e2ff57]">
-                {activeTab === 'manual' ? pagination.totalCount : filteredQueues.length}
+                {activeTab === 'manual' ? pagination.totalCount : pagination.totalCount + filteredQueues.length}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">
-                {activeTab === 'manual' ? 'lời mời đang mở' : 'hàng chờ công khai'}
+                {activeTab === 'manual' ? 'lời mời đang mở' : 'lời mời thủ công'}
               </p>
             </div>
             <div>
@@ -332,11 +364,7 @@ export const PendingInvites = () => {
               </button>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <select aria-label="Người tạo lời mời" className="community-control" onChange={(event) => update('owner', event.target.value)} value={filters.owner}>
-              <option value="other">Của người khác</option>
-              <option value="mine">Của tôi</option>
-            </select>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <AdministrativeAreaSelects
               fieldClassName="min-w-0"
               labelClassName="sr-only"
@@ -369,7 +397,7 @@ export const PendingInvites = () => {
         )}
 
         <section className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {activeTab === 'manual' ? (
+          {activeTab === 'manual' || visibleMatches.length > 0 ? (
             <>
               {visibleMatches.map((match) => (
                 <article className="community-card h-full p-3" key={match.matchId}>
@@ -447,13 +475,42 @@ export const PendingInvites = () => {
                         ))}
                       </div>
                     </div>
+                    {activeTab === 'queue' && (
+                      <div className="px-2.5 py-2">
+                        <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Building2 className="h-3 w-3 text-[#477313]" />Các sân đã chọn</p>
+                        {match.preferredVenues.length > 0 ? (
+                          <div className="community-scroll mt-1 flex max-h-20 flex-wrap gap-1 overflow-y-auto pr-1">
+                            {match.preferredVenues.map((venue) => (
+                              <span className="inline-flex min-h-5 items-center rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#0b2228]" key={venue.venueId}>
+                                {venue.venueName}
+                              </span>
+                            ))}
+                            {match.preferredVenues.some((venue) =>
+                              typeof venue.latitude === 'number'
+                              && typeof venue.longitude === 'number') && (
+                              <button
+                                className="community-button-secondary !min-h-5 !gap-1 !px-1.5 !py-1 !text-[10px]"
+                                onClick={() => setMappedMatch(match)}
+                                title="Xem vị trí, khoảng cách và lộ trình"
+                                type="button"
+                              >
+                                <Route aria-hidden="true" className="h-3 w-3" />
+                                Bản đồ
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="mt-0.5 text-[10px] text-[#718077]">Chưa chọn sân cụ thể</p>
+                        )}
+                      </div>
+                    )}
                     <div className="px-2.5 py-2">
                       <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên</p>
                       <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{match.acceptedPlayerCount}/{match.requiredPlayerCount} người, còn {match.availableSlotCount}</p>
                     </div>
                   </div>
 
-                  {match.preferredVenues.length > 0 && (
+                  {activeTab === 'manual' && match.preferredVenues.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {match.preferredVenues.map((venue) => (
                         <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]" key={venue.venueId}>{venue.venueName}</span>
@@ -495,8 +552,9 @@ export const PendingInvites = () => {
               {filteredQueues.map((q) => {
                 const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
                 const approvedPlayers = q.queuePlayers.filter((qp) => qp.status !== 'Pending' && qp.status !== 'Rejected');
-                const myRequest = q.queuePlayers.find((qp) => String(qp.playerId) === user?.id);
-                const isMine = myRequest?.status !== 'Pending' && myRequest?.status !== 'Rejected';
+                const myRequest = q.queuePlayers.find((player) =>
+                  player.isCurrentPlayer || String(player.playerId) === user?.id || player.playerName === user?.name);
+                const isMine = myRequest != null && myRequest.status !== 'Pending' && myRequest.status !== 'Rejected';
                 const host = approvedPlayers.find((qp) => qp.isHost);
                 const isFull = approvedPlayers.length >= maxCap;
                 const venueList = queueVenues[q.matchmakingQueueId ?? 0] ?? [];
@@ -514,11 +572,16 @@ export const PendingInvites = () => {
                           <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Ghép thủ công (Công khai)</span>
                         </div>
                         
-                        <Link to={q.matchId ? `/matches/${q.matchId}` : `/opponents/queue/${q.matchmakingQueueId}`} className="block mt-2">
+                        <button
+                          className="mt-2 block w-full text-left disabled:cursor-wait disabled:opacity-60"
+                          disabled={openingQueueId === q.matchmakingQueueId}
+                          onClick={() => void handleOpenQueueMatch(q)}
+                          type="button"
+                        >
                           <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
                             {q.title?.trim() || 'Lời mời ghép trận thủ công'}
                           </h2>
-                        </Link>
+                        </button>
 
                         {host && (
                           <div className="mt-2.5 flex items-center gap-2">
@@ -609,13 +672,15 @@ export const PendingInvites = () => {
                     </div>
 
                     <div className="mt-3 flex gap-2">
-                      <Link
-                        to={q.matchId ? `/matches/${q.matchId}` : `/opponents/queue/${q.matchmakingQueueId}`}
+                      <button
                         className="community-button-secondary !min-h-8 flex-1 !text-[11px] flex items-center justify-center gap-1"
+                        disabled={openingQueueId === q.matchmakingQueueId}
+                        onClick={() => void handleOpenQueueMatch(q)}
+                        type="button"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        Chi tiết
-                      </Link>
+                        {openingQueueId === q.matchmakingQueueId ? 'Đang mở...' : 'Chi tiết'}
+                      </button>
                       {isMine ? (
                         <>
                           {q.conversationId && (

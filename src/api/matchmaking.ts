@@ -15,6 +15,7 @@ export type QueuePlayerResponse = {
   playerName: string;
   avatarUrl?: string | null;
   isHost: boolean;
+  isCurrentPlayer?: boolean;
   status?: 'Pending' | 'Approved' | 'Rejected' | string;
 };
 
