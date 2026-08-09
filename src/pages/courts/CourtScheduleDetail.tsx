@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CalendarDays,
+  ChevronDown,
   Loader2,
   RefreshCw,
   X,
@@ -18,7 +19,7 @@ import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { CourtTimelineGrid } from './components/CourtTimelineGrid';
-import { addCalendarMonths, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
 const maxBookingSlots = 496;
 const localDate = () => {
@@ -42,8 +43,7 @@ const validScheduleDate = (value: string | null) =>
 const time = (value: string) => value.slice(11, 16);
 const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const slotKey = (courtId: number, startTime: string) => courtId + ':' + startTime;
-const slotIdentity = (courtId: number, startTime: string, endTime: string) =>
-  courtId + '|' + startTime + '|' + endTime;
+const slotIdentity = bookingSlotIdentity;
 const minuteOfDay = (value: string) => {
   const [hour, minute] = value.split(':').map(Number);
   return hour * 60 + minute;
@@ -85,6 +85,7 @@ export const CourtScheduleDetail = () => {
   const [date, setDate] = useState(() => validScheduleDate(searchParams.get('date')));
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, CourtSlotSelection[]>>({});
   const [bookingMonths, setBookingMonths] = useState(1);
+  const [showSelectedDates, setShowSelectedDates] = useState(false);
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
   const [isApplyingMonth, setIsApplyingMonth] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
@@ -313,6 +314,7 @@ export const CourtScheduleDetail = () => {
         });
         return next;
       });
+      setShowSelectedDates(false);
       setMonthUnavailableSlots(unavailable);
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : 'Không thể kiểm tra lịch theo số tháng.');
@@ -498,28 +500,39 @@ export const CourtScheduleDetail = () => {
                     </div>
                   )}
                   {selectedDates.length > 0 && (
-                    <div className="mt-3 max-h-64 overflow-y-auto pr-1">
-                      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-                        {selectedDates.map((selectedDate) => (
-                          <div
-                            className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (selectedDate === date ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-white text-[#526158]')}
-                            key={selectedDate}
-                          >
-                            <button className="min-w-0 flex-1 text-left" onClick={() => changeDate(selectedDate)} type="button">
-                              <span className="block truncate">{dateLabel(selectedDate)}</span>
-                              <span className="mt-1 block text-[10px]">{selectedSlotsByDate[selectedDate].length} slot</span>
-                            </button>
-                            <button aria-label={'Bỏ ngày ' + selectedDate} onClick={() => removeSelectedDate(selectedDate)} type="button">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="mt-3 rounded-lg border border-[#d8e4d4] bg-white">
+                      <button
+                        aria-expanded={showSelectedDates}
+                        className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-[12px] font-extrabold text-[#276b3f]"
+                        onClick={() => setShowSelectedDates((current) => !current)}
+                        type="button"
+                      >
+                        <CalendarDays className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">
+                          Lịch đã chọn · {selectedDates.length} ngày
+                        </span>
+                        <span className="shrink-0 text-[11px] text-[#526158]">{selectedSlots.length} slot</span>
+                        <ChevronDown className={'h-4 w-4 shrink-0 transition-transform ' + (showSelectedDates ? 'rotate-180' : '')} />
+                      </button>
+                      {showSelectedDates && (
+                        <div className="grid gap-1 border-t border-[#d8e4d4] p-2 sm:grid-cols-4 lg:grid-cols-7">
+                          {selectedDates.map((selectedDate) => (
+                            <div
+                              className={'flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1 text-[10px] font-bold ' + (selectedDate === date ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-[#f8fbf4] text-[#526158]')}
+                              key={selectedDate}
+                            >
+                              <button className="min-w-0 flex-1 text-left" onClick={() => changeDate(selectedDate)} type="button">
+                                <span className="block truncate">{dateLabel(selectedDate)}</span>
+                              </button>
+                              <button className="grid h-6 w-6 shrink-0 place-items-center rounded hover:bg-black/5" aria-label={'Bỏ ngày ' + selectedDate} onClick={() => removeSelectedDate(selectedDate)} type="button">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                  <p className="mt-3 text-[12px] font-extrabold text-[#276b3f]">
-                    Tổng booking: {selectedSlots.length} slot · {selectedDates.length} ngày
-                  </p>
                 </div>
               </div>
 

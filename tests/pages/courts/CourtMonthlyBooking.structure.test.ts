@@ -7,6 +7,7 @@ const bookingSource = readFileSync(new URL('../../../src/api/booking.ts', import
 
 test('court schedule applies the selected daily slots through a rolling number of months', () => {
   assert.match(scheduleSource, /const applyCurrentSlotsForMonths = async/);
+  assert.match(scheduleSource, /const slotIdentity = bookingSlotIdentity/);
   assert.match(scheduleSource, /datesForMonthDuration\(date, bookingMonths\)/);
   assert.match(scheduleSource, /getCourtAvailabilities\(venueId, targetDates, token\)/);
   assert.match(scheduleSource, /Slot không còn trống/);
@@ -26,6 +27,11 @@ test('court schedule validates selections only against the availability for the 
 
 test('court schedule shows selected dates as removable slot cards', () => {
   assert.match(scheduleSource, /const removeSelectedDate = \(selectedDate: string\) =>/);
+  assert.match(scheduleSource, /showSelectedDates, setShowSelectedDates/);
+  assert.match(scheduleSource, /setShowSelectedDates\(false\)/);
+  assert.match(scheduleSource, /aria-expanded=\{showSelectedDates\}/);
+  assert.match(scheduleSource, /showSelectedDates && \(/);
+  assert.doesNotMatch(scheduleSource, /max-h-64 overflow-y-auto/);
   assert.match(scheduleSource, /selectedDates\.map\(\(selectedDate\) =>/);
   assert.match(scheduleSource, /onClick=\{\(\) => changeDate\(selectedDate\)\}/);
   assert.match(scheduleSource, /onClick=\{\(\) => removeSelectedDate\(selectedDate\)\}/);

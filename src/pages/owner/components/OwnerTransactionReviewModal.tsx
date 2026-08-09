@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../../../auth/AuthContext';
 import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
+import { OwnerBookingSlotSummary } from './OwnerBookingSlotSummary';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const dateTime = (value: string) =>
@@ -98,8 +99,8 @@ export const OwnerTransactionReviewModal = ({
     setError('');
     try {
       const updatedPayment = await approveOperatorPayment(token, payment.paymentId);
-      onClose();
       void onUpdated(updatedPayment);
+      onClose();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận thanh toán.');
     } finally {
@@ -114,8 +115,8 @@ export const OwnerTransactionReviewModal = ({
     setError('');
     try {
       const updatedPayment = await rejectOperatorPayment(token, payment.paymentId, rejectReason.trim());
-      onClose();
       void onUpdated(updatedPayment);
+      onClose();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể từ chối thanh toán.');
 
@@ -206,8 +207,8 @@ export const OwnerTransactionReviewModal = ({
                 ))}
                 <div className="rounded-lg bg-surface-container-low p-3">
                   <p className="text-[11px] font-bold uppercase text-on-surface-variant">{'S\u00e2n v\u00e0 gi\u1edd ch\u01a1i'}</p>
-                  <div className="mt-1 space-y-1 text-[14px] font-bold">
-                    {paymentSlots.map((slot) => <p key={`${slot.courtId}-${slot.startTime}`}>{`S\u00e2n ${slot.courtNumber}: ${playTime(slot.startTime)} - ${playTime(slot.endTime)} \u00b7 ${playDate(slot.startTime)}`}</p>)}
+                  <div className="mt-2">
+                    <OwnerBookingSlotSummary slots={paymentSlots} />
                   </div>
                 </div>
               </div>

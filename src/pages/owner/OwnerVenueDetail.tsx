@@ -12,6 +12,7 @@ import {
   type OwnerVenue,
 } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerCourtManager } from './components/OwnerCourtManager';
 
@@ -30,22 +31,24 @@ export const OwnerVenueDetail = () => {
   const { token } = useAuth();
   const { id } = useParams();
   const venueId = Number(id);
-  const [venue, setVenue] = useState<OwnerVenue | null>(null);
+  const {
+    data: venue,
+    error: loadError,
+    refresh,
+    setData: setVenueData,
+  } = useApiQuery<OwnerVenue>(
+    ['owner-venue', venueId],
+    () => getOwnerVenue(token!, venueId),
+    { enabled: Boolean(token) && Number.isInteger(venueId), errorMessage: 'Không thể tải chi tiết cụm sân.' },
+  );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [caption, setCaption] = useState('');
   const [listingMonths, setListingMonths] = useState(1);
   const [listingReceipt, setListingReceipt] = useState<File | null>(null);
   const [listingPreview, setListingPreview] = useState<OwnerListingFeePreview | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const load = async () => {
-    if (!token || !Number.isInteger(venueId)) return;
-    try { setVenue(await getOwnerVenue(token, venueId)); }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải chi tiết cụm sân.'); }
-  };
-
-  useEffect(() => { void load(); }, [token, venueId]);
+  const [actionError, setActionError] = useState('');
+  const error = actionError || loadError;
 
   useEffect(() => {
     if (!token || !venue || !Number.isInteger(venueId)) return;
@@ -56,9 +59,9 @@ export const OwnerVenueDetail = () => {
 
   const run = async (action: () => Promise<unknown>) => {
     setIsBusy(true);
-    setError('');
-    try { await action(); await load(); }
-    catch (requestError) { setError(requestError instanceof ApiError ? requestError.message : 'Thao tác không thành công.'); }
+    setActionError('');
+    try { await action(); await refresh(); }
+    catch (requestError) { setActionError(requestError instanceof ApiError ? requestError.message : 'Thao tác không thành công.'); }
     finally { setIsBusy(false); }
   };
 
@@ -93,7 +96,7 @@ export const OwnerVenueDetail = () => {
           <div className="mt-5 flex flex-wrap gap-2">{venue.amenities.length ? venue.amenities.map((amenity) => <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[12px] font-bold text-primary" key={amenity}>{amenity}</span>) : <span className="text-[13px] text-on-surface-variant">Chưa thiết lập tiện ích.</span>}</div>
         </section>
 
-        <OwnerCourtManager onChanged={load} onError={setError} token={token!} venue={venue} />
+        <OwnerCourtManager onChanged={refresh} onError={setActionError} onOptimistic={setVenueData} token={token!} venue={venue} />
 
         <section className="owner-panel p-5">
           <div className="mb-4 flex items-center gap-3">

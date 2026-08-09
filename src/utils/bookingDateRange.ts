@@ -1,5 +1,10 @@
 export const maximumAdvanceBookingMonths = 12;
 
+const bookingDateTimeMinute = (value: string) => `${value.slice(0, 10)}T${value.slice(11, 16)}`;
+
+export const bookingSlotIdentity = (courtId: number, startTime: string, endTime: string) =>
+  `${courtId}|${bookingDateTimeMinute(startTime)}|${bookingDateTimeMinute(endTime)}`;
+
 const parseDateKey = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;

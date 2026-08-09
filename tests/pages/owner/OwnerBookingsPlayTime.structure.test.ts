@@ -5,6 +5,8 @@ import { test } from 'node:test';
 const source = readFileSync(new URL('../../../src/pages/owner/OwnerBookings.tsx', import.meta.url), 'utf8');
 const adapterSource = readFileSync(new URL('../../../src/pages/owner/ownerBookingAdapter.ts', import.meta.url), 'utf8');
 const detailSource = readFileSync(new URL('../../../src/pages/owner/OwnerBookingDetail.tsx', import.meta.url), 'utf8');
+const slotSummarySource = readFileSync(new URL('../../../src/pages/owner/components/OwnerBookingSlotSummary.tsx', import.meta.url), 'utf8');
+const transactionModalSource = readFileSync(new URL('../../../src/pages/owner/components/OwnerTransactionReviewModal.tsx', import.meta.url), 'utf8');
 
 test('regular owner bookings filter the selected day by creation date', () => {
   assert.match(source, /const matchesSelectedDate = getLocalDateValue\(new Date\(booking\.createdAt\)\) === selectedDate;/);
@@ -20,13 +22,46 @@ test('owner bookings patch payment updates without reloading the full page', () 
   assert.doesNotMatch(source, /usePaymentRealtime\(\(event\) => \{[\s\S]*scheduleRealtimeReload\(\);[\s\S]*\}\);/);
 });
 
+test('owner preloads fresh receipt details as soon as a realtime payment event arrives', () => {
+  assert.match(source, /const prefetched = prefetchPayment\(event\.paymentId\)/);
+  assert.match(source, /prefetched\?\.promise[\s\S]*applyPaymentUpdate\(payment\)/);
+  assert.match(source, /fallbackPayment: booking\.fallbackPayment[\s\S]*\.\.\.payment/);
+  assert.match(source, /if \(!event\.action\.startsWith\('Payment'\)\) scheduleRealtimeReload\(\)/);
+});
+
+test('owner keeps completed action responses in the receipt cache', () => {
+  assert.match(source, /paymentPrefetchCache\.current\.set\(transactionTarget\.paymentId, prefetched\)/);
+  assert.match(source, /preloadReceiptImage\(payment\.receiptImageUrl\)/);
+});
+
 test('regular owner bookings retain and render every selected child-court slot', () => {
   assert.match(adapterSource, /slots: record\.slots/);
-  assert.match(source, /booking\.slots\.map\(\(slot\)/);
+  assert.match(source, /<OwnerBookingSlotSummary[\s\S]*slots=\{booking\.slots\}/);
+});
+
+test('owner bookings collapse long court schedules into a scrollable detail dialog', () => {
+  assert.match(slotSummarySource, /slotGroups\.length > OWNER_SLOT_DETAIL_THRESHOLD/);
+  assert.match(slotSummarySource, /Xem chi tiết slot/);
+  assert.match(slotSummarySource, /max-h-\[min\(65dvh,560px\)\][^\"]*overflow-y-auto/);
+  assert.match(transactionModalSource, /<OwnerBookingSlotSummary slots=\{paymentSlots\}/);
+});
+
+test('owner bookings use the compact operations layout', () => {
+  assert.match(source, /owner-bookings-page/);
+  assert.match(source, /owner-bookings-metrics/);
+  assert.match(source, /aria-label="Lọc theo trạng thái"/);
+  assert.match(source, /<OwnerBookingSlotSummary[\s\S]*dense/);
+  assert.match(source, /min-w-\[1040px\]/);
 });
 
 test('owner booking detail summarizes child-court slots', () => {
   assert.match(detailSource, /const bookingSlots = booking\.slots\.length/);
+});
+
+test('owner receipt review falls back to receipt data from the booking list when the detail endpoint is empty', () => {
+  assert.match(source, /payment\.paymentId === paymentId \? payment : fallbackPayment/);
+  assert.match(source, /receiptImageUrl: record\.receiptImageUrl/);
+  assert.match(source, /fallbackPayment,/);
 });
 
 test('owner booking tables show price and booking status without payment filters', () => {
