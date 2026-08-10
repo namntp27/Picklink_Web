@@ -36,8 +36,12 @@ test('opponents details open match pages without falling back to queue details',
   assert.doesNotMatch(source, /Vui lòng chờ chủ phòng mở phòng/);
 });
 
-test('joining or accepting a room opens it from the player my-matches page', () => {
+test('joining stays on the room while accepting an invitation opens my matches', () => {
   assert.match(
+    matchDetailSource,
+    /run\(\(\) => joinMatch\(token, matchId\)\)/,
+  );
+  assert.doesNotMatch(
     matchDetailSource,
     /joinMatch\(token, matchId\), \(\) => navigate\('\/my-matches'\)/,
   );

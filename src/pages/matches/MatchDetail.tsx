@@ -983,7 +983,7 @@ export const MatchDetail = () => {
                 </div>
               )}
               {!match.isHost && !isApprovedMember && match.myParticipantStatus !== 'Pending' && match.myParticipantStatus !== 'Invited' && match.status === 'Recruiting' && (
-                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId), () => navigate('/my-matches'))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
+                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
               )}
               {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng hoặc thành viên trong phòng duyệt</div>}
               {isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status) && (

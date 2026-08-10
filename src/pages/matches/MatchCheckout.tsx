@@ -15,7 +15,8 @@ const timeText = (value: string) => value.slice(11, 16);
 const slotDateText = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const utcTimestamp = (value?: string | null) => {
   if (!value) return 0;
-  return new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`).getTime();
+  const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}+07:00`;
+  return new Date(normalized).getTime();
 };
 
 export const MatchCheckout = () => {
@@ -32,6 +33,7 @@ export const MatchCheckout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [paymentDeadlineAt, setPaymentDeadlineAt] = useState(0);
   const [error, setError] = useState('');
 
   const loadMatch = async () => {
@@ -43,7 +45,12 @@ export const MatchCheckout = () => {
       const detail = await getMatchDetail(token, matchId);
       console.log('[MatchCheckout] Loaded match detail:', detail);
       if (detail.bookingId !== bookingId) throw new Error('Booking không thuộc phòng ghép trận này.');
+      const receivedAt = Date.now();
       setMatch(detail);
+      setNow(receivedAt);
+      setPaymentDeadlineAt(detail.paymentHoldRemainingSeconds != null
+        ? receivedAt + Math.max(0, detail.paymentHoldRemainingSeconds) * 1_000
+        : utcTimestamp(detail.paymentDeadline));
       setError('');
     } catch (reason) {
       console.error('[MatchCheckout] Error loading match:', reason);
@@ -64,10 +71,8 @@ export const MatchCheckout = () => {
   const myPaymentApproved = match?.myPaymentStatus === 'Paid';
   const selectedKey = useMemo(() => [...selectedPayerIds].sort((left, right) => left - right).join(','), [selectedPayerIds]);
   const isAwaitingReceiptReview = paymentTargets.some((participant) => participant.paymentStatus === 'WaitingForConfirmation');
-  const deadline = utcTimestamp(match?.paymentDeadline);
-  const remainingSeconds = isAwaitingReceiptReview && match?.paymentHoldRemainingSeconds != null
-    ? match.paymentHoldRemainingSeconds
-    : deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
+  const deadline = paymentDeadlineAt;
+  const remainingSeconds = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
   const paymentExpired = Boolean(deadline && remainingSeconds <= 0 && !isAwaitingReceiptReview);
   const bookingGroups = match?.bookingCheckIns.find((booking) => booking.bookingId === bookingId)?.checkInGroups ?? [];
