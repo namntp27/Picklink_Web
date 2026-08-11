@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 
 export type WebAppTarget = 'player' | 'owner' | 'admin';
 
@@ -20,11 +20,36 @@ export const createAppViteConfig = (target: WebAppTarget) => defineConfig(({ mod
   const proxyTarget = env.BACKEND_PROXY_TARGET
     || env.VITE_BACKEND_PROXY_TARGET
     || 'http://localhost:5209';
-  const proxy = {
-    '/api': {
-      target: proxyTarget,
-      changeOrigin: true,
+  const apiProxy: ProxyOptions = {
+    target: proxyTarget,
+    changeOrigin: true,
+    configure: (server) => {
+      server.on('proxyRes', (proxyResponse, request, response) => {
+        if (!request.url?.startsWith('/api/realtime/')) return;
+
+        // Vite's development proxy can leave an upstream SSE response alive after the
+        // browser navigates away or closes. Those orphaned streams eventually occupy the
+        // proxy connection pool and make ordinary API calls wait until the 30-second client
+        // timeout. Explicitly close only the abandoned realtime upstream; a normal stream
+        // remains connected for as long as its browser response is open.
+        const clientSocket = response.socket;
+        const closeUpstream = () => proxyResponse.destroy();
+        const releaseListeners = () => {
+          request.off('aborted', closeUpstream);
+          response.off('close', closeUpstream);
+          clientSocket?.off('close', closeUpstream);
+        };
+
+        request.once('aborted', closeUpstream);
+        response.once('close', closeUpstream);
+        clientSocket?.once('close', closeUpstream);
+        proxyResponse.once('close', releaseListeners);
+        proxyResponse.once('end', releaseListeners);
+      });
     },
+  };
+  const proxy = {
+    '/api': apiProxy,
     '/uploads': {
       target: proxyTarget,
       changeOrigin: true,

@@ -7,10 +7,11 @@ const source = readFileSync(
   'utf8',
 );
 
-test('creating a manual invitation opens its match instead of the queue page', () => {
+test('manual matchmaking opens its match while automatic matchmaking opens its queue', () => {
   assert.match(source, /const queue = await joinSoloQueue\(token,/);
   assert.match(source, /if \(creationMode === 'manual'\)/);
   assert.match(source, /createManualQueueRoom\(token, queue\.matchmakingQueueId\)/);
   assert.match(source, /navigate\(`\/matches\/\$\{matchId\}`\)/);
-  assert.doesNotMatch(source, /navigate\(`\/opponents\/queue\/\$\{queue\.matchmakingQueueId\}`\)/);
+  assert.match(source, /navigate\(`\/opponents\/queue\/\$\{queue\.matchmakingQueueId\}`\)/);
+  assert.doesNotMatch(source, /navigate\('\/my-matches'\)/);
 });

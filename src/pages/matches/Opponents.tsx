@@ -895,7 +895,10 @@ export const Opponents = () => {
         return;
       }
 
-      navigate('/my-matches');
+      if (queue.matchmakingQueueId == null) {
+        throw new Error('Không thể xác định hàng chờ tự động vừa tạo.');
+      }
+      navigate(`/opponents/queue/${queue.matchmakingQueueId}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể đăng ký hàng chờ ghép trận.');
     } finally {

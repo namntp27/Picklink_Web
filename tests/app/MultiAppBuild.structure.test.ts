@@ -37,6 +37,16 @@ test('Vite targets have unique ports, caches, and output directories', () => {
   }
 });
 
+test('development proxy closes abandoned realtime upstream streams', () => {
+  const config = read('vite.shared.config.ts');
+
+  assert.match(config, /request\.url\?\.startsWith\('\/api\/realtime\/'\)/);
+  assert.match(config, /request\.once\('aborted'/);
+  assert.match(config, /response\.once\('close'/);
+  assert.match(config, /clientSocket\?\.once\('close'/);
+  assert.match(config, /proxyResponse\.destroy\(\)/);
+});
+
 test('route prefetch modules do not rejoin role-specific bundles', () => {
   const player = read('src/navigation/routePrefetch.ts');
   const owner = read('src/navigation/ownerRoutePrefetch.ts');
