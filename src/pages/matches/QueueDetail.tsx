@@ -152,7 +152,7 @@ export const QueueDetail = () => {
       if (!foundQueue) {
         throw new Error('Không tìm thấy lời mời ghép trận này hoặc bạn không có quyền xem.');
       }
-      if (foundQueue.matchId || !foundQueue.sharedVenues) {
+      if (!foundQueue.sharedVenues) {
         return { queue: foundQueue, venues: emptyVenues };
       }
 
@@ -176,11 +176,6 @@ export const QueueDetail = () => {
   const venues = data?.venues ?? emptyVenues;
   const error = actionError || loadError;
   const setError = setActionError;
-
-  // Once the queue turns into a real match the detail screen belongs to that match.
-  useEffect(() => {
-    if (queue?.matchId) navigate(`/matches/${queue.matchId}`, { replace: true });
-  }, [navigate, queue?.matchId]);
 
   useEffect(() => {
     if (token) {
@@ -234,8 +229,13 @@ export const QueueDetail = () => {
     if (!token || !queueId) return;
     setIsActionBusy(true);
     try {
-      await acceptQueueInvite(token, queueId);
-      notify('Bạn đã tham gia hàng chờ ghép trận thành công!', 'success');
+      if (queue?.isPublic && myRequest?.status !== 'Invited') {
+        await joinPublicQueue(token, queueId);
+        notify('Đã gửi yêu cầu tham gia đến chủ phòng.', 'success');
+      } else {
+        await acceptQueueInvite(token, queueId);
+        notify('Bạn đã tham gia hàng chờ ghép trận thành công!', 'success');
+      }
       void loadQueue();
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Không thể tham gia hàng chờ này.', 'error');
@@ -311,7 +311,7 @@ export const QueueDetail = () => {
   };
 
   const approvedPlayers = useMemo(
-    () => queue?.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected') ?? [],
+    () => queue?.queuePlayers.filter((p) => p.status === 'Approved' || p.status === 'Accepted') ?? [],
     [queue]
   );
   const pendingRequests = useMemo(() => queue?.queuePlayers.filter((p) => p.status === 'Pending') ?? [], [queue]);
@@ -575,20 +575,30 @@ export const QueueDetail = () => {
               Chi tiết lời mời ghép trận
             </h1>
             <p className="text-[13px] leading-relaxed text-white/70 max-w-xl">
-              Hàng chờ #{queue.matchmakingQueueId} · Tìm kiếm tự động cặp đấu phù hợp.
+              {queue.isPublic
+                ? `Hàng chờ #${queue.matchmakingQueueId} · Vé ghép người chơi cho phòng thủ công.`
+                : `Hàng chờ #${queue.matchmakingQueueId} · Tìm kiếm tự động cặp đấu phù hợp.`}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2.5 shrink-0">
-            {isMember && queue.conversationId && (
+            {isMember && queue.matchId && (
               <Link
-                to={`/messages?chat=${queue.conversationId}`}
-                className="community-button flex items-center justify-center gap-1.5 !bg-[#477313] hover:!bg-[#588e18] !text-white"
+                to={`/matches/${queue.matchId}`}
+                className="community-button flex items-center justify-center gap-1.5 !bg-[#e2ff57] !text-[#0b2228] hover:!bg-[#d4f046]"
               >
-                <MessageSquare className="h-4 w-4" /> Chat nhóm
+                <Play className="h-4 w-4" /> Vào phòng
               </Link>
             )}
-            {isMember && !queue.isActive && (
+            {isMember && (queue.matchId || queue.conversationId) && (
+              <Link
+                to={queue.matchId ? `/messages?matchId=${queue.matchId}` : `/messages?chat=${queue.conversationId}`}
+                className="community-button flex items-center justify-center gap-1.5 !bg-[#477313] hover:!bg-[#588e18] !text-white"
+              >
+                <MessageSquare className="h-4 w-4" /> {queue.matchId ? 'Chat phòng' : 'Chat nhóm'}
+              </Link>
+            )}
+            {isMember && !queue.isActive && !queue.matchId && (
               <button
                 type="button"
                 disabled={isActionBusy}

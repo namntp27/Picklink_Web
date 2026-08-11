@@ -7,11 +7,10 @@ const source = readFileSync(
   'utf8',
 );
 
-test('manual matchmaking opens its match while automatic matchmaking opens its queue', () => {
+test('manual and automatic matchmaking both open the queue ticket they just created', () => {
   assert.match(source, /const queue = await joinSoloQueue\(token,/);
-  assert.match(source, /if \(creationMode === 'manual'\)/);
-  assert.match(source, /createManualQueueRoom\(token, queue\.matchmakingQueueId\)/);
-  assert.match(source, /navigate\(`\/matches\/\$\{matchId\}`\)/);
   assert.match(source, /navigate\(`\/opponents\/queue\/\$\{queue\.matchmakingQueueId\}`\)/);
+  assert.doesNotMatch(source, /createManualQueueRoom/);
+  assert.doesNotMatch(source, /navigate\(`\/matches\/\$\{queue\.matchId\}`\)/);
   assert.doesNotMatch(source, /navigate\('\/my-matches'\)/);
 });

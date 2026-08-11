@@ -11,28 +11,24 @@ const matchDetailSource = readFileSync(
   'utf8',
 );
 
-test('opponents details open match pages without falling back to queue details', () => {
-  assert.match(source, /const handleOpenQueueMatch = async/);
-  assert.match(source, /navigate\(`\/matches\/\$\{queue\.matchId\}`\)/);
-  assert.match(source, /createManualQueueRoom\(token!, queueId\)/);
-  assert.match(source, /onClick=\{\(\) => void handleOpenQueueMatch\(q\)\}/);
-  assert.match(source, /source: activeTab === 'queue' \? 'manual' : 'community'/);
-  assert.match(source, /activeTab === 'manual' \|\| visibleMatches\.length > 0/);
-  assert.match(source, /Các sân đã chọn/);
-  assert.match(source, /match\.preferredVenues\.map\(\(venue\) =>/);
-  assert.match(
-    source,
-    /activeTab === 'queue'[\s\S]*?Các sân đã chọn[\s\S]*?onClick=\{\(\) => setMappedMatch\(match\)\}/,
-  );
+test('manual invitations keep their queue detail interface after a room is linked', () => {
+  assert.match(source, /const handleOpenQueue = \(queue: QueueStatusResponse\)/);
+  assert.match(source, /navigate\(`\/opponents\/queue\/\$\{queueId\}`\)/);
+  assert.match(source, /onClick=\{\(\) => handleOpenQueue\(q\)\}/);
+  assert.match(source, /source: 'community'/);
+  assert.match(source, /activeTab === 'manual' \? \(/);
+  assert.doesNotMatch(source, /createManualQueueRoom/);
+  assert.match(source, /venueList\.map\(\(venue\) =>/);
+  assert.match(source, /onClick=\{\(\) => setMappedQueue\(q\)\}/);
   assert.match(source, /\['open-matches-v5'/);
   assert.match(source, /player\.isCurrentPlayer/);
   assert.match(source, /currentPlayer\?\.status === 'Approved'/);
-  assert.match(source, /myRequest != null/);
+  assert.match(source, /myRequest\?\.status === 'Approved'/);
   assert.match(source, /\{ cache: 'no-store' \}/);
   assert.doesNotMatch(source, /aria-label="Người tạo lời mời"/);
   assert.doesNotMatch(source, /owner: filters\.owner/);
   assert.doesNotMatch(source, /filters\.owner/);
-  assert.doesNotMatch(source, /\/opponents\/queue\/\$\{/);
+  assert.match(source, /\/opponents\/queue\/\$\{queueId\}/);
   assert.doesNotMatch(source, /Vui lòng chờ chủ phòng mở phòng/);
 });
 

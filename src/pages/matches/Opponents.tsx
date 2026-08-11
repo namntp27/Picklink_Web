@@ -13,7 +13,6 @@ import { useAuth } from '../../auth/AuthContext';
 import { forwardGeocodeArea, reverseGeocodeArea } from '../../api/geocoding';
 import { resolveAdministrativeArea } from '../../api/locations';
 import {
-  createManualQueueRoom,
   joinSoloQueue,
   type JoinSoloQueueRequest,
   type QueueSlotRequest,
@@ -881,22 +880,8 @@ export const Opponents = () => {
         queueSlots,
       });
 
-      if (creationMode === 'manual') {
-        if (queue.matchId != null) {
-          navigate(`/matches/${queue.matchId}`);
-          return;
-        }
-        if (queue.matchmakingQueueId == null) {
-          throw new Error('Không thể xác định lời mời thủ công vừa tạo.');
-        }
-
-        const { matchId } = await createManualQueueRoom(token, queue.matchmakingQueueId);
-        navigate(`/matches/${matchId}`);
-        return;
-      }
-
       if (queue.matchmakingQueueId == null) {
-        throw new Error('Không thể xác định hàng chờ tự động vừa tạo.');
+        throw new Error('Không thể xác định hàng chờ vừa tạo.');
       }
       navigate(`/opponents/queue/${queue.matchmakingQueueId}`);
     } catch (reason) {

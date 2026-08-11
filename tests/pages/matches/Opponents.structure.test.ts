@@ -48,8 +48,10 @@ test('manual queues stay discoverable while all new queues remain matchable', ()
   assert.doesNotMatch(source, /nominatim\.openstreetmap\.org/i);
 });
 
-test('only the approved public-queue host can open a room', () => {
-  assert.match(myMatchesSource, /const isCurrentUserHost = approvedPlayers\.some/);
-  assert.match(myMatchesSource, /queue\.isPublic && isCurrentUserHost/);
+test('paired manual queues expose both their ticket detail and linked room', () => {
   assert.match(myMatchesSource, /to=\{`\/opponents\/queue\/\$\{queue\.matchmakingQueueId\}`\}/);
+  assert.match(myMatchesSource, /queue\.matchId && \(/);
+  assert.match(myMatchesSource, /to=\{`\/matches\/\$\{queue\.matchId\}`\}/);
+  assert.match(myMatchesSource, /Vào phòng/);
+  assert.doesNotMatch(myMatchesSource, /createManualQueueRoom/);
 });

@@ -20,3 +20,10 @@ test('QueueDetail integrates inviteFriendToQueue and centers invite modal', () =
   assert.match(queueDetailSource, /handleInviteFriend/);
   assert.match(queueDetailSource, /fixed inset-0 m-auto/);
 });
+
+test('QueueDetail remains a queue view and exposes the linked room separately', () => {
+  assert.doesNotMatch(queueDetailSource, /navigate\(`\/matches\/\$\{queue\.matchId\}`/);
+  assert.match(queueDetailSource, /to=\{`\/matches\/\$\{queue\.matchId\}`\}/);
+  assert.match(queueDetailSource, /Vào phòng/);
+  assert.match(queueDetailSource, /joinPublicQueue\(token, queueId\)/);
+});

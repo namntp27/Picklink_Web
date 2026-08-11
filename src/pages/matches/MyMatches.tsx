@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Building2,
   CalendarRange,
@@ -24,7 +24,7 @@ import {
   type MatchStatus,
   type MatchSummary,
 } from '../../api/matches';
-import { createManualQueueRoom, getMyQueues, cancelQueue, resumeQueue, type QueueStatusResponse } from '../../api/matchmaking';
+import { getMyQueues, cancelQueue, resumeQueue, type QueueStatusResponse } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -104,7 +104,6 @@ const emptyPagination = { page: 1, pageSize: 9, totalCount: 0, totalPages: 1 };
 
 export const MyMatches = () => {
   const { token, user } = useAuth();
-  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
@@ -155,13 +154,18 @@ export const MyMatches = () => {
     void refresh();
   });
 
+  const linkedManualMatchIds = useMemo(
+    () => new Set(myQueues.filter((queue) => queue.isPublic && queue.matchId).map((queue) => queue.matchId)),
+    [myQueues],
+  );
+
   const visible = useMemo(() => {
-    if (activeFilter === 'all') return matches;
+    if (activeFilter === 'all') return matches.filter((match) => !linkedManualMatchIds.has(match.matchId));
     if (activeFilter === 'Cancelled') {
       return matches.filter((match) => match.status === 'Cancelled' || match.status === 'Expired');
     }
     return matches.filter((match) => match.status === activeFilter);
-  }, [activeFilter, matches]);
+  }, [activeFilter, linkedManualMatchIds, matches]);
 
   const currentQueues = useMemo(() => {
     if (activeFilter === 'all') return myQueues.filter((queue) => queue.isPublic);
@@ -207,15 +211,6 @@ export const MyMatches = () => {
     }
   };
 
-  const handleOpenQueueRoom = async (queueId: number) => {
-    if (!token) return;
-    try {
-      const { matchId } = await createManualQueueRoom(token, queueId);
-      navigate(`/matches/${matchId}`);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể tạo phòng ghép trận.');
-    }
-  };
   return (
     <CommunityPage>
       <CommunityHero
@@ -294,10 +289,9 @@ export const MyMatches = () => {
           )}
 
           {currentQueues !== null && currentQueues.map((queue) => {
-                const approvedPlayers = queue.queuePlayers.filter((player) => player.status !== 'Pending' && player.status !== 'Rejected');
+                const approvedPlayers = queue.queuePlayers.filter((player) => player.status === 'Approved' || player.status === 'Accepted');
                 const host = approvedPlayers.find((player) => player.isHost);
                 const maxCap = queue.playerCount ?? (queue.matchType === '1vs1' ? 2 : 4);
-                const isCurrentUserHost = approvedPlayers.some((player) => player.isHost && String(player.playerId) === user?.id);
                 const selectedVenues = queue.matchmakingQueueId == null ? [] : queueVenues[queue.matchmakingQueueId] ?? [];
 
                 return (
@@ -336,7 +330,7 @@ export const MyMatches = () => {
                           </span>
                         )}
                       </div>
-                      <Link className="mt-2 block" to={queue.matchId ? `/matches/${queue.matchId}` : `/opponents/queue/${queue.matchmakingQueueId}`}>
+                      <Link className="mt-2 block" to={`/opponents/queue/${queue.matchmakingQueueId}`}>
                         <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
                           {queue.isPublic
                             ? queue.title?.trim() || 'Lời mời ghép trận thủ công'
@@ -415,29 +409,24 @@ export const MyMatches = () => {
                   </div>
 
                   <div className="mt-3 flex gap-1.5 w-full">
-                    {queue.matchId ? (
-                      <Link to={`/matches/${queue.matchId}`} className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1">
-                        <Eye className="h-3 w-3" /> Chi tiết
-                      </Link>
-                    ) : queue.isPublic && isCurrentUserHost ? (
-                      <button className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1" onClick={() => void handleOpenQueueRoom(queue.matchmakingQueueId!)} type="button">
-                        <Eye className="h-3 w-3" /> Mở phòng
-                      </button>
-                    ) : (
-                      <Link to={`/opponents/queue/${queue.matchmakingQueueId}`} className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1">
-                        <Eye className="h-3 w-3" /> Chi tiết
+                    <Link to={`/opponents/queue/${queue.matchmakingQueueId}`} className="community-button-secondary !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1">
+                      <Eye className="h-3 w-3" /> Hàng chờ
+                    </Link>
+                    {queue.matchId && (
+                      <Link to={`/matches/${queue.matchId}`} className="community-button !min-h-8 min-w-0 flex-1 !px-2.5 !py-1.5 !text-[11px] flex items-center justify-center gap-1">
+                        <Play className="h-3 w-3" /> Vào phòng
                       </Link>
                     )}
-                    {queue.conversationId && (
+                    {(queue.matchId || queue.conversationId) && (
                       <Link
-                        to={`/messages?chat=${queue.conversationId}`}
+                        to={queue.matchId ? `/messages?matchId=${queue.matchId}` : `/messages?chat=${queue.conversationId}`}
                         className="community-button !min-h-8 min-w-0 flex-1 !px-2 !py-1.5 !text-[11px] !bg-[#477313] hover:!bg-[#588e18] !text-white flex items-center justify-center gap-1"
                       >
                         <MessageSquare className="h-3 w-3" />
                         Chat
                       </Link>
                     )}
-                    {!queue.isActive && (
+                    {!queue.isPublic && !queue.matchId && !queue.isActive && (
                       <button
                         type="button"
                         onClick={() => void handleResumeQueue(queue.matchmakingQueueId!)}
