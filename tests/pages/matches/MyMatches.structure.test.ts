@@ -29,7 +29,13 @@ test('the default my-matches tab renders joined rooms together with manual queue
   assert.match(source, /currentQueues !== null && currentQueues\.map/);
   assert.match(source, /activeFilter !== 'ActiveQueues' && visible\.map/);
   assert.match(source, /visible\.length > 0 \|\| \(activeFilter === 'all'/);
+  assert.match(source, /queue\.matchId == null \|\| pageMatchIds\.has\(queue\.matchId\)/);
   assert.doesNotMatch(source, /currentQueues !== null \? \(/);
+});
+
+test('manual queue host controls use player identity supplied by the backend', () => {
+  assert.match(source, /player\.isCurrentPlayer && player\.isHost/);
+  assert.doesNotMatch(source, /String\(p\.playerId\) === user\?\.id/);
 });
 
 test('my matches paginates rooms and queues in groups of fifteen', () => {

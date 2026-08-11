@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const profileSource = readFileSync(new URL('../../../src/pages/profile/Profile.tsx', import.meta.url), 'utf8');
+const matchesApiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
 
 test('profile activity area uses the shared administrative area dropdown component', () => {
   assert.match(profileSource, /from '..\/..\/components\/location\/AdministrativeAreaSelects';/);
@@ -26,4 +27,14 @@ test('profile clears the selected ward when province changes', () => {
   assert.match(profileSource, /onProvinceChange=\{\(value\) => \{/);
   assert.match(profileSource, /setField\('city', value\);/);
   assert.match(profileSource, /setField\('commune', null\);/);
+});
+
+test('profile shows match reviews received by the current player', () => {
+  assert.match(matchesApiSource, /\/api\/matches\/reviews\/received/);
+  assert.match(profileSource, /getReceivedMatchReviews\(token!\)/);
+  assert.match(profileSource, /Đánh giá về bạn/);
+  assert.match(profileSource, /review\.reviewerName/);
+  assert.match(profileSource, /review\.score/);
+  assert.match(profileSource, /review\.comment/);
+  assert.match(profileSource, /to=\{`\/matches\/\$\{review\.matchId\}`\}/);
 });

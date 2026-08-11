@@ -29,6 +29,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+import { PlayerHoverCard } from './components/PlayerHoverCard';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -85,7 +86,7 @@ const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 
 const PAGE_SIZE = 15;
 const emptyQueues: QueueStatusResponse[] = [];
 export const PendingInvites = () => {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [queueVenues, setQueueVenues] = useState<Record<number, MatchPreferredVenue[]>>({});
   const [mappedQueue, setMappedQueue] = useState<QueueStatusResponse | null>(null);
@@ -175,8 +176,7 @@ export const PendingInvites = () => {
       const approvedPlayerCount = q.queuePlayers.filter((player) =>
         player.status === 'Approved' || player.status === 'Accepted').length;
       if (approvedPlayerCount >= maxCapacity) return false;
-      const currentPlayer = q.queuePlayers.find((player) =>
-        player.isCurrentPlayer || String(player.playerId) === user?.id || player.playerName === user?.name);
+      const currentPlayer = q.queuePlayers.find((player) => player.isCurrentPlayer);
       if (currentPlayer?.status === 'Approved' || currentPlayer?.status === 'Accepted') return false;
       if (filters.format !== 'all' && q.matchType !== filters.format) return false;
       if (filters.skill !== 'all') {
@@ -189,7 +189,7 @@ export const PendingInvites = () => {
       
       return true;
     });
-  }, [queues, filters.date, filters.format, filters.province, filters.skill, filters.ward, user?.id, user?.name]);
+  }, [queues, filters.date, filters.format, filters.province, filters.skill, filters.ward]);
 
   const pagination = useMemo(() => ({
     page,
@@ -326,8 +326,7 @@ export const PendingInvites = () => {
           {paginatedQueues.map((q) => {
                 const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
                 const approvedPlayers = q.queuePlayers.filter((qp) => qp.status === 'Approved' || qp.status === 'Accepted');
-                const myRequest = q.queuePlayers.find((player) =>
-                  player.isCurrentPlayer || String(player.playerId) === user?.id || player.playerName === user?.name);
+                const myRequest = q.queuePlayers.find((player) => player.isCurrentPlayer);
                 const isMine = myRequest?.status === 'Approved' || myRequest?.status === 'Accepted';
                 const host = approvedPlayers.find((qp) => qp.isHost);
                 const isFull = approvedPlayers.length >= maxCap;
@@ -358,19 +357,21 @@ export const PendingInvites = () => {
 
                         {host && (
                           <div className="mt-2.5 flex items-center gap-2">
-                            <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#edf5e9] text-[10px] font-extrabold text-[#477313]">
-                              {host.avatarUrl ? (
-                                <img
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                  decoding="async"
-                                  loading="lazy"
-                                  src={host.avatarUrl}
-                                />
-                              ) : (
-                                <span>{host.playerName.charAt(0).toUpperCase()}</span>
-                              )}
-                            </span>
+                            <PlayerHoverCard playerId={host.playerId} playerName={host.playerName}>
+                              <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#edf5e9] text-[10px] font-extrabold text-[#477313]">
+                                {host.avatarUrl ? (
+                                  <img
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    decoding="async"
+                                    loading="lazy"
+                                    src={host.avatarUrl}
+                                  />
+                                ) : (
+                                  <span>{host.playerName.charAt(0).toUpperCase()}</span>
+                                )}
+                              </span>
+                            </PlayerHoverCard>
                             <span className="min-w-0">
                               <span className="block text-[9px] font-bold leading-3 text-[#718077]">Chủ phòng</span>
                               <span className="block truncate text-[10px] font-extrabold leading-4 text-[#526158]">

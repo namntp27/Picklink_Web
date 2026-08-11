@@ -51,8 +51,10 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchSlotReplacementPanel } from './MatchSlotReplacementPanel';
+import { MatchPostMatchReviewPanel } from './MatchPostMatchReviewPanel';
 import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
+import { PlayerHoverCard } from './components/PlayerHoverCard';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
@@ -624,6 +626,10 @@ export const MatchDetail = () => {
             </div>
           )}
 
+          {token && isApprovedMember && match.status === 'Completed' && (
+            <MatchPostMatchReviewPanel match={match} token={token} />
+          )}
+
           <div className="match-overview-grid">
           <section className="community-panel match-panel match-scope-panel">
             <div className="match-section-heading">
@@ -795,23 +801,30 @@ export const MatchDetail = () => {
               {approved.map((participant) => {
                 const roleLabel = participant.isHost ? 'Chủ phòng' : 'Thành viên';
                 const isCurrentPlayer = match.myPlayerId === participant.playerId;
+                const avatar = (
+                  <button
+                    aria-label={`Xem thông tin ${participant.playerName}`}
+                    className="match-member-avatar overflow-hidden transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
+                    onClick={() => setSelectedProfilePlayer(participant)}
+                    title="Xem thông tin người chơi"
+                    type="button"
+                  >
+                    {participant.avatarUrl
+                      ? <img alt="" className="h-full w-full object-cover" decoding="async" loading="lazy" src={participant.avatarUrl} />
+                      : participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}
+                  </button>
+                );
                 return (
                   <article
                     aria-label={`${participant.isHost ? 'Chủ phòng' : 'Thành viên'}: ${participant.playerName}`}
                     className={`match-member-card ${participant.isHost ? 'match-member-card--host' : 'match-member-card--participant'}`}
                     key={participant.participantId}
                   >
-                    <button
-                      aria-label={`Xem thông tin ${participant.playerName}`}
-                      className="match-member-avatar overflow-hidden transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
-                      onClick={() => setSelectedProfilePlayer(participant)}
-                      title="Xem thông tin người chơi"
-                      type="button"
-                    >
-                      {participant.avatarUrl
-                        ? <img alt="" className="h-full w-full object-cover" decoding="async" loading="lazy" src={participant.avatarUrl} />
-                        : participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}
-                    </button>
+                    {isCurrentPlayer ? avatar : (
+                      <PlayerHoverCard focusable={false} playerId={participant.playerId} playerName={participant.playerName}>
+                        {avatar}
+                      </PlayerHoverCard>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         <span className={`match-role-badge ${participant.isHost ? 'match-role-badge--host' : 'match-role-badge--participant'}`}>
@@ -836,7 +849,7 @@ export const MatchDetail = () => {
                         {paymentStatusLabels[participant.paymentStatus] ?? participant.paymentStatus}
                       </span>
                     )}
-                    {match.isHost && !participant.isHost && match.status !== 'BookingPending' && match.status !== 'Booked' && (
+                    {match.isHost && !participant.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
                       <button className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50" disabled={isBusy} onClick={() => token && window.confirm(`Loại ${participant.playerName} khỏi phòng?`) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </article>
@@ -1082,7 +1095,7 @@ export const MatchDetail = () => {
                 {match.bookingCheckIns.map((booking, bookingIndex) => (
                   <article className="rounded-xl border border-white/20 bg-white/10 p-2.5" key={booking.bookingId}>
                     <div className="flex items-start justify-between gap-2">
-                      <div><p className="text-[11px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p><p className="mt-0.5 text-[10px] text-white/70">{booking.bookingStatus === 'Confirmed' ? 'Đã thanh toán' : 'Chờ thanh toán'}</p></div>
+                      <div><p className="text-[11px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p><p className="mt-0.5 text-[10px] text-white/70">{booking.bookingStatus === 'Completed' ? 'Đã hoàn thành' : booking.bookingStatus === 'Confirmed' ? 'Đã thanh toán' : 'Chờ thanh toán'}</p></div>
                       <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-bold">{booking.checkInGroups.length} sân / khung giờ</span>
                     </div>
                     <div className="mt-2 space-y-2">
@@ -1093,7 +1106,7 @@ export const MatchDetail = () => {
                           {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen ? (
                             <div className="match-checkin-code">{group.checkInCode}</div>
                           ) : (
-                            <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
+                            <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus === 'Completed' ? 'Lượt chơi đã hoàn thành.' : booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
                           )}
                           <MatchSlotReplacementPanel
                             group={group}

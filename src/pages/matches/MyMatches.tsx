@@ -105,7 +105,7 @@ const PAGE_SIZE = 15;
 const emptyPagination = { page: 1, pageSize: PAGE_SIZE, totalCount: 0, totalPages: 1 };
 
 export const MyMatches = () => {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
@@ -200,7 +200,9 @@ export const MyMatches = () => {
   const currentQueues = useMemo(() => {
     if (activeFilter === 'all') {
       const pageMatchIds = new Set(matches.map((match) => match.matchId));
-      return myQueues.filter((queue) => queue.isPublic && queue.matchId && pageMatchIds.has(queue.matchId));
+      return myQueues.filter((queue) => (
+        queue.isPublic && (queue.matchId == null || pageMatchIds.has(queue.matchId))
+      ));
     }
     if (activeFilter === 'ActiveQueues') {
       return activeQueues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -237,7 +239,7 @@ export const MyMatches = () => {
 
   const handleCancelQueue = async (queue: QueueStatusResponse) => {
     if (!token) return;
-    const isHost = queue.queuePlayers.find((p) => String(p.playerId) === user?.id)?.isHost;
+    const isHost = queue.queuePlayers.some((player) => player.isCurrentPlayer && player.isHost);
     const msg = isHost
       ? 'Bạn là chủ hàng chờ, hủy hàng chờ sẽ giải tán cả nhóm. Bạn có chắc chắn?'
       : 'Bạn có chắc chắn muốn rời khỏi hàng chờ ghép trận này?';
@@ -486,7 +488,7 @@ export const MyMatches = () => {
                       className="community-button-secondary !min-h-8 !px-2.5 !py-1.5 !text-[11px] hover:!bg-red-500/20 hover:!text-red-750 hover:!border-red-500/30 flex items-center justify-center gap-1"
                     >
                       <LogOut className="h-3 w-3" />
-                      {queue.queuePlayers.find((p) => String(p.playerId) === user?.id)?.isHost ? 'Hủy' : 'Rời'}
+                      {queue.queuePlayers.some((player) => player.isCurrentPlayer && player.isHost) ? 'Hủy' : 'Rời'}
                     </button>
                   </div>
                 </article>

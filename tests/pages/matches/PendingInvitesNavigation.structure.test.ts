@@ -26,6 +26,7 @@ test('manual invitations keep their queue detail interface after a room is linke
   assert.match(source, /venueList\.map\(\(venue\) =>/);
   assert.match(source, /onClick=\{\(\) => setMappedQueue\(q\)\}/);
   assert.match(source, /player\.isCurrentPlayer/);
+  assert.doesNotMatch(source, /String\(player\.playerId\) === user\?\.id/);
   assert.match(source, /currentPlayer\?\.status === 'Approved'/);
   assert.match(source, /myRequest\?\.status === 'Approved'/);
   assert.doesNotMatch(source, /cache: 'no-store'/);

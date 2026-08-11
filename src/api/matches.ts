@@ -152,6 +152,8 @@ export type MatchBookingCheckInGroup = {
 export type MatchBookingCheckIn = {
   bookingId: number;
   bookingStatus: string;
+  venueId: number;
+  venueName: string;
   startTime: string;
   endTime: string;
   checkInGroups: MatchBookingCheckInGroup[];
@@ -456,6 +458,8 @@ export const sendMatchMessage = async (token: string, matchId: number, content: 
 
 export const getMatchReviews = (token: string, matchId: number) =>
   apiRequest<MatchPlayerReview[]>(`/api/matches/${matchId}/reviews`, {}, token);
+export const getReceivedMatchReviews = (token: string) =>
+  apiRequest<MatchPlayerReview[]>('/api/matches/reviews/received', {}, token);
 export const reviewPlayer = (
   token: string,
   matchId: number,

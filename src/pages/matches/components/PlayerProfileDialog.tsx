@@ -123,7 +123,7 @@ export const PlayerProfileDialog = ({
                   <span className="text-[10px] font-bold text-[#718077]">Trình độ</span>
                 </div>
                 <div className="px-2 text-center">
-                  <strong className="block text-[17px] text-[#0b2228]">{profile.prestige}</strong>
+                  <strong className="block text-[17px] text-[#0b2228]">{profile.prestige.toFixed(1)} ★</strong>
                   <span className="text-[10px] font-bold text-[#718077]">Uy tín</span>
                 </div>
                 <div className="px-2 text-center">

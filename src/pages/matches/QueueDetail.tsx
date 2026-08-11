@@ -44,6 +44,7 @@ import { getCourtAvailability, type CourtAvailability } from '../../api/booking'
 import { MapContainer, TileLayer, Marker, Popup as LeafletPopup } from 'react-leaflet';
 import { divIcon, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { PlayerHoverCard } from './components/PlayerHoverCard';
 
 const emptyVenues: MatchPreferredVenue[] = [];
 
@@ -114,7 +115,7 @@ export const QueueDetail = () => {
   const { id } = useParams();
   const queueId = Number(id);
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const notify = useToast();
 
   const [friends, setFriends] = useState<CommunityFriend[]>([]);
@@ -265,7 +266,7 @@ export const QueueDetail = () => {
 
   const handleLeaveOrCancel = async () => {
     if (!token || !queue) return;
-    const isHost = queue.queuePlayers.find((p) => String(p.playerId) === user?.id || p.playerId === myPlayerId || p.playerName === user?.name)?.isHost;
+    const isHost = queue.queuePlayers.find((p) => p.isCurrentPlayer || p.playerId === myPlayerId)?.isHost;
     const msg = isHost
       ? 'Bạn là chủ hàng chờ, hủy hàng chờ sẽ giải tán cả nhóm. Bạn có chắc chắn?'
       : 'Bạn có chắc chắn muốn rời khỏi hàng chờ ghép trận này?';
@@ -316,19 +317,19 @@ export const QueueDetail = () => {
   );
   const pendingRequests = useMemo(() => queue?.queuePlayers.filter((p) => p.status === 'Pending') ?? [], [queue]);
   const myRequest = useMemo(
-    () => queue?.queuePlayers.find((p) => String(p.playerId) === user?.id || p.playerId === myPlayerId || p.playerName === user?.name),
-    [queue, user, myPlayerId]
+    () => queue?.queuePlayers.find((p) => p.isCurrentPlayer || p.playerId === myPlayerId),
+    [queue, myPlayerId]
   );
 
   const isMember = useMemo(() => {
-    if (!queue || !user) return false;
-    return approvedPlayers.some((p) => String(p.playerId) === user.id || p.playerId === myPlayerId || p.playerName === user.name);
-  }, [approvedPlayers, user, myPlayerId]);
+    if (!queue) return false;
+    return approvedPlayers.some((p) => p.isCurrentPlayer || p.playerId === myPlayerId);
+  }, [approvedPlayers, queue, myPlayerId]);
 
   const isHost = useMemo(() => {
-    if (!queue || !user) return false;
-    return approvedPlayers.some((p) => (String(p.playerId) === user.id || p.playerId === myPlayerId || p.playerName === user.name) && p.isHost);
-  }, [approvedPlayers, user, myPlayerId]);
+    if (!queue) return false;
+    return approvedPlayers.some((p) => (p.isCurrentPlayer || p.playerId === myPlayerId) && p.isHost);
+  }, [approvedPlayers, queue, myPlayerId]);
 
   // Calendar visualization
   const calendarComponent = useMemo(() => {
@@ -775,6 +776,26 @@ export const QueueDetail = () => {
             <div className="space-y-3">
               {slotsList.map((player, sIdx) => {
                 if (player) {
+                  const avatar = (
+                    <span
+                      className={`grid h-10 w-10 place-items-center overflow-hidden rounded-xl border font-extrabold text-[13px] ${player.isHost
+                          ? 'border-amber-400 bg-amber-50 text-amber-800'
+                          : 'border-[#d8e4d4] bg-[#edf5e9] text-[#477313]'
+                        }`}
+                    >
+                      {player.avatarUrl ? (
+                        <img
+                          src={player.avatarUrl}
+                          alt=""
+                          decoding="async"
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span>{player.playerName.charAt(0).toUpperCase()}</span>
+                      )}
+                    </span>
+                  );
                   return (
                     <div
                       key={player.playerId}
@@ -783,24 +804,11 @@ export const QueueDetail = () => {
                           : 'border-[#d8e4d4]'
                         }`}
                     >
-                      <span
-                        className={`grid h-10 w-10 place-items-center overflow-hidden rounded-xl border font-extrabold text-[13px] ${player.isHost
-                            ? 'border-amber-400 bg-amber-50 text-amber-800'
-                            : 'border-[#d8e4d4] bg-[#edf5e9] text-[#477313]'
-                          }`}
-                      >
-                        {player.avatarUrl ? (
-                          <img
-                            src={player.avatarUrl}
-                            alt=""
-                            decoding="async"
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span>{player.playerName.charAt(0).toUpperCase()}</span>
-                        )}
-                      </span>
+                      {player.isCurrentPlayer || player.playerId === myPlayerId ? avatar : (
+                        <PlayerHoverCard playerId={player.playerId} playerName={player.playerName}>
+                          {avatar}
+                        </PlayerHoverCard>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[13px] font-bold text-[#0b2228] truncate block">
@@ -855,7 +863,9 @@ export const QueueDetail = () => {
               {pendingRequests.map((request) => (
                 <div key={request.playerId} className="flex items-center justify-between gap-3 rounded-xl border border-[#d8e4d4] bg-[#fbfdfa] p-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <img src={request.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.playerName)}&background=edf5e9&color=477313`} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    <PlayerHoverCard playerId={request.playerId} playerName={request.playerName}>
+                      <img src={request.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.playerName)}&background=edf5e9&color=477313`} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    </PlayerHoverCard>
                     <span className="truncate text-[12px] font-bold text-[#0b2228]">{request.playerName}</span>
                   </div>
                   <div className="flex shrink-0 gap-2">

@@ -11,6 +11,7 @@ import {
   MapPin,
   Ruler,
   Save,
+  Star,
   Trophy,
   UserRound,
   Weight,
@@ -19,6 +20,7 @@ import { Link } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { uploadToCloudinary } from '../../api/cloudinary';
 import { getMyProfile, updateMyProfile, uploadMyAvatar, type PlayerProfile } from '../../api/profile';
+import { getReceivedMatchReviews } from '../../api/matches';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
@@ -49,6 +51,11 @@ export const Profile = () => {
     ['my-profile', token],
     () => getMyProfile(token!),
     { enabled: Boolean(token), errorMessage: 'Không thể tải hồ sơ.' },
+  );
+  const { data: receivedReviews = [], error: reviewsError, loading: reviewsLoading } = useApiQuery(
+    ['received-match-reviews', token],
+    () => getReceivedMatchReviews(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải đánh giá về bạn.' },
   );
 
   const error = actionError || loadError;
@@ -226,8 +233,8 @@ export const Profile = () => {
                   <span>Trận đã chơi</span>
                 </div>
                 <div className="profile-metric">
-                  <strong>{profile.prestige ?? 0}</strong>
-                  <span>Điểm uy tín</span>
+                  <strong>{(profile.prestige ?? 5).toFixed(1)} ★</strong>
+                  <span>Uy tín trung bình</span>
                 </div>
               </div>
             </section>
@@ -488,6 +495,45 @@ export const Profile = () => {
                 <span>Có thể cập nhật bất cứ lúc nào.</span>
               </div>
             </form>
+
+            <section className="profile-form-surface mt-4" aria-labelledby="received-reviews-title">
+              <div className="profile-form-section">
+                <div className="profile-section-heading">
+                  <span className="profile-section-icon">
+                    <Star aria-hidden="true" className="h-[18px] w-[18px]" />
+                  </span>
+                  <div>
+                    <h2 id="received-reviews-title">Đánh giá về bạn</h2>
+                    <p>{receivedReviews.length} đánh giá từ những người đã chơi cùng bạn.</p>
+                  </div>
+                </div>
+
+                {reviewsLoading && <p className="text-[12px] font-semibold text-[#718077]">Đang tải đánh giá...</p>}
+                {reviewsError && <p className="profile-status profile-status--error" role="alert">{reviewsError}</p>}
+                {!reviewsLoading && !reviewsError && receivedReviews.length === 0 && (
+                  <p className="rounded-xl bg-[#f3f8ef] px-4 py-5 text-[12px] font-semibold text-[#627168]">Bạn chưa nhận được đánh giá nào.</p>
+                )}
+                {receivedReviews.length > 0 && (
+                  <div className="grid gap-2">
+                    {receivedReviews.map((review) => (
+                      <article className="rounded-xl border border-[#d8e4d4] bg-[#fbfdfa] p-3" key={review.matchPlayerReviewId}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[13px] font-extrabold text-[#0b2228]">{review.reviewerName}</p>
+                            <p className="mt-0.5 text-[10px] text-[#718077]">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[12px] font-extrabold text-amber-700">
+                            <Star aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> {review.score}/5
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[12px] leading-5 text-[#526158]">{review.comment || 'Không có nhận xét.'}</p>
+                        <Link className="mt-2 inline-flex text-[11px] font-bold text-[#477313] hover:underline" to={`/matches/${review.matchId}`}>Xem trận đấu</Link>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
         </div>
       </div>
