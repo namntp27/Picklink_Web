@@ -755,6 +755,20 @@ textarea.community-control {
   color: var(--community-accent) !important;
 }
 
+.community-feed-shell--hero-panels .community-post-card button[class*="border-[#477313]/30"],
+.community-feed-shell--hero-panels .community-insights button[class*="bg-[#edf5e9]"] {
+  border-color: rgb(226 255 87 / 0.3) !important;
+  background: rgb(226 255 87 / 0.12) !important;
+  color: var(--community-accent) !important;
+}
+
+.community-feed-shell--hero-panels .community-post-card button[class*="border-[#477313]/30"]:hover,
+.community-feed-shell--hero-panels .community-insights button[class*="bg-[#edf5e9]"]:hover {
+  border-color: var(--community-accent) !important;
+  background: var(--community-accent) !important;
+  color: #081d24 !important;
+}
+
 .community-feed-shell--hero-panels .community-avatar {
   box-shadow:
     0 0 0 1px rgb(255 255 255 / 0.18),

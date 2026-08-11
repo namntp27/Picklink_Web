@@ -41,7 +41,7 @@ export const ModalDialog = ({
   return (
     <dialog
       {...accessibleName}
-      className={`border-0 p-0 text-on-surface backdrop:bg-black/60 backdrop:backdrop-blur-sm ${className}`}
+      className={`fixed inset-0 m-auto border-0 p-0 text-on-surface backdrop:bg-black/60 backdrop:backdrop-blur-sm ${className}`}
       onCancel={(event) => {
         event.preventDefault();
         requestClose();

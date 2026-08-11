@@ -103,6 +103,14 @@ export const resumeQueue = (token: string, queueId?: number) =>
 export const getPublicQueues = (token?: string | null) =>
   apiRequest<QueueStatusResponse[]>('/api/matchmaking/public', {}, token || undefined);
 
+export const getQueueById = (token: string, queueId: number) =>
+  apiRequest<QueueStatusResponse>(`/api/matchmaking/queues/${queueId}`, {}, token);
+
+export const acceptQueueInvite = (token: string, queueId: number) =>
+  apiRequest<QueueStatusResponse>(`/api/matchmaking/queues/${queueId}/accept`, {
+    method: 'POST',
+  }, token);
+
 export const joinPublicQueue = (token: string, queueId: number) =>
   apiRequest<QueueStatusResponse>(`/api/matchmaking/public/join/${queueId}`, {
     method: 'POST',
@@ -117,3 +125,10 @@ export const approvePublicQueueRequest = (token: string, queueId: number, player
 
 export const rejectPublicQueueRequest = (token: string, queueId: number, playerId: number) =>
   apiRequest<{ message: string }>(`/api/matchmaking/public/requests/${queueId}/${playerId}/reject`, { method: 'POST' }, token);
+
+export const inviteFriendToQueue = (token: string, queueId: number, targetUserId: number) =>
+  apiRequest<{ message: string }>(
+    `/api/matchmaking/queues/${queueId}/invite?targetUserId=${targetUserId}`,
+    { method: 'POST' },
+    token,
+  );

@@ -15,6 +15,7 @@ const commonRouteLoaders = new Map<string, RouteLoader>([
   ['/opponents/pending', () => import('../pages/matches/PendingInvites')],
   ['/opponents/create', () => import('../pages/matches/Opponents')],
   ['/posts', () => import('../pages/community/Posts')],
+  ['/posts/friends', () => import('../pages/community/Friends')],
   ['/posts/clubs', () => import('../pages/community/PostCollections')],
   ['/my-matches', () => import('../pages/matches/MyMatches')],
   ['/my-bookings', () => import('../pages/bookings/MyBookings')],

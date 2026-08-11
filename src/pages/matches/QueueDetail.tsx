@@ -14,16 +14,21 @@ import {
   Play,
   Check,
   Building,
-  Navigation
+  Navigation,
+  UserPlus,
+  Loader2
 } from 'lucide-react';
 import {
   getMyQueues,
   getPublicQueues,
+  getQueueById,
+  acceptQueueInvite,
   joinPublicQueue,
   approvePublicQueueRequest,
   rejectPublicQueueRequest,
   cancelQueue,
   resumeQueue,
+  inviteFriendToQueue,
   type QueueStatusResponse,
   type QueuePlayerResponse
 } from '../../api/matchmaking';
@@ -121,6 +126,7 @@ export const QueueDetail = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isActionBusy, setIsActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [invitingFriendId, setInvitingFriendId] = useState<number | null>(null);
 
   const {
     data,
@@ -130,13 +136,19 @@ export const QueueDetail = () => {
   } = useApiQuery(
     ['queue-detail', token, queueId],
     async (): Promise<{ queue: QueueStatusResponse; venues: MatchPreferredVenue[] }> => {
-      const [myQueues, publicQueues] = await Promise.all([
-        getMyQueues(token!).catch((): QueueStatusResponse[] => []),
-        getPublicQueues(token!).catch((): QueueStatusResponse[] => []),
-      ]);
+      let foundQueue: QueueStatusResponse | null = null;
+      try {
+        foundQueue = await getQueueById(token!, queueId);
+      } catch {
+        const [myQueues, publicQueues] = await Promise.all([
+          getMyQueues(token!).catch((): QueueStatusResponse[] => []),
+          getPublicQueues(token!).catch((): QueueStatusResponse[] => []),
+        ]);
 
-      const foundQueue = myQueues.find((item) => item.matchmakingQueueId === queueId)
-        || publicQueues.find((item) => item.matchmakingQueueId === queueId);
+        foundQueue = myQueues.find((item) => item.matchmakingQueueId === queueId)
+          || publicQueues.find((item) => item.matchmakingQueueId === queueId) || null;
+      }
+
       if (!foundQueue) {
         throw new Error('Không tìm thấy lời mời ghép trận này hoặc bạn không có quyền xem.');
       }
@@ -222,8 +234,8 @@ export const QueueDetail = () => {
     if (!token || !queueId) return;
     setIsActionBusy(true);
     try {
-      await joinPublicQueue(token, queueId);
-      notify('Đã gửi yêu cầu, chờ chủ phòng duyệt.', 'success');
+      await acceptQueueInvite(token, queueId);
+      notify('Bạn đã tham gia hàng chờ ghép trận thành công!', 'success');
       void loadQueue();
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Không thể tham gia hàng chờ này.', 'error');
@@ -285,9 +297,17 @@ export const QueueDetail = () => {
     }
   };
 
-  const handleInviteFriend = (friendName: string) => {
-    notify(`Đã gửi lời mời tham gia hàng chờ cho ${friendName}!`, 'success');
-    setShowInviteModal(false);
+  const handleInviteFriend = async (friendUserId: number, friendName: string) => {
+    if (!token || !queueId) return;
+    setInvitingFriendId(friendUserId);
+    try {
+      const res = await inviteFriendToQueue(token, queueId, friendUserId);
+      notify(res.message || `Đã gửi lời mời tham gia hàng chờ cho ${friendName}!`, 'success');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : `Không thể gửi lời mời cho ${friendName}.`, 'error');
+    } finally {
+      setInvitingFriendId(null);
+    }
   };
 
   const approvedPlayers = useMemo(
@@ -596,9 +616,9 @@ export const QueueDetail = () => {
                 type="button"
                 disabled={isActionBusy || slotsList.filter(Boolean).length >= totalSlots}
                 onClick={handleJoin}
-                className="community-button flex items-center justify-center gap-1.5 !bg-[#e2ff57] !text-[#0b2228] hover:!bg-[#d4f046]"
+                className="community-button flex items-center justify-center gap-1.5 !bg-[#e2ff57] !text-[#0b2228] hover:!bg-[#d4f046] !font-extrabold cursor-pointer"
               >
-                <Plus className="h-4 w-4" /> Gửi yêu cầu
+                <Check className="h-4 w-4" /> Tham gia ngay
               </button>
             )}
           </div>
@@ -859,18 +879,21 @@ export const QueueDetail = () => {
       {showInviteModal && (
         <ModalDialog
           aria-labelledby="queue-invite-title"
-          className="w-[calc(100%-2rem)] max-w-md bg-transparent shadow-none animate-in fade-in duration-200 backdrop:bg-black/60"
-          closeOnBackdrop={false}
+          className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md bg-transparent shadow-none animate-in fade-in duration-200 backdrop:bg-black/60 flex items-center justify-center z-50 p-4"
+          closeOnBackdrop={true}
           onRequestClose={() => setShowInviteModal(false)}
         >
           <div className="w-full max-w-md rounded-2xl border border-[#d8e4d4] bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-[#e2eae0]">
-              <h3 className="text-[16px] font-extrabold text-[#0b2228]" id="queue-invite-title">Mời bạn bè</h3>
+              <div>
+                <h3 className="text-[16px] font-extrabold text-[#0b2228]" id="queue-invite-title">Mời bạn bè</h3>
+                <p className="text-[11px] text-[#718077] font-semibold mt-0.5">Gửi lời mời tham gia hàng chờ ghép trận</p>
+              </div>
               <button
                 aria-label="Đóng danh sách mời bạn bè"
                 onClick={() => setShowInviteModal(false)}
                 type="button"
-                className="text-slate-400 hover:text-slate-650 p-1"
+                className="text-[#718077] hover:bg-[#edf5e9] hover:text-[#0b2228] p-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -879,37 +902,49 @@ export const QueueDetail = () => {
             <div className="community-scroll mt-4 max-h-72 overflow-y-auto space-y-2 pr-1">
               {friends.length === 0 ? (
                 <p className="text-center text-[13px] text-slate-400 py-8 font-semibold">
-                  Bạn chưa kết bạn với ai hoặc không thể tải danh sách.
+                  Bạn chưa có bạn bè trong danh sách hoặc đang tải...
                 </p>
               ) : (
                 friends.map((friend) => (
                   <div
                     key={friend.userId}
-                    className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-[#edf5e9]/30 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl border border-[#dbe8d3] bg-[#fbfdfa] hover:bg-[#edf5e9]/40 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl border border-[#d8e4d4] bg-[#edf5e9] text-[12px] font-extrabold text-[#477313]">
-                        {friend.profileImageUrl ? (
-                          <img
-                            src={friend.profileImageUrl}
-                            alt=""
-                            decoding="async"
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span>{friend.username.charAt(0).toUpperCase()}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      {friend.profileImageUrl ? (
+                        <img
+                          src={friend.profileImageUrl}
+                          alt=""
+                          className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-[#d8e4d4]"
+                        />
+                      ) : (
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#edf5e9] text-[13px] font-extrabold text-[#477313]">
+                          {friend.username.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <span className="text-[13px] font-extrabold text-[#0b2228] truncate block">
+                          {friend.username}
+                        </span>
+                        {friend.skillLevel && (
+                          <span className="text-[10px] font-bold text-[#477313]">
+                            Trình độ {friend.skillLevel}
+                          </span>
                         )}
-                      </span>
-                      <span className="text-[13px] font-bold text-[#0b2228]">
-                        {friend.username}
-                      </span>
+                      </div>
                     </div>
                     <button
-                      onClick={() => handleInviteFriend(friend.username)}
-                      className="community-button !min-h-8 !px-3 !py-1 !text-[11px] flex items-center gap-1"
+                      type="button"
+                      disabled={invitingFriendId === friend.userId}
+                      onClick={() => void handleInviteFriend(friend.userId, friend.username)}
+                      className="community-button !min-h-8 !px-3 !py-1 !text-[12px] font-extrabold flex items-center gap-1.5 shrink-0"
                     >
-                      Mời
+                      {invitingFriendId === friend.userId ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-3.5 w-3.5" />
+                      )}
+                      <span>Mời</span>
                     </button>
                   </div>
                 ))

@@ -20,13 +20,19 @@ import {
   getGlobalPosts,
   reactToPost,
   removeReaction,
+  getFriendshipStatuses,
+  getFriendRequests,
+  type FriendshipStatus,
+  type FriendRequest,
 } from '../../api/community';
 import { CommunityFeedShell, CommunityPage } from './CommunityUI';
+import { FriendButton } from './components/FriendButton';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
 
 export interface DisplayPost {
   id: string;
+  authorId?: number;
   authorName: string;
   avatar: string;
   level: string;
@@ -62,7 +68,7 @@ export const parsePostContent = (rawContent: string | null) => {
         levelRange: parsed.levelRange,
         playTime: parsed.playTime,
         matchId: parsed.matchId,
-        tags: parsed.tags
+        tags: parsed.tags,
       };
     }
   } catch {
@@ -90,6 +96,7 @@ const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number])
 
   return {
     id: String(post.postId),
+    authorId: post.authorId,
     authorName: post.authorName || 'Thành viên Picklink',
     avatar: post.authorAvatarUrl || '',
     level: '',
@@ -110,11 +117,15 @@ const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number])
 };
 
 export const PostCard = ({
-  post, 
-  onLikeToggle, 
-  onShareClick 
-}: { 
-  post: DisplayPost; 
+  post,
+  friendshipStatus,
+  onFriendStatusChange,
+  onLikeToggle,
+  onShareClick,
+}: {
+  post: DisplayPost;
+  friendshipStatus?: FriendshipStatus;
+  onFriendStatusChange?: (authorId: number, status: FriendshipStatus) => void;
   onLikeToggle?: (postId: string) => void;
   onShareClick?: (post: DisplayPost) => void;
 }) => {
@@ -153,6 +164,16 @@ export const PostCard = ({
               </div>
             </div>
           </div>
+
+          {post.authorId && (
+            <FriendButton
+              className="shrink-0"
+              onStatusChange={(newStatus) => onFriendStatusChange?.(post.authorId!, newStatus)}
+              status={friendshipStatus}
+              targetUserId={post.authorId}
+              targetUserName={post.authorName}
+            />
+          )}
         </div>
 
         <Link className="mt-4 block" to={`/posts/${post.id}`}>
@@ -163,7 +184,7 @@ export const PostCard = ({
         </Link>
 
         {post.lookingFor && (
-        <div className="community-post-card__looking-for mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+          <div className="community-post-card__looking-for mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
             <span className="flex items-start gap-2">
               <Users aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{post.lookingFor}</span>
@@ -193,51 +214,51 @@ export const PostCard = ({
         </div>
       </div>
 
-    {post.image && (
-      <Link className="block overflow-hidden bg-[#dfeadc]" to={`/posts/${post.id}`}>
-        <img
-          alt={post.title}
-          className="max-h-[420px] w-full object-cover transition-transform duration-300 ease-out hover:scale-[1.015] motion-reduce:transform-none"
-          decoding="async"
-          loading="lazy"
-          src={post.image}
-        />
-      </Link>
-    )}
-
-    <div className="px-4 pb-3 pt-3 sm:px-5">
-      <div className="community-post-card__metrics flex items-center justify-between gap-3 text-[11px] font-semibold text-[#718077]">
-        <span className="inline-flex items-center gap-1.5">
-          <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
-          {post.likes} lượt thích
-        </span>
-        <span>{post.comments} bình luận</span>
-      </div>
-      <div className="community-post-card__actions mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
-        <button
-          className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
-          type="button"
-          onClick={() => onLikeToggle?.(post.id)}
-        >
-          <ThumbsUp aria-hidden="true" className="h-[17px] w-[17px]" fill={post.liked ? 'currentColor' : 'none'} />
-          <span className="hidden sm:inline">Thích</span>
-        </button>
-        <Link className="community-button-quiet !min-h-9 !px-2" to={`/posts/${post.id}`}>
-          <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
-          <span className="hidden sm:inline">Bình luận</span>
+      {post.image && (
+        <Link className="block overflow-hidden bg-[#dfeadc]" to={`/posts/${post.id}`}>
+          <img
+            alt={post.title}
+            className="max-h-[420px] w-full object-cover transition-transform duration-300 ease-out hover:scale-[1.015] motion-reduce:transform-none"
+            decoding="async"
+            loading="lazy"
+            src={post.image}
+          />
         </Link>
-        <button 
-          className="community-button-quiet !min-h-9 !px-2" 
-          onClick={() => onShareClick?.(post)}
-          type="button"
-        >
-          <Share2 aria-hidden="true" className="h-[17px] w-[17px]" />
-          <span className="hidden sm:inline">Chia sẻ</span>
-        </button>
+      )}
+
+      <div className="px-4 pb-3 pt-3 sm:px-5">
+        <div className="community-post-card__metrics flex items-center justify-between gap-3 text-[11px] font-semibold text-[#718077]">
+          <span className="inline-flex items-center gap-1.5">
+            <ThumbsUp aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" fill={post.liked ? 'currentColor' : 'none'} />
+            {post.likes} lượt thích
+          </span>
+          <span>{post.comments} bình luận</span>
+        </div>
+        <div className="community-post-card__actions mt-3 grid grid-cols-3 gap-1 border-t border-[#e0e9dc] pt-2">
+          <button
+            className={`community-button-quiet !min-h-9 !px-2 ${post.liked ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
+            type="button"
+            onClick={() => onLikeToggle?.(post.id)}
+          >
+            <ThumbsUp aria-hidden="true" className="h-[17px] w-[17px]" fill={post.liked ? 'currentColor' : 'none'} />
+            <span className="hidden sm:inline">Thích</span>
+          </button>
+          <Link className="community-button-quiet !min-h-9 !px-2" to={`/posts/${post.id}`}>
+            <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
+            <span className="hidden sm:inline">Bình luận</span>
+          </Link>
+          <button 
+            className="community-button-quiet !min-h-9 !px-2" 
+            onClick={() => onShareClick?.(post)}
+            type="button"
+          >
+            <Share2 aria-hidden="true" className="h-[17px] w-[17px]" />
+            <span className="hidden sm:inline">Chia sẻ</span>
+          </button>
+        </div>
       </div>
-    </div>
-  </article>
-);
+    </article>
+  );
 };
 
 export const Posts = () => {
@@ -245,6 +266,8 @@ export const Posts = () => {
   const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
+  const [friendshipStatuses, setFriendshipStatuses] = useState<Record<number, FriendshipStatus>>({});
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const { data: posts = emptyPosts, loading, setData: setPosts } = useApiQuery(
@@ -252,6 +275,58 @@ export const Posts = () => {
     async () => (await getGlobalPosts(token)).map(toDisplayPost),
   );
 
+  // Batch query friendship statuses for post authors
+  useEffect(() => {
+    if (!token || !isAuthenticated || posts.length === 0) return;
+    const currentUserId = user?.id ? Number(user.id) : null;
+    const authorIds = Array.from(
+      new Set(
+        posts
+          .map((p) => p.authorId)
+          .filter((id): id is number => typeof id === 'number' && id > 0 && id !== currentUserId)
+      )
+    );
+    if (authorIds.length === 0) return;
+
+    let cancelled = false;
+    getFriendshipStatuses(token, authorIds)
+      .then((res) => {
+        if (!cancelled && res?.statuses) {
+          setFriendshipStatuses((prev) => ({ ...prev, ...res.statuses }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isAuthenticated, posts, user?.id]);
+
+  // Load incoming friend requests
+  useEffect(() => {
+    if (!token || !isAuthenticated) return;
+    let cancelled = false;
+    getFriendRequests(token)
+      .then((data) => {
+        if (!cancelled) {
+          setFriendRequests(data || []);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isAuthenticated]);
+
+  const handleFriendStatusChange = (targetUserId: number, newStatus: FriendshipStatus) => {
+    setFriendshipStatuses((prev) => ({
+      ...prev,
+      [targetUserId]: newStatus,
+    }));
+    if (newStatus === 'Accepted' || newStatus === 'None') {
+      setFriendRequests((prev) => prev.filter((r) => r.requesterId !== targetUserId));
+    }
+  };
 
   const sharePost = async (post: DisplayPost) => {
     const url = new URL('/posts/' + post.id, window.location.origin).toString();
@@ -429,6 +504,52 @@ export const Posts = () => {
           </section>
         )}
 
+        {/* Incoming Friend Requests Banner if any */}
+        {isAuthenticated && friendRequests.length > 0 && (
+          <section className="mt-4 rounded-2xl border border-[#cfe0c8] bg-[#f4f8f2] p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#477313] text-white">
+                  <UserPlus className="h-4 w-4" />
+                </span>
+                <h2 className="text-[14px] font-black text-[#0b2228]">
+                  Lời mời kết bạn chờ duyệt ({friendRequests.length})
+                </h2>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {friendRequests.map((req) => (
+                <div
+                  key={req.friendshipId}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-white p-2.5 border border-[#e0e9dc] shadow-xs"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {req.requesterAvatarUrl ? (
+                      <img alt="" className="community-avatar h-9 w-9" src={req.requesterAvatarUrl} />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+                        <UserRound className="h-4 w-4" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-extrabold text-[#0b2228]">{req.requesterName}</p>
+                      {req.skillLevel && (
+                        <p className="text-[10px] font-semibold text-[#718077]">Trình {req.skillLevel}</p>
+                      )}
+                    </div>
+                  </div>
+                  <FriendButton
+                    onStatusChange={(status) => handleFriendStatusChange(req.requesterId, status)}
+                    status="PendingReceived"
+                    targetUserId={req.requesterId}
+                    targetUserName={req.requesterName}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="community-feed-heading mb-3 mt-5 flex items-center justify-between gap-3 px-1">
           <div>
             <h1 className="text-[19px] font-extrabold tracking-[-0.02em] text-[#0b2228]">Bảng tin hôm nay</h1>
@@ -446,7 +567,9 @@ export const Posts = () => {
             filteredPosts.slice(0, visibleCount).map((post) => (
               <PostCard 
                 key={post.id} 
-                post={post} 
+                post={post}
+                friendshipStatus={post.authorId ? friendshipStatuses[post.authorId] : undefined}
+                onFriendStatusChange={handleFriendStatusChange}
                 onLikeToggle={handleLikeToggle} 
                 onShareClick={(post) => void sharePost(post)}
               />

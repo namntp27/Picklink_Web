@@ -22,6 +22,7 @@ const CreatePost = lazyPage(() => import('@/pages/community/CreatePost'), 'Creat
 const ClubPosts = lazyPage(() => import('@/pages/community/PostCollections'), 'ClubPosts');
 const PostDetail = lazyPage(() => import('@/pages/community/PostDetail'), 'PostDetail');
 const Posts = lazyPage(() => import('@/pages/community/Posts'), 'Posts');
+const Friends = lazyPage(() => import('@/pages/community/Friends'), 'Friends');
 const BookCourt = lazyPage(() => import('@/pages/courts/BookCourt'), 'BookCourt');
 const Checkout = lazyPage(() => import('@/pages/courts/Checkout'), 'Checkout');
 const CourtScheduleDetail = lazyPage(() => import('@/pages/courts/CourtScheduleDetail'), 'CourtScheduleDetail');
@@ -78,6 +79,7 @@ export const PlayerApp = () => (
         <Route path="clubs" element={<Clubs />} />
         <Route path="listclubs" element={<Clubs />} />
         <Route path="posts" element={<Posts />} />
+        <Route path="posts/friends" element={<Friends />} />
         <Route path="posts/clubs" element={<ClubPosts />} />
         <Route path="posts/:id" element={<PostDetail />} />
         <Route path="clubs/:id" element={<ClubDetail />} />

@@ -9,13 +9,20 @@ import {
   TrendingUp,
   Users,
   UserRound,
+  UserCheck,
   Search,
   type LucideIcon,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
-import { getOutstandingPlayers, type OutstandingPlayer } from '../../api/community';
+import {
+  getOutstandingPlayers,
+  getFriendshipStatuses,
+  type OutstandingPlayer,
+  type FriendshipStatus,
+} from '../../api/community';
+import { FriendButton } from './components/FriendButton';
 import './community.css';
 
 type CommunityPageProps = {
@@ -35,6 +42,7 @@ type CommunityHeroProps = {
 
 const feedLinks: Array<{ label: string; icon: LucideIcon; to: string }> = [
   { label: 'Bảng tin', icon: Home, to: '/posts' },
+  { label: 'Bạn bè', icon: UserCheck, to: '/posts/friends' },
   { label: 'Câu lạc bộ', icon: Users, to: '/posts/clubs' },
   { label: 'Cài đặt', icon: Settings, to: '/profile' },
 ];
@@ -178,8 +186,9 @@ export const CommunityFeedNav = ({ activePath }: { activePath: string }) => {
 };
 
 export const CommunityInsights = () => {
-  const { token } = useAuth();
+  const { user, token, isAuthenticated } = useAuth();
   const [players, setPlayers] = useState<OutstandingPlayer[]>([]);
+  const [friendshipStatuses, setFriendshipStatuses] = useState<Record<number, FriendshipStatus>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -196,6 +205,28 @@ export const CommunityInsights = () => {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !isAuthenticated || players.length === 0) return;
+    const currentUserId = user?.id ? Number(user.id) : null;
+    const targetIds = players
+      .map((p) => p.userId)
+      .filter((id) => id > 0 && id !== currentUserId);
+    if (targetIds.length === 0) return;
+
+    let cancelled = false;
+    getFriendshipStatuses(token, targetIds)
+      .then((res) => {
+        if (!cancelled && res?.statuses) {
+          setFriendshipStatuses((prev) => ({ ...prev, ...res.statuses }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isAuthenticated, players, user?.id]);
 
   const displayPlayers = players.map((player) => ({
     userId: player.userId,
@@ -229,7 +260,6 @@ export const CommunityInsights = () => {
         </div>
       </section>
 
-
       <section className="community-panel p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-[15px] font-extrabold text-[#0b2228]">Người chơi nổi bật</h2>
@@ -252,14 +282,25 @@ export const CommunityInsights = () => {
                 <p className="truncate text-[13px] font-extrabold text-[#0b2228]">{player.name}</p>
                 <p className="text-[11px] font-semibold text-[#718077]">Trình độ {player.level}</p>
               </div>
-              <Link
-                aria-label={`Nhắn tin với ${player.name}`}
-                className="community-icon-button h-8 w-8 flex items-center justify-center text-lg text-[#477313] hover:bg-[#e0e9dc]"
-                title={`Nhắn tin với ${player.name}`}
-                to={`/messages?chatWithUserId=${player.userId}`}
-              >
-                <span className="text-base leading-none">💬</span>
-              </Link>
+              <div className="flex items-center gap-1">
+                <FriendButton
+                  compact
+                  onStatusChange={(status) =>
+                    setFriendshipStatuses((prev) => ({ ...prev, [player.userId]: status }))
+                  }
+                  status={friendshipStatuses[player.userId]}
+                  targetUserId={player.userId}
+                  targetUserName={player.name}
+                />
+                <Link
+                  aria-label={`Nhắn tin với ${player.name}`}
+                  className="community-icon-button h-8 w-8 flex items-center justify-center text-lg text-[#477313] hover:bg-[#e0e9dc]"
+                  title={`Nhắn tin với ${player.name}`}
+                  to={`/messages?chatWithUserId=${player.userId}`}
+                >
+                  <span className="text-base leading-none">💬</span>
+                </Link>
+              </div>
             </div>
           ))}
         </div>

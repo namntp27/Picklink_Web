@@ -323,7 +323,86 @@ export type CommunityFriend = {
   userId: number;
   username: string;
   profileImageUrl: string | null;
+  skillLevel?: string | null;
+};
+
+export type FriendshipStatus = 'None' | 'PendingSent' | 'PendingReceived' | 'Accepted';
+
+export type FriendRequest = {
+  friendshipId: number;
+  requesterId: number;
+  requesterName: string;
+  requesterAvatarUrl: string | null;
+  skillLevel: string | null;
+  createdAt: string;
+};
+
+export type FriendshipActionResponse = {
+  targetUserId: number;
+  status: FriendshipStatus;
+  message: string;
+};
+
+export type FriendshipStatusesResponse = {
+  statuses: Record<number, FriendshipStatus>;
 };
 
 export const getFriends = (token: string) =>
   apiRequest<CommunityFriend[]>('/api/community/friends', {}, token);
+
+export const getFriendshipStatuses = (token: string, targetUserIds: number[]) => {
+  if (!targetUserIds || targetUserIds.length === 0) {
+    return Promise.resolve({ statuses: {} as Record<number, FriendshipStatus> });
+  }
+  return apiRequest<FriendshipStatusesResponse>(
+    `/api/community/friends/statuses?targetUserIds=${targetUserIds.join(',')}`,
+    {},
+    token,
+  );
+};
+
+export const getFriendRequests = (token: string) =>
+  apiRequest<FriendRequest[]>('/api/community/friends/requests', {}, token);
+
+export const sendFriendRequest = (token: string, targetUserId: number) =>
+  apiRequest<FriendshipActionResponse>(
+    `/api/community/friends/request?targetUserId=${targetUserId}`,
+    { method: 'POST' },
+    token,
+  );
+
+export const acceptFriendRequest = (token: string, targetUserId: number) =>
+  apiRequest<FriendshipActionResponse>(
+    `/api/community/friends/accept?targetUserId=${targetUserId}`,
+    { method: 'POST' },
+    token,
+  );
+
+export const declineFriendRequest = (token: string, targetUserId: number) =>
+  apiRequest<FriendshipActionResponse>(
+    `/api/community/friends/decline?targetUserId=${targetUserId}`,
+    { method: 'POST' },
+    token,
+  );
+
+export const removeFriend = (token: string, targetUserId: number) =>
+  apiRequest<FriendshipActionResponse>(
+    `/api/community/friends/${targetUserId}`,
+    { method: 'DELETE' },
+    token,
+  );
+
+export type PlayerSearchResult = {
+  userId: number;
+  username: string;
+  profileImageUrl: string | null;
+  skillLevel: string | null;
+  status: FriendshipStatus;
+};
+
+export const searchPlayers = (token: string, query: string, limit = 20) =>
+  apiRequest<PlayerSearchResult[]>(
+    `/api/community/players/search?query=${encodeURIComponent(query)}&limit=${limit}`,
+    {},
+    token,
+  );
