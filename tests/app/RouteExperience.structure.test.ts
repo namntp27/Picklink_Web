@@ -24,6 +24,7 @@ test('route experience resets push navigation and prefetches links from user int
   assert.match(routePrefetch, /commonDataLoaders/);
   assert.match(routePrefetch, /prefetchApiData/);
   assert.match(routePrefetch, /getMatchDetail/);
+  assert.match(routePrefetch, /getPublicQueues\(token\)/);
 });
 
 test('lazy route fallback reserves page geometry with accessible skeletons', () => {

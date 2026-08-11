@@ -32,6 +32,11 @@ const subscribe = (key: string, notify: () => void) => {
   };
 };
 
+/** Makes route-prefetched data available synchronously to the destination screen. */
+export const primeApiQueryCache = <T>(key: QueryKey, data: T) => {
+  publish(serializeKey(key), data);
+};
+
 export type ApiQueryResult<T> = {
   data: T | undefined;
   error: string;

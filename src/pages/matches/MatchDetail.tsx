@@ -47,6 +47,7 @@ import {
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+import { useApiQuery } from '../../hooks/useApiQuery';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchSlotReplacementPanel } from './MatchSlotReplacementPanel';
@@ -177,7 +178,15 @@ export const MatchDetail = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const [match, setMatch] = useState<MatchDetailResponse | null>(null);
+  const {
+    data: match,
+    error: matchLoadError,
+    refresh: loadMatch,
+  } = useApiQuery(
+    ['match-detail', token, matchId],
+    () => getMatchDetail(token!, matchId),
+    { enabled: Boolean(token) && Number.isInteger(matchId), errorMessage: 'Không thể tải phòng ghép trận.' },
+  );
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
   const [bookingDate, setBookingDate] = useState('');
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
@@ -203,21 +212,13 @@ export const MatchDetail = () => {
   const [error, setError] = useState('');
   const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
 
-  const loadMatch = async () => {
-    if (!token || !Number.isInteger(matchId)) return;
-    try {
-      const result = await getMatchDetail(token, matchId);
-      const defaultBookingDate = defaultMatchBookingDate(result.availableDateFrom, result.availableDateTo);
-      setMatch(result);
-      setSelectedVenueId((current) => current ?? result.preferredVenues[0]?.venueId ?? null);
-      setBookingDate((current) => current || defaultBookingDate);
-      setError('');
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không thể tải phòng ghép trận.');
-    }
-  };
-
-  useEffect(() => { void loadMatch(); }, [matchId, token]);
+  useEffect(() => {
+    if (!match) return;
+    const defaultBookingDate = defaultMatchBookingDate(match.availableDateFrom, match.availableDateTo);
+    setSelectedVenueId((current) => current ?? match.preferredVenues[0]?.venueId ?? null);
+    setBookingDate((current) => current || defaultBookingDate);
+    setError('');
+  }, [match]);
 
   useEffect(() => {
     const now = Date.now();
@@ -582,7 +583,7 @@ export const MatchDetail = () => {
       <CommunityPage>
         <div className="community-container">
           <div className="community-panel mx-auto mt-12 max-w-lg p-8 text-center text-[13px] font-bold text-[#526158]">
-            {error || 'Đang tải phòng ghép trận...'}
+            {error || matchLoadError || 'Đang tải phòng ghép trận...'}
           </div>
         </div>
       </CommunityPage>

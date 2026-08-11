@@ -15,16 +15,22 @@ test('manual invitations keep their queue detail interface after a room is linke
   assert.match(source, /const handleOpenQueue = \(queue: QueueStatusResponse\)/);
   assert.match(source, /navigate\(`\/opponents\/queue\/\$\{queueId\}`\)/);
   assert.match(source, /onClick=\{\(\) => handleOpenQueue\(q\)\}/);
-  assert.match(source, /source: 'community'/);
-  assert.match(source, /activeTab === 'manual' \? \(/);
+  assert.match(source, /\(\) => getPublicQueues\(token\)/);
+  assert.match(source, /paginatedQueues\.map\(\(q\) =>/);
+  assert.doesNotMatch(source, /getOpenMatches/);
+  assert.doesNotMatch(source, /activeTab|setActiveTab/);
+  assert.doesNotMatch(source, /open-matches-v5/);
+  assert.match(source, /const PAGE_SIZE = 15/);
+  assert.match(source, /<PaginationControls page=\{pagination\} onPageChange=\{setPage\} \/>/);
   assert.doesNotMatch(source, /createManualQueueRoom/);
   assert.match(source, /venueList\.map\(\(venue\) =>/);
   assert.match(source, /onClick=\{\(\) => setMappedQueue\(q\)\}/);
-  assert.match(source, /\['open-matches-v5'/);
   assert.match(source, /player\.isCurrentPlayer/);
   assert.match(source, /currentPlayer\?\.status === 'Approved'/);
   assert.match(source, /myRequest\?\.status === 'Approved'/);
-  assert.match(source, /\{ cache: 'no-store' \}/);
+  assert.doesNotMatch(source, /cache: 'no-store'/);
+  assert.match(source, /searchMatchVenues\(\{ radiusKm: 0 \}\)/);
+  assert.doesNotMatch(source, /Promise\.all\(queues\.map/);
   assert.doesNotMatch(source, /aria-label="Người tạo lời mời"/);
   assert.doesNotMatch(source, /owner: filters\.owner/);
   assert.doesNotMatch(source, /filters\.owner/);
@@ -47,10 +53,10 @@ test('joining stays on the room while accepting an invitation opens my matches',
   );
 });
 
-test('full rooms and queues never render in opponents', () => {
-  assert.match(
-    source,
-    /matches\.filter\(\(match\) =>[\s\S]*?match\.status === 'Recruiting' && match\.availableSlotCount > 0/,
-  );
+test('manual queue filters exclude full rooms and support all visible controls', () => {
   assert.match(source, /approvedPlayerCount >= maxCapacity/);
+  assert.match(source, /queueMatchesDate\(q, filters\.date\)/);
+  assert.match(source, /skill < \(q\.minSkillLevel \?\? 1\)/);
+  assert.match(source, /filters\.format !== 'all'/);
+  assert.match(source, /filters\.province && q\.province/);
 });

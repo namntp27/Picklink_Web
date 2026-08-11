@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Building2,
@@ -100,7 +100,9 @@ const matchListRefreshActions = new Set([
 
 const emptyMatches: MatchSummary[] = [];
 const emptyQueues: QueueStatusResponse[] = [];
-const emptyPagination = { page: 1, pageSize: 9, totalCount: 0, totalPages: 1 };
+const emptyQueueVenues: Record<number, MatchPreferredVenue[]> = {};
+const PAGE_SIZE = 15;
+const emptyPagination = { page: 1, pageSize: PAGE_SIZE, totalCount: 0, totalPages: 1 };
 
 export const MyMatches = () => {
   const { token, user } = useAuth();
@@ -108,26 +110,41 @@ export const MyMatches = () => {
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
 
-  const { data, error: loadError, loading: isLoading, refresh } = useApiQuery(
+  const {
+    data: matchPage,
+    error: matchesError,
+    loading: matchesLoading,
+    refresh: refreshMatches,
+  } = useApiQuery(
     ['my-matches', token, page],
-    async () => {
-      const [result, queues] = await Promise.all([
-        getMyMatches(token!, { page, pageSize: 9 }),
-        getMyQueues(token!).catch(() => emptyQueues),
-      ]);
+    () => getMyMatches(token!, { page, pageSize: PAGE_SIZE }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách phòng.' },
+  );
+  const {
+    data: myQueues = emptyQueues,
+    error: queuesError,
+    loading: queuesLoading,
+    refresh: refreshQueues,
+  } = useApiQuery(
+    ['my-match-queues', token],
+    () => getMyQueues(token!),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách hàng chờ.' },
+  );
 
-      const selectedVenueIds = new Set(
-        queues
-          .filter((queue) => queue.isPublic)
-          .flatMap((queue) => queueVenueIds(queue.sharedVenues)),
-      );
-      const venues = selectedVenueIds.size > 0
-        ? await searchMatchVenues({ radiusKm: 0 }).catch((): MatchPreferredVenue[] => [])
-        : [];
+  const selectedVenueKey = useMemo(() => Array.from(new Set(
+    myQueues
+      .filter((queue) => queue.isPublic)
+      .flatMap((queue) => queueVenueIds(queue.sharedVenues)),
+  )).sort((left, right) => left - right).join(','), [myQueues]);
+
+  const { data: queueVenues = emptyQueueVenues } = useApiQuery(
+    ['my-match-queue-venues', selectedVenueKey],
+    async () => {
+      const venues = await searchMatchVenues({ radiusKm: 0 });
       const venuesById = new Map(venues.map((venue) => [venue.venueId, venue]));
       const queueVenues: Record<number, MatchPreferredVenue[]> = {};
 
-      queues.forEach((queue) => {
+      myQueues.forEach((queue) => {
         if (!queue.isPublic || queue.matchmakingQueueId == null) return;
         queueVenues[queue.matchmakingQueueId] = queueVenueIds(queue.sharedVenues)
           .flatMap((venueId) => {
@@ -136,22 +153,23 @@ export const MyMatches = () => {
           });
       });
 
-      return { result, queues, queueVenues };
+      return queueVenues;
     },
-    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách phòng.' },
+    { enabled: selectedVenueKey.length > 0, errorMessage: 'Không thể tải thông tin sân.' },
   );
 
-  const matches = data?.result.items ?? emptyMatches;
-  const myQueues = data?.queues ?? emptyQueues;
-  const queueVenues = data?.queueVenues ?? {};
-  const pagination = data?.result ?? emptyPagination;
-  const error = actionError || loadError;
-  const load = refresh;
+  const matches = matchPage?.items ?? emptyMatches;
+  const pagination = matchPage ?? emptyPagination;
+  const isLoading = matchesLoading || queuesLoading;
+  const error = actionError || matchesError || queuesError;
+  const load = useCallback(async () => {
+    await Promise.all([refreshMatches(), refreshQueues()]);
+  }, [refreshMatches, refreshQueues]);
   const setError = setActionError;
 
   useMatchRealtime((event) => {
     if (!matchListRefreshActions.has(event.action)) return;
-    void refresh();
+    void load();
   });
 
   const linkedManualMatchIds = useMemo(
@@ -167,11 +185,34 @@ export const MyMatches = () => {
     return matches.filter((match) => match.status === activeFilter);
   }, [activeFilter, linkedManualMatchIds, matches]);
 
+  const activeQueues = useMemo(
+    () => myQueues.filter((queue) => !queue.isPublic),
+    [myQueues],
+  );
+
+  const activeQueuePagination = useMemo(() => ({
+    page,
+    pageSize: PAGE_SIZE,
+    totalCount: activeQueues.length,
+    totalPages: Math.max(1, Math.ceil(activeQueues.length / PAGE_SIZE)),
+  }), [activeQueues.length, page]);
+
   const currentQueues = useMemo(() => {
-    if (activeFilter === 'all') return myQueues.filter((queue) => queue.isPublic);
-    if (activeFilter === 'ActiveQueues') return myQueues.filter((queue) => !queue.isPublic);
+    if (activeFilter === 'all') {
+      const pageMatchIds = new Set(matches.map((match) => match.matchId));
+      return myQueues.filter((queue) => queue.isPublic && queue.matchId && pageMatchIds.has(queue.matchId));
+    }
+    if (activeFilter === 'ActiveQueues') {
+      return activeQueues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    }
     return null;
-  }, [activeFilter, myQueues]);
+  }, [activeFilter, activeQueues, matches, myQueues, page]);
+
+  useEffect(() => {
+    if (activeFilter === 'ActiveQueues' && page > activeQueuePagination.totalPages) {
+      setPage(activeQueuePagination.totalPages);
+    }
+  }, [activeFilter, activeQueuePagination.totalPages, page]);
 
   const hasVisibleCards = activeFilter === 'ActiveQueues'
     ? (currentQueues?.length ?? 0) > 0
@@ -254,7 +295,10 @@ export const MyMatches = () => {
                   : 'text-[#66756b] hover:bg-[#edf5e9] hover:text-[#0b2228]'
               }`}
               key={filter.value}
-              onClick={() => setActiveFilter(filter.value)}
+              onClick={() => {
+                setActiveFilter(filter.value);
+                setPage(1);
+              }}
               type="button"
             >
               {filter.label}
@@ -266,7 +310,7 @@ export const MyMatches = () => {
           aria-busy={isLoading}
           className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {isLoading && matches.length === 0 && (
+          {isLoading && matches.length === 0 && myQueues.length === 0 && (
             <>
               <span className="sr-only" role="status">Đang tải phòng của bạn...</span>
               {Array.from({ length: 6 }, (_, index) => (
@@ -529,11 +573,12 @@ export const MyMatches = () => {
               />
             </div>
           )}
-          {activeFilter !== 'ActiveQueues' && (
-            <div className="sm:col-span-2 lg:col-span-3">
-              <PaginationControls page={pagination} onPageChange={setPage} />
-            </div>
-          )}
+          <div className="sm:col-span-2 lg:col-span-3">
+            <PaginationControls
+              page={activeFilter === 'ActiveQueues' ? activeQueuePagination : pagination}
+              onPageChange={setPage}
+            />
+          </div>
         </section>
       </main>
     </CommunityPage>

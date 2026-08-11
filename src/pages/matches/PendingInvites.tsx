@@ -1,25 +1,21 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   CalendarRange,
-  ChevronRight,
   Clock,
   Eye,
   Filter,
   MapPin,
   RotateCcw,
   Route,
-  ShieldCheck,
   Trophy,
   UserPlus,
   Users,
-  Play,
   LogOut,
   MessageSquare,
   Plus,
-  Settings,
 } from 'lucide-react';
-import { getOpenMatches, searchMatchVenues, type MatchFormat, type MatchPreferredVenue, type MatchSummary } from '../../api/matches';
+import { searchMatchVenues, type MatchFormat, type MatchPreferredVenue } from '../../api/matches';
 import {
   cancelQueue,
   getPublicQueues,
@@ -28,11 +24,10 @@ import {
 } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
+import { PaginationControls } from '../../components/PaginationControls';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
-import { PaginationControls } from '../../components/PaginationControls';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
-import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 
 const MatchVenueMapDialog = lazy(async () => {
@@ -62,16 +57,6 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 }).format(new Date(`${value}T00:00:00`));
 
-const timeLabel = (value: string) => value.slice(0, 5);
-
-const availabilitySlotsFor = (match: MatchSummary) => match.availabilitySlots?.length
-  ? match.availabilitySlots
-  : [{
-    matchAvailabilitySlotId: -match.matchId,
-    timeStart: match.preferredTimeStart,
-    timeEnd: match.preferredTimeEnd,
-  }];
-
 const queueVenueIds = (sharedVenues?: string | null) => sharedVenues?.split(',').map(Number).filter(Number.isInteger) ?? [];
 
 const queueDateRange = (queue: QueueStatusResponse) => {
@@ -80,31 +65,33 @@ const queueDateRange = (queue: QueueStatusResponse) => {
   return dateLabel(dates[0]) + ' - ' + dateLabel(dates[dates.length - 1]);
 };
 
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const queueMatchesDate = (queue: QueueStatusResponse, selectedDate: string) => {
+  if (!selectedDate) return true;
+  const date = new Date(`${selectedDate}T00:00:00`);
+  const weekday = weekdayNames[date.getDay()];
+  return queue.queueSlots.some((slot) =>
+    slot.specificDate === selectedDate
+    || queue.replayType === 'Daily'
+    || (queue.replayType === 'Weekly'
+      && (String(slot.dayOfWeek) === weekday || Number(slot.dayOfWeek) === date.getDay()))
+    || (queue.replayType === 'Monthly' && slot.dayOfMonth === date.getDate()));
+};
+
 
 const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
 
+const PAGE_SIZE = 15;
 const emptyQueues: QueueStatusResponse[] = [];
-const emptyMatches: MatchSummary[] = [];
-const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
 export const PendingInvites = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'manual' | 'queue'>('manual');
-  const [selectedHost, setSelectedHost] = useState<Pick<
-    MatchSummary,
-    'hostPlayerId' | 'hostName' | 'hostAvatarUrl'
-  > | null>(null);
-  const [mappedMatch, setMappedMatch] = useState<Pick<
-    MatchSummary,
-    'title' | 'preferredVenues'
-  > | null>(null);
   const [queueVenues, setQueueVenues] = useState<Record<number, MatchPreferredVenue[]>>({});
   const [mappedQueue, setMappedQueue] = useState<QueueStatusResponse | null>(null);
   const [filters, setFilters] = useState<Filters>(defaults);
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
-  const [debouncedProvince, setDebouncedProvince] = useState(filters.province);
-  const [debouncedWard, setDebouncedWard] = useState(filters.ward);
   const setError = setActionError;
 
   const {
@@ -115,30 +102,26 @@ export const PendingInvites = () => {
   } = useApiQuery(
     ['public-queues', token],
     () => getPublicQueues(token),
-    { enabled: activeTab === 'queue', errorMessage: 'Không thể tải danh sách hàng chờ.' },
+    { errorMessage: 'Không thể tải danh sách lời mời thủ công.' },
   );
 
   useEffect(() => {
     let disposed = false;
     void (async () => {
+      const selectedVenueIds = new Set(queues.flatMap((queue) => queueVenueIds(queue.sharedVenues)));
+      if (selectedVenueIds.size === 0) {
+        if (!disposed) setQueueVenues({});
+        return;
+      }
+
+      const venues = await searchMatchVenues({ radiusKm: 0 }).catch((): MatchPreferredVenue[] => []);
+      const venueLookup = new Map(venues.map((venue) => [venue.venueId, venue]));
       const resolved: Record<number, MatchPreferredVenue[]> = {};
-      await Promise.all(queues.map(async (queue) => {
-        const queueId = queue.matchmakingQueueId;
-        const venueIds = queueVenueIds(queue.sharedVenues);
-        if (queueId == null || venueIds.length === 0) return;
-        try {
-          const venues = await searchMatchVenues({
-            radiusKm: 10,
-            latitude: queue.searchLatitude ?? undefined,
-            longitude: queue.searchLongitude ?? undefined,
-            province: queue.province ?? undefined,
-            ward: queue.ward ?? undefined,
-          });
-          resolved[queueId] = venueIds.flatMap((venueId) => venues.filter((venue) => venue.venueId === venueId));
-        } catch {
-          resolved[queueId] = [];
-        }
-      }));
+      queues.forEach((queue) => {
+        if (queue.matchmakingQueueId == null) return;
+        resolved[queue.matchmakingQueueId] = queueVenueIds(queue.sharedVenues)
+          .flatMap((venueId) => venueLookup.get(venueId) ? [venueLookup.get(venueId)!] : []);
+      });
       if (!disposed) setQueueVenues(resolved);
     })();
     return () => {
@@ -179,78 +162,61 @@ export const PendingInvites = () => {
     navigate(`/opponents/queue/${queueId}`);
   };
 
-  useEffect(() => {
-    const timerId = window.setTimeout(() => {
-      setDebouncedProvince(filters.province.trim());
-      setDebouncedWard(filters.ward.trim());
-    }, 350);
-
-    return () => window.clearTimeout(timerId);
-  }, [filters.province, filters.ward]);
-
-  const {
-    data: matchPage,
-    error: matchesError,
-    loading: isLoading,
-    refresh: load,
-  } = useApiQuery(
-    ['open-matches-v5', activeTab, token, page, filters.format, filters.skill, filters.date,
-      debouncedProvince, debouncedWard],
-    () => getOpenMatches(token ?? undefined, {
-      page,
-      pageSize: 10,
-      source: 'community',
-      matchType: filters.format === 'all' ? undefined : filters.format,
-      skillLevel: filters.skill === 'all' ? undefined : Number(filters.skill),
-      from: filters.date || undefined,
-      to: filters.date || undefined,
-      province: debouncedProvince || undefined,
-      ward: debouncedWard || undefined,
-    }, { cache: 'no-store' }),
-    { enabled: activeTab === 'manual', errorMessage: 'Không thể tải danh sách lời mời.' },
-  );
-
-  const matches = matchPage?.items ?? emptyMatches;
-  const pagination = matchPage ?? emptyPagination;
-  const error = actionError || (activeTab === 'manual' ? matchesError : queuesError);
+  const error = actionError || queuesError;
 
   useMatchRealtime(() => {
-    void load();
+    void loadQueues();
   });
-
-  const visibleMatches = matches.filter((match) =>
-    match.status === 'Recruiting' && match.availableSlotCount > 0);
   
   const filteredQueues = useMemo(() => {
     return queues.filter((q) => {
       if (!q.isPublic) return false;
       const maxCapacity = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
-      const approvedPlayerCount = q.queuePlayers.filter((player) => player.status === 'Approved').length;
+      const approvedPlayerCount = q.queuePlayers.filter((player) =>
+        player.status === 'Approved' || player.status === 'Accepted').length;
       if (approvedPlayerCount >= maxCapacity) return false;
       const currentPlayer = q.queuePlayers.find((player) =>
         player.isCurrentPlayer || String(player.playerId) === user?.id || player.playerName === user?.name);
-      if (currentPlayer?.status === 'Approved') return false;
+      if (currentPlayer?.status === 'Approved' || currentPlayer?.status === 'Accepted') return false;
       if (filters.format !== 'all' && q.matchType !== filters.format) return false;
+      if (filters.skill !== 'all') {
+        const skill = Number(filters.skill);
+        if (skill < (q.minSkillLevel ?? 1) || skill > (q.maxSkillLevel ?? 5)) return false;
+      }
       if (filters.province && q.province !== filters.province) return false;
       if (filters.ward && q.ward !== filters.ward) return false;
+      if (!queueMatchesDate(q, filters.date)) return false;
       
       return true;
     });
-  }, [queues, filters.format, filters.province, filters.ward, user?.id, user?.name]);
+  }, [queues, filters.date, filters.format, filters.province, filters.skill, filters.ward, user?.id, user?.name]);
+
+  const pagination = useMemo(() => ({
+    page,
+    pageSize: PAGE_SIZE,
+    totalCount: filteredQueues.length,
+    totalPages: Math.max(1, Math.ceil(filteredQueues.length / PAGE_SIZE)),
+  }), [filteredQueues.length, page]);
+
+  const paginatedQueues = useMemo(
+    () => filteredQueues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredQueues, page],
+  );
+
+  useEffect(() => {
+    if (page > pagination.totalPages) setPage(pagination.totalPages);
+  }, [page, pagination.totalPages]);
 
   const remainingSlots = useMemo(() => {
-    if (activeTab === 'manual') {
-      return visibleMatches.reduce((sum, match) => sum + match.availableSlotCount, 0);
-    }
     return filteredQueues.reduce((sum, q) => {
       const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
       return sum + Math.max(0, maxCap - q.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected').length);
     }, 0);
-  }, [activeTab, visibleMatches, filteredQueues]);
+  }, [filteredQueues]);
 
   const update = (key: keyof Filters, value: string) => {
-    setPage(1);
     setFilters((current) => ({ ...current, [key]: value }) as Filters);
+    setPage(1);
   };
 
   return (
@@ -268,17 +234,17 @@ export const PendingInvites = () => {
             </Link>
           </>
         )}
-        description="Lọc theo khu vực, thời gian và trình độ để tìm phòng phù hợp."
+        description="Lọc các lời mời thủ công công khai theo khu vực, thời gian và trình độ."
         icon={Users}
-        label="Ghép trận cộng đồng"
+        label="Lời mời thủ công"
         stats={(
           <div className="grid grid-cols-2 gap-5">
             <div>
               <p className="font-mono text-[28px] font-extrabold text-[#e2ff57]">
-                {activeTab === 'manual' ? pagination.totalCount : filteredQueues.length}
+                {filteredQueues.length}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">
-                {activeTab === 'manual' ? 'lời mời đang mở' : 'lời mời thủ công'}
+                lời mời thủ công
               </p>
             </div>
             <div>
@@ -299,42 +265,11 @@ export const PendingInvites = () => {
                 Bộ lọc trận
               </h2>
               <p className="mt-1 hidden text-[11px] font-semibold text-[#718077] sm:block">
-                {activeTab === 'manual'
-                  ? (isLoading ? 'Đang cập nhật kết quả...' : 'Kết quả cập nhật theo điều kiện đã chọn.')
-                  : (queuesLoading ? 'Đang cập nhật hàng chờ...' : 'Đang hiển thị hàng chờ ghép cặp công khai.')}
+                {queuesLoading ? 'Đang cập nhật lời mời...' : 'Đang hiển thị các lời mời thủ công công khai.'}
               </p>
             </div>
 
-            {/* Tab switcher */}
             <div className="flex gap-2 items-center flex-wrap">
-              <div className="flex gap-1 bg-[#edf2ea] p-1 rounded-lg shrink-0">
-                <button
-                  aria-pressed={activeTab === 'manual'}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('manual');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1 rounded text-[11px] font-extrabold transition-colors ${
-                    activeTab === 'manual' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
-                  }`}
-                >
-                  Lời mời giao lưu
-                </button>
-                <button
-                  aria-pressed={activeTab === 'queue'}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('queue');
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1 rounded text-[11px] font-extrabold transition-colors ${
-                    activeTab === 'queue' ? 'bg-[#0b2228] text-white shadow-sm' : 'text-[#718077] hover:text-[#0b2228]'
-                  }`}
-                >
-                  Lời mời thủ công
-                </button>
-              </div>
               <button
                 className="community-button-quiet !min-h-9"
                 onClick={() => {
@@ -380,131 +315,15 @@ export const PendingInvites = () => {
           </div>
         )}
 
-        <section className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {activeTab === 'manual' ? (
-            <>
-              {visibleMatches.map((match) => (
-                <article className="community-card h-full p-3" key={match.matchId}>
-                  <div className="flex flex-col gap-2.5">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px]">{match.matchType}</span>
-                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">Level {match.minSkillLevel}-{match.maxSkillLevel}</span>
-                        {match.isHost && <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Của tôi</span>}
-                        {match.replacementSlotCount > 0 && <span className="community-badge !min-h-5 !bg-[#eef8e6] !px-1.5 !py-1 !text-[10px] !text-[#477313]">Cần {match.replacementSlotCount} người thay thế</span>}
-                      </div>
-                      <Link className="mt-2 block" to={`/matches/${match.matchId}`}>
-                        <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228] transition-colors hover:text-[#477313]">
-                          {match.title}
-                        </h2>
-                      </Link>
-                      <button
-                        className="group mt-1 inline-flex max-w-full items-center gap-2 rounded-lg py-0.5 pr-1 text-left focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#477313]/45"
-                        onClick={() => setSelectedHost(match)}
-                        title={`Xem hồ sơ của ${match.hostName}`}
-                        type="button"
-                      >
-                        <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#edf5e9] text-[10px] font-extrabold text-[#477313]">
-                          {match.hostAvatarUrl ? (
-                            <img
-                              alt={`Ảnh đại diện của ${match.hostName}`}
-                              className="h-full w-full object-cover"
-                              decoding="async"
-                              loading="lazy"
-                              src={match.hostAvatarUrl}
-                            />
-                          ) : (
-                            <span aria-hidden="true">{match.hostName.charAt(0).toUpperCase() || '?'}</span>
-                          )}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[9px] font-bold leading-3 text-[#718077]">Chủ phòng</span>
-                          <span className="block truncate text-[10px] font-extrabold leading-4 text-[#526158] transition-colors group-hover:text-[#477313]">
-                            {match.hostName}
-                          </span>
-                        </span>
-                        <ChevronRight
-                          aria-hidden="true"
-                          className="h-3 w-3 shrink-0 text-[#98a39b] transition-transform group-hover:translate-x-0.5 group-hover:text-[#477313]"
-                        />
-                      </button>
-                      <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#526158]">{match.note || 'Chủ phòng chưa thêm mô tả.'}</p>
-                    </div>
-                    <Link className="community-button-secondary !min-h-8 w-full justify-center !px-2.5 !py-1.5 !text-[11px]" to={`/matches/${match.matchId}`}>
-                      {match.isHost ? <ShieldCheck aria-hidden="true" className="h-3 w-3" /> : <Eye aria-hidden="true" className="h-3 w-3" />}
-                      {match.isHost ? 'Quản lý' : 'Xem chi tiết'}
-                    </Link>
-                  </div>
-
-                  <div className="mt-2.5 divide-y divide-[#e2eae0] overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#fbfcfa]">
-                    <div className="px-2.5 py-2">
-                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><MapPin className="h-3 w-3 text-[#477313]" />Khu vực</p>
-                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{match.ward}, {match.province}</p>
-                      <p className="mt-0.5 text-[10px] text-[#718077]">Bán kính {match.searchRadiusKm} km</p>
-                    </div>
-                    <div className="px-2.5 py-2">
-                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><CalendarRange className="h-3 w-3 text-[#477313]" />Khoảng ngày</p>
-                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{dateLabel(match.availableDateFrom)} - {dateLabel(match.availableDateTo)}</p>
-                    </div>
-                    <div className="px-2.5 py-2">
-                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Clock className="h-3 w-3 text-[#477313]" />Các slot đã chọn</p>
-                      <div className="community-scroll mt-1 flex max-h-14 flex-wrap gap-1 overflow-y-auto pr-1">
-                        {availabilitySlotsFor(match).map((slot) => (
-                          <span
-                            className="inline-flex min-h-5 items-center rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#0b2228]"
-                            key={slot.matchAvailabilitySlotId}
-                          >
-                            {timeLabel(slot.timeStart)} - {timeLabel(slot.timeEnd)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="px-2.5 py-2">
-                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên</p>
-                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{match.acceptedPlayerCount}/{match.requiredPlayerCount} người, còn {match.availableSlotCount}</p>
-                    </div>
-                  </div>
-
-                  {activeTab === 'manual' && match.preferredVenues.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {match.preferredVenues.map((venue) => (
-                        <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]" key={venue.venueId}>{venue.venueName}</span>
-                      ))}
-                      {match.preferredVenues.some((venue) =>
-                        typeof venue.latitude === 'number'
-                        && typeof venue.longitude === 'number') && (
-                        <button
-                          className="community-button-secondary !min-h-5 !gap-1 !px-1.5 !py-1 !text-[10px]"
-                          onClick={() => setMappedMatch(match)}
-                          title="Xem vị trí, khoảng cách và lộ trình"
-                          type="button"
-                        >
-                          <Route aria-hidden="true" className="h-3 w-3" />
-                          Bản đồ
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </article>
-              ))}
-
-              {visibleMatches.length === 0 && (
-                <div className="sm:col-span-2 lg:col-span-3">
-                  <CommunityEmptyState
-                    action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}
-                    description="Thử nới bộ lọc hoặc tự tạo một lời mời mới."
-                    icon={Users}
-                    title="Chưa có lời mời phù hợp"
-                  />
-                </div>
-              )}
-              <div className="sm:col-span-2 lg:col-span-3">
-                <PaginationControls page={pagination} onPageChange={setPage} />
-              </div>
-            </>
-          ) : (
-            <>
-              {filteredQueues.map((q) => {
+        <section aria-busy={queuesLoading} className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {queuesLoading && queues.length === 0 && Array.from({ length: 6 }, (_, index) => (
+            <article aria-hidden="true" className="community-card animate-pulse p-3 motion-reduce:animate-none" key={index}>
+              <div className="h-5 w-28 rounded bg-[#e8efe5]" />
+              <div className="mt-3 h-4 w-3/4 rounded bg-[#edf2ea]" />
+              <div className="mt-3 h-28 rounded-lg bg-[#f2f5f0]" />
+            </article>
+          ))}
+          {paginatedQueues.map((q) => {
                 const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
                 const approvedPlayers = q.queuePlayers.filter((qp) => qp.status === 'Approved' || qp.status === 'Accepted');
                 const myRequest = q.queuePlayers.find((player) =>
@@ -672,41 +491,23 @@ export const PendingInvites = () => {
                     </div>
                   </article>
                 );
-              })}
+          })}
 
-              {filteredQueues.length === 0 && (
-                <div className="sm:col-span-2 lg:col-span-3">
-                  <CommunityEmptyState
-                    action={<Link className="community-button" to="/opponents/create">Tạo hàng chờ</Link>}
-                    description="Hiện tại chưa có lời mời thủ công công khai nào phù hợp với bộ lọc."
-                    icon={Users}
-                    title="Chưa có hàng chờ phù hợp"
-                  />
-                </div>
-              )}
-            </>
+          {!queuesLoading && filteredQueues.length === 0 && (
+            <div className="sm:col-span-2 lg:col-span-3">
+              <CommunityEmptyState
+                action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}
+                description="Hiện tại chưa có lời mời thủ công công khai nào phù hợp với bộ lọc."
+                icon={Users}
+                title="Chưa có lời mời thủ công phù hợp"
+              />
+            </div>
           )}
+          <div className="sm:col-span-2 lg:col-span-3">
+            <PaginationControls page={pagination} onPageChange={setPage} />
+          </div>
         </section>
       </main>
-
-      {selectedHost && (
-        <PlayerProfileDialog
-          fallbackAvatarUrl={selectedHost.hostAvatarUrl}
-          fallbackName={selectedHost.hostName}
-          onClose={() => setSelectedHost(null)}
-          playerId={selectedHost.hostPlayerId}
-        />
-      )}
-
-      {mappedMatch && (
-        <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
-          <MatchVenueMapDialog
-            matchTitle={mappedMatch.title}
-            onClose={() => setMappedMatch(null)}
-            venues={mappedMatch.preferredVenues}
-          />
-        </Suspense>
-      )}
       {mappedQueue && (
         <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
           <MatchVenueMapDialog

@@ -1,6 +1,7 @@
 import { prefetchApiData } from '../api/client';
 import * as communityApi from '../api/community';
 import * as notificationApi from '../api/notifications';
+import { primeApiQueryCache } from '../hooks/useApiQuery';
 
 type RouteLoader = () => Promise<unknown>;
 type DataLoader = (accessToken?: string, search?: string) => Promise<unknown>;
@@ -57,13 +58,13 @@ const commonDataLoaders = new Map<string, DataLoader>([
     .then((api) => prefetch(() => api.getTicketSessions({ page: 1, pageSize: 9 })))],
   ['/clubs', (token) => prefetch(() => communityApi.getGroups(token, undefined, 1, 3, 'All', 'newest'))],
   ['/listclubs', (token) => prefetch(() => communityApi.getGroups(token, undefined, 1, 3, 'All', 'newest'))],
-  ['/opponents', (token) => import('../api/matches')
-    .then((api) => prefetch(() => api.getOpenMatches(token, { page: 1, pageSize: 10, owner: 'other' })))],
-  ['/opponents/pending', (token) => import('../api/matches')
-    .then((api) => prefetch(() => api.getOpenMatches(token, { page: 1, pageSize: 10, owner: 'other' })))],
+  ['/opponents', (token) => import('../api/matchmaking')
+    .then((api) => prefetch(() => api.getPublicQueues(token)))],
+  ['/opponents/pending', (token) => import('../api/matchmaking')
+    .then((api) => prefetch(() => api.getPublicQueues(token)))],
   ['/posts', (token) => prefetch(() => communityApi.getGlobalPosts(token))],
   ['/my-matches', (token) => token ? Promise.all([
-    import('../api/matches').then((api) => prefetch(() => api.getMyMatches(token, { page: 1, pageSize: 9 }))),
+    import('../api/matches').then((api) => prefetch(() => api.getMyMatches(token, { page: 1, pageSize: 15 }))),
     import('../api/matchmaking').then((api) => prefetch(() => api.getMyQueues(token))),
   ]) : Promise.resolve()],
   ['/my-bookings', (token) => token ? import('../api/booking')
@@ -100,7 +101,11 @@ const dynamicDataLoader = (pathname: string): DataLoader | undefined => {
   if (/^\/matches\/\d+$/.test(pathname)) {
     const id = numericId(pathname);
     return (token) => token ? import('../api/matches')
-      .then((api) => prefetch(() => api.getMatchDetail(token, id))) : Promise.resolve();
+      .then((api) => prefetch(() => api.getMatchDetail(token, id)))
+      .then((detail) => {
+        primeApiQueryCache(['match-detail', token, id], detail);
+        return detail;
+      }) : Promise.resolve();
   }
   if (/^\/bookings\/\d+$/.test(pathname)) {
     const id = numericId(pathname);
