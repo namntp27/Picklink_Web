@@ -18,6 +18,8 @@ export type TicketSession = {
   title: string;
   description?: string | null;
   skillLevel: string;
+  minSkillLevel: number;
+  maxSkillLevel: number;
   playFormat: string;
   startTime: string;
   endTime: string;
@@ -54,6 +56,7 @@ export type SessionTicket = {
   status: SessionTicketStatus;
   createdAt: string;
   holdExpiresAt?: string | null;
+  holdRemainingSeconds?: number | null;
   cancelledAt?: string | null;
   cancellationReason?: string | null;
   checkedInAt?: string | null;
@@ -67,6 +70,8 @@ export type SessionTicket = {
   bankAccountNumber?: string | null;
   bankAccountName?: string | null;
   qrImageUrl?: string | null;
+  receiptImageUrl?: string | null;
+  rejectionReason?: string | null;
   paidAt?: string | null;
   sePayTransactions: SePayTransaction[];
   session?: TicketSession | null;
@@ -102,7 +107,8 @@ export type TicketSessionInput = {
   endTime: string;
   title: string;
   description?: string;
-  skillLevel: string;
+  minSkillLevel: number;
+  maxSkillLevel: number;
   playFormat: string;
   maxPlayers: number;
   ticketPrice: number;
@@ -112,7 +118,7 @@ export type TicketSessionSearch = PaginationParams & {
   search?: string;
   venueId?: number;
   date?: string;
-  skillLevel?: string;
+  skillLevel?: number;
   playFormat?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -152,11 +158,18 @@ export const cancelPlayerTicket = (token: string, ticketId: number, reason?: str
 export const getOwnerTicketSessions = (token: string, filters: PaginationParams & { status?: string } = {}) =>
   apiRequest<PaginatedResponse<TicketSession>>('/api/owner/ticket-sessions' + queryString(filters), {}, token);
 
+const ticketSessionPayload = (input: TicketSessionInput) => ({
+  ...input,
+  skillLevel: input.minSkillLevel === input.maxSkillLevel
+    ? String(input.minSkillLevel)
+    : `${input.minSkillLevel}-${input.maxSkillLevel}`,
+});
+
 export const createOwnerTicketSession = (token: string, input: TicketSessionInput) =>
-  apiRequest<TicketSession>('/api/owner/ticket-sessions', { method: 'POST', body: JSON.stringify(input) }, token);
+  apiRequest<TicketSession>('/api/owner/ticket-sessions', { method: 'POST', body: JSON.stringify(ticketSessionPayload(input)) }, token);
 
 export const updateOwnerTicketSession = (token: string, ticketSessionId: number, input: TicketSessionInput) =>
-  apiRequest<TicketSession>('/api/owner/ticket-sessions/' + ticketSessionId, { method: 'PUT', body: JSON.stringify(input) }, token);
+  apiRequest<TicketSession>('/api/owner/ticket-sessions/' + ticketSessionId, { method: 'PUT', body: JSON.stringify(ticketSessionPayload(input)) }, token);
 
 export const publishOwnerTicketSession = (token: string, ticketSessionId: number) =>
   apiRequest<TicketSession>('/api/owner/ticket-sessions/' + ticketSessionId + '/publish', { method: 'POST' }, token);

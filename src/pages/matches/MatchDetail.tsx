@@ -13,6 +13,7 @@ import {
   Plus,
   Route,
   ShieldCheck,
+  Star,
   Trash2,
   UserCheck,
   Users,
@@ -198,6 +199,7 @@ export const MatchDetail = () => {
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
   const [showVenueMap, setShowVenueMap] = useState(false);
   const [showBookingRounds, setShowBookingRounds] = useState(false);
+  const [showPostMatchReviews, setShowPostMatchReviews] = useState(false);
   const [showEditBookingConfirmation, setShowEditBookingConfirmation] = useState(false);
   const [showInvitationEditor, setShowInvitationEditor] = useState(false);
   const [invitationDraft, setInvitationDraft] = useState<InvitationDraft>({
@@ -626,10 +628,6 @@ export const MatchDetail = () => {
             </div>
           )}
 
-          {token && isApprovedMember && match.status === 'Completed' && (
-            <MatchPostMatchReviewPanel match={match} token={token} />
-          )}
-
           <div className="match-overview-grid">
           <section className="community-panel match-panel match-scope-panel">
             <div className="match-section-heading">
@@ -1051,10 +1049,29 @@ export const MatchDetail = () => {
               )}
             </div>
           )}
+          {token && isApprovedMember && match.status === 'Completed' && (
+            <button
+              className="community-button-secondary mt-2 w-full py-3"
+              onClick={() => setShowPostMatchReviews(true)}
+              type="button"
+            >
+              <Star className="h-5 w-5" /> Đánh giá người chơi và sân
+            </button>
+          )}
 
         </aside>
       </main>
 
+      {showPostMatchReviews && token && (
+        <ModalDialog aria-labelledby="post-match-review-title" className="w-[calc(100%-2rem)] max-w-5xl overflow-y-auto rounded-2xl bg-white p-2 shadow-2xl sm:p-3" onRequestClose={() => setShowPostMatchReviews(false)}>
+          <div className="flex justify-end px-2 pt-1">
+            <button aria-label="Đóng đánh giá" className="rounded-lg p-2 text-[#526158] hover:bg-[#eef8e6]" onClick={() => setShowPostMatchReviews(false)} type="button">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <MatchPostMatchReviewPanel match={match} token={token} />
+        </ModalDialog>
+      )}
 
       {showEditBookingConfirmation && (
         <ModalDialog aria-labelledby="edit-match-booking-title" canClose={!isBusy} className="w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white p-5 text-[#0b2228] shadow-2xl" closeOnBackdrop={!isBusy} onRequestClose={() => setShowEditBookingConfirmation(false)}>

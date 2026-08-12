@@ -38,6 +38,15 @@ export const submitBankTransfer = async (token: string, bookingId: number, recei
   }, token);
 };
 
+export const submitTicketReceipt = async (token: string, sessionTicketId: number, receipt: File) => {
+  const formData = new FormData();
+  formData.append('receipt', await optimizeReceiptImage(receipt));
+  return apiRequest<BankTransfer>(`/api/payments/tickets/${sessionTicketId}/submit`, {
+    method: 'POST',
+    body: formData,
+  }, token);
+};
+
 export const getPlayerBookingPayment = (token: string, bookingId: number) =>
   apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}`, {}, token);
 

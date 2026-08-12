@@ -14,6 +14,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Ticket,
+  Upload,
   UserCheck,
   X,
   XCircle,
@@ -27,6 +28,7 @@ import {
   type SessionTicket,
   type SessionTicketStatus,
 } from '../../api/ticketing';
+import { submitTicketReceipt } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { ModalDialog } from '../../components/ui/ModalDialog';
@@ -71,6 +73,7 @@ const ticketStatusLabels: Record<string, string> = {
 
 const paymentStatusLabels: Record<string, string> = {
   Pending: 'Chờ chuyển khoản',
+  WaitingForConfirmation: 'Chờ chủ sân xác nhận',
   Paid: 'Đã thanh toán',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
@@ -91,11 +94,6 @@ const statusClass = (status: SessionTicketStatus) => {
   if (status === 'PendingPayment' || status === 'RefundPending') return 'border-outline-variant bg-surface-container-high text-on-surface';
   if (status === 'Refunded') return 'border-primary-container/50 bg-primary-container/20 text-[#477313]';
   return 'border-error/20 bg-error-container text-error';
-};
-
-const timestamp = (value: string) => {
-  const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`;
-  return new Date(normalized).getTime();
 };
 
 const CancelTicketDialog = ({
@@ -164,7 +162,8 @@ export const MyTicketDetail = () => {
   const notify = useToast();
   const navigationTicket = (location.state as { ticket?: SessionTicket } | null)?.ticket;
   const initialTicket = navigationTicket?.sessionTicketId === ticketId ? navigationTicket : null;
-  const [busyAction, setBusyAction] = useState<'cancel' | 'retry' | null>(null);
+  const [busyAction, setBusyAction] = useState<'cancel' | 'retry' | 'receipt' | null>(null);
+  const [receipt, setReceipt] = useState<File | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [actionError, setActionError] = useState('');
   const [now, setNow] = useState(Date.now());
@@ -191,7 +190,8 @@ export const MyTicketDetail = () => {
     || (token ? (hasValidRequest ? '' : 'Mã vé không hợp lệ.') : 'Phiên đăng nhập không còn hợp lệ.');
   const setError = setActionError;
 
-  const isPending = ticket?.status === 'PendingPayment';
+  const isPending = ticket?.status === 'PendingPayment' && ticket.paymentStatus === 'Pending';
+  const isAwaitingReview = ticket?.status === 'PendingPayment' && ticket.paymentStatus === 'WaitingForConfirmation';
   useEffect(() => {
     if (!isPending || !ticket?.holdExpiresAt) return;
     setNow(Date.now());
@@ -215,12 +215,14 @@ export const MyTicketDetail = () => {
     Boolean(ticket && ticket.status === 'PendingPayment'),
   );
 
-  const remainingSeconds = useMemo(() => ticket?.holdExpiresAt
-    ? Math.max(0, Math.floor((timestamp(ticket.holdExpiresAt) - now) / 1000))
-    : 0, [now, ticket?.holdExpiresAt]);
+  const holdDeadline = useMemo(() => ticket?.holdRemainingSeconds != null
+    ? Date.now() + ticket.holdRemainingSeconds * 1000
+    : 0, [ticket?.sessionTicketId, ticket?.holdRemainingSeconds]);
+  const remainingSeconds = Math.max(0, Math.ceil((holdDeadline - now) / 1000));
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
   const locallyExpired = ticket?.status === 'Expired'
-    || Boolean(ticket?.status === 'PendingPayment' && ticket.holdExpiresAt && remainingSeconds <= 0);
+    || Boolean(ticket?.status === 'PendingPayment' && ticket.paymentStatus === 'Pending'
+      && ticket.holdExpiresAt && remainingSeconds <= 0);
 
   const copy = async (value: string | null | undefined, label: string) => {
     if (!value) return;
@@ -264,6 +266,29 @@ export const MyTicketDetail = () => {
     }
   };
 
+  const submitReceipt = async () => {
+    if (!token || !ticket || !receipt) {
+      setError('Vui lòng chọn ảnh biên lai trước khi gửi.');
+      return;
+    }
+    if (remainingSeconds <= 0) {
+      setError('Thời gian giữ vé đã hết. Vui lòng tạo lại QR.');
+      return;
+    }
+    setBusyAction('receipt');
+    setError('');
+    try {
+      await submitTicketReceipt(token, ticket.sessionTicketId, receipt);
+      setTicket(await getPlayerTicket(token, ticket.sessionTicketId));
+      setReceipt(null);
+      notify('Đã gửi biên lai cho chủ sân kiểm tra.', 'success');
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi biên lai.');
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid min-h-dvh place-items-center bg-white px-4 pt-16" role="status">
@@ -286,6 +311,7 @@ export const MyTicketDetail = () => {
   }
 
   const session = ticket.session;
+  const canShowCheckInCode = ticket.status === 'Paid' || ticket.status === 'CheckedIn';
   const displayedTicketStatus: SessionTicketStatus = locallyExpired && ticket.status === 'PendingPayment'
     ? 'Expired'
     : ticket.status;
@@ -294,7 +320,7 @@ export const MyTicketDetail = () => {
     && (ticket.status === 'PendingPayment' || ticket.status === 'Paid')
     && session.status === 'Published'
     && Date.now() <= cancellationDeadline;
-  const showPaymentPanel = ticket.status === 'PendingPayment' && !locallyExpired;
+  const showPaymentPanel = ticket.status === 'PendingPayment' && ticket.paymentStatus === 'Pending' && !locallyExpired;
   const canRetry = locallyExpired
     && session.status === 'Published'
     && new Date(session.startTime).getTime() > Date.now()
@@ -326,10 +352,10 @@ export const MyTicketDetail = () => {
               <p className="mt-3 flex items-start gap-2 text-[14px] leading-6 text-on-surface-variant"><MapPin aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span><strong className="text-on-surface">{session.venueName} · Sân {session.courtNumber}</strong><br />{session.venueAddress}</span></p>
             </div>
             <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Mã vé</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Mã check-in</p>
               <div className="mt-2 flex items-start gap-2">
-                <strong className="min-w-0 flex-1 break-all font-mono text-[18px] leading-6 text-on-surface">{ticket.ticketCode}</strong>
-                <button aria-label="Sao chép mã vé" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-outline-variant bg-white text-primary hover:border-primary-container focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70" onClick={() => void copy(ticket.ticketCode, 'mã vé')} type="button"><Clipboard aria-hidden="true" className="h-4 w-4" /></button>
+                <strong className="min-w-0 flex-1 break-all font-mono text-[18px] leading-6 text-on-surface">{canShowCheckInCode ? ticket.ticketCode : 'Có sau khi thanh toán'}</strong>
+                {canShowCheckInCode && <button aria-label="Sao chép mã check-in" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-outline-variant bg-white text-primary hover:border-primary-container focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70" onClick={() => void copy(ticket.ticketCode, 'mã check-in')} type="button"><Clipboard aria-hidden="true" className="h-4 w-4" /></button>}
               </div>
               <p className="mt-2 text-[11px] text-on-surface-variant">Tạo lúc {dateTime.format(new Date(ticket.createdAt))}</p>
             </div>
@@ -337,7 +363,7 @@ export const MyTicketDetail = () => {
           <div className="grid border-t border-outline-variant bg-surface-container-low md:grid-cols-4 md:divide-x md:divide-outline-variant">
             <div className="p-4"><CalendarDays aria-hidden="true" className="h-5 w-5 text-primary" /><p className="mt-2 text-[11px] font-semibold text-on-surface-variant">Ngày chơi</p><p className="mt-1 text-[13px] font-bold">{fullDate.format(new Date(session.startTime))}</p></div>
             <div className="border-t border-outline-variant p-4 md:border-t-0"><Clock3 aria-hidden="true" className="h-5 w-5 text-primary" /><p className="mt-2 text-[11px] font-semibold text-on-surface-variant">Khung giờ</p><p className="mt-1 text-[13px] font-bold">{clockTime.format(new Date(session.startTime))} – {clockTime.format(new Date(session.endTime))}</p></div>
-            <div className="border-t border-outline-variant p-4 md:border-t-0"><Ticket aria-hidden="true" className="h-5 w-5 text-primary" /><p className="mt-2 text-[11px] font-semibold text-on-surface-variant">Trình độ · hình thức</p><p className="mt-1 text-[13px] font-bold">Level {session.skillLevel} · {session.playFormat}</p></div>
+            <div className="border-t border-outline-variant p-4 md:border-t-0"><Ticket aria-hidden="true" className="h-5 w-5 text-primary" /><p className="mt-2 text-[11px] font-semibold text-on-surface-variant">Trình độ · hình thức</p><p className="mt-1 text-[13px] font-bold">Level {session.minSkillLevel}–{session.maxSkillLevel} · {session.playFormat}</p></div>
             <div className="border-t border-outline-variant p-4 md:border-t-0"><CreditCard aria-hidden="true" className="h-5 w-5 text-primary" /><p className="mt-2 text-[11px] font-semibold text-on-surface-variant">Giá vé</p><p className="mt-1 text-[13px] font-bold">{ticket.amount === 0 ? 'Miễn phí' : currency.format(ticket.amount)}</p></div>
           </div>
         </section>
@@ -371,6 +397,29 @@ export const MyTicketDetail = () => {
                   </dl>
                 </div>
                 <p className="mt-4 flex items-start gap-2 rounded-xl bg-surface-container-low p-3 text-[12px] leading-5 text-on-surface-variant"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />Giữ nguyên số tiền và nội dung chuyển khoản. SePay sẽ tự động cập nhật vé khi ngân hàng ghi nhận giao dịch.</p>
+                {ticket.rejectionReason && <p className="mt-4 rounded-xl border border-error/20 bg-error-container p-3 text-[13px] font-bold text-error">Biên lai trước bị từ chối: {ticket.rejectionReason}</p>}
+                <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <label className="block min-w-0">
+                    <span className="text-[13px] font-bold">Ảnh biên lai chuyển khoản</span>
+                    <span className="mt-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 text-[13px] font-semibold text-on-surface-variant">
+                      <Upload className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="truncate">{receipt?.name ?? 'Chọn ảnh JPG, PNG hoặc WEBP'}</span>
+                      <input accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busyAction === 'receipt'} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                    </span>
+                  </label>
+                  <Button aria-busy={busyAction === 'receipt'} disabled={!receipt || Boolean(busyAction)} onClick={() => void submitReceipt()} type="button">
+                    {busyAction === 'receipt' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Gửi biên lai
+                  </Button>
+                </div>
+              </section>
+            )}
+
+            {isAwaitingReview && (
+              <section className="rounded-2xl border border-primary-container/60 bg-primary-container/15 p-6">
+                <CheckCircle2 className="h-8 w-8 text-primary" />
+                <h2 className="mt-3 text-[21px] font-bold">Đã gửi biên lai</h2>
+                <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Đang chờ chủ sân kiểm tra. Thời gian giữ vé đã được tạm dừng.</p>
+                {ticket.receiptImageUrl && <img alt="Biên lai đã gửi" className="mt-4 max-h-72 rounded-xl border border-outline-variant bg-white object-contain" src={ticket.receiptImageUrl} />}
               </section>
             )}
 

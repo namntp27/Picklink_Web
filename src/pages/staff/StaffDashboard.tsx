@@ -1070,7 +1070,7 @@ export const StaffDashboard = () => {
                           <span className="staff-type-badge is-match">Xé vé</span>
                         </div>
                         <p className="mt-1 truncate text-[11px] font-bold text-[#627168]">
-                          {session.skillLevel} · {session.playFormat}
+                          Level {session.minSkillLevel}–{session.maxSkillLevel} · {session.playFormat}
                         </p>
                         <p className="mt-1 truncate text-[10px] text-[#627168]">
                           <MapPin aria-hidden="true" className="mr-1 inline h-3 w-3" />
@@ -1140,7 +1140,7 @@ export const StaffDashboard = () => {
                       <h2 className="break-words">{selectedTicketSession.title}</h2>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <span className="staff-status">Sân {selectedTicketSession.courtNumber}</span>
-                        <span className="staff-status">{selectedTicketSession.skillLevel}</span>
+                        <span className="staff-status">Level {selectedTicketSession.minSkillLevel}–{selectedTicketSession.maxSkillLevel}</span>
                         <span className="staff-status">{selectedTicketSession.playFormat}</span>
                       </div>
                     </div>

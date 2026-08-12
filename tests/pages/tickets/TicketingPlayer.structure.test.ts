@@ -34,4 +34,22 @@ test('player ticket pages cover QR payment, expiry retry, cancellation, and refu
   assert.match(detail, /cancelPlayerTicket/);
   assert.match(detail, /sePayTransactions/);
   assert.match(detail, /AdditionalRefundPending/);
+  assert.match(detail, /submitTicketReceipt/);
+  assert.match(detail, /Gửi biên lai/);
+  assert.match(detail, /Chờ chủ sân xác nhận/);
+  assert.match(detail, /receiptImageUrl/);
+  assert.match(detail, /ticket\?\.holdRemainingSeconds/);
+  assert.match(detail, /canShowCheckInCode \? ticket\.ticketCode : 'Có sau khi thanh toán'/);
+  assert.match(history, /ticket\.status === 'Paid' \|\| ticket\.status === 'CheckedIn'/);
+});
+
+test('owner can open the existing payment review modal for a ticket receipt', () => {
+  const ownerDetail = readFileSync(
+    new URL('../../../src/pages/owner/OwnerTicketSessionDetail.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(ownerDetail, /paymentStatus === 'WaitingForConfirmation'/);
+  assert.match(ownerDetail, /Kiểm tra biên lai/);
+  assert.match(ownerDetail, /OwnerTransactionReviewModal/);
 });

@@ -6,8 +6,12 @@ const detailSource = readFileSync(new URL('../../../src/pages/matches/MatchDetai
 const panelSource = readFileSync(new URL('../../../src/pages/matches/MatchPostMatchReviewPanel.tsx', import.meta.url), 'utf8');
 const apiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
 
-test('completed match renders the post-match review panel for approved members', () => {
+test('completed match offers one review button below chat and opens the review modal', () => {
   assert.match(detailSource, /match\.status === 'Completed'/);
+  assert.doesNotMatch(detailSource, /match\.status === 'Completed' && \(\s*<MatchPostMatchReviewPanel/);
+  assert.match(detailSource, /Chat phòng[\s\S]*Đánh giá người chơi và sân/);
+  assert.match(detailSource, /onClick=\{\(\) => setShowPostMatchReviews\(true\)\}/);
+  assert.match(detailSource, /<ModalDialog aria-labelledby="post-match-review-title"/);
   assert.match(detailSource, /<MatchPostMatchReviewPanel match=\{match\} token=\{token\}/);
   assert.match(panelSource, /participant\.playerId !== match\.myPlayerId/);
   assert.match(detailSource, /\['Recruiting', 'ReadyToBook'\]\.includes\(match\.status\)/);

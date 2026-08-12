@@ -41,6 +41,7 @@ import { useToast } from '../../components/ui/ToastRegion';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateTime = new Intl.DateTimeFormat('vi-VN', {
@@ -75,7 +76,8 @@ type EditState = {
   endTime: string;
   title: string;
   description: string;
-  skillLevel: string;
+  minSkillLevel: string;
+  maxSkillLevel: string;
   playFormat: string;
   maxPlayers: string;
   ticketPrice: string;
@@ -88,7 +90,8 @@ const editState = (session: TicketSession): EditState => ({
   endTime: session.endTime.slice(11, 16),
   title: session.title,
   description: session.description ?? '',
-  skillLevel: session.skillLevel,
+  minSkillLevel: String(session.minSkillLevel),
+  maxSkillLevel: String(session.maxSkillLevel),
   playFormat: session.playFormat,
   maxPlayers: String(session.maxPlayers),
   ticketPrice: String(session.ticketPrice),
@@ -144,6 +147,7 @@ export const OwnerTicketSessionDetail = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [checkInCode, setCheckInCode] = useState('');
   const [refundTarget, setRefundTarget] = useState<RefundTarget | null>(null);
+  const [reviewPaymentId, setReviewPaymentId] = useState<number | null>(null);
 
   const hasValidId = Boolean(token) && Number.isInteger(ticketSessionId) && ticketSessionId >= 1;
   const { data: details = null, error: loadError, loading, refresh: load } = useApiQuery(
@@ -192,6 +196,16 @@ export const OwnerTicketSessionDetail = () => {
     const court = venue?.courts.find((item) => item.availabilityStatus === 'Available');
     setEdit((current) => current ? { ...current, venueId: value, courtId: court ? String(court.courtId) : '' } : current);
   };
+  const changeMinSkill = (value: string) => setEdit((current) => current ? {
+    ...current,
+    minSkillLevel: value,
+    maxSkillLevel: Number(value) > Number(current.maxSkillLevel) ? value : current.maxSkillLevel,
+  } : current);
+  const changeMaxSkill = (value: string) => setEdit((current) => current ? {
+    ...current,
+    minSkillLevel: Number(value) < Number(current.minSkillLevel) ? value : current.minSkillLevel,
+    maxSkillLevel: value,
+  } : current);
 
   const perform = async (key: string, action: () => Promise<unknown>, success: string) => {
     setBusy(key);
@@ -212,6 +226,8 @@ export const OwnerTicketSessionDetail = () => {
     if (!token || !edit || !session) return;
     const maxPlayers = Number(edit.maxPlayers);
     const ticketPrice = Number(edit.ticketPrice);
+    const minSkillLevel = Number(edit.minSkillLevel);
+    const maxSkillLevel = Number(edit.maxSkillLevel);
     const start = new Date(`${edit.date}T${edit.startTime}:00`);
     const end = new Date(`${edit.date}T${edit.endTime}:00`);
     const validation = !edit.venueId || !edit.courtId
@@ -220,19 +236,21 @@ export const OwnerTicketSessionDetail = () => {
         ? 'Tên buổi chơi cần ít nhất 3 ký tự.'
         : !(start < end)
           ? 'Giờ kết thúc phải sau giờ bắt đầu.'
-          : start <= new Date()
-            ? 'Khung giờ chơi phải ở trong tương lai.'
-            : !Number.isInteger(maxPlayers) || maxPlayers < Math.max(1, activeMinimum) || maxPlayers > 100
-              ? `Số người tối đa phải từ ${Math.max(1, activeMinimum)} đến 100.`
-              : !Number.isInteger(ticketPrice) || ticketPrice < 0
-                ? 'Giá vé phải là số nguyên VND không âm.'
-                : '';
+            : start <= new Date()
+              ? 'Khung giờ chơi phải ở trong tương lai.'
+              : minSkillLevel > maxSkillLevel
+                ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
+                : !Number.isInteger(maxPlayers) || maxPlayers < Math.max(1, activeMinimum) || maxPlayers > 100
+                  ? `Số người tối đa phải từ ${Math.max(1, activeMinimum)} đến 100.`
+                  : !Number.isInteger(ticketPrice) || ticketPrice < 0
+                    ? 'Giá vé phải là số nguyên VND không âm.'
+                    : '';
     if (validation) { setError(validation); return; }
     const input: TicketSessionInput = {
       venueId: Number(edit.venueId), courtId: Number(edit.courtId), date: edit.date,
       startTime: withSeconds(edit.startTime), endTime: withSeconds(edit.endTime),
       title: edit.title.trim(), description: edit.description.trim() || undefined,
-      skillLevel: edit.skillLevel, playFormat: edit.playFormat, maxPlayers, ticketPrice,
+      minSkillLevel, maxSkillLevel, playFormat: edit.playFormat, maxPlayers, ticketPrice,
     };
     if (await perform('edit', () => updateOwnerTicketSession(token, ticketSessionId, input), 'Đã cập nhật buổi xé vé.')) setEdit(null);
   };
@@ -323,7 +341,7 @@ export const OwnerTicketSessionDetail = () => {
               <div>
                 <h2 className="text-[18px]">Thông tin buổi chơi</h2>
                 <p className="mt-3 whitespace-pre-wrap text-[13px] leading-6 text-on-surface-variant">{session.description || 'Chưa có mô tả.'}</p>
-                <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{session.skillLevel}</span><span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{session.playFormat}</span><span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">Hủy trước {session.cancellationDeadlineHours} giờ</span></div>
+                <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">Level {session.minSkillLevel}–{session.maxSkillLevel}</span><span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{session.playFormat}</span><span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">Hủy trước {session.cancellationDeadlineHours} giờ</span></div>
               </div>
               <div className="grid gap-3 text-[13px]">
                 <div className="flex gap-3 rounded-lg bg-surface-container-low p-3"><MapPin className="h-5 w-5 shrink-0 text-primary" /><div><p className="font-bold">{session.venueName} · Sân {session.courtNumber}</p><p className="mt-1 text-on-surface-variant">{session.venueAddress}</p></div></div>
@@ -384,7 +402,7 @@ export const OwnerTicketSessionDetail = () => {
                       <tr className="border-t border-outline-variant align-top" key={ticket.sessionTicketId}>
                         <td><p className="font-bold">{ticket.playerName}</p><p className="mt-1 text-[12px] text-on-surface-variant">{ticket.playerEmail || 'Không có email'}</p><p className="mt-1 font-mono text-[12px] font-bold text-primary">{ticket.ticketCode}</p></td>
                         <td><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badgeClass(ticket.status)}`}>{ticketStatusLabels[ticket.status] ?? ticket.status}</span>{ticket.cancellationReason && <p className="mt-2 max-w-56 text-[11px] text-on-surface-variant">{ticket.cancellationReason}</p>}</td>
-                        <td><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badgeClass(ticket.paymentStatus)}`}>{paymentStatusLabels[ticket.paymentStatus] ?? ticket.paymentStatus}</span><p className="mt-2 text-[11px] text-on-surface-variant">{ticket.paidAt ? shortDateTime.format(new Date(ticket.paidAt)) : 'Chưa ghi nhận thanh toán'}</p></td>
+                        <td><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badgeClass(ticket.paymentStatus)}`}>{paymentStatusLabels[ticket.paymentStatus] ?? ticket.paymentStatus}</span><p className="mt-2 text-[11px] text-on-surface-variant">{ticket.paidAt ? shortDateTime.format(new Date(ticket.paidAt)) : 'Chưa ghi nhận thanh toán'}</p>{ticket.paymentStatus === 'WaitingForConfirmation' && <button className="mt-2 rounded-lg border border-primary px-3 py-2 text-[11px] font-bold text-primary" onClick={() => setReviewPaymentId(ticket.paymentId)} type="button">Kiểm tra biên lai</button>}</td>
                         <td>
                           {checkedIn ? (
                             <><span className="inline-flex items-center gap-1 text-[12px] font-bold text-[#477313]"><CheckCircle2 className="h-4 w-4" /> Đã check-in</span>{ticket.checkedInAt && <p className="mt-1 text-[11px] text-on-surface-variant">{shortDateTime.format(new Date(ticket.checkedInAt))}</p>}</>
@@ -434,8 +452,9 @@ export const OwnerTicketSessionDetail = () => {
             </div>
             <label><span className="mb-1.5 block text-[13px] font-bold">Tên buổi chơi *</span><input className="w-full px-3" maxLength={200} minLength={3} onChange={(event) => setEditValue('title', event.target.value)} required value={edit.title} /></label>
             <label><span className="mb-1.5 block text-[13px] font-bold">Mô tả</span><textarea className="min-h-24 w-full border p-3" maxLength={2000} onChange={(event) => setEditValue('description', event.target.value)} value={edit.description} /></label>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label><span className="mb-1.5 block text-[13px] font-bold">Trình độ *</span><select className="w-full" onChange={(event) => setEditValue('skillLevel', event.target.value)} value={edit.skillLevel}>{!['1', '2', '3', '4', '5'].includes(edit.skillLevel) && <option value={edit.skillLevel}>{edit.skillLevel}</option>}{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}</select></label>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <label><span className="mb-1.5 block text-[13px] font-bold">Trình độ tối thiểu *</span><select className="w-full" onChange={(event) => changeMinSkill(event.target.value)} value={edit.minSkillLevel}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}</select></label>
+              <label><span className="mb-1.5 block text-[13px] font-bold">Trình độ tối đa *</span><select className="w-full" onChange={(event) => changeMaxSkill(event.target.value)} value={edit.maxSkillLevel}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}</select></label>
               <label><span className="mb-1.5 block text-[13px] font-bold">Hình thức *</span><select className="w-full" onChange={(event) => setEditValue('playFormat', event.target.value)} value={edit.playFormat}>{!['1vs1', '2vs2'].includes(edit.playFormat) && <option value={edit.playFormat}>{edit.playFormat}</option>}<option value="1vs1">Đánh đơn · 1vs1</option><option value="2vs2">Đánh đôi · 2vs2</option></select></label>
               <label><span className="mb-1.5 block text-[13px] font-bold">Số người tối đa *</span><input className="w-full px-3" max={100} min={Math.max(1, activeMinimum)} onChange={(event) => setEditValue('maxPlayers', event.target.value)} required type="number" value={edit.maxPlayers} /></label>
               <label><span className="mb-1.5 block text-[13px] font-bold">Giá mỗi vé (VND) *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={priceLocked} min={0} onChange={(event) => setEditValue('ticketPrice', event.target.value)} required step={1} type="number" value={edit.ticketPrice} /></label>
@@ -443,6 +462,15 @@ export const OwnerTicketSessionDetail = () => {
             <div className="flex justify-end gap-3 border-t border-outline-variant pt-4"><button className="rounded-lg border border-outline-variant px-4 py-2.5 text-[13px] font-bold" disabled={busy === 'edit'} onClick={() => setEdit(null)} type="button">Đóng</button><button className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-bold disabled:opacity-50" disabled={busy === 'edit'} type="submit">{busy === 'edit' && <Loader2 className="h-4 w-4 animate-spin" />} Lưu thay đổi</button></div>
           </form>
         </ModalDialog>
+      )}
+
+      {reviewPaymentId && session && (
+        <OwnerTransactionReviewModal
+          bookingCode={`Vé · ${session.title}`}
+          onClose={() => setReviewPaymentId(null)}
+          onUpdated={() => load()}
+          paymentId={reviewPaymentId}
+        />
       )}
 
       {cancelOpen && session && (

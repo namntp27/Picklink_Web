@@ -38,7 +38,7 @@ test('public discovery sends every supported ticket-session filter', async (cont
     search: 'cuối tuần',
     venueId: 7,
     date: '2026-07-20',
-    skillLevel: '3',
+    skillLevel: 3,
     playFormat: '2vs2',
     minPrice: 50000,
     maxPrice: 150000,
@@ -89,11 +89,13 @@ test('player, owner and staff commands follow the ticketing backend contract', a
     endTime: '20:00:00',
     title: 'Kèo tối thứ ba',
     description: 'Vui vẻ',
-    skillLevel: '3',
+    minSkillLevel: 2,
+    maxSkillLevel: 4,
     playFormat: '2vs2',
     maxPlayers: 8,
     ticketPrice: 80000,
   };
+  const compatibleInput = { ...input, skillLevel: '2-4' };
 
   await ticketing.buySessionTicket('token', 11);
   await ticketing.cancelPlayerTicket('token', 22, 'Bận đột xuất');
@@ -111,8 +113,8 @@ test('player, owner and staff commands follow the ticketing backend contract', a
   assert.deepEqual(calls.map(({ path, method, body }) => ({ path, method, body })), [
     { path: '/api/ticket-sessions/11/tickets', method: 'POST', body: undefined },
     { path: '/api/player/tickets/22/cancel', method: 'POST', body: { reason: 'Bận đột xuất' } },
-    { path: '/api/owner/ticket-sessions', method: 'POST', body: input },
-    { path: '/api/owner/ticket-sessions/11', method: 'PUT', body: input },
+    { path: '/api/owner/ticket-sessions', method: 'POST', body: compatibleInput },
+    { path: '/api/owner/ticket-sessions/11', method: 'PUT', body: compatibleInput },
     { path: '/api/owner/ticket-sessions/11/publish', method: 'POST', body: undefined },
     { path: '/api/owner/ticket-sessions/11/cancel', method: 'POST', body: { reason: 'Sân bảo trì' } },
     { path: '/api/owner/ticket-sessions/11/participants', method: 'GET', body: undefined },

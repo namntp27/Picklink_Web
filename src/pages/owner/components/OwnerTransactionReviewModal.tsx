@@ -35,6 +35,7 @@ const paymentStatusLabels: Record<string, string> = {
 const paymentActionLabels: Record<string, string> = {
   Created: 'Tạo yêu cầu thanh toán',
   Submitted: 'Player gửi biên lai',
+  ReceiptSubmitted: 'Player gửi biên lai',
   Approved: 'Đã xác nhận thanh toán',
   Rejected: 'Đã từ chối biên lai',
   BookingExpired: 'Booking hết hạn',

@@ -74,7 +74,9 @@ export class ApiError extends Error {
 
 const getErrorMessage = (status: number, body?: ApiErrorBody) => {
   const validationMessages = body?.errors ? Object.entries(body.errors).flatMap(([field, messages]) =>
-    field === 'request' ? [] : messages) : [];
+    field === 'request' ? [] : messages.map((message) => message === 'The SkillLevel field is required.'
+      ? 'Trình độ là bắt buộc.'
+      : message)) : [];
   const validationMessage = validationMessages[0]
     ?? (body?.errors ? Object.values(body.errors).flat()[0] : undefined);
 

@@ -146,7 +146,7 @@ export const TicketSessionDetail = () => {
             <div className="p-5 sm:p-7 lg:p-9">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-lg bg-primary-container px-2.5 py-1 text-[12px] font-bold text-on-primary-container">{session.playFormat}</span>
-                <span className="rounded-lg border border-outline-variant bg-surface-container-low px-2.5 py-1 text-[12px] font-bold">Level {session.skillLevel}</span>
+                <span className="rounded-lg border border-outline-variant bg-surface-container-low px-2.5 py-1 text-[12px] font-bold">Level {session.minSkillLevel}–{session.maxSkillLevel}</span>
                 <span className={`rounded-lg border px-2.5 py-1 text-[12px] font-bold ${session.remainingTickets > 0 ? 'border-primary-container/60 bg-primary-container/20 text-[#477313]' : 'border-error/25 bg-error-container text-error'}`}>
                   {session.remainingTickets > 0 ? `Còn ${session.remainingTickets} chỗ` : 'Đã hết chỗ'}
                 </span>

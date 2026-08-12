@@ -40,6 +40,18 @@ test('apiRequest repairs mojibake strings in nested JSON responses', async () =>
   assert.equal(response.history[1].reason, 'sai tiền');
   assert.equal(response.history[1].amount, 120000);
 });
+
+test('apiRequest translates the legacy SkillLevel validation message', async () => {
+  global.fetch = (async () => Response.json({
+    errors: { SkillLevel: ['The SkillLevel field is required.'] },
+  }, { status: 400 })) as typeof fetch;
+
+  await assert.rejects(
+    client.apiRequest('/api/example', { method: 'POST' }),
+    { message: 'Trình độ là bắt buộc.' },
+  );
+});
+
 test('apiRequest applies a shared timeout signal', async () => {
   let requestSignal: AbortSignal | null | undefined;
   global.fetch = (async (_input, init) => {

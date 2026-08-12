@@ -67,7 +67,8 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
   const [endTime, setEndTime] = useState('19:00');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [skillLevel, setSkillLevel] = useState('3');
+  const [minSkillLevel, setMinSkillLevel] = useState('1');
+  const [maxSkillLevel, setMaxSkillLevel] = useState('5');
   const [playFormat, setPlayFormat] = useState('2vs2');
   const [maxPlayers, setMaxPlayers] = useState('4');
   const [ticketPrice, setTicketPrice] = useState('100000');
@@ -94,6 +95,8 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
     setError('');
     const players = Number(maxPlayers);
     const price = Number(ticketPrice);
+    const minSkill = Number(minSkillLevel);
+    const maxSkill = Number(maxSkillLevel);
     const start = new Date(`${date}T${startTime}:00`);
     const end = new Date(`${date}T${endTime}:00`);
     const validation = !venueId || !courtId
@@ -102,20 +105,23 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
         ? 'Tên buổi chơi cần ít nhất 3 ký tự.'
         : !(start < end)
           ? 'Giờ kết thúc phải sau giờ bắt đầu.'
-          : start <= new Date()
-            ? 'Khung giờ chơi phải ở trong tương lai.'
-            : !Number.isInteger(players) || players < 1 || players > 100
-              ? 'Số người tối đa phải từ 1 đến 100.'
-              : !Number.isInteger(price) || price < 0
-                ? 'Giá vé phải là số nguyên VND không âm.'
-                : '';
+            : start <= new Date()
+              ? 'Khung giờ chơi phải ở trong tương lai.'
+              : minSkill > maxSkill
+                ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
+                : !Number.isInteger(players) || players < 1 || players > 100
+                  ? 'Số người tối đa phải từ 1 đến 100.'
+                  : !Number.isInteger(price) || price < 0
+                    ? 'Giá vé phải là số nguyên VND không âm.'
+                    : '';
     if (validation) { setError(validation); return; }
 
     const input: TicketSessionInput = {
       venueId: Number(venueId), courtId: Number(courtId), date,
       startTime: withSeconds(startTime), endTime: withSeconds(endTime),
       title: title.trim(), description: description.trim() || undefined,
-      skillLevel, playFormat, maxPlayers: players, ticketPrice: price,
+      minSkillLevel: minSkill, maxSkillLevel: maxSkill,
+      playFormat, maxPlayers: players, ticketPrice: price,
     };
     setSaving(true);
     try {
@@ -151,8 +157,9 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
         </div>
         <label><span className="mb-1.5 block text-[13px] font-bold">Tên buổi chơi *</span><input className="w-full px-3" maxLength={200} minLength={3} onChange={(event) => setTitle(event.target.value)} placeholder="Ví dụ: Kèo vui tối thứ Sáu" required value={title} /></label>
         <label><span className="mb-1.5 block text-[13px] font-bold">Mô tả</span><textarea className="min-h-24 w-full border p-3" maxLength={2000} onChange={(event) => setDescription(event.target.value)} value={description} /></label>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label><span className="mb-1.5 block text-[13px] font-bold">Trình độ *</span><select className="w-full" onChange={(event) => setSkillLevel(event.target.value)} value={skillLevel}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}</select></label>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <label><span className="mb-1.5 block text-[13px] font-bold">Trình độ tối thiểu *</span><select className="w-full" onChange={(event) => { setMinSkillLevel(event.target.value); if (Number(event.target.value) > Number(maxSkillLevel)) setMaxSkillLevel(event.target.value); }} value={minSkillLevel}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}</select></label>
+          <label><span className="mb-1.5 block text-[13px] font-bold">Trình độ tối đa *</span><select className="w-full" onChange={(event) => { setMaxSkillLevel(event.target.value); if (Number(event.target.value) < Number(minSkillLevel)) setMinSkillLevel(event.target.value); }} value={maxSkillLevel}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}</select></label>
           <label><span className="mb-1.5 block text-[13px] font-bold">Hình thức *</span><select className="w-full" onChange={(event) => setPlayFormat(event.target.value)} value={playFormat}><option value="1vs1">Đánh đơn · 1vs1</option><option value="2vs2">Đánh đôi · 2vs2</option></select></label>
           <label><span className="mb-1.5 block text-[13px] font-bold">Số người tối đa *</span><input className="w-full px-3" max={100} min={1} onChange={(event) => setMaxPlayers(event.target.value)} required type="number" value={maxPlayers} /></label>
           <label><span className="mb-1.5 block text-[13px] font-bold">Giá mỗi vé (VND) *</span><input className="w-full px-3" min={0} onChange={(event) => setTicketPrice(event.target.value)} required step={1} type="number" value={ticketPrice} /></label>
@@ -233,7 +240,7 @@ export const OwnerTicketSessions = () => {
               <thead><tr><th>Buổi chơi</th><th>Sân & thời gian</th><th>Vé</th><th>Giá vé</th><th>Trạng thái</th><th className="text-right">Thao tác</th></tr></thead>
               <tbody>{result.items.map((session) => (
                 <tr className="border-t border-outline-variant" key={session.ticketSessionId}>
-                  <td><p className="font-bold">{session.title}</p><p className="mt-1 text-[12px] text-on-surface-variant">{session.skillLevel} · {session.playFormat}</p></td>
+                  <td><p className="font-bold">{session.title}</p><p className="mt-1 text-[12px] text-on-surface-variant">Level {session.minSkillLevel}–{session.maxSkillLevel} · {session.playFormat}</p></td>
                   <td><p className="font-bold">{session.venueName} · Sân {session.courtNumber}</p><p className="mt-1 text-[12px] text-on-surface-variant"><CalendarDays className="mr-1 inline h-3.5 w-3.5" />{dateTime.format(new Date(session.startTime))} – {session.endTime.slice(11, 16)}</p></td>
                   <td><p className="font-bold"><UsersRound className="mr-1 inline h-4 w-4" />{session.soldTickets}/{session.maxPlayers}</p><p className="mt-1 text-[12px] text-on-surface-variant">{session.reservedTickets} đang giữ · {session.remainingTickets} còn lại</p></td>
                   <td className="font-bold">{session.ticketPrice === 0 ? 'Miễn phí' : money.format(session.ticketPrice)}</td>

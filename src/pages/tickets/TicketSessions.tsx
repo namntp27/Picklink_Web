@@ -71,7 +71,7 @@ const emptyFilters: FilterDraft = {
 const toSearch = (draft: FilterDraft): TicketSessionSearch => ({
   search: draft.search.trim() || undefined,
   date: draft.date || undefined,
-  skillLevel: draft.skillLevel || undefined,
+  skillLevel: draft.skillLevel === '' ? undefined : Number(draft.skillLevel),
   playFormat: draft.playFormat || undefined,
   minPrice: draft.minPrice === '' ? undefined : Number(draft.minPrice),
   maxPrice: draft.maxPrice === '' ? undefined : Number(draft.maxPrice),
@@ -258,7 +258,7 @@ export const TicketSessions = () => {
                     </span>
                   </div>
                   <div className="flex flex-1 flex-col p-5">
-                    <p className="text-[12px] font-bold text-primary">Level {session.skillLevel}</p>
+                    <p className="text-[12px] font-bold text-primary">Level {session.minSkillLevel}–{session.maxSkillLevel}</p>
                     <h2 className="mt-2 line-clamp-2 text-[20px] font-bold leading-7 tracking-[-0.02em]">{session.title}</h2>
                     <div className="mt-4 grid gap-2 text-[13px] text-on-surface-variant">
                       <span className="flex items-start gap-2"><MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span>{session.venueName} · Sân {session.courtNumber}</span></span>

@@ -191,7 +191,8 @@ export const MyTickets = () => {
                       <span className="rounded-lg border border-outline-variant bg-surface-container-low px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant">{paymentStatusLabels[ticket.paymentStatus] ?? ticket.paymentStatus}</span>
                     </div>
                     <h2 className="mt-3 truncate text-[19px] font-bold tracking-[-0.02em]">{session?.title ?? `Buổi #${ticket.ticketSessionId}`}</h2>
-                    <p className="mt-1 break-all font-mono text-[12px] font-bold text-primary">{ticket.ticketCode}</p>
+                    {(ticket.status === 'Paid' || ticket.status === 'CheckedIn')
+                      && <p className="mt-1 break-all font-mono text-[12px] font-bold text-primary">Mã check-in: {ticket.ticketCode}</p>}
                     {session && (
                       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-medium text-on-surface-variant">
                         <span className="inline-flex items-center gap-1.5"><MapPin aria-hidden="true" className="h-4 w-4 text-primary" /> {session.venueName} · Sân {session.courtNumber}</span>
