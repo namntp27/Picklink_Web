@@ -50,7 +50,14 @@ export const BookingSuccess = () => {
           {error ? (
             <>
               <ReceiptText className="mx-auto h-10 w-10 text-error" />
-              <p className="mt-3 text-[14px] font-bold text-error">{error}</p>
+              <h1 className="mt-3 text-[18px] font-extrabold text-on-surface">Không thể mở booking</h1>
+              <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{error}</p>
+              <Link
+                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#e2ff57] bg-[#e2ff57] px-5 text-[14px] font-bold text-[#102414] shadow-[0_14px_30px_rgba(152,217,81,0.24)] transition-colors hover:border-[#d6f64d] hover:bg-[#d6f64d]"
+                to="/my-bookings"
+              >
+                Về booking của tôi
+              </Link>
             </>
           ) : (
             <>

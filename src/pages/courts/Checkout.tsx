@@ -233,9 +233,20 @@ const CourtCheckout = () => {
   if (!booking) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4">
-        <div className="rounded-2xl border border-[#dbe8d3] bg-white p-6 text-center shadow-[0_16px_40px_rgba(18,45,34,0.08)]">
+        <div className="w-full max-w-md rounded-2xl border border-[#dbe8d3] bg-white p-6 text-center shadow-[0_16px_40px_rgba(18,45,34,0.08)] sm:p-8">
           {error ? (
-            <p className="font-bold text-error">{error}</p>
+            <>
+              <AlertCircle className="mx-auto h-12 w-12 text-error" />
+              <h1 className="mt-3 text-[20px] font-extrabold text-[#0b2228]">Không thể mở trang thanh toán</h1>
+              <p className="mt-2 text-[14px] leading-6 text-[#66766d]">{error}</p>
+              <button
+                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#e2ff57] bg-[#e2ff57] px-5 text-[14px] font-bold text-[#102414] shadow-[0_14px_30px_rgba(152,217,81,0.24)] transition-colors hover:border-[#d6f64d] hover:bg-[#d6f64d]"
+                onClick={() => navigate('/my-bookings')}
+                type="button"
+              >
+                Về booking của tôi
+              </button>
+            </>
           ) : (
             <>
               <Loader2 className="mx-auto h-7 w-7 animate-spin text-[#477313] motion-reduce:animate-none" />
