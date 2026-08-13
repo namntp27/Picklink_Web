@@ -74,6 +74,10 @@ import {
   type Conversation,
   type ConversationFilter,
 } from './messageModels';
+
+const groupRoleRank = (role?: string | null) =>
+  ({ Owner: 3, Admin: 2, Moderator: 1, Member: 0 } as Record<string, number>)[role || ''] ?? 0;
+
 export const Messages = () => {
   const { token, user } = useAuth();
   const notify = useToast();
@@ -109,7 +113,6 @@ export const Messages = () => {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editRules, setEditRules] = useState('');
-  const [editRating, setEditRating] = useState('');
   const [introImages, setIntroImages] = useState<GroupImage[]>([]);
   const [uploadingIntro, setUploadingIntro] = useState(false);
 
@@ -217,7 +220,7 @@ export const Messages = () => {
           }
         } else if (chatParam) {
           setActiveConversationId(chatParam);
-          setSearchParams({});
+          setShowSettings(false);
         } else if (window.matchMedia('(min-width: 1024px)').matches) {
           // Desktop keeps the split-view behavior; mobile opens on the conversation list.
           if (mappedConversations.length > 0) {
@@ -271,6 +274,7 @@ export const Messages = () => {
 
   const activeGroup = groups.find((g) => g.groupId === activeConversation?.groupId) ?? null;
   const isManager = !!(activeGroup && ['Owner', 'Admin', 'Moderator'].includes(activeGroup.myRole || ''));
+  const activeManagerRank = groupRoleRank(activeGroup?.myRole);
 
   useMatchRealtime((event) => {
     const activeMatchId = activeConversation?.matchId;
@@ -479,7 +483,6 @@ export const Messages = () => {
       setEditName(activeGroup.groupName);
       setEditDesc(activeGroup.description || '');
       setEditRules(activeGroup.rules || '');
-      setEditRating(activeGroup.overallRating > 0 ? String(activeGroup.overallRating) : '');
       setIntroImages(activeGroup.images ?? []);
     }
   }, [activeConversation?.groupId, activeGroup]);
@@ -490,8 +493,6 @@ export const Messages = () => {
     groupType?: string;
     coverImageUrl?: string;
     rules?: string;
-    overallRating?: number;
-    ratingCount?: number;
   }) => {
     if (!token || !activeConversation?.groupId || updatingGroup || !activeGroup) return;
     setUpdatingGroup(true);
@@ -502,8 +503,6 @@ export const Messages = () => {
       groupType: fields.groupType !== undefined ? fields.groupType : activeGroup.groupType,
       coverImageUrl: fields.coverImageUrl !== undefined ? fields.coverImageUrl : (activeGroup.coverImageUrl || ''),
       rules: fields.rules !== undefined ? fields.rules : (activeGroup.rules || ''),
-      overallRating: fields.overallRating !== undefined ? fields.overallRating : activeGroup.overallRating,
-      ratingCount: fields.ratingCount !== undefined ? fields.ratingCount : activeGroup.ratingCount,
     };
 
     try {
@@ -1732,7 +1731,8 @@ export const Messages = () => {
                                   </button>
                                 </>
                               )}
-                              {isManager && member.status === 'Accepted' && member.role !== 'Owner' && member.userId !== activeGroup.ownerPlayerId && (
+                              {activeManagerRank > groupRoleRank(member.role) &&
+                                member.status === 'Accepted' && member.userId !== activeGroup.ownerPlayerId && (
                                 <button
                                   onClick={() => handleRemoveMember(member.userId)}
                                   className="rounded p-1 hover:bg-[#ba1a1a]/10 text-on-surface-variant hover:text-[#ba1a1a] transition-colors"

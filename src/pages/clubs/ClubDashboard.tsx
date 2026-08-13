@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../../components/ui/ToastRegion';
-import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom';
+import { Link, useParams, useOutletContext } from 'react-router-dom';
 import {
   CheckCircle2,
   ChevronRight,
@@ -10,7 +10,6 @@ import {
   FileText,
   LayoutDashboard,
   LockKeyhole,
-  LogOut,
   MessageCircle,
   Pin,
   Search,
@@ -64,7 +63,7 @@ import {
 import { uploadToCloudinary } from '../../api/cloudinary';
 
 type DashboardTab = 'overview' | 'members' | 'posts' | 'chat' | 'settings';
-type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Huấn luyện viên' | 'Thành viên';
+type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Kiểm duyệt viên' | 'Thành viên';
 type PostStatus = 'Đã đăng' | 'Chờ duyệt' | 'Nháp';
 
 type JoinRequest = {
@@ -102,12 +101,19 @@ type ClubChatMessage = {
 };
 
 
-const roleOptions: MemberRole[] = ['Chủ nhiệm', 'Quản trị viên', 'Huấn luyện viên', 'Thành viên'];
+const roleOptions: MemberRole[] = ['Chủ nhiệm', 'Quản trị viên', 'Kiểm duyệt viên', 'Thành viên'];
+const roleRank: Record<MemberRole, number> = {
+  'Chủ nhiệm': 3,
+  'Quản trị viên': 2,
+  'Kiểm duyệt viên': 1,
+  'Thành viên': 0,
+};
+const backendRoleRank: Record<string, number> = { Owner: 3, Admin: 2, Moderator: 1, Member: 0 };
 
 const permissionByRole: Record<MemberRole, string[]> = {
   'Chủ nhiệm': ['Toàn quyền', 'Duyệt thành viên', 'Quản lý bài viết', 'Chat CLB'],
   'Quản trị viên': ['Duyệt thành viên', 'Quản lý bài viết', 'Chat CLB'],
-  'Huấn luyện viên': ['Chat CLB'],
+  'Kiểm duyệt viên': ['Duyệt thành viên', 'Quản lý bài viết', 'Chat CLB'],
   'Thành viên': ['Chat CLB'],
 };
 
@@ -127,7 +133,7 @@ const getRoleClassName = (role: MemberRole) => {
     return 'bg-primary-container text-on-primary-container';
   }
 
-  if (role === 'Huấn luyện viên') {
+  if (role === 'Kiểm duyệt viên') {
     return 'bg-[#fff4d8] text-[#7a5600]';
   }
 
@@ -154,9 +160,8 @@ const renderAvatar = (avatar: string, sizeClass = "h-10 w-10") => {
 };
 
 export const ClubDashboard = () => {
-  const navigate = useNavigate();
   const { id } = useParams();
-  const { logout, token, user } = useAuth();
+  const { token, user } = useAuth();
   const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
@@ -228,6 +233,7 @@ export const ClubDashboard = () => {
   const isGroupManager = useMemo(() => {
     return groupInfo?.myRole === 'Owner' || groupInfo?.myRole === 'Admin' || groupInfo?.myRole === 'Moderator';
   }, [groupInfo]);
+  const currentManagerRank = backendRoleRank[groupInfo?.myRole || ''] ?? 0;
 
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [editName, setEditName] = useState('');
@@ -235,6 +241,8 @@ export const ClubDashboard = () => {
   const [editRules, setEditRules] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editGroupType, setEditGroupType] = useState('Public');
+  const [editRequirePostApproval, setEditRequirePostApproval] = useState(true);
+  const [editRequireMemberApproval, setEditRequireMemberApproval] = useState(true);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingIntro, setUploadingIntro] = useState(false);
 
@@ -246,6 +254,8 @@ export const ClubDashboard = () => {
       setEditRules(groupInfo.rules || '');
       setEditLocation(groupInfo.activeLocation || '');
       setEditGroupType(groupInfo.groupType || 'Public');
+      setEditRequirePostApproval(groupInfo.requirePostApproval ?? true);
+      setEditRequireMemberApproval(groupInfo.requireMemberApproval ?? groupInfo.groupType === 'Private');
     }
   }, [groupInfo]);
 
@@ -366,7 +376,7 @@ export const ClubDashboard = () => {
           let uiRole: MemberRole = 'Thành viên';
           if (m.role === 'Owner') uiRole = 'Chủ nhiệm';
           else if (m.role === 'Admin') uiRole = 'Quản trị viên';
-          else if (m.role === 'Moderator') uiRole = 'Quản trị viên';
+          else if (m.role === 'Moderator') uiRole = 'Kiểm duyệt viên';
 
           let uiStatus: ClubMember['status'] = 'Đang hoạt động';
           if (m.status === 'Declined') uiStatus = 'Từ chối';
@@ -622,7 +632,7 @@ export const ClubDashboard = () => {
   const uiRoleToBackendRole: Record<MemberRole, string> = {
     'Chủ nhiệm': 'Owner',
     'Quản trị viên': 'Admin',
-    'Huấn luyện viên': 'Moderator',
+    'Kiểm duyệt viên': 'Moderator',
     'Thành viên': 'Member',
   };
 
@@ -974,11 +984,13 @@ export const ClubDashboard = () => {
                       className={`h-10 rounded-lg border border-outline-variant px-3 text-[13px] font-bold outline-none focus:border-primary ${
                         member.role === 'Chủ nhiệm' ? 'bg-surface-container-low text-on-surface-variant cursor-not-allowed' : 'bg-white'
                       }`}
-                      disabled={member.role === 'Chủ nhiệm'}
+                      disabled={currentManagerRank < 2 || currentManagerRank <= roleRank[member.role]}
                       onChange={(event) => updateMemberRole(member.id, event.target.value as MemberRole)}
                       value={member.role}
                     >
-                      {roleOptions.map((role) => (
+                      {roleOptions
+                        .filter((role) => role === member.role || (role !== 'Chủ nhiệm' && roleRank[role] < currentManagerRank))
+                        .map((role) => (
                         <option key={role} value={role}>
                           {role}
                         </option>
@@ -1010,7 +1022,7 @@ export const ClubDashboard = () => {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    {member.role !== 'Chủ nhiệm' && (
+                    {currentManagerRank > roleRank[member.role] && (
                       <button
                         className={`rounded-lg border px-3 py-2 text-[12px] font-bold ${
                           member.status === 'Bị cấm'
@@ -1341,7 +1353,9 @@ export const ClubDashboard = () => {
       editDesc !== (groupInfo.description || '') ||
       editRules !== (groupInfo.rules || '') ||
       editLocation !== (groupInfo.activeLocation || '') ||
-      editGroupType !== (groupInfo.groupType || 'Public');
+      editGroupType !== (groupInfo.groupType || 'Public') ||
+      editRequirePostApproval !== (groupInfo.requirePostApproval ?? true) ||
+      editRequireMemberApproval !== (groupInfo.requireMemberApproval ?? groupInfo.groupType === 'Private');
 
     return (
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -1363,6 +1377,34 @@ export const ClubDashboard = () => {
                   placeholder="Nhập tên câu lạc bộ..."
                   required
                 />
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-outline-variant bg-surface-container-low p-4">
+                <p className="text-[13px] font-bold text-on-surface">Quyền tham gia và đăng bài</p>
+                <label className="flex cursor-pointer items-start gap-3 text-[13px]">
+                  <input
+                    checked={editRequireMemberApproval}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                    onChange={(event) => setEditRequireMemberApproval(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <span className="block font-bold text-on-surface">Duyệt thành viên trước khi tham gia</span>
+                    <span className="mt-0.5 block text-[12px] text-on-surface-variant">Tắt để người chơi tham gia ngay, không cần chủ CLB duyệt.</span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 text-[13px]">
+                  <input
+                    checked={editRequirePostApproval}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                    onChange={(event) => setEditRequirePostApproval(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <span className="block font-bold text-on-surface">Duyệt bài viết trước khi đăng</span>
+                    <span className="mt-0.5 block text-[12px] text-on-surface-variant">Tắt để bài viết của thành viên hiển thị ngay.</span>
+                  </span>
+                </label>
               </div>
 
               <div>
@@ -1450,6 +1492,8 @@ export const ClubDashboard = () => {
                     setEditRules(groupInfo.rules || '');
                     setEditLocation(groupInfo.activeLocation || '');
                     setEditGroupType(groupInfo.groupType || 'Public');
+                    setEditRequirePostApproval(groupInfo.requirePostApproval ?? true);
+                    setEditRequireMemberApproval(groupInfo.requireMemberApproval ?? groupInfo.groupType === 'Private');
                   }}
                   className="rounded-lg border border-outline-variant px-4 py-2 text-[13px] font-bold text-on-surface hover:bg-surface-container-low transition-colors"
                 >
@@ -1464,6 +1508,8 @@ export const ClubDashboard = () => {
                       rules: editRules,
                       activeLocation: editLocation,
                       groupType: editGroupType,
+                      requirePostApproval: editRequirePostApproval,
+                      requireMemberApproval: editRequireMemberApproval,
                     })
                   }
                   disabled={updatingGroup || !editName.trim()}
@@ -1655,19 +1701,6 @@ export const ClubDashboard = () => {
           ))}
         </nav>
 
-        <div className="border-t border-[#e0e9dc] p-3">
-          <button
-            className="flex h-9 w-full items-center gap-2.5 rounded-xl px-3 text-[12px] font-bold text-[#a33535] hover:bg-[#fff1ef]"
-            onClick={() => {
-              logout();
-              navigate('/');
-            }}
-            type="button"
-          >
-            <LogOut className="h-4 w-4" />
-            Đăng xuất
-          </button>
-        </div>
       </aside>
 
       <main className="lg:pl-[244px]">

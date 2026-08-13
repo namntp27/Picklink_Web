@@ -1,4 +1,5 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { getPublicPlayerProfile } from '../../../api/profile';
 import { useApiQuery } from '../../../hooks/useApiQuery';
 
@@ -11,6 +12,8 @@ type PlayerHoverCardProps = {
 
 export const PlayerHoverCard = ({ children, focusable = true, playerId, playerName }: PlayerHoverCardProps) => {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 8, top: 8 });
+  const anchorRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useId();
   const { data: profile, error, loading } = useApiQuery(
     ['public-player-hover', playerId],
@@ -18,24 +21,36 @@ export const PlayerHoverCard = ({ children, focusable = true, playerId, playerNa
     { enabled: open, errorMessage: 'Không thể tải hồ sơ người chơi.' },
   );
   const location = profile && [profile.commune, profile.city].filter(Boolean).join(', ');
+  const show = () => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPosition({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - 264)),
+        top: rect.bottom + 176 < window.innerHeight ? rect.bottom + 8 : Math.max(8, rect.top - 176),
+      });
+    }
+    setOpen(true);
+  };
 
   return (
     <span
       aria-describedby={focusable && open ? tooltipId : undefined}
       aria-label={focusable ? `Xem hồ sơ ${playerName}` : undefined}
       className="relative inline-flex shrink-0 cursor-help"
+      ref={anchorRef}
       onBlur={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onMouseEnter={() => setOpen(true)}
+      onFocus={show}
+      onMouseEnter={show}
       onMouseLeave={() => setOpen(false)}
       tabIndex={focusable ? 0 : undefined}
     >
       {children}
-      {open && (
+      {open && createPortal(
         <span
-          className="pointer-events-none absolute left-0 top-full z-[100] mt-2 w-64 rounded-xl border border-[#d8e4d4] bg-white p-3 text-left shadow-xl"
+          className="pointer-events-none fixed z-[200] w-64 rounded-xl border border-[#d8e4d4] bg-white p-3 text-left shadow-xl"
           id={tooltipId}
           role="tooltip"
+          style={position}
         >
           {loading ? (
             <span className="block text-[11px] font-semibold text-[#718077]">Đang tải hồ sơ...</span>
@@ -62,7 +77,8 @@ export const PlayerHoverCard = ({ children, focusable = true, playerId, playerNa
               {profile.bio && <span className="mt-2 line-clamp-2 block text-[10px] leading-4 text-[#526158]">{profile.bio}</span>}
             </>
           )}
-        </span>
+        </span>,
+        document.body,
       )}
     </span>
   );

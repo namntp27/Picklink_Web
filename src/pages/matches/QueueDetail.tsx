@@ -39,6 +39,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { CommunityPage } from '../community/CommunityUI';
 import { getCourtAvailability, type CourtAvailability } from '../../api/booking';
 import { MapContainer, TileLayer, Marker, Popup as LeafletPopup } from 'react-leaflet';
@@ -177,6 +178,10 @@ export const QueueDetail = () => {
   const venues = data?.venues ?? emptyVenues;
   const error = actionError || loadError;
   const setError = setActionError;
+
+  useMatchRealtime((event) => {
+    if (queue?.matchId === event.matchId) void loadQueue();
+  });
 
   useEffect(() => {
     if (token) {

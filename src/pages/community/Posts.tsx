@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Image as ImageIcon,
@@ -12,6 +13,9 @@ import {
   UserRound,
   Users,
   Loader2,
+  AlertCircle,
+  RefreshCw,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
@@ -22,6 +26,9 @@ import {
   removeReaction,
   getFriendshipStatuses,
   getFriendRequests,
+  getPostComments,
+  createComment,
+  type CommunityComment,
   type FriendshipStatus,
   type FriendRequest,
 } from '../../api/community';
@@ -29,10 +36,13 @@ import { CommunityFeedShell, CommunityPage } from './CommunityUI';
 import { FriendButton } from './components/FriendButton';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
+import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
+import { PlayerHoverCard } from '../matches/components/PlayerHoverCard';
 
 export interface DisplayPost {
   id: string;
   authorId?: number;
+  authorPlayerId?: number | null;
   authorName: string;
   avatar: string;
   level: string;
@@ -78,8 +88,18 @@ export const parsePostContent = (rawContent: string | null) => {
 };
 
 const emptyPosts: DisplayPost[] = [];
+const pageSize = 10;
 
-const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number]): DisplayPost => {
+const inlineCommentText = (comment: CommunityComment) => {
+  try {
+    const parsed = JSON.parse(comment.content);
+    return typeof parsed?.text === 'string' ? parsed.text : comment.content;
+  } catch {
+    return comment.content;
+  }
+};
+
+export const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number]): DisplayPost => {
   const parsed = parsePostContent(post.content);
 
   let formattedDate = 'Vừa xong';
@@ -97,15 +117,16 @@ const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number])
   return {
     id: String(post.postId),
     authorId: post.authorId,
+    authorPlayerId: post.authorPlayerId,
     authorName: post.authorName || 'Thành viên Picklink',
     avatar: post.authorAvatarUrl || '',
     level: '',
     location: parsed.location || '',
     createdAt: formattedDate,
     title: parsed.title || 'Bài viết',
-    content: parsed.body,
+    content: typeof parsed.body === 'string' ? parsed.body : '',
     image: post.mediaUrls && post.mediaUrls.length > 0 ? post.mediaUrls[0] : undefined,
-    tags: parsed.tags || [],
+    tags: Array.isArray(parsed.tags) ? parsed.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     lookingFor: parsed.lookingFor && parsed.slots
       ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
       : undefined,
@@ -113,6 +134,8 @@ const toDisplayPost = (post: Awaited<ReturnType<typeof getGlobalPosts>>[number])
     comments: post.commentCount || 0,
     liked: post.likedByMe || false,
     matchId: parsed.matchId,
+    groupId: post.groupId,
+    groupName: post.groupName || undefined,
   };
 };
 
@@ -122,29 +145,92 @@ export const PostCard = ({
   onFriendStatusChange,
   onLikeToggle,
   onShareClick,
+  onCommentCreated,
+  enableInlineComments = false,
 }: {
   post: DisplayPost;
   friendshipStatus?: FriendshipStatus;
   onFriendStatusChange?: (authorId: number, status: FriendshipStatus) => void;
   onLikeToggle?: (postId: string) => void;
   onShareClick?: (post: DisplayPost) => void;
+  onCommentCreated?: (postId: string) => void;
+  enableInlineComments?: boolean;
 }) => {
   const [, setSearchParams] = useSearchParams();
+  const { token } = useAuth();
+  const notify = useToast();
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [inlineComments, setInlineComments] = useState<CommunityComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  const toggleComments = async () => {
+    const nextOpen = !commentsOpen;
+    setCommentsOpen(nextOpen);
+    if (!nextOpen || !token || inlineComments.length > 0) return;
+
+    setLoadingComments(true);
+    try {
+      setInlineComments(await getPostComments(Number(post.id), token));
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Không thể tải bình luận.', 'error');
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const submitInlineComment = async () => {
+    const content = commentDraft.trim();
+    if (!token || !content || submittingComment) return;
+
+    setSubmittingComment(true);
+    try {
+      const created = await createComment(token, Number(post.id), content);
+      setInlineComments((current) => [...current, created]);
+      setCommentDraft('');
+      onCommentCreated?.(post.id);
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Không thể đăng bình luận.', 'error');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!commentsOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCommentsOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [commentsOpen]);
+
+  const authorAvatar = (
+    <Link aria-label={'Xem bài viết của ' + post.authorName} to={'/posts/' + post.id}>
+      {post.avatar ? (
+        <img alt="" className="community-avatar" decoding="async" loading="lazy" src={post.avatar} />
+      ) : (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
+          <UserRound aria-hidden="true" className="h-5 w-5" />
+        </span>
+      )}
+    </Link>
+  );
 
   return (
     <article className="community-card community-post-card overflow-hidden">
       <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 gap-3">
-            <Link aria-label={'Xem bài viết của ' + post.authorName} to={'/posts/' + post.id}>
-              {post.avatar ? (
-                <img alt="" className="community-avatar" decoding="async" loading="lazy" src={post.avatar} />
-              ) : (
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e0e9dc] text-[#477313]">
-                  <UserRound aria-hidden="true" className="h-5 w-5" />
-                </span>
-              )}
-            </Link>
+            {post.authorPlayerId ? (
+              <PlayerHoverCard playerId={post.authorPlayerId} playerName={post.authorName}>{authorAvatar}</PlayerHoverCard>
+            ) : authorAvatar}
             <div className="min-w-0">
               <h2 className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</h2>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
@@ -243,10 +329,18 @@ export const PostCard = ({
             <ThumbsUp aria-hidden="true" className="h-[17px] w-[17px]" fill={post.liked ? 'currentColor' : 'none'} />
             <span className="hidden sm:inline">Thích</span>
           </button>
-          <Link className="community-button-quiet !min-h-9 !px-2" to={`/posts/${post.id}`}>
+          {enableInlineComments ? <button
+            aria-expanded={commentsOpen}
+            className={`community-button-quiet !min-h-9 !px-2 ${commentsOpen ? '!bg-[#edf5e9] !text-[#477313]' : ''}`}
+            onClick={() => void toggleComments()}
+            type="button"
+          >
             <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
             <span className="hidden sm:inline">Bình luận</span>
-          </Link>
+          </button> : <Link className="community-button-quiet !min-h-9 !px-2" to={`/posts/${post.id}`}>
+            <MessageCircle aria-hidden="true" className="h-[17px] w-[17px]" />
+            <span className="hidden sm:inline">Bình luận</span>
+          </Link>}
           <button 
             className="community-button-quiet !min-h-9 !px-2" 
             onClick={() => onShareClick?.(post)}
@@ -257,6 +351,132 @@ export const PostCard = ({
           </button>
         </div>
       </div>
+      {enableInlineComments && commentsOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center bg-[#071014]/80 p-0 backdrop-blur-[2px] sm:p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setCommentsOpen(false);
+          }}
+        >
+          <section
+            aria-labelledby={`post-dialog-title-${post.id}`}
+            aria-modal="true"
+            className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-[760px] sm:rounded-2xl"
+            role="dialog"
+          >
+            <header className="flex h-14 shrink-0 items-center justify-between border-b border-[#d8e4d4] bg-[#081d24] px-4 text-white">
+              <span aria-hidden="true" className="h-9 w-9" />
+              <h2 className="truncate px-3 text-center text-[15px] font-extrabold" id={`post-dialog-title-${post.id}`}>
+                Bài viết của {post.authorName}
+              </h2>
+              <button
+                aria-label="Đóng chi tiết bài viết"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                onClick={() => setCommentsOpen(false)}
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="border-b border-[#e0e9dc] p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  {post.authorPlayerId ? (
+                    <PlayerHoverCard playerId={post.authorPlayerId} playerName={post.authorName}>{authorAvatar}</PlayerHoverCard>
+                  ) : authorAvatar}
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-extrabold text-[#0b2228]">{post.authorName}</p>
+                    <p className="text-[11px] font-semibold text-[#718077]">{post.createdAt}{post.location ? ` · ${post.location}` : ''}</p>
+                  </div>
+                </div>
+                <h3 className="mt-4 text-[19px] font-extrabold leading-7 text-[#0b2228]">{post.title}</h3>
+                <p className="mt-2 whitespace-pre-wrap text-[14px] leading-6 text-[#526158]">{post.content}</p>
+                {post.lookingFor && (
+                  <div className="mt-4 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
+                    {post.lookingFor}
+                  </div>
+                )}
+              </div>
+
+              {post.image && (
+                <div className="border-b border-[#e0e9dc] bg-[#eef4eb]">
+                  <img alt={post.title} className="max-h-[52vh] w-full object-contain" src={post.image} />
+                </div>
+              )}
+
+              <div className="border-b border-[#e0e9dc] px-4 py-3 sm:px-5">
+                <div className="flex items-center justify-between text-[12px] font-semibold text-[#718077]">
+                  <span>{post.likes} lượt thích</span>
+                  <span>{post.comments} bình luận</span>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-5">
+                <h3 className="text-[15px] font-extrabold text-[#0b2228]">Tất cả bình luận</h3>
+                <div className="mt-4 grid gap-3" aria-live="polite">
+                  {loadingComments ? (
+                    <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#718077]">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Đang tải bình luận...
+                    </span>
+                  ) : inlineComments.length > 0 ? inlineComments.map((comment) => {
+                    const commentAvatar = comment.userAvatarUrl ? (
+                        <img alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" src={comment.userAvatarUrl} />
+                      ) : (
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                          <UserRound className="h-4 w-4" />
+                        </span>
+                      );
+                    return <div className="flex gap-2" key={comment.commentId}>
+                      {comment.playerId ? (
+                        <PlayerHoverCard playerId={comment.playerId} playerName={comment.username}>{commentAvatar}</PlayerHoverCard>
+                      ) : commentAvatar}
+                      <div className="min-w-0 rounded-xl bg-[#f4f8f2] px-3 py-2">
+                        <p className="text-[12px] font-extrabold text-[#0b2228]">{comment.username}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] text-[#526158]">{inlineCommentText(comment)}</p>
+                      </div>
+                    </div>
+                  }) : (
+                    <p className="py-4 text-center text-[12px] font-semibold text-[#718077]">Chưa có bình luận nào.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <footer className="shrink-0 border-t border-[#d8e4d4] bg-white p-3 sm:p-4">
+              {token ? (
+                <div className="flex gap-2">
+                  <label className="sr-only" htmlFor={`inline-comment-${post.id}`}>Viết bình luận</label>
+                  <textarea
+                    autoFocus
+                    className="community-control min-h-10 flex-1 resize-none py-2"
+                    disabled={submittingComment}
+                    id={`inline-comment-${post.id}`}
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                    placeholder="Viết bình luận..."
+                    rows={1}
+                    value={commentDraft}
+                  />
+                  <button
+                    aria-label="Gửi bình luận"
+                    className="community-button h-10 min-h-10 self-end px-3"
+                    disabled={!commentDraft.trim() || submittingComment}
+                    onClick={() => void submitInlineComment()}
+                    type="button"
+                  >
+                    {submittingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-center text-[13px] font-semibold text-[#526158]">
+                  <Link className="font-extrabold text-[#477313] hover:underline" to="/login">Đăng nhập</Link> để bình luận.
+                </p>
+              )}
+            </footer>
+          </section>
+        </div>,
+        document.body,
+      )}
     </article>
   );
 };
@@ -265,15 +485,51 @@ export const Posts = () => {
   const { user, token, isAuthenticated } = useAuth();
   const notify = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
-  const [visibleCount, setVisibleCount] = useState(5);
   const [friendshipStatuses, setFriendshipStatuses] = useState<Record<number, FriendshipStatus>>({});
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [morePosts, setMorePosts] = useState<DisplayPost[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextPageRef = useRef(2);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const { data: posts = emptyPosts, loading, setData: setPosts } = useApiQuery(
+  const {
+    data: firstPosts = emptyPosts,
+    error,
+    loading,
+    refresh,
+    setData: setFirstPosts,
+  } = useApiQuery(
     ['global-posts', token],
-    async () => (await getGlobalPosts(token)).map(toDisplayPost),
+    async () => (await getGlobalPosts(token, 1, pageSize)).filter((post) => post.groupId === null).map(toDisplayPost),
+    { errorMessage: 'Không thể tải bảng tin.' },
   );
+  const posts = [...firstPosts, ...morePosts];
+
+  useEffect(() => {
+    setMorePosts([]);
+    nextPageRef.current = 2;
+    setHasMore(firstPosts.length === pageSize);
+  }, [token, firstPosts.length]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const page = nextPageRef.current;
+      const loaded = (await getGlobalPosts(token, page, pageSize)).filter((post) => post.groupId === null).map(toDisplayPost);
+      setMorePosts((current) => [
+        ...current,
+        ...loaded.filter((post) => !current.some((existing) => existing.id === post.id)),
+      ]);
+      nextPageRef.current = page + 1;
+      setHasMore(loaded.length === pageSize);
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Không thể tải thêm bài viết.', 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, notify, token]);
 
   // Batch query friendship statuses for post authors
   useEffect(() => {
@@ -302,21 +558,22 @@ export const Posts = () => {
     };
   }, [token, isAuthenticated, posts, user?.id]);
 
-  // Load incoming friend requests
-  useEffect(() => {
+  const loadFriendRequests = useCallback(async () => {
     if (!token || !isAuthenticated) return;
-    let cancelled = false;
-    getFriendRequests(token)
-      .then((data) => {
-        if (!cancelled) {
-          setFriendRequests(data || []);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    try {
+      setFriendRequests((await getFriendRequests(token)) || []);
+    } catch {
+      // The notification page remains the fallback when this optional banner cannot refresh.
+    }
   }, [token, isAuthenticated]);
+
+  useEffect(() => {
+    void loadFriendRequests();
+  }, [loadFriendRequests]);
+
+  useNotificationRealtime(token, () => {
+    void loadFriendRequests();
+  });
 
   const handleFriendStatusChange = (targetUserId: number, newStatus: FriendshipStatus) => {
     setFriendshipStatuses((prev) => ({
@@ -359,21 +616,29 @@ export const Posts = () => {
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
-    if (!sentinel || visibleCount >= posts.length) return;
+    if (!sentinel || !hasMore) return;
 
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         observer.unobserve(sentinel);
-        setVisibleCount((prev) => Math.min(prev + 5, posts.length));
+        void loadMore();
       }
     }, { rootMargin: '220px 0px' });
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [posts.length, visibleCount]);
+  }, [hasMore, loadMore]);
+
+  const updatePost = (postId: string, updater: (post: DisplayPost) => DisplayPost) => {
+    setFirstPosts((current) => (current ?? emptyPosts).map((post) => post.id === postId ? updater(post) : post));
+    setMorePosts((current) => current.map((post) => post.id === postId ? updater(post) : post));
+  };
 
   const handleLikeToggle = async (postId: string) => {
-    if (!token) return;
+    if (!token) {
+      notify('Vui lòng đăng nhập để thích bài viết.', 'info');
+      return;
+    }
     
     const postNumId = Number(postId);
     const post = posts.find((p) => p.id === postId);
@@ -383,17 +648,11 @@ export const Posts = () => {
     const originalLikes = post.likes;
 
     // Optimistically update local UI state
-    setPosts((prevPosts) =>
-      (prevPosts ?? emptyPosts).map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              liked: !originalLiked,
-              likes: originalLiked ? Math.max(0, originalLikes - 1) : originalLikes + 1,
-            }
-          : p
-      )
-    );
+    updatePost(postId, (current) => ({
+      ...current,
+      liked: !originalLiked,
+      likes: originalLiked ? Math.max(0, originalLikes - 1) : originalLikes + 1,
+    }));
 
     try {
       if (originalLiked) {
@@ -404,31 +663,14 @@ export const Posts = () => {
       
       // Silently sync state with server
       const backendPost = await getGlobalPost(postNumId, token);
-      setPosts((prevPosts) =>
-        (prevPosts ?? emptyPosts).map((p) =>
-          p.id === postId
-            ? {
-                ...p,
-                liked: backendPost.likedByMe,
-                likes: backendPost.likeCount,
-              }
-            : p
-        )
-      );
+      updatePost(postId, (current) => ({
+        ...current,
+        liked: backendPost.likedByMe,
+        likes: backendPost.likeCount,
+      }));
     } catch (err) {
-      console.error('Failed to react to post:', err);
-      // Revert on error
-      setPosts((prevPosts) =>
-        (prevPosts ?? emptyPosts).map((p) =>
-          p.id === postId
-            ? {
-                ...p,
-                liked: originalLiked,
-                likes: originalLikes,
-              }
-            : p
-        )
-      );
+      updatePost(postId, (current) => ({ ...current, liked: originalLiked, likes: originalLikes }));
+      notify(err instanceof Error ? err.message : 'Không thể cập nhật lượt thích.', 'error');
     }
   };
 
@@ -558,36 +800,53 @@ export const Posts = () => {
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin text-[#477313]" />
           ) : (
-            <span className="community-badge">{filteredPosts.length} bài mới</span>
+            <span className="community-badge">{filteredPosts.length} bài</span>
           )}
         </div>
 
-        <section className="grid gap-4">
-          {filteredPosts.length > 0 ? (
-            filteredPosts.slice(0, visibleCount).map((post) => (
+        {error && firstPosts.length === 0 ? (
+          <section className="grid justify-items-start rounded-2xl border border-[#e7c8c4] bg-white p-6">
+            <AlertCircle aria-hidden="true" className="h-6 w-6 text-[#ba1a1a]" />
+            <p className="mt-3 font-extrabold text-[#0b2228]">Không thể tải bảng tin</p>
+            <p className="mt-1 text-[13px] text-[#718077]">{error}</p>
+            <button className="community-button mt-4" onClick={() => void refresh()} type="button">
+              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+              Thử tải lại
+            </button>
+          </section>
+        ) : (
+          <section className="grid gap-4">
+            {filteredPosts.length > 0 ? (
+              filteredPosts.map((post) => (
               <PostCard 
                 key={post.id} 
                 post={post}
                 friendshipStatus={post.authorId ? friendshipStatuses[post.authorId] : undefined}
+                enableInlineComments
+                onCommentCreated={(postId) => updatePost(postId, (current) => ({
+                  ...current,
+                  comments: current.comments + 1,
+                }))}
                 onFriendStatusChange={handleFriendStatusChange}
                 onLikeToggle={handleLikeToggle} 
                 onShareClick={(post) => void sharePost(post)}
               />
-            ))
-          ) : (
-            <div className="text-center p-8 bg-[#f4f8f2] rounded-2xl border border-[#cfe0c8] text-[#718077]">
-              <p className="font-extrabold text-[15px]">Không tìm thấy bài viết nào khớp với từ khóa</p>
-              <p className="text-[12px] mt-1 font-semibold">Thử tìm kiếm từ khóa khác hoặc xóa bộ lọc.</p>
-            </div>
-          )}
-        </section>
+              ))
+            ) : (
+              <div className="text-center p-8 bg-[#f4f8f2] rounded-2xl border border-[#cfe0c8] text-[#718077]">
+                <p className="font-extrabold text-[15px]">Không tìm thấy bài viết nào khớp với từ khóa</p>
+                <p className="text-[12px] mt-1 font-semibold">Thử tìm kiếm từ khóa khác hoặc xóa bộ lọc.</p>
+              </div>
+            )}
+          </section>
+        )}
 
-        {filteredPosts.length > visibleCount && (
+        {hasMore && (
           <div
             className="mt-4 rounded-xl border border-[#cfe0c8] bg-[#f4f8f2] p-4 text-center text-[12px] font-bold text-[#718077]"
             ref={loadMoreRef}
           >
-            Đang tải thêm bài viết ({Math.min(visibleCount, filteredPosts.length)}/{filteredPosts.length})
+            {loadingMore ? 'Đang tải thêm bài viết...' : 'Cuộn để xem thêm'}
           </div>
         )}
 

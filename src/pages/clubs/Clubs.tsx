@@ -14,6 +14,7 @@ import {
   Building2,
   Globe2,
   LockKeyhole,
+  MapPin,
   Plus,
   RefreshCw,
   SlidersHorizontal,
@@ -22,6 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import {
   getGroups,
   joinGroup,
+  leaveGroup,
   type CommunityGroup,
 } from '../../api/community';
 import { Dropdown, type DropdownOption } from '../../components/ui/Dropdown';
@@ -172,11 +174,33 @@ export const Clubs = () => {
     }
     setJoiningId(groupId);
     try {
-      await joinGroup(token, groupId);
+      const joinedClub = await joinGroup(token, groupId);
       await loadClubs();
-      notify('Yêu cầu tham gia câu lạc bộ đã được gửi.', 'success');
+      notify(
+        joinedClub.myStatus === 'Accepted'
+          ? 'Bạn đã tham gia câu lạc bộ.'
+          : 'Yêu cầu tham gia câu lạc bộ đã được gửi.',
+        'success',
+      );
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : 'Không thể gửi yêu cầu tham gia.', 'error');
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
+  const handleLeave = async (groupId: number) => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    setJoiningId(groupId);
+    try {
+      await leaveGroup(token, groupId);
+      await loadClubs();
+      notify('Đã hủy yêu cầu tham gia câu lạc bộ.', 'success');
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Không thể hủy yêu cầu tham gia.', 'error');
     } finally {
       setJoiningId(null);
     }
@@ -193,41 +217,41 @@ export const Clubs = () => {
 
 
   return (
-    <div className="min-w-0 flex-1 overflow-x-clip bg-[#f8fbf4] text-[#0b2228]" data-club-ui>
+    <div className="min-w-0 flex-1 overflow-x-clip bg-[#f8fbf4] text-[#0b2228]" data-club-directory data-club-ui>
       <header
-        className="border-b border-[#143f34] bg-[#081d24] px-4 pt-[88px] text-white sm:px-6 lg:px-8"
+        className="border-b border-[#143f34] bg-[#081d24] px-4 pt-[72px] text-white sm:px-6 lg:px-8"
         data-clubs-compact-header
         data-no-reveal
       >
-        <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4 py-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mx-auto grid w-full max-w-[1180px] gap-5 py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="min-w-0">
             <p className="inline-flex items-center gap-2 text-[12px] font-bold text-[#e2ff57]">
               <Users aria-hidden="true" className="h-4 w-4" />
               Danh sách câu lạc bộ
             </p>
-            <h1 className="mt-1 text-[clamp(1.55rem,3vw,2.35rem)] font-bold leading-tight tracking-[-0.035em] text-white">
+            <h1 className="mt-1 text-[clamp(1.7rem,3vw,2.5rem)] font-bold leading-tight tracking-[-0.04em] text-white">
               Tìm câu lạc bộ phù hợp
             </h1>
-            <p className="mt-1 max-w-2xl text-[13px] font-semibold leading-5 text-white/72">
+            <p className="mt-2 max-w-2xl text-[13px] font-medium leading-5 text-white/70">
               Lọc theo khu vực, trạng thái và mức độ hoạt động để vào đúng cộng đồng nhanh hơn.
             </p>
           </div>
 
-          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] items-stretch gap-2 sm:grid-cols-[repeat(2,120px)_auto]">
-            <div className="rounded-xl border border-white/12 bg-white/8 px-3 py-2">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/12 bg-white/[0.045] p-2 sm:grid-cols-[112px_112px_auto]">
+            <div className="rounded-xl bg-white/[0.075] px-3 py-2.5">
               <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">
                 {loading ? '...' : clubs.length.toLocaleString('vi-VN')}
               </p>
               <p className="mt-1 text-[11px] font-bold text-white/64">CLB hiển thị</p>
             </div>
-            <div className="rounded-xl border border-white/12 bg-white/8 px-3 py-2">
+            <div className="rounded-xl bg-white/[0.075] px-3 py-2.5">
               <p className="font-mono text-[20px] font-bold leading-none text-[#e2ff57]">
                 {loading ? '...' : loadedMemberCount.toLocaleString('vi-VN')}
               </p>
               <p className="mt-1 text-[11px] font-bold text-white/64">thành viên</p>
             </div>
             <Link
-              className="picklink-glow-control col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-4 text-[13px] font-bold text-[#102414] shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-[background-color,transform] hover:bg-[#d6f64d] active:scale-[0.98] sm:col-span-1"
+              className="picklink-glow-control col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-4 text-[13px] font-bold text-[#102414] shadow-[0_10px_24px_rgba(152,217,81,0.18)] transition-[background-color,transform] hover:bg-[#d6f64d] active:scale-[0.98] sm:col-span-1"
               to="/clubs/create"
             >
               <Plus aria-hidden="true" className="h-4 w-4 text-[#102414]" />
@@ -238,11 +262,11 @@ export const Clubs = () => {
       </header>
 
       <section
-        className="sticky top-[72px] z-40 border-b border-[#d8e4d4] bg-[#f8fbf4]/96 px-4 py-2 shadow-[0_8px_22px_rgba(8,29,36,0.045)] backdrop-blur-xl sm:px-6 lg:px-8"
+        className="sticky top-[72px] z-40 border-b border-[#d8e4d4] bg-[#f8fbf4]/96 px-4 py-3 shadow-[0_8px_22px_rgba(14,48,39,0.06)] backdrop-blur-xl sm:px-6 lg:px-8"
         data-clubs-compact-toolbar
         data-no-reveal
       >
-        <form className="mx-auto grid w-full max-w-[1180px] gap-2 xl:grid-cols-[minmax(220px,1.1fr)_minmax(360px,1.25fr)_auto_minmax(190px,0.65fr)] xl:items-end" onSubmit={handleSearch}>
+        <form className="mx-auto grid w-full max-w-[1180px] gap-3 lg:grid-cols-[minmax(220px,1.1fr)_minmax(320px,1.2fr)_170px] lg:items-end" onSubmit={handleSearch}>
           <label className="grid gap-1 text-[12px] font-bold text-[#53645b]" htmlFor="club-search">
             Tên CLB
             <span className="picklink-glow-control flex h-10 items-center gap-2 rounded-xl border border-[#d8e4d4] bg-white px-3 transition-[border-color,box-shadow] focus-within:border-[#98d951]">
@@ -273,7 +297,7 @@ export const Clubs = () => {
             />
           </div>
 
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1 scrollbar-none xl:pb-0">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto border-t border-[#dce7d8] pt-3 scrollbar-none lg:col-span-3" data-clubs-toolbar-filters>
             <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d8e4d4] bg-white text-[#477313] sm:flex">
               <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
             </span>
@@ -320,7 +344,7 @@ export const Clubs = () => {
         )}
         {/* Clubs Grid */}
         {loading ? (
-          <div aria-label="Đang tải câu lạc bộ" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div aria-label="Đang tải câu lạc bộ" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[0, 1, 2].map((item) => (
               <article
                 className="overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white"
@@ -372,11 +396,12 @@ export const Clubs = () => {
           </section>
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {clubs.map((club, index) => {
                 const gradient = cardGradients[index % cardGradients.length];
                 const IconComponent = cardIcons[index % cardIcons.length];
                 const isMember = club.myStatus === 'Accepted';
+                const isPrivateRestricted = club.groupType === 'Private' && !isMember;
                 const isPending = club.myStatus === 'Pending';
                 const isDeclined = club.myStatus === 'Declined';
                 const isBanned = club.myStatus === 'Banned';
@@ -384,7 +409,7 @@ export const Clubs = () => {
 
                 return (
                   <motion.article
-                    className="picklink-glow-surface group overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white shadow-[0_10px_24px_rgba(8,29,36,0.055)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5"
+                    className="picklink-glow-surface group overflow-hidden rounded-2xl border border-[#d5e1d0] bg-white shadow-[0_10px_24px_rgba(14,48,39,0.055)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5"
                     data-motion-managed
                     initial={revealInitial}
                     key={club.groupId}
@@ -398,7 +423,7 @@ export const Clubs = () => {
                   >
                     <div className="flex h-full flex-col">
                       <div
-                        className={`relative min-h-[132px] overflow-hidden bg-gradient-to-br ${gradient}`}
+                        className={`relative min-h-[152px] overflow-hidden bg-gradient-to-br ${gradient}`}
                       >
                         {club.coverImageUrl ? (
                           <img
@@ -435,16 +460,27 @@ export const Clubs = () => {
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="flex-1 p-4">
+                        <div className="flex-1 px-4 pb-4 pt-4">
                           <h3 className="line-clamp-1 text-[18px] font-bold leading-tight tracking-[-0.025em]">
                             {club.groupName}
                           </h3>
                           <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-[#64736a]">
                             {club.description || 'Tham gia câu lạc bộ để kết nối, duy trì lịch chơi và phát triển cùng cộng đồng.'}
                           </p>
+                          {club.activeLocation && (
+                            <p className="mt-2.5 flex items-center gap-1.5 truncate text-[12px] font-semibold text-[#5d7561]">
+                              <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[#638b38]" />
+                              {club.activeLocation}
+                            </p>
+                          )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 border-t border-[#e0e9dc] p-3">
+                        <div className="grid grid-cols-2 gap-2 border-t border-[#e3ece0] bg-[#fbfdf9] p-3">
+                          {isPrivateRestricted ? (
+                            <span className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[#d8e4d4] bg-[#f4f8f1] px-3 text-center text-[12px] font-bold text-[#64736a]">
+                              Chỉ thành viên mới xem được
+                            </span>
+                          ) : (
                           <Link
                             className="picklink-glow-control inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[#b9cbb3] bg-white px-3 text-[12px] font-bold text-[#0b2228] transition-[background-color,border-color] hover:border-[#98d951] hover:bg-[#edf5e9]"
                             to={`/clubs/${club.groupId}`}
@@ -452,10 +488,21 @@ export const Clubs = () => {
                             Xem chi tiết
                             <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 text-[#477313]" />
                           </Link>
+                          )}
                           {isMember ? (
                             <span className="inline-flex min-h-9 items-center justify-center rounded-xl bg-[#edf5e9] px-3 text-center text-[12px] font-bold text-[#477313]">
                               Đã tham gia
                             </span>
+                          ) : isPending && isPrivateRestricted ? (
+                            <button
+                              className="inline-flex min-h-9 items-center justify-center rounded-xl bg-[#fff8e6] px-3 text-center text-[12px] font-bold text-[#7a5600] disabled:opacity-60"
+                              disabled={isJoining}
+                              onClick={() => void handleLeave(club.groupId)}
+                              type="button"
+                            >
+                              {isJoining && <Loader2 aria-hidden="true" className="mr-1 h-4 w-4 animate-spin" />}
+                              Hủy yêu cầu
+                            </button>
                           ) : isPending ? (
                             <span className="inline-flex min-h-9 items-center justify-center rounded-xl bg-[#fff8e6] px-3 text-center text-[12px] font-bold text-[#7a5600]">
                               Đang chờ duyệt

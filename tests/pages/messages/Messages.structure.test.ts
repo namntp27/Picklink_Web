@@ -30,3 +30,7 @@ test('messages page includes a matchId room in the active conversation list', ()
   assert.match(source, /sendMatchMessage\(token, activeConversation\.matchId, text\)/);
   assert.match(matchesApiSource, /if \(!message \|\| !Number\.isInteger\(message\.messageId\)\)/);
 });
+
+test('messages page keeps a requested club conversation selected', () => {
+  assert.match(source, /else if \(chatParam\) \{[\s\S]*setActiveConversationId\(chatParam\);[\s\S]*setShowSettings\(false\);/);
+});

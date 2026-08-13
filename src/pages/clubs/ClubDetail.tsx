@@ -9,14 +9,11 @@ import {
   Clock,
   Crown,
   Dumbbell,
-  Image as ImageIcon,
   Loader2,
   MapPin,
   MessageCircle,
   Share2,
   ShieldCheck,
-  Star,
-  Trophy,
   UserPlus,
   Users,
   UserRound,
@@ -36,12 +33,35 @@ import {
   getGroupPosts,
   joinGroup,
   leaveGroup,
+  reactToPost,
+  removeReaction,
 } from '../../api/community';
+import { PlayerHoverCard } from '../matches/components/PlayerHoverCard';
+import { PostCard, toDisplayPost, type DisplayPost } from '../community/Posts';
 
-type DetailTab = 'overview' | 'schedule' | 'members' | 'posts';
+type DetailTab = 'members' | 'posts';
 
 const emptyMembers: CommunityMember[] = [];
 const emptyPosts: CommunityPost[] = [];
+
+const ClubPlayerAvatar = ({ imageUrl, playerId, playerName, size = 'h-12 w-12' }: {
+  imageUrl?: string | null;
+  playerId?: number | null;
+  playerName: string;
+  size?: string;
+}) => {
+  const avatar = imageUrl ? (
+    <img alt="" className={`${size} rounded-xl object-cover`} decoding="async" loading="lazy" src={imageUrl} />
+  ) : (
+    <span className={`flex ${size} shrink-0 items-center justify-center rounded-xl bg-[#e0e9dc] text-[#477313]`}>
+      <UserRound aria-hidden="true" className="h-5 w-5" />
+    </span>
+  );
+
+  return playerId ? (
+    <PlayerHoverCard playerId={playerId} playerName={playerName}>{avatar}</PlayerHoverCard>
+  ) : avatar;
+};
 const emptyDetail: {
   club: CommunityGroup | null;
   members: CommunityMember[];
@@ -53,7 +73,7 @@ export const ClubDetail = () => {
   const { id } = useParams();
   const { token } = useAuth();
   const notify = useToast();
-  const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const [activeTab, setActiveTab] = useState<DetailTab>('posts');
 
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -63,10 +83,12 @@ export const ClubDetail = () => {
   const { data, error: loadError, loading, setData } = useApiQuery(
     ['club-detail', groupId, token],
     async () => {
-      // Members and posts do not depend on the group payload, so all three go out together
-      // instead of waiting for the group request to come back first.
-      const [group, members, posts] = await Promise.all([
-        getGroup(groupId, token),
+      const group = await getGroup(groupId, token);
+      const canViewPrivateClub = group.groupType !== 'Private'
+        || group.myStatus === 'Accepted'
+        || ['Owner', 'Admin', 'Moderator'].includes(group.myRole || '');
+      if (!canViewPrivateClub) return { club: group, members: emptyMembers, posts: emptyPosts };
+      const [members, posts] = await Promise.all([
         token ? getGroupMembers(token, groupId).catch(() => emptyMembers) : Promise.resolve(emptyMembers),
         token ? getGroupPosts(token, groupId).catch(() => emptyPosts) : Promise.resolve(emptyPosts),
       ]);
@@ -86,6 +108,10 @@ export const ClubDetail = () => {
 
   const setMembers = useCallback((updated: CommunityMember[]) => {
     setData((current) => ({ ...(current ?? emptyDetail), members: updated }));
+  }, [setData]);
+
+  const setPosts = useCallback((updated: CommunityPost[]) => {
+    setData((current) => ({ ...(current ?? emptyDetail), posts: updated }));
   }, [setData]);
 
   const isManager = useMemo(() => {
@@ -137,6 +163,89 @@ export const ClubDetail = () => {
     }
   };
 
+  const privateClubRestricted = club?.groupType === 'Private'
+    && club.myStatus !== 'Accepted'
+    && !isManager;
+
+  if (club && privateClubRestricted) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4 text-[#0b2228]" data-club-ui>
+        <main className="w-full max-w-xl rounded-2xl border border-[#d8e4d4] bg-white p-6 text-center shadow-[0_12px_30px_rgba(8,29,36,0.06)]">
+          <Link className="mb-6 inline-flex items-center gap-2 text-[12px] font-bold text-[#477313]" to="/clubs">
+            <ArrowLeft className="h-4 w-4" />
+            Quay lại CLB
+          </Link>
+          <ShieldCheck className="mx-auto h-10 w-10 text-[#477313]" />
+          <h1 className="mt-3 text-[24px] font-bold">{club.groupName}</h1>
+          <p className="mt-2 text-[14px] text-[#64736a]">CLB riêng tư. Bạn cần gửi yêu cầu và được duyệt để xem chi tiết.</p>
+          <div className="mt-5 flex justify-center">
+            {!token ? (
+              <button className="inline-flex h-10 items-center justify-center rounded-lg bg-[#e2ff57] px-4 text-[13px] font-bold text-[#102414]" onClick={() => navigate('/login')} type="button">
+                Đăng nhập để gửi yêu cầu
+              </button>
+            ) : club.myStatus === 'Pending' ? (
+              <button className="inline-flex h-10 items-center justify-center rounded-lg bg-[#fff8e6] px-4 text-[13px] font-bold text-[#7a5600] disabled:opacity-60" disabled={actionLoading} onClick={handleJoinLeave} type="button">
+                {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Hủy yêu cầu
+              </button>
+            ) : club.myStatus === 'Banned' ? (
+              <span className="inline-flex h-10 items-center rounded-lg bg-[#ffdad6] px-4 text-[13px] font-bold text-[#ba1a1a]">Bị cấm khỏi CLB</span>
+            ) : (
+              <button className="inline-flex h-10 items-center justify-center rounded-lg bg-[#e2ff57] px-4 text-[13px] font-bold text-[#102414] disabled:opacity-60" disabled={actionLoading} onClick={handleJoinLeave} type="button">
+                {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Gửi yêu cầu tham gia
+              </button>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const handlePostLike = async (postId: string) => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    const post = posts.find((item) => item.postId === Number(postId));
+    if (!post) return;
+
+    const previous = post;
+    const optimistic = {
+      ...post,
+      likedByMe: !post.likedByMe,
+      likeCount: post.likedByMe ? Math.max(0, post.likeCount - 1) : post.likeCount + 1,
+    };
+    setPosts(posts.map((item) => item.postId === post.postId ? optimistic : item));
+
+    try {
+      const updated = post.likedByMe
+        ? await removeReaction(token, post.postId)
+        : await reactToPost(token, post.postId);
+      setPosts(posts.map((item) => item.postId === post.postId ? updated : item));
+    } catch (reason) {
+      setPosts(posts.map((item) => item.postId === post.postId ? previous : item));
+      notify(reason instanceof Error ? reason.message : 'Không thể cập nhật lượt thích.', 'error');
+    }
+  };
+
+  const handlePostShare = async (post: DisplayPost) => {
+    const url = new URL(`/posts/${post.id}`, window.location.origin).toString();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: club?.groupName || 'Bài viết CLB', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        notify('Đã sao chép liên kết bài viết.', 'success');
+      }
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+        notify(reason instanceof Error ? reason.message : 'Không thể chia sẻ bài viết.', 'error');
+      }
+    }
+  };
+
   // Derive display values from API data
   const shortName = useMemo(() => {
     if (!club) return '';
@@ -158,7 +267,7 @@ export const ClubDetail = () => {
     () => members.filter((member) => member.status === 'Accepted'),
     [members],
   );
-  const visibleMembers = activeTab === 'members' ? acceptedMembers : acceptedMembers.slice(0, 3);
+  const visibleMembers = acceptedMembers;
 
   const rulesArray = useMemo(() => {
     if (!club?.rules) return [];
@@ -171,34 +280,21 @@ export const ClubDetail = () => {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
   }, [club]);
 
-  const filledStars = useMemo(() => {
-    if (!club) return 0;
-    return Math.round(club.overallRating);
-  }, [club]);
-
   const stats = useMemo(() => {
     if (!club) return [];
     return [
       { label: 'Thành viên', value: club.memberCount.toLocaleString(), icon: Users },
       { label: 'Bài viết', value: club.postCount.toLocaleString(), icon: Activity },
       { label: 'Tin nhắn', value: club.messageCount.toLocaleString(), icon: MessageCircle },
-      { label: 'Đánh giá', value: club.overallRating.toFixed(1), icon: Trophy },
     ];
   }, [club]);
-
-  const tabs: Array<{ id: DetailTab; label: string }> = [
-    { id: 'overview', label: 'Tổng quan' },
-    { id: 'schedule', label: 'Lịch hoạt động' },
-    { id: 'members', label: 'Thành viên' },
-    { id: 'posts', label: 'Bài viết' },
-  ];
 
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4]" data-club-ui>
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-[16px] font-bold text-on-surface-variant">Đang tải thông tin CLB...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-[#477313]" />
+          <p className="text-[16px] font-bold text-[#64736a]">Đang tải thông tin CLB...</p>
         </div>
       </div>
     );
@@ -208,7 +304,7 @@ export const ClubDetail = () => {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4]" data-club-ui>
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-[18px] font-bold text-on-surface">{error || 'Không tìm thấy câu lạc bộ.'}</p>
+          <p className="text-[18px] font-bold text-[#0b2228]">{error || 'Không tìm thấy câu lạc bộ.'}</p>
           <Link className="rounded-lg bg-primary px-6 py-3 text-[15px] font-bold text-white" to="/clubs">
             Quay lại danh sách CLB
           </Link>
@@ -227,7 +323,7 @@ export const ClubDetail = () => {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#081d24] via-[#081d24]/62 to-[#081d24]/12" />
 
-        <div className="relative z-10 mx-auto flex min-h-[368px] max-w-[1180px] flex-col justify-end px-4 pb-7 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto flex min-h-[368px] max-w-[1180px] flex-col justify-end px-4 pb-16 sm:px-6 lg:px-8">
           <Link
             className="mb-6 inline-flex h-9 w-fit items-center gap-2 rounded-lg border border-white/22 bg-white/8 px-3 text-[12px] font-bold text-white backdrop-blur hover:bg-white/14"
             to="/clubs"
@@ -273,7 +369,7 @@ export const ClubDetail = () => {
                   {actionLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                    <CheckCircle2 className="h-5 w-5 text-[#0b2228]" />
                   )}
                   Đã tham gia (Rời CLB)
                 </button>
@@ -328,14 +424,6 @@ export const ClubDetail = () => {
                 </button>
               )}
               <button
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/24 bg-white/8 px-4 text-[13px] font-bold text-white backdrop-blur hover:bg-white/14"
-                onClick={() => navigate('/book-court')}
-                type="button"
-              >
-                <CalendarDays className="h-5 w-5" />
-                Đặt lịch chơi
-              </button>
-              <button
                 aria-label="Chia sẻ câu lạc bộ"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/24 bg-white/8 text-white backdrop-blur hover:bg-white/14"
                 onClick={handleShare}
@@ -349,124 +437,84 @@ export const ClubDetail = () => {
       </section>
 
       <main className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {stats.map((item) => (
-            <div className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-4 shadow-[0_8px_22px_rgba(8,29,36,0.045)]" key={item.label}>
-              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
-                <item.icon className="h-4 w-4" />
+            item.icon === Users ? (
+              <button
+                aria-label="Xem thành viên CLB"
+                className="picklink-glow-surface flex min-h-16 items-center gap-2.5 rounded-xl border border-[#d8e4d4] bg-white px-3 py-2.5 text-left shadow-[0_6px_16px_rgba(8,29,36,0.04)] hover:border-[#9fbe91] hover:bg-[#fbfdf9]"
+                key={item.label}
+                onClick={() => setActiveTab((current) => current === 'members' ? 'posts' : 'members')}
+                type="button"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                  <item.icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-bold text-[#64736a]">{item.label}</p>
+                  <p className="text-[17px] font-bold leading-tight tracking-[-0.025em]">{item.value}</p>
+                </div>
+              </button>
+            ) : item.icon === MessageCircle ? (
+              <button
+                aria-label="Mở tin nhắn CLB"
+                className="picklink-glow-surface flex min-h-16 items-center gap-2.5 rounded-xl border border-[#d8e4d4] bg-white px-3 py-2.5 text-left shadow-[0_6px_16px_rgba(8,29,36,0.04)] hover:border-[#9fbe91] hover:bg-[#fbfdf9]"
+                key={item.label}
+                onClick={() => navigate(`/messages?chat=club-group-${groupId}`)}
+                type="button"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                  <item.icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-bold text-[#64736a]">{item.label}</p>
+                  <p className="text-[17px] font-bold leading-tight tracking-[-0.025em]">{item.value}</p>
+                </div>
+              </button>
+            ) : (
+              <div className="picklink-glow-surface flex min-h-16 items-center gap-2.5 rounded-xl border border-[#d8e4d4] bg-white px-3 py-2.5 shadow-[0_6px_16px_rgba(8,29,36,0.04)]" key={item.label}>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
+                  <item.icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-bold text-[#64736a]">{item.label}</p>
+                  <p className="text-[17px] font-bold leading-tight tracking-[-0.025em]">{item.value}</p>
+                </div>
               </div>
-              <p className="text-[11px] font-bold text-[#64736a]">{item.label}</p>
-              <p className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.025em]">{item.value}</p>
-            </div>
+            )
           ))}
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-4">
-            <div className="sticky top-[72px] z-30 overflow-x-auto border-b border-[#d8e4d4] bg-[#f8fbf4]/95 py-2 backdrop-blur">
-              <div className="flex min-w-max gap-2">
-                {tabs.map((tab) => (
-                  <button
-                    className={`h-9 rounded-lg px-3 text-[12px] font-bold transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-[#0b2228] text-white'
-                        : 'text-[#64736a] hover:bg-[#edf5e9] hover:text-[#0b2228]'
-                    }`}
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    type="button"
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {activeTab === 'overview' && (
-              <div className="space-y-4">
-                <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                  <h2 className="text-[18px] font-bold">Giới thiệu</h2>
-                  <p className="mt-3 text-[14px] leading-6 text-[#64736a]">
-                    {club.description || 'Chưa có mô tả.'}
-                  </p>
-                </section>
-
-                {club.images.length > 0 && (
-                  <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                    <div className="mb-5 flex items-center justify-between gap-4">
-                      <h2 className="text-[18px] font-bold">Ảnh hoạt động</h2>
-                      <span className="inline-flex items-center gap-2 text-[13px] font-bold text-primary">
-                        <ImageIcon className="h-4 w-4" />
-                        {club.images.length} ảnh
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                      {club.images.map((image, index) => (                        <img
-                          alt={image.caption || 'Hoạt động câu lạc bộ'}
-                          className="h-40 w-full rounded-xl object-cover transition-transform duration-300 hover:scale-[1.02]"
-                          decoding="async"
-                          key={image.groupImageId}
-                          loading="lazy"
-                          src={image.imageUrl}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </div>
-            )}
-
-            {(activeTab === 'overview' || activeTab === 'schedule') && (
-              <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-[18px] font-bold">Lịch hoạt động sắp tới</h2>
-
-                </div>
-                <div className="flex items-center justify-center py-8 text-on-surface-variant">
-                  <p className="text-[15px]">Chưa có lịch hoạt động nào được lên lịch.</p>
-                </div>
-              </section>
-            )}
-
-            {(activeTab === 'overview' || activeTab === 'members') && (
-              <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+            {activeTab === 'members' && (
+              <section className="rounded-2xl border border-[#d8e4d4] bg-white p-6 shadow-[0_10px_28px_rgba(8,29,36,0.055)]">
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-[18px] font-bold">Thành viên nổi bật</h2>
-                  {activeTab === 'overview' && (
-                    <button
-                      className="inline-flex h-9 w-fit items-center rounded-lg border border-[#d8e4d4] px-3 text-[12px] font-bold hover:bg-[#edf5e9]"
-                      onClick={() => setActiveTab('members')}
-                      type="button"
-                    >
-                      Xem tất cả
-                    </button>
-                  )}
                 </div>
                 {visibleMembers.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     {visibleMembers.map((member) => (
-                      <div className="rounded-lg border border-outline-variant bg-surface-container-low p-4" key={member.userId}>
+                      <div className="rounded-lg border border-[#e3ece0] bg-[#fbfdf9] p-4" key={member.userId}>
                         <div className="flex items-center gap-3">
-                          {member.profileImageUrl ? (
-                            <img alt="" className="h-12 w-12 rounded-full object-cover" decoding="async" loading="lazy" src={member.profileImageUrl} />
-                          ) : (
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e0e9dc] text-[#477313]">
-                              <UserRound aria-hidden="true" className="h-6 w-6" />
-                            </span>
-                          )}
+                          <ClubPlayerAvatar
+                            imageUrl={member.profileImageUrl}
+                            playerId={member.playerId}
+                            playerName={member.username}
+                          />
                           <div className="min-w-0">
                             <h3 className="truncate text-[15px] font-bold">{member.username}</h3>
-                            <p className="text-[13px] font-bold text-primary">{member.role}</p>
+                            <p className="text-[13px] font-bold text-[#477313]">{member.role}</p>
                           </div>
                         </div>
-                        <p className="mt-3 text-[14px] text-on-surface-variant">
+                        <p className="mt-3 text-[14px] text-[#64736a]">
                           Tham gia {new Date(member.joinedAt).toLocaleDateString('vi-VN')}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center py-8 text-on-surface-variant">
+                  <div className="flex items-center justify-center py-8 text-[#64736a]">
                     <p className="text-[15px]">
                       {token ? 'Chưa có thành viên.' : 'Đăng nhập để xem thành viên CLB.'}
                     </p>
@@ -475,8 +523,8 @@ export const ClubDetail = () => {
               </section>
             )}
 
-            {(activeTab === 'overview' || activeTab === 'posts') && (
-              <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+            {activeTab === 'posts' && (
+              <section className="rounded-2xl border border-[#d8e4d4] bg-white p-6 shadow-[0_10px_28px_rgba(8,29,36,0.055)]">
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <h2 className="text-[18px] font-bold">Bảng tin CLB</h2>
                   {(club.myStatus === 'Accepted') && (
@@ -492,145 +540,23 @@ export const ClubDetail = () => {
                 {posts.length > 0 ? (
                   <div className="space-y-4">
                     {posts.map((post) => {
-                      let parsed: {
-                        title?: string;
-                        body?: string;
-                        location?: string;
-                        mode?: string;
-                        lookingFor?: boolean;
-                        slots?: string;
-                        levelRange?: string;
-                        playTime?: string;
-                        matchId?: number | null;
-                        tags?: string[];
-                      } = {};
-                      try {
-                        const p = JSON.parse(post.content || '{}');
-                        if (p && typeof p === 'object' && 'body' in p) {
-                          parsed = p;
-                        }
-                      } catch {
-                        parsed = { body: post.content || '' };
-                      }
-
-                      const postTitle = parsed.title || '';
-                      const postBody = parsed.body || post.content || '';
-                      const postTags = parsed.tags || [];
-                      const postLocation = parsed.location || '';
-                      const isPending = post.visibility === 'Pending';
-
-                      const lookingForText = parsed.lookingFor && parsed.slots
-                        ? `Cần ${parsed.slots} slot · Trình ${parsed.levelRange || '-'} · ${parsed.playTime || '-'}`
-                        : null;
-
-                      let formattedDate = '';
-                      try {
-                        formattedDate = new Intl.DateTimeFormat('vi-VN', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }).format(new Date(post.createdAt));
-                      } catch {
-                        formattedDate = new Date(post.createdAt).toLocaleDateString('vi-VN');
-                      }
-
+                      const displayPost = toDisplayPost(post);
                       return (
-                        <article className="rounded-xl border border-outline-variant overflow-hidden" key={post.postId}>
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3 min-w-0">                                {post.authorAvatarUrl ? (
-                                  <img
-                                    alt=""
-                                    className="h-10 w-10 shrink-0 rounded-full object-cover"
-                                    decoding="async"
-                                    loading="lazy"
-                                    src={post.authorAvatarUrl}
-                                  />
-                                ) : (
-                                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e0e9dc] text-[#477313]">
-                                    <UserRound aria-hidden="true" className="h-5 w-5" />
-                                  </span>
-                                )}
-                                <div className="min-w-0">
-                                  <h3 className="truncate text-[15px] font-bold text-on-surface">{post.authorName}</h3>
-                                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-bold text-on-surface-variant">
-                                    <span>{formattedDate}</span>
-                                    {postLocation && (
-                                      <span className="inline-flex items-center gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        {postLocation}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                {isPending && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#fff8e6] px-3 py-1 text-[11px] font-bold text-[#7a5600]">
-                                    <Clock className="h-3 w-3" />
-                                    Chờ duyệt
-                                  </span>
-                                )}
-                                <MessageCircle className="h-5 w-5 text-on-surface-variant" />
-                              </div>
-                            </div>
-
-                            {postTitle && (
-                              <h4 className="mt-3 text-[17px] font-bold leading-6 text-on-surface">{postTitle}</h4>
-                            )}
-                            {postBody && (
-                              <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{postBody}</p>
-                            )}
-
-                            {lookingForText && (
-                              <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#cfe0c8] bg-[#edf6e9] p-3 text-[12px] font-extrabold text-[#365c16]">
-                                <span className="flex items-start gap-2">
-                                  <Users className="mt-0.5 h-4 w-4 shrink-0" />
-                                  <span>{lookingForText}</span>
-                                </span>
-                                {parsed.matchId && (
-                                  <Link
-                                    to={`/matches/${parsed.matchId}`}
-                                    className="inline-flex h-8 items-center rounded-lg bg-primary hover:bg-primary/90 px-3 py-1 text-[11px] font-black text-white transition-colors shrink-0"
-                                  >
-                                    Tham gia ngay
-                                  </Link>
-                                )}
-                              </div>
-                            )}
-
-                            {postTags.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {postTags.map((tag) => (
-                                  <span className="inline-flex items-center rounded-full bg-[#edf5e9] px-3 py-1 text-[12px] font-bold text-[#0b2228]" key={tag}>
-                                    #{tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {post.mediaUrls.length > 0 && (
-                            <div className={`${post.mediaUrls.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}>
-                              {post.mediaUrls.map((url, i) => (                                <img alt="Ảnh bài viết" className="h-48 w-full object-cover" decoding="async" key={url} loading="lazy" src={url} />
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between gap-3 px-4 py-2 text-[12px] font-bold text-on-surface-variant border-t border-outline-variant">
-                            <span className="inline-flex items-center gap-1.5">
-                              <ThumbsUp className="h-3.5 w-3.5 text-primary" />
-                              {post.likeCount} lượt thích
-                            </span>
-                            <span>{post.commentCount} bình luận</span>
-                          </div>
-                        </article>
+                        <PostCard
+                          enableInlineComments
+                          key={post.postId}
+                          onCommentCreated={(postId) => setPosts(posts.map((item) => item.postId === Number(postId)
+                            ? { ...item, commentCount: item.commentCount + 1 }
+                            : item))}
+                          onLikeToggle={(postId) => void handlePostLike(postId)}
+                          onShareClick={(sharedPost) => void handlePostShare(sharedPost)}
+                          post={displayPost}
+                        />
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center py-8 text-on-surface-variant">
+                  <div className="flex items-center justify-center py-8 text-[#64736a]">
                     <p className="text-[15px]">
                       {token ? 'Chưa có bài viết nào.' : 'Đăng nhập để xem bài viết CLB.'}
                     </p>
@@ -641,7 +567,7 @@ export const ClubDetail = () => {
           </div>
 
           <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-            <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+            <section className="rounded-2xl border border-[#d8e4d4] bg-white p-6 shadow-[0_10px_28px_rgba(8,29,36,0.055)]">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0b2228] text-[15px] font-bold text-[#e2ff57]">
                   {shortName}
@@ -656,48 +582,43 @@ export const ClubDetail = () => {
                 <div className="flex gap-3">
                   <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                   <div>
-                    <p className="font-bold text-on-surface">Thành lập</p>
-                    <p className="mt-1 text-on-surface-variant">{createdAtFormatted}</p>
+                    <p className="font-bold text-[#0b2228]">Thành lập</p>
+                    <p className="mt-1 text-[#64736a]">{createdAtFormatted}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <Users className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                   <div>
-                    <p className="font-bold text-on-surface">Thành viên</p>
-                    <p className="mt-1 text-on-surface-variant">{club.memberCount} thành viên</p>
+                    <p className="font-bold text-[#0b2228]">Thành viên</p>
+                    <p className="mt-1 text-[#64736a]">{club.memberCount} thành viên</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <Award className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                   <div>
-                    <p className="font-bold text-on-surface">Loại nhóm</p>
-                    <p className="mt-1 text-on-surface-variant">{club.groupType}</p>
+                    <p className="font-bold text-[#0b2228]">Loại nhóm</p>
+                    <p className="mt-1 text-[#64736a]">{club.groupType}</p>
                   </div>
                 </div>
               </div>
             </section>
 
             {ownerMember && (
-              <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">                <h2 className="text-[16px] font-bold">Chủ nhiệm CLB</h2>
+              <section className="rounded-2xl border border-[#d8e4d4] bg-white p-6 shadow-[0_10px_28px_rgba(8,29,36,0.055)]">
+                <h2 className="text-[16px] font-bold">Chủ nhiệm CLB</h2>
                 <div className="mt-4 flex items-center gap-3">
-                  {ownerMember.profileImageUrl ? (
-                    <img
-                      alt=""
-                      className="h-11 w-11 rounded-xl object-cover"
-                      decoding="async"
-                      loading="lazy"
-                      src={ownerMember.profileImageUrl}
-                    />
-                  ) : (
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#e0e9dc] text-[#477313]">
-                      <UserRound aria-hidden="true" className="h-5 w-5" />
-                    </span>
-                  )}
+                  <ClubPlayerAvatar
+                    imageUrl={ownerMember.profileImageUrl}
+                    playerId={ownerMember.playerId || club.ownerPlayerId}
+                    playerName={ownerMember.username}
+                    size="h-11 w-11"
+                  />
                   <div>
-                    <p className="font-bold text-on-surface">{ownerMember.username}</p>
-                    <p className="text-[13px] font-medium text-on-surface-variant">Chủ nhiệm CLB</p>
+                    <p className="font-bold text-[#0b2228]">{ownerMember.username}</p>
+                    <p className="text-[13px] font-medium text-[#64736a]">Chủ nhiệm CLB</p>
                   </div>
-                </div>                <Link
+                </div>
+                <Link
                   className="mt-5 flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#0b2228] px-3 text-[12px] font-bold text-white hover:bg-[#143f34]"
                   to={'/messages?chatWithUserId=' + ownerMember.userId}
                 >
@@ -717,9 +638,13 @@ export const ClubDetail = () => {
             )}
 
             {!ownerMember && (
-              <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+              <section className="rounded-2xl border border-[#d8e4d4] bg-white p-6 shadow-[0_10px_28px_rgba(8,29,36,0.055)]">
                 <h2 className="text-[16px] font-bold">Quản lý CLB</h2>
-                <p className="mt-4 text-[14px] text-on-surface-variant">{club.ownerName}</p>
+                <div className="mt-4">
+                  <PlayerHoverCard playerId={club.ownerPlayerId} playerName={club.ownerName}>
+                    <span className="text-[14px] text-[#64736a]">{club.ownerName}</span>
+                  </PlayerHoverCard>
+                </div>
                 {isManager && (
                   <Link
                     className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#b9cbb3] px-3 text-[12px] font-bold text-[#477313] hover:bg-[#edf5e9]"
@@ -733,15 +658,15 @@ export const ClubDetail = () => {
             )}
 
             {rulesArray.length > 0 && (
-              <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-6 shadow-sm">
+              <section className="rounded-2xl border border-[#dbe8cf] bg-[#edf5e9] p-6 shadow-[0_10px_28px_rgba(8,29,36,0.04)]">
                 <h2 className="flex items-center gap-2 text-[16px] font-bold">
                   <Crown className="h-4 w-4 text-[#477313]" />
                   Quy định nhanh
                 </h2>
                 <ul className="mt-4 space-y-3">
                   {rulesArray.map((rule) => (
-                    <li className="flex gap-2 text-[14px] font-medium text-on-surface-variant" key={rule}>
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <li className="flex gap-2 text-[14px] font-medium text-[#64736a]" key={rule}>
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                       {rule}
                     </li>
                   ))}
@@ -749,27 +674,6 @@ export const ClubDetail = () => {
               </section>
             )}
 
-            <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-              <h2 className="mb-3 text-[16px] font-bold">Đánh giá cộng đồng</h2>
-              <div className="flex items-end gap-3">
-                <span className="text-[30px] font-bold leading-none">
-                  {club.overallRating.toFixed(1)}
-                </span>
-                <div className="pb-1">
-                  <div className="flex text-primary-container">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star
-                        className={`h-4 w-4 ${index < filledStars ? 'fill-current' : ''}`}
-                        key={index}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-1 text-[13px] font-bold text-on-surface-variant">
-                    {club.ratingCount} lượt đánh giá
-                  </p>
-                </div>
-              </div>
-            </section>
           </aside>
         </div>
       </main>

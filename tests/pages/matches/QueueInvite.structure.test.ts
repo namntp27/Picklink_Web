@@ -28,3 +28,9 @@ test('QueueDetail remains a queue view and exposes the linked room separately', 
   assert.match(queueDetailSource, /Vào phòng/);
   assert.match(queueDetailSource, /joinPublicQueue\(token, queueId\)/);
 });
+
+test('QueueDetail refreshes when a join request reaches its linked room in realtime', () => {
+  assert.match(queueDetailSource, /useMatchRealtime/);
+  assert.match(queueDetailSource, /queue\?\.matchId === event\.matchId/);
+  assert.match(queueDetailSource, /void loadQueue\(\)/);
+});

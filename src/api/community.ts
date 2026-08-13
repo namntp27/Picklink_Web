@@ -14,6 +14,8 @@ export type CommunityGroup = {
   groupName: string;
   description: string | null;
   groupType: string;
+  requirePostApproval: boolean;
+  requireMemberApproval: boolean;
   coverImageUrl: string | null;
   createdAt: string;
   ownerPlayerId: number;
@@ -39,6 +41,7 @@ export type CommunityMember = {
   role: string;
   status: string;
   joinedAt: string;
+  playerId: number | null;
 };
 
 export type CommunityMessage = {
@@ -73,6 +76,8 @@ export type CommunityPost = {
   commentCount: number;
   likedByMe: boolean;
   myReactionType: string | null;
+  groupName: string | null;
+  authorPlayerId: number | null;
 };
 
 export type CommunityComment = {
@@ -87,6 +92,7 @@ export type CommunityComment = {
   updatedAt: string;
   likeCount: number;
   likedByMe: boolean;
+  playerId: number | null;
 };
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Request types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -97,6 +103,8 @@ export type CreateGroupInput = {
   groupType?: string;
   coverImageUrl?: string;
   activeLocation?: string;
+  requirePostApproval?: boolean;
+  requireMemberApproval?: boolean;
 };
 
 export type UpdateGroupInput = {
@@ -105,8 +113,6 @@ export type UpdateGroupInput = {
   groupType?: string;
   coverImageUrl?: string;
   rules?: string;
-  overallRating?: number;
-  ratingCount?: number;
   activeLocation?: string;
 };
 
@@ -119,6 +125,7 @@ export type SendMessageInput = {
 export type CreatePostInput = {
   content?: string;
   mediaUrls?: string[];
+  visibility?: 'Public' | 'Friends';
 };
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ API functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -213,10 +220,10 @@ export const removeGroupImage = (token: string, groupId: number, imageId: number
   apiRequest<void>(`/api/community/groups/${groupId}/images/${imageId}`, { method: 'DELETE' }, token);
 
 // Global feed posts
-export const getGlobalPosts = (token?: string | null) =>
-  apiRequest<CommunityPost[]>('/api/community/posts', {}, token || undefined);
+export const getGlobalPosts = (token?: string | null, page = 1, pageSize = 10) =>
+  apiRequest<CommunityPost[]>(`/api/community/posts?page=${page}&pageSize=${pageSize}`, {}, token || undefined);
 
-export const createGlobalPost = (token: string, input: { content: string; mediaUrls?: string[] }) =>
+export const createGlobalPost = (token: string, input: CreatePostInput) =>
   apiRequest<CommunityPost>('/api/community/posts', {
     method: 'POST',
     body: JSON.stringify(input),
