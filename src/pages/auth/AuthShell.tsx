@@ -31,7 +31,7 @@ export const authPasswordButtonClass =
 export const authPrimaryButtonClass =
   'h-11 w-full rounded-xl bg-[#e2ff57] text-[#102414] shadow-[0_12px_24px_rgba(152,217,81,0.18)] hover:bg-[#d6f64d] hover:shadow-[0_14px_28px_rgba(152,217,81,0.24)]';
 export const authSecondaryLinkClass =
-  'inline-flex min-h-10 items-center rounded-xl px-2 text-[13px] font-bold text-primary transition-[color,background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#eef8e6] hover:text-[#0b2228] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px';
+  'inline-flex min-h-10 items-center rounded-xl px-2 text-[13px] font-bold text-[#477313] transition-[color,background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#eef8e6] hover:text-[#0b2228] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px';
 
 const BrandMark = () => (
   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0b2228] shadow-[0_12px_24px_rgba(8,29,36,0.16)]">
@@ -83,7 +83,7 @@ export const AuthShell = ({
             <BrandMark />
             <span className="leading-none">
               <span className="block text-[17px] font-extrabold tracking-[-0.03em] text-[#0b2228]">Picklink</span>
-              <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
+              <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#477313]">
                 pickleball
               </span>
             </span>
@@ -106,10 +106,10 @@ export const AuthShell = ({
               <div className="absolute bottom-14 left-[8%] h-px w-[84%] bg-white/10" />
             </div>
             <div className="relative z-10">
-              <p className="w-fit rounded-lg border border-white/14 bg-white/8 px-3 py-2 text-[13px] font-bold text-[#e2ff57]">
+              <p className="w-fit rounded-lg border border-white/14 bg-white/8 px-3 py-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#e2ff57]">
                 {kicker}
               </p>
-              <h1 className="mt-5 max-w-[12ch] text-[clamp(2.05rem,3.3vw,3.25rem)] font-bold leading-[1.02] tracking-[-0.04em]">
+              <h1 className="mt-5 max-w-[12ch] text-[clamp(1.7rem,2.7vw,2.65rem)] font-bold leading-[1.05] tracking-[-0.04em]">
                 {title}
               </h1>
               <p className="mt-4 max-w-[42ch] text-[15px] leading-7 text-white/72">
@@ -172,7 +172,7 @@ export const AuthCardHeader = ({ subtitle, title }: { subtitle: string; title: s
 export const AuthMessage = ({ children, tone = 'error' }: AuthMessageProps) => {
   const toneClass = {
     error: 'border-error/30 bg-error-container text-error',
-    info: 'border-[#dbe8d3] bg-[#eef8e6] text-primary',
+    info: 'border-[#dbe8d3] bg-[#eef8e6] text-[#477313]',
     success: 'border-[#dbe8d3] bg-[#eef8e6] text-[#0b2228]',
   }[tone];
 

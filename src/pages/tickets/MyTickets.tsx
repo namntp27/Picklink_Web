@@ -128,8 +128,8 @@ export const MyTickets = () => {
       <main className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
         <header className="grid gap-5 border-b border-outline-variant pb-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <div>
-            <span className="inline-flex items-center gap-2 text-[13px] font-bold text-primary"><Ticket aria-hidden="true" className="h-5 w-5" /> Vé của tôi</span>
-            <h1 className="mt-2 text-[clamp(2rem,5vw,3.25rem)] font-bold leading-tight tracking-[-0.03em]">Lịch sử xé vé</h1>
+            <span className="inline-flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-primary"><Ticket aria-hidden="true" className="h-5 w-5" /> Vé của tôi</span>
+            <h1 className="mt-2 text-[clamp(1.65rem,4vw,2.65rem)] font-bold leading-tight tracking-[-0.03em]">Lịch sử xé vé</h1>
             <p className="mt-2 max-w-[65ch] text-[14px] leading-6 text-on-surface-variant">Theo dõi thanh toán, mã check-in, hủy vé và hoàn tiền của từng buổi chơi.</p>
           </div>
           <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container transition-transform hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" to="/ticket-sessions">
@@ -173,7 +173,7 @@ export const MyTickets = () => {
         ) : visibleTickets.length === 0 ? (
           <section className="mt-5 rounded-xl border border-dashed border-outline-variant px-6 py-14 text-center">
             <Ticket aria-hidden="true" className="mx-auto h-10 w-10 text-outline" />
-            <h2 className="mt-4 text-[20px] font-bold">{search ? 'Không tìm thấy vé' : 'Chưa có vé trong mục này'}</h2>
+            <h2 className="mt-4 text-[17px] font-bold">{search ? 'Không tìm thấy vé' : 'Chưa có vé trong mục này'}</h2>
             <p className="mx-auto mt-2 max-w-lg text-[14px] leading-6 text-on-surface-variant">
               {search ? 'Thử tìm bằng mã vé, tên buổi hoặc tên sân khác.' : 'Khám phá các buổi đang mở bán và chọn khung giờ phù hợp.'}
             </p>

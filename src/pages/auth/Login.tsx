@@ -190,7 +190,7 @@ export const Login = ({
         <p className="mt-4 text-center text-[13px] font-semibold text-[#66766d] md:hidden">
           Bạn chưa có tài khoản?{' '}
           <Link
-            className="font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
+            className="font-bold text-[#477313] underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
             to="/register"
           >
             Đăng ký ngay

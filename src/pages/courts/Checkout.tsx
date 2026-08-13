@@ -238,7 +238,7 @@ const CourtCheckout = () => {
             <p className="font-bold text-error">{error}</p>
           ) : (
             <>
-              <Loader2 className="mx-auto h-7 w-7 animate-spin text-primary motion-reduce:animate-none" />
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-[#477313] motion-reduce:animate-none" />
               <p className="mt-3 font-bold">Đang tải thông tin chuyển khoản...</p>
             </>
           )}
@@ -288,7 +288,7 @@ const CourtCheckout = () => {
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
             <div className="min-w-0">
               <button
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-[#dbe8d3] bg-white px-3 text-[13px] font-bold text-primary transition-[background-color,transform,opacity] duration-200 hover:-translate-y-px hover:bg-[#eef8e6] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-[#dbe8d3] bg-white px-3 text-[13px] font-bold text-[#477313] transition-[background-color,transform,opacity] duration-200 hover:-translate-y-px hover:bg-[#eef8e6] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55"
                 disabled={isReturning}
                 onClick={() => void returnToSchedule()}
                 type="button"
@@ -303,7 +303,7 @@ const CourtCheckout = () => {
             </div>
             <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right">
               <p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p>
-              <p className="font-mono text-[32px] font-black leading-none text-[#e2ff57]">
+              <p className="font-mono text-[26px] font-black leading-none text-[#e2ff57]">
                 {isHoldCountdownActive ? countdown : isWaiting ? 'Đã dừng' : '--:--'}
               </p>
               <p className="mt-1 text-[13px] font-bold text-white/82">{statusText[status] ?? status}</p>
@@ -339,8 +339,8 @@ const CourtCheckout = () => {
           >
             {isPaid ? (
               <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-                <CheckCircle2 className="h-16 w-16 text-primary" />
-                <h2 className="mt-4 text-[28px] font-extrabold">Thanh toán đã được xác nhận</h2>
+                <CheckCircle2 className="h-12 w-12 text-[#477313]" />
+                <h2 className="mt-4 text-[22px] font-extrabold">Thanh toán đã được xác nhận</h2>
                 <p className="mt-2 text-[#66766d]">Booking đã chuyển sang Confirmed và sân được giữ cho bạn.</p>
                 <Button className="mt-6 h-11 rounded-xl bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]" onClick={() => navigate(`/bookings/${booking.bookingId}`)} type="button">
                   Xem chi tiết booking
@@ -348,15 +348,15 @@ const CourtCheckout = () => {
               </div>
             ) : isWaiting ? (
               <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-                <Loader2 className="h-14 w-14 animate-spin text-primary motion-reduce:animate-none" />
-                <h2 className="mt-5 text-[26px] font-extrabold">Đang đối soát giao dịch</h2>
+                <Loader2 className="h-11 w-11 animate-spin text-[#477313] motion-reduce:animate-none" />
+                <h2 className="mt-5 text-[21px] font-extrabold">Đang đối soát giao dịch</h2>
                 <p className="mx-auto mt-2 max-w-lg text-[14px] leading-6 text-[#66766d]">Biên lai đã được gửi. Chủ sân hoặc nhân viên sẽ kiểm tra giao dịch.</p>
                 {transfer?.receiptImageUrl && <img alt="Biên lai đã gửi" className="mx-auto mt-6 max-h-72 rounded-xl border border-[#dbe8d3] object-contain" src={transfer.receiptImageUrl} />}
               </div>
             ) : transfer?.qrImageUrl ? (
               <div className="grid h-full gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
                 <div className="rounded-2xl bg-[#f8fbf4] p-4 text-center">
-                  <p className="text-[12px] font-black text-primary">Quét QR bằng ứng dụng ngân hàng</p>
+                  <p className="text-[12px] font-black text-[#477313]">Quét QR bằng ứng dụng ngân hàng</p>
                   <img alt={`QR chuyển khoản ${booking.bookingCode}`} className="mx-auto mt-3 w-full max-w-[280px] rounded-xl border border-[#dbe8d3] bg-white" src={transfer.qrImageUrl} />
                   <p className="mt-2 text-[12px] text-[#66766d]">QR đã điền sẵn số tiền và nội dung chuyển khoản.</p>
                 </div>
@@ -377,7 +377,7 @@ const CourtCheckout = () => {
                   </div>
 
                   <div className="rounded-xl border-2 border-[#e2ff57] bg-[#eef8e6] p-3">
-                    <p className="text-[12px] font-black text-primary">Nội dung chuyển khoản bắt buộc</p>
+                    <p className="text-[12px] font-black text-[#477313]">Nội dung chuyển khoản bắt buộc</p>
                     <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <code className="min-w-0 break-all text-[18px] font-black">{transfer.transferContent}</code>
                       <Button className="h-10 rounded-xl text-[13px]" onClick={() => void copyContent()} size="sm" type="button">
@@ -388,7 +388,7 @@ const CourtCheckout = () => {
                   </div>
 
                   <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center transition-[border-color,background-color,transform] duration-200 hover:-translate-y-px hover:border-primary-container hover:bg-[#eef8e6]">
-                    <Upload className="mx-auto h-6 w-6 text-primary" />
+                    <Upload className="mx-auto h-6 w-6 text-[#477313]" />
                     <span className="mt-2 block break-words text-[13px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span>
                     <span className="mt-1 block text-[12px] text-[#66766d]">JPG, PNG hoặc WEBP. Tối đa 12 MB.</span>
                     <input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
@@ -396,7 +396,7 @@ const CourtCheckout = () => {
 
                   {receiptPreview && (
                     <div className="rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
-                      <p className="mb-2 text-center text-[12px] font-bold text-primary">Ảnh biên lai đã chọn</p>
+                      <p className="mb-2 text-center text-[12px] font-bold text-[#477313]">Ảnh biên lai đã chọn</p>
                       <img alt="Xem trước biên lai" className="mx-auto max-h-56 rounded-lg border border-[#dbe8d3] bg-white object-contain" src={receiptPreview} />
                     </div>
                   )}
@@ -409,8 +409,8 @@ const CourtCheckout = () => {
               </div>
             ) : (
               <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-                <AlertCircle className="h-14 w-14 text-error" />
-                <h2 className="mt-4 text-[24px] font-extrabold">Sân chưa cấu hình tài khoản nhận tiền</h2>
+                <AlertCircle className="h-11 w-11 text-error" />
+                <h2 className="mt-4 text-[19px] font-extrabold">Sân chưa cấu hình tài khoản nhận tiền</h2>
                 <p className="mt-2 text-[#66766d]">Vui lòng liên hệ chủ sân hoặc chọn khung giờ khác.</p>
               </div>
             )}
@@ -418,23 +418,23 @@ const CourtCheckout = () => {
 
           <aside className="h-fit rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] lg:sticky lg:top-4">
             <h2 className="flex items-center gap-2 text-[19px] font-extrabold">
-              <ReceiptText className="h-5 w-5 text-primary" />
+              <ReceiptText className="h-5 w-5 text-[#477313]" />
               Thông tin đặt sân
             </h2>
             <div className="mt-4 space-y-3 text-[13px]">
               <div className="flex gap-3">
-                <Building2 className="h-5 w-5 shrink-0 text-primary" />
+                <Building2 className="h-5 w-5 shrink-0 text-[#477313]" />
                 <div>
                   <strong>{booking.venueName}</strong>
                   <p className="mt-1 text-[#66766d]">{selectedCourtNumbers.map((courtNumber) => `Sân ${courtNumber}`).join(', ')}</p>
                 </div>
               </div>
               <div className="flex gap-3">
-                <MapPin className="h-5 w-5 shrink-0 text-primary" />
+                <MapPin className="h-5 w-5 shrink-0 text-[#477313]" />
                 <span className="min-w-0 break-words">{booking.address}</span>
               </div>
               <div className="flex gap-3">
-                <Clock className="h-5 w-5 shrink-0 text-primary" />
+                <Clock className="h-5 w-5 shrink-0 text-[#477313]" />
                 <div className="min-w-0 flex-1">
                   {hasManySlotSummaries ? (
                     <div className="rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">

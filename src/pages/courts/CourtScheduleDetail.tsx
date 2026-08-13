@@ -518,7 +518,7 @@ export const CourtScheduleDetail = () => {
                         <div className="grid gap-1 border-t border-[#d8e4d4] p-2 sm:grid-cols-4 lg:grid-cols-7">
                           {selectedDates.map((selectedDate) => (
                             <div
-                              className={'flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1 text-[10px] font-bold ' + (selectedDate === date ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-[#f8fbf4] text-[#526158]')}
+                              className={'flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1 text-[10px] font-bold ' + (selectedDate === date ? 'border-[#477313] bg-[#eef8e6] text-[#477313]' : 'border-[#d8e4d4] bg-[#f8fbf4] text-[#526158]')}
                               key={selectedDate}
                             >
                               <button className="min-w-0 flex-1 text-left" onClick={() => changeDate(selectedDate)} type="button">

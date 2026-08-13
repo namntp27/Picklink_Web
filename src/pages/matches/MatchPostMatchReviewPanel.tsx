@@ -179,7 +179,7 @@ export const MatchPostMatchReviewPanel = ({ match, token }: Props) => {
                 return (
                   <article className="rounded-xl bg-[#f3f8ef] p-3" key={player.playerId}>
                     <div className="flex items-center gap-2.5">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#dcebd5] text-[11px] font-black text-primary">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#dcebd5] text-[11px] font-black text-[#477313]">
                         {player.avatarUrl
                           ? <img alt="" className="h-full w-full object-cover" src={player.avatarUrl} />
                           : player.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}

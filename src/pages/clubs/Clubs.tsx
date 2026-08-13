@@ -5,9 +5,9 @@ import {
   ArrowRight,
   Search,
   Activity,
-  Zap,
+  Trophy,
   Star,
-  Award,
+  Flame,
   Users,
   Loader2,
   AlertCircle,
@@ -18,6 +18,7 @@ import {
   Plus,
   RefreshCw,
   SlidersHorizontal,
+  Swords,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import {
@@ -45,7 +46,7 @@ const cardGradients = [
   'from-[#276b3f] to-[#86c844]',
 ];
 
-const cardIcons = [Activity, Zap, Star, Award, Users, Activity];
+const cardIcons = [Trophy, Swords, Star, Flame, Users, Activity];
 
 const sortOptions: readonly DropdownOption<'newest' | 'members' | 'active'>[] = [
   { value: 'newest', label: 'Mới nhất' },
@@ -225,7 +226,7 @@ export const Clubs = () => {
       >
         <div className="mx-auto grid w-full max-w-[1180px] gap-5 py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-2 text-[12px] font-bold text-[#e2ff57]">
+            <p className="inline-flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#e2ff57]">
               <Users aria-hidden="true" className="h-4 w-4" />
               Danh sách câu lạc bộ
             </p>
@@ -435,6 +436,10 @@ export const Clubs = () => {
                         ) : (
                           <>
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(226,255,87,0.28),transparent_26%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_62%)]" />
+                            <div
+                              aria-hidden="true"
+                              className="absolute inset-0 opacity-30 [background-image:repeating-linear-gradient(45deg,rgba(255,255,255,0.08)_0px,rgba(255,255,255,0.08)_1.5px,transparent_1.5px,transparent_16px)]"
+                            />
                             <IconComponent
                               aria-hidden="true"
                               className="absolute bottom-4 left-4 h-10 w-10 text-white/78 transition-[transform,color] duration-300 group-hover:-translate-y-0.5 group-hover:text-[#e2ff57]"

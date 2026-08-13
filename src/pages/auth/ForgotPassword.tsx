@@ -172,7 +172,7 @@ export const ForgotPassword = () => {
       >
         <span
           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[12px] font-black ${
-            isDone || isActive ? 'bg-[#e2ff57] text-[#102414]' : 'bg-[#eef8e6] text-primary'
+            isDone || isActive ? 'bg-[#e2ff57] text-[#102414]' : 'bg-[#eef8e6] text-[#477313]'
           }`}
         >
           {isDone ? <CheckCircle2 aria-hidden="true" className="h-4 w-4" /> : order}
@@ -236,7 +236,7 @@ export const ForgotPassword = () => {
           <form className="grid gap-3" onSubmit={handleVerifyOtp}>
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px] font-bold text-[#0b2228]">
-                <Smartphone aria-hidden="true" className="h-5 w-5 text-primary" />
+                <Smartphone aria-hidden="true" className="h-5 w-5 text-[#477313]" />
                 <span className="min-w-0 break-words">Mã xác thực gửi tới {maskedAccount}</span>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
@@ -364,7 +364,7 @@ export const ForgotPassword = () => {
 
         {step === 'success' && (
           <div className="rounded-2xl border border-[#dbe8d3] bg-[#eef8e6] p-5 text-center">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
+            <CheckCircle2 className="mx-auto h-12 w-12 text-[#477313]" />
             <h3 className="mt-3 text-[22px] font-extrabold leading-tight text-[#0b2228]">
               Mật khẩu đã được cập nhật
             </h3>

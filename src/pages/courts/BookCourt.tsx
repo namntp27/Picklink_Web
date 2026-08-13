@@ -355,7 +355,7 @@ export const BookCourt = () => {
                   <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#66766d]">{locationStatus}</p>
                 </div>
                 {playerLocation && (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-[#eef8e6] px-2 py-1 text-[11px] font-bold text-primary">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-[#eef8e6] px-2 py-1 text-[11px] font-bold text-[#477313]">
                     <LocateFixed className="h-3.5 w-3.5" />
                     Gần nhất
                   </span>
@@ -383,7 +383,7 @@ export const BookCourt = () => {
 
               {!isLoading && visibleVenues.length === 0 && (
                 <div className="rounded-xl bg-[#f8fbf4] p-8 text-center">
-                  <Building2 className="mx-auto h-10 w-10 text-primary/55" />
+                  <Building2 className="mx-auto h-10 w-10 text-[#477313]/55" />
                   <p className="mt-3 text-[13px] font-bold">Không tìm thấy cụm sân đang mở.</p>
                   <p className="mt-1 text-[12px] text-[#66766d]">Thử đổi khu vực hoặc khoảng giá.</p>
                 </div>
@@ -406,17 +406,17 @@ export const BookCourt = () => {
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           aria-label={`Xem đánh giá ${venue.venueName}`}
-                          className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selected ? 'bg-white/10 text-white hover:bg-white/15' : 'border border-[#dbe8d3] bg-white text-[#66766d] hover:bg-[#eef8e6] hover:text-primary'}`}
+                          className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selected ? 'bg-white/10 text-white hover:bg-white/15' : 'border border-[#dbe8d3] bg-white text-[#66766d] hover:bg-[#eef8e6] hover:text-[#477313]'}`}
                           onClick={() => setReviewVenue(venue)}
                           title="Xem đánh giá của Player"
                           type="button"
                         >
-                          <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                          <Star className="h-3.5 w-3.5 fill-primary text-[#477313]" />
                           {venue.overallRating.toFixed(1)}
                         </button>
                         <button
                           aria-label={venue.isFavorite ? 'Bỏ yêu thích' : 'Thêm yêu thích'}
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${venue.isFavorite ? 'bg-error-container text-error' : 'bg-[#f0f8e8] text-[#66766d] hover:text-primary'}`}
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-200 hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99] ${venue.isFavorite ? 'bg-error-container text-error' : 'bg-[#f0f8e8] text-[#66766d] hover:text-[#477313]'}`}
                           onClick={(event) => { event.stopPropagation(); void toggleFavorite(venue); }}
                           type="button"
                         >
@@ -425,24 +425,24 @@ export const BookCourt = () => {
                       </div>
                     </div>
                     <p className={`mt-1.5 flex items-start gap-2 text-[12px] leading-5 ${selected ? 'text-white/74' : 'text-[#66766d]'}`}>
-                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#477313]" />
                       {venue.address}
                     </p>
                     <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-semibold ${selected ? 'text-white/76' : 'text-[#53645a]'}`}>
                       <span className="inline-flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-primary" />
+                        <Clock className="h-3.5 w-3.5 text-[#477313]" />
                         {venue.openTime} - {venue.closeTime}
                       </span>
                       <span>{venue.courtCount} sân</span>
                       {distance !== null && (
-                        <span className="inline-flex items-center gap-1 font-bold text-primary">
+                        <span className="inline-flex items-center gap-1 font-bold text-[#477313]">
                           <Navigation className="h-3.5 w-3.5" />
                           {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
                         </span>
                       )}
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <p className={selected ? 'break-words text-[14px] font-black text-[#e2ff57]' : 'break-words text-[14px] font-black text-primary'}>{currency.format(venue.fromPrice)}/giờ</p>
+                      <p className={selected ? 'break-words text-[14px] font-black text-[#e2ff57]' : 'break-words text-[14px] font-black text-[#477313]'}>{currency.format(venue.fromPrice)}/giờ</p>
                       <div className="flex items-center gap-2">
                         <button
                           aria-pressed={selected}
@@ -474,7 +474,7 @@ export const BookCourt = () => {
 
           <div className="relative isolate z-10 min-h-[460px] overflow-hidden rounded-2xl border border-[#dbe8d3] bg-[#dfe9d7] shadow-[0_10px_28px_rgba(18,45,34,0.06)] lg:min-h-0">
             <div className="absolute left-3 top-3 z-20 max-w-[min(360px,calc(100%-24px))] rounded-lg bg-white px-3 py-2 shadow-[0_2px_8px_rgba(60,64,67,0.3)]">
-              <p className="text-[11px] font-black text-primary">Bản đồ sân</p>
+              <p className="text-[11px] font-black text-[#477313]">Bản đồ sân</p>
               <p className="mt-0.5 line-clamp-2 text-[12px] font-semibold leading-5 text-[#53645a]">
                 Chọn một cụm sân bên trái để map tự căn vị trí.
               </p>
@@ -503,8 +503,8 @@ export const BookCourt = () => {
                     <div className="space-y-1.5">
                       <strong className="text-[14px]">{venue.venueName}</strong>
                       <p className="m-0 text-[12px] text-gray-600">{venue.address}</p>
-                      <p className="m-0 text-[12px] font-bold text-primary">{currency.format(venue.fromPrice)}/giờ</p>
-                      <Link className="inline-block text-[12px] font-bold text-primary underline" to={`/court/${venue.venueId}/schedule`}>Xem lịch sân</Link>
+                      <p className="m-0 text-[12px] font-bold text-[#477313]">{currency.format(venue.fromPrice)}/giờ</p>
+                      <Link className="inline-block text-[12px] font-bold text-[#477313] underline" to={`/court/${venue.venueId}/schedule`}>Xem lịch sân</Link>
                     </div>
                   </Popup>
                 </Marker>

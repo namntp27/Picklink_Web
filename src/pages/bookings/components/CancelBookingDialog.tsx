@@ -39,7 +39,7 @@ export const CancelBookingDialog = ({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="break-all text-[13px] font-bold text-error">{bookingCode}</p>
-              <h2 className="mt-1 text-[24px] font-extrabold tracking-[-0.02em] text-on-surface" id="cancel-booking-title">
+              <h2 className="mt-1 text-[20px] font-extrabold tracking-[-0.02em] text-on-surface" id="cancel-booking-title">
                 Hủy booking
               </h2>
             </div>

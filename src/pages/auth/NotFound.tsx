@@ -16,12 +16,12 @@ export const NotFound = ({ homePath = '/' }: NotFoundProps) => {
       subtitle="Đường dẫn có thể đã đổi, hoặc bạn đang mở một trang không còn tồn tại trong Picklink."
       title="Không tìm thấy trang."
     >
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef8e6] text-primary">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef8e6] text-[#477313]">
         <SearchX aria-hidden="true" className="h-7 w-7" />
       </div>
 
       <div className="mt-5 text-center">
-        <p className="mb-2 font-mono text-[13px] font-black text-primary">404</p>
+        <p className="mb-2 font-mono text-[13px] font-black text-[#477313]">404</p>
         <AuthCardHeader
           subtitle="Đường dẫn này không tồn tại hoặc đã được chuyển sang vị trí khác."
           title="Không tìm thấy trang"

@@ -679,8 +679,22 @@ export const MatchDetail = () => {
             </>
           )}
           {match.isHost && showInvitationEditor && (
-            <div className="mt-4 border-t border-[#d8e7d4] pt-4">
-              <p className="mb-3 text-[11px] font-bold text-[#526158]">Chỉnh sửa trực tiếp trong thẻ phạm vi lời mời.</p>
+            <ModalDialog
+              aria-labelledby="edit-invitation-title"
+              canClose={!isBusy}
+              className="w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              closeOnBackdrop={!isBusy}
+              onRequestClose={() => setShowInvitationEditor(false)}
+            >
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <p className="match-eyebrow">điều kiện ghép trận</p>
+                  <h2 className="text-[18px] font-bold text-[#0b2228]" id="edit-invitation-title">Sửa phạm vi lời mời</h2>
+                </div>
+                <button aria-label="Đóng" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#526158] hover:bg-[#eef8e6]" onClick={() => setShowInvitationEditor(false)} type="button">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             <form className="mt-4 space-y-4" onSubmit={(event) => {
               event.preventDefault();
               if (!token) return;
@@ -757,7 +771,7 @@ export const MatchDetail = () => {
               </label>
               <div className="flex justify-end gap-2"><button className="community-button-secondary" disabled={isBusy} onClick={() => setShowInvitationEditor(false)} type="button">Hủy</button><button className="community-button" disabled={isBusy} type="submit"><Check className="h-4 w-4" /> Lưu phạm vi lời mời</button></div>
             </form>
-            </div>
+            </ModalDialog>
           )}
           </section>
 
@@ -772,7 +786,7 @@ export const MatchDetail = () => {
                 <p className="text-[11px] font-bold text-amber-900">Chờ duyệt ({pending.length})</p>
                 {pending.map((participant) => (
                   <div className="flex items-center justify-between gap-2 rounded-md bg-white p-2" key={participant.participantId}>
-                    <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p></div>
+                    <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-[#64736a]">Level {participant.skillLevel.toFixed(1)}</p></div>
                     <div className="flex shrink-0 gap-1">
                       <button className="grid h-11 w-11 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && window.confirm(`Từ chối yêu cầu tham gia của ${participant.playerName}?`) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
                       <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-11 w-11 !min-h-11 !p-0" disabled={isBusy} onClick={() => token && window.confirm(`Chấp nhận ${participant.playerName} vào phòng?`) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
@@ -839,7 +853,7 @@ export const MatchDetail = () => {
                       >
                         {participant.playerName}
                       </button>
-                      <p className="text-[10px] text-on-surface-variant">Level {participant.skillLevel.toFixed(1)}</p>
+                      <p className="text-[10px] text-[#64736a]">Level {participant.skillLevel.toFixed(1)}</p>
                     </div>
                     {match.bookingId && isApprovedMember && participant.paymentStatus && (
                       <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>
@@ -902,7 +916,7 @@ export const MatchDetail = () => {
                     <div className="mt-3 max-h-64 overflow-y-auto pr-1">
                       <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
                         {selectedDates.map((date) => (
-                          <div className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (date === bookingDate ? 'border-primary bg-[#eef8e6] text-primary' : 'border-[#d8e4d4] bg-white text-[#526158]')} key={date}>
+                          <div className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (date === bookingDate ? 'border-[#477313] bg-[#eef8e6] text-[#477313]' : 'border-[#d8e4d4] bg-white text-[#526158]')} key={date}>
                             <button className="min-w-0 flex-1 text-left" onClick={() => changeBookingDate(date)} type="button">
                               <span className="block truncate">{dateLabel(date)}</span>
                               <span className="mt-1 block text-[10px]">{selectedSlotsByDate[date].length} slot</span>
@@ -918,7 +932,7 @@ export const MatchDetail = () => {
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[13px] font-bold text-[#0b2228]">Slot khả dụng ngày {bookingDate} ({slotMinutes} phút/slot)</span>
                     <div className="flex flex-wrap gap-2 text-[11px] font-bold">
-                      <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-primary">Trống</span>
+                      <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-[#477313]">Trống</span>
                       <span className="rounded-full border border-[#0b2228] bg-[#0b2228] px-2 py-1 text-white">Đã chọn</span>
                       <span className="rounded-full border border-[#d8e4d4] bg-white px-2 py-1 text-[#8a968f]">Không khả dụng</span>
                     </div>
@@ -930,7 +944,7 @@ export const MatchDetail = () => {
                 <div className="match-price-summary">
                   <div><p className="text-[11px] font-bold text-[#718077]">Tổng lịch</p><p className="mt-1 font-extrabold text-[#0b2228]">{selectedSlots.length} slot · {selectedDates.length} ngày</p></div>
                   <div><p className="text-[11px] font-bold text-[#718077]">Tổng tiền sân</p><p className="mt-1 font-extrabold text-[#0b2228]">{currency.format(estimatedTotalAmount)}</p></div>
-                  <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-primary">{currency.format(estimatedAmountPerPlayer)}</p></div>
+                  <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-[#477313]">{currency.format(estimatedAmountPerPlayer)}</p></div>
                 </div>
               )}
               <button className="community-button mt-4 w-full" disabled={isBusy || !selectedSlots.length} onClick={() => void createBooking()} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
@@ -1010,8 +1024,8 @@ export const MatchDetail = () => {
           {match.status === 'BookingPending' && isApprovedMember && (
             <section className="community-panel match-payment-card">
               <p className="match-eyebrow">thanh toán</p>
-              <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-primary" /> Thanh toán booking</h3>
-              <p className="mt-3 text-[13px] leading-6 text-on-surface-variant">Chọn người cần thanh toán, quét QR và gửi biên lai tại trang thanh toán riêng.</p>
+              <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-[#477313]" /> Thanh toán booking</h3>
+              <p className="mt-3 text-[13px] leading-6 text-[#64736a]">Chọn người cần thanh toán, quét QR và gửi biên lai tại trang thanh toán riêng.</p>
               <button
                 className="community-button mt-4 w-full"
                 onClick={() => navigate(`/checkout?bookingId=${match.bookingId}&date=${encodeURIComponent(match.startTime?.slice(0, 10) ?? bookingDate)}&matchId=${matchId}`)}
@@ -1028,7 +1042,7 @@ export const MatchDetail = () => {
           )}
           {!match.conversationId ? (
             <section className="community-panel p-4">
-              <p className="rounded-lg bg-surface-container-low p-4 text-[13px] leading-6 text-on-surface-variant">
+              <p className="rounded-lg bg-[#edf5e9] p-4 text-[13px] leading-6 text-[#64736a]">
                 Chủ phòng, thành viên đã được duyệt và người thay thế đang còn hiệu lực mới truy cập được chat.
               </p>
             </section>
@@ -1077,7 +1091,7 @@ export const MatchDetail = () => {
         <ModalDialog aria-labelledby="edit-match-booking-title" canClose={!isBusy} className="w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white p-5 text-[#0b2228] shadow-2xl" closeOnBackdrop={!isBusy} onRequestClose={() => setShowEditBookingConfirmation(false)}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-primary">Sửa booking</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#477313]">Sửa booking</p>
               <h2 className="mt-1 text-xl font-black" id="edit-match-booking-title">Chọn lại slot?</h2>
             </div>
             <button aria-label="Đóng" className="rounded-lg p-2 hover:bg-[#eef8e6]" disabled={isBusy} onClick={() => setShowEditBookingConfirmation(false)} type="button"><X className="h-5 w-5" /></button>

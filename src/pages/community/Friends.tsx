@@ -138,7 +138,7 @@ export const Friends = () => {
                 <Users aria-hidden="true" className="h-4 w-4" />
                 Cộng đồng người chơi
               </p>
-              <h1 className="mt-2 text-[24px] sm:text-[26px] font-extrabold tracking-[-0.03em] text-[#0b2228]">
+              <h1 className="mt-2 text-[20px] sm:text-[21px] font-extrabold tracking-[-0.03em] text-[#0b2228]">
                 Bạn bè & Kết nối
               </h1>
               <p className="mt-1 text-[13px] leading-6 text-[#66756b]">

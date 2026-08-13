@@ -201,7 +201,7 @@ export const ClubPosts = () => {
                 <Users aria-hidden="true" className="h-4 w-4" />
                 Câu lạc bộ của bạn
               </p>
-              <h1 className="mt-2 text-[24px] font-extrabold tracking-[-0.03em] text-[#0b2228]">
+              <h1 className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-[#0b2228]">
                 Bài viết câu lạc bộ
               </h1>
               <p className="mt-2 max-w-[55ch] text-[13px] leading-6 text-[#66756b]">
@@ -220,8 +220,8 @@ export const ClubPosts = () => {
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-[#cfe0c8]" role="alert">
               <AlertCircle className="h-10 w-10 text-[#ba1a1a]" />
-              <p className="mt-3 text-[16px] font-bold text-on-surface">Không thể tải bài viết</p>
-              <p className="mt-2 text-[14px] text-on-surface-variant">{error}</p>
+              <p className="mt-3 text-[16px] font-bold text-[#0b2228]">Không thể tải bài viết</p>
+              <p className="mt-2 text-[14px] text-[#64736a]">{error}</p>
               <button
                 className="mt-4 rounded-lg bg-[#477313] px-6 py-2 text-[14px] font-bold text-white hover:opacity-90"
                 onClick={() => void loadClubPosts()}

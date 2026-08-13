@@ -12,7 +12,8 @@ test('host invitation editor submits the full public update contract', () => {
   const updateEnd = apiSource.indexOf('export const acceptMatchInvitation');
   const updateSource = apiSource.slice(updateStart, updateEnd);
 
-  assert.ok(detailSource.includes('Chỉnh sửa trực tiếp trong thẻ phạm vi lời mời.'));
+  assert.ok(detailSource.includes('Sửa phạm vi lời mời'));
+  assert.ok(detailSource.includes('<ModalDialog'));
   assert.ok(detailSource.includes("{showInvitationEditor ? 'Hủy sửa' : 'Sửa lời mời'}"));
   assert.ok(detailSource.includes('searchInvitationVenues'));
   assert.ok(detailSource.includes('const invitationTimeOptions = Array.from({ length: 48 }'));

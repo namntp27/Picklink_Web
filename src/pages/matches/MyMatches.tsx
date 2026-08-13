@@ -269,7 +269,7 @@ export const MyMatches = () => {
         stats={(
           <div>
             <p className="text-[11px] font-bold text-white/65">Cần xử lý</p>
-            <p className="mt-1 font-mono text-[30px] font-extrabold text-[#e2ff57]">{attentionCount}</p>
+            <p className="mt-1 font-mono text-[24px] font-extrabold text-[#e2ff57]">{attentionCount}</p>
             <p className="mt-1 text-[11px] leading-5 text-white/65">lời mời hoặc phòng cần xử lý</p>
           </div>
         )}

@@ -118,9 +118,9 @@ const permissionByRole: Record<MemberRole, string[]> = {
 };
 
 const statusClassNames: Record<PostStatus, string> = {
-  'Đã đăng': 'bg-[#eaf7df] text-primary',
+  'Đã đăng': 'bg-[#eaf7df] text-[#477313]',
   'Chờ duyệt': 'bg-[#fff4d8] text-[#7a5600]',
-  Nháp: 'bg-surface-container-low text-on-surface-variant',
+  Nháp: 'bg-[#edf5e9] text-[#64736a]',
 };
 
 
@@ -137,7 +137,7 @@ const getRoleClassName = (role: MemberRole) => {
     return 'bg-[#fff4d8] text-[#7a5600]';
   }
 
-  return 'bg-surface-container-low text-on-surface-variant';
+  return 'bg-[#edf5e9] text-[#64736a]';
 };
 
 const renderAvatar = (avatar: string, sizeClass = "h-10 w-10") => {
@@ -764,11 +764,11 @@ export const ClubDashboard = () => {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {stats.map((stat) => (
-          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm" key={stat.label}>
+          <section className="rounded-xl border border-[#d8e4d4] bg-white p-5 shadow-sm" key={stat.label}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-bold text-[#64736a]">{stat.label}</p>
-                <p className="mt-2 text-[28px] font-bold leading-none tracking-[-0.035em]">{stat.value}</p>
+                <p className="mt-2 text-[23px] font-bold leading-none tracking-[-0.035em]">{stat.value}</p>
                 <p className="mt-1.5 text-[11px] font-medium leading-4 text-[#718077]">{stat.helper}</p>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#edf5e9] text-[#477313]">
@@ -780,14 +780,14 @@ export const ClubDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
-        <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-[#d8e4d4] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-[17px] font-bold">Việc cần xử lý</h2>
-              <p className="mt-1 text-[13px] text-on-surface-variant">Các mục ưu tiên trong ngày của ban quản lý CLB.</p>
+              <p className="mt-1 text-[13px] text-[#64736a]">Các mục ưu tiên trong ngày của ban quản lý CLB.</p>
             </div>
             <button
-              className="rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold text-on-surface hover:bg-surface-container-low"
+              className="rounded-lg border border-[#d8e4d4] px-3 py-2 text-[13px] font-bold text-[#0b2228] hover:bg-[#edf5e9]"
               onClick={() => setActiveTab('members')}
               type="button"
             >
@@ -819,17 +819,17 @@ export const ClubDashboard = () => {
                 type="button"
               >
                 <item.icon className="h-5 w-5 text-[#477313]" />
-                <p className="mt-3 text-[24px] font-bold leading-none">{item.value}</p>
+                <p className="mt-3 text-[20px] font-bold leading-none">{item.value}</p>
                 <h3 className="mt-2 text-[15px] font-bold">{item.title}</h3>
-                <p className="mt-1 text-[13px] leading-5 text-on-surface-variant">{item.text}</p>
+                <p className="mt-1 text-[13px] leading-5 text-[#64736a]">{item.text}</p>
               </button>
             ))}
           </div>
         </section>
 
         <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-5 shadow-sm">
-          <h2 className="flex items-center gap-2 text-[20px] font-bold">
-            <ShieldCheck className="h-5 w-5 text-primary" />
+          <h2 className="flex items-center gap-2 text-[17px] font-bold">
+            <ShieldCheck className="h-5 w-5 text-[#477313]" />
             Quyền quản trị
           </h2>
           <div className="mt-5 space-y-3">
@@ -839,11 +839,11 @@ export const ClubDashboard = () => {
                   <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${getRoleClassName(role)}`}>
                     {role}
                   </span>
-                  <span className="text-[12px] font-bold text-on-surface-variant">
+                  <span className="text-[12px] font-bold text-[#64736a]">
                     {members.filter((member) => member.role === role).length} người
                   </span>
                 </div>
-                <p className="mt-2 text-[12px] leading-5 text-on-surface-variant">
+                <p className="mt-2 text-[12px] leading-5 text-[#64736a]">
                   {permissionByRole[role].join(' · ')}
                 </p>
               </div>
@@ -856,18 +856,18 @@ export const ClubDashboard = () => {
 
   const renderMembers = () => (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
-      <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+      <section className="rounded-xl border border-[#d8e4d4] bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-[#d8e4d4] p-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-[20px] font-bold">Duyệt thành viên</h2>
-            <p className="mt-1 text-[13px] text-on-surface-variant">Kiểm tra trình độ, khu vực và ghi chú trước khi duyệt.</p>
+            <h2 className="text-[17px] font-bold">Duyệt thành viên</h2>
+            <p className="mt-1 text-[13px] text-[#64736a]">Kiểm tra trình độ, khu vực và ghi chú trước khi duyệt.</p>
           </div>
           <span className="w-fit rounded-full bg-[#fff4d8] px-3 py-1 text-[12px] font-bold text-[#7a5600]">
             {requests.length} yêu cầu chờ
           </span>
         </div>
 
-        <div className="divide-y divide-outline-variant">
+        <div className="divide-y divide-[#d8e4d4]">
           {requests.length > 0 ? (
             requests.map((request) => (
               <article className="p-5" key={request.id}>
@@ -876,10 +876,10 @@ export const ClubDashboard = () => {
                     {renderAvatar(request.avatar, "h-12 w-12")}
                     <div className="min-w-0">
                       <h3 className="truncate text-[16px] font-bold">{request.name}</h3>
-                      <p className="mt-1 text-[13px] font-medium text-on-surface-variant">
+                      <p className="mt-1 text-[13px] font-medium text-[#64736a]">
                         Level {request.level} · {request.area} · Gửi ngày {request.requestedAt}
                       </p>
-                      <p className="mt-2 text-[13px] leading-5 text-on-surface-variant">{request.note}</p>
+                      <p className="mt-2 text-[13px] leading-5 text-[#64736a]">{request.note}</p>
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-2">
@@ -894,7 +894,7 @@ export const ClubDashboard = () => {
                     </button>
                     <button
                       aria-label={`Từ chối ${request.name}`}
-                      className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#d8e4d4] px-3 py-2 text-[13px] font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/50"
                       onClick={() => rejectRequest(request.id)}
                       type="button"
                     >
@@ -907,26 +907,26 @@ export const ClubDashboard = () => {
             ))
           ) : (
             <div className="p-8 text-center">
-              <UserCheck className="mx-auto h-10 w-10 text-primary" />
+              <UserCheck className="mx-auto h-10 w-10 text-[#477313]" />
               <p className="mt-3 text-[15px] font-bold">Không còn yêu cầu chờ duyệt</p>
-              <p className="mt-1 text-[13px] text-on-surface-variant">Các yêu cầu mới sẽ hiển thị tại đây.</p>
+              <p className="mt-1 text-[13px] text-[#64736a]">Các yêu cầu mới sẽ hiển thị tại đây.</p>
             </div>
           )}
         </div>
       </section>
 
-      <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-        <h2 className="text-[20px] font-bold">Phân quyền nhanh</h2>
-        <p className="mt-1 text-[13px] text-on-surface-variant">Mỗi vai trò được gắn sẵn nhóm quyền phù hợp.</p>
+      <section className="rounded-xl border border-[#d8e4d4] bg-white p-5 shadow-sm">
+        <h2 className="text-[17px] font-bold">Phân quyền nhanh</h2>
+        <p className="mt-1 text-[13px] text-[#64736a]">Mỗi vai trò được gắn sẵn nhóm quyền phù hợp.</p>
         <div className="mt-5 space-y-3">
           {roleOptions.map((role) => (
-            <div className="rounded-lg border border-outline-variant p-4" key={role}>
+            <div className="rounded-lg border border-[#d8e4d4] p-4" key={role}>
               <span className={`inline-flex rounded-full px-3 py-1 text-[12px] font-bold ${getRoleClassName(role)}`}>
                 {role}
               </span>
               <div className="mt-3 flex flex-wrap gap-2">
                 {permissionByRole[role].map((permission) => (
-                  <span className="rounded-full bg-surface-container-low px-2 py-1 text-[11px] font-bold text-on-surface-variant" key={permission}>
+                  <span className="rounded-full bg-[#edf5e9] px-2 py-1 text-[11px] font-bold text-[#64736a]" key={permission}>
                     {permission}
                   </span>
                 ))}
@@ -936,16 +936,16 @@ export const ClubDashboard = () => {
         </div>
       </section>
 
-      <section className="rounded-xl border border-outline-variant bg-white shadow-sm xl:col-span-2">
-        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+      <section className="rounded-xl border border-[#d8e4d4] bg-white shadow-sm xl:col-span-2">
+        <div className="flex flex-col gap-4 border-b border-[#d8e4d4] p-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-[20px] font-bold">Danh sách thành viên</h2>
-            <p className="mt-1 text-[13px] text-on-surface-variant">Cập nhật vai trò, trạng thái và quyền thao tác trong CLB.</p>
+            <h2 className="text-[17px] font-bold">Danh sách thành viên</h2>
+            <p className="mt-1 text-[13px] text-[#64736a]">Cập nhật vai trò, trạng thái và quyền thao tác trong CLB.</p>
           </div>
           <div className="relative w-full md:w-[320px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64736a]" />
             <input
-              className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="h-11 w-full rounded-lg border border-[#d8e4d4] bg-[#edf5e9] pl-9 pr-3 text-[14px] outline-none focus:border-[#477313] focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setMemberSearch(event.target.value)}
               placeholder="Tìm thành viên, vai trò..."
               type="text"
@@ -956,16 +956,16 @@ export const ClubDashboard = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left">
-            <thead className="bg-surface-container-low">
+            <thead className="bg-[#edf5e9]">
               <tr>
-                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Thành viên</th>
-                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Vai trò</th>
-                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Quyền</th>
-                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</th>
-                <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Thao tác</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-[#64736a]">Thành viên</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-[#64736a]">Vai trò</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-[#64736a]">Quyền</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-[#64736a]">Trạng thái</th>
+                <th className="px-5 py-4 text-[12px] font-bold uppercase text-[#64736a]">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant">
+            <tbody className="divide-y divide-[#d8e4d4]">
               {filteredMembers.map((member) => (
                 <tr className="hover:bg-[#f2f8ec]" key={member.id}>
                   <td className="px-5 py-4">
@@ -973,7 +973,7 @@ export const ClubDashboard = () => {
                       {renderAvatar(member.avatar, "h-10 w-10")}
                       <div>
                         <p className="font-bold">{member.name}</p>
-                        <p className="text-[12px] font-medium text-on-surface-variant">
+                        <p className="text-[12px] font-medium text-[#64736a]">
                           Level {member.level} · Gia nhập {member.joinedAt}
                         </p>
                       </div>
@@ -981,8 +981,8 @@ export const ClubDashboard = () => {
                   </td>
                   <td className="px-5 py-4">
                     <select
-                      className={`h-10 rounded-lg border border-outline-variant px-3 text-[13px] font-bold outline-none focus:border-primary ${
-                        member.role === 'Chủ nhiệm' ? 'bg-surface-container-low text-on-surface-variant cursor-not-allowed' : 'bg-white'
+                      className={`h-10 rounded-lg border border-[#d8e4d4] px-3 text-[13px] font-bold outline-none focus:border-[#477313] ${
+                        member.role === 'Chủ nhiệm' ? 'bg-[#edf5e9] text-[#64736a] cursor-not-allowed' : 'bg-white'
                       }`}
                       disabled={currentManagerRank < 2 || currentManagerRank <= roleRank[member.role]}
                       onChange={(event) => updateMemberRole(member.id, event.target.value as MemberRole)}
@@ -1000,7 +1000,7 @@ export const ClubDashboard = () => {
                   <td className="px-5 py-4">
                     <div className="flex max-w-[320px] flex-wrap gap-1.5">
                       {member.permissions.map((permission) => (
-                        <span className="rounded-full bg-surface-container-low px-2 py-1 text-[11px] font-bold text-on-surface-variant" key={permission}>
+                        <span className="rounded-full bg-[#edf5e9] px-2 py-1 text-[11px] font-bold text-[#64736a]" key={permission}>
                           {permission}
                         </span>
                       ))}
@@ -1010,7 +1010,7 @@ export const ClubDashboard = () => {
                     <span
                       className={`rounded-full px-3 py-1 text-[12px] font-bold ${
                         member.status === 'Đang hoạt động'
-                          ? 'bg-[#eaf7df] text-primary'
+                          ? 'bg-[#eaf7df] text-[#477313]'
                           : member.status === 'Từ chối'
                           ? 'bg-[#fff4d8] text-[#7a5600]'
                           : member.status === 'Bị cấm'
@@ -1026,7 +1026,7 @@ export const ClubDashboard = () => {
                       <button
                         className={`rounded-lg border px-3 py-2 text-[12px] font-bold ${
                           member.status === 'Bị cấm'
-                            ? 'border-primary text-primary hover:bg-primary/5'
+                            ? 'border-[#477313] text-[#477313] hover:bg-primary/5'
                             : 'border-[#ba1a1a] text-[#ba1a1a] hover:bg-[#ffdad6]/50'
                         }`}
                         onClick={() => toggleMemberStatus(member.id)}
@@ -1048,19 +1048,19 @@ export const ClubDashboard = () => {
 
   const renderPosts = () => (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="rounded-xl border border-outline-variant bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-outline-variant p-5 md:flex-row md:items-center md:justify-between">
+      <section className="rounded-xl border border-[#d8e4d4] bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-[#d8e4d4] p-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-[20px] font-bold">Quản lý bài viết</h2>
-            <p className="mt-1 text-[13px] text-on-surface-variant">Duyệt, ghim, ẩn hoặc xóa nội dung trong bảng tin CLB.</p>
+            <h2 className="text-[17px] font-bold">Quản lý bài viết</h2>
+            <p className="mt-1 text-[13px] text-[#64736a]">Duyệt, ghim, ẩn hoặc xóa nội dung trong bảng tin CLB.</p>
           </div>
         </div>
 
-        <div className="divide-y divide-outline-variant">
+        <div className="divide-y divide-[#d8e4d4]">
           {loadingPosts && actualPosts.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 gap-3">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-              <p className="text-[13px] font-bold text-on-surface-variant">Đang tải danh sách bài viết...</p>
+              <Loader2 className="h-7 w-7 animate-spin text-[#477313]" />
+              <p className="text-[13px] font-bold text-[#64736a]">Đang tải danh sách bài viết...</p>
             </div>
           ) : filteredPosts.length > 0 ? (
             filteredPosts.slice(0, visibleCount).map((post) => (
@@ -1073,7 +1073,7 @@ export const ClubDashboard = () => {
                       </span>
                     </div>
                     <h3 className="mt-3 text-[17px] font-bold">{post.title}</h3>
-                    <p className="mt-1 text-[13px] text-on-surface-variant">
+                    <p className="mt-1 text-[13px] text-[#64736a]">
                       {post.author} · {post.createdAt} · {post.comments} bình luận
                     </p>
                   </div>
@@ -1087,12 +1087,12 @@ export const ClubDashboard = () => {
                         Duyệt
                       </button>
                     )}
-                    <Link aria-label="Xem bài viết" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low" to={`/posts/${post.id}`}>
+                    <Link aria-label="Xem bài viết" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[#d8e4d4] text-[#64736a] hover:bg-[#edf5e9]" to={`/posts/${post.id}`}>
                       <Eye className="h-4 w-4" />
                     </Link>
                     <button
                       aria-label="Xóa bài viết"
-                      className="rounded-lg border border-outline-variant p-2 text-[#ba1a1a] hover:bg-[#ffdad6]/50"
+                      className="rounded-lg border border-[#d8e4d4] p-2 text-[#ba1a1a] hover:bg-[#ffdad6]/50"
                       onClick={() => deletePost(post.id)}
                       type="button"
                     >
@@ -1103,14 +1103,14 @@ export const ClubDashboard = () => {
               </article>
             ))
           ) : (
-            <div className="p-8 text-center text-on-surface-variant">
+            <div className="p-8 text-center text-[#64736a]">
               Chưa có bài viết nào trong câu lạc bộ này.
             </div>
           )}
         </div>
         {filteredPosts.length > visibleCount && (
           <div
-            className="border-t border-outline-variant bg-surface-container-low p-4 text-center text-[13px] font-bold text-on-surface-variant"
+            className="border-t border-[#d8e4d4] bg-[#edf5e9] p-4 text-center text-[13px] font-bold text-[#64736a]"
             ref={postLoadMoreRef}
           >
             Đang tải thêm bài viết ({Math.min(visibleCount, filteredPosts.length)}/{filteredPosts.length})
@@ -1119,16 +1119,16 @@ export const ClubDashboard = () => {
       </section>
 
       <aside className="space-y-6">
-        <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-          <h2 className="text-[20px] font-bold">Bộ lọc kiểm duyệt</h2>
+        <section className="rounded-xl border border-[#d8e4d4] bg-white p-5 shadow-sm">
+          <h2 className="text-[17px] font-bold">Bộ lọc kiểm duyệt</h2>
           <div className="mt-4 space-y-2">
             {(['Tất cả', 'Chờ duyệt', 'Đã đăng', 'Nháp'] as const).map((status) => (
               <button
                 aria-pressed={postFilter === status}
                 className={'flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left text-[13px] font-bold ' + (
                   postFilter === status
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-outline-variant hover:bg-surface-container-low'
+                    ? 'border-[#477313] bg-primary/5 text-[#477313]'
+                    : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
                 )}
                 key={status}
                 onClick={() => {
@@ -1140,7 +1140,7 @@ export const ClubDashboard = () => {
                 <span>{status}</span>
                 <span className={'rounded-full px-2 py-0.5 text-[11px] ' + (
                   status === 'Tất cả'
-                    ? 'bg-surface-container-low text-on-surface-variant'
+                    ? 'bg-[#edf5e9] text-[#64736a]'
                     : statusClassNames[status]
                 )}>
                   {status === 'Tất cả' ? posts.length : posts.filter((post) => post.status === status).length}
@@ -1151,14 +1151,14 @@ export const ClubDashboard = () => {
         </section>
 
         <section className="rounded-xl border border-[#dbe8cf] bg-[#edf5e9] p-5 shadow-sm">
-          <h2 className="flex items-center gap-2 text-[20px] font-bold">
-            <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="flex items-center gap-2 text-[17px] font-bold">
+            <Sparkles className="h-5 w-5 text-[#477313]" />
             Quy tắc đăng bài
           </h2>
-          <ul className="mt-4 space-y-3 text-[13px] leading-5 text-on-surface-variant">
+          <ul className="mt-4 space-y-3 text-[13px] leading-5 text-[#64736a]">
             {['Không đăng nội dung mua bán ngoài hệ thống.', 'Bài ghim ưu tiên lịch thi đấu và thông báo CLB.', 'Bài từ thành viên mới cần quản trị viên duyệt.'].map((rule) => (
               <li className="flex gap-2" key={rule}>
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                 {rule}
               </li>
             ))}
@@ -1172,34 +1172,34 @@ export const ClubDashboard = () => {
 
     return (
       <div className="grid grid-cols-1 gap-6 xl:h-[680px] xl:grid-cols-[minmax(0,1fr)_330px]">
-        <section className="flex h-[calc(100dvh-10rem)] min-h-[32rem] max-h-[46rem] flex-col overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm xl:h-full xl:min-h-0 xl:max-h-none">
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-outline-variant px-3 sm:px-5">
+        <section className="flex h-[calc(100dvh-10rem)] min-h-[32rem] max-h-[46rem] flex-col overflow-hidden rounded-xl border border-[#d8e4d4] bg-white shadow-sm xl:h-full xl:min-h-0 xl:max-h-none">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#d8e4d4] px-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-bold text-white">
                 {groupInfo ? groupInfo.groupName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'HE'}
               </div>
               <div className="min-w-0">
                 <h2 className="truncate text-[17px] font-bold">Chat {clubCode}</h2>
-                <p className="truncate text-[12px] font-bold text-on-surface-variant">{members.length} thành viên trong nhóm</p>
+                <p className="truncate text-[12px] font-bold text-[#64736a]">{members.length} thành viên trong nhóm</p>
               </div>
             </div>
-            <button aria-label="Mở cài đặt câu lạc bộ" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low" onClick={() => setActiveTab('settings')} type="button">
+            <button aria-label="Mở cài đặt câu lạc bộ" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[#d8e4d4] text-[#64736a] hover:bg-[#edf5e9]" onClick={() => setActiveTab('settings')} type="button">
               <Settings className="h-5 w-5" />
             </button>
           </header>
 
           {pinnedMessages.length > 0 && (
             <div className="bg-[#edf5e9] border-b border-[#dbe8cf] px-5 py-3 flex flex-col gap-2 shrink-0">
-              <div className="flex items-center gap-2 text-[12px] font-bold text-primary">
+              <div className="flex items-center gap-2 text-[12px] font-bold text-[#477313]">
                 <Pin className="h-3.5 w-3.5 fill-current" />
                 <span>TIN NHẮN ĐÃ GHIM ({pinnedMessages.length})</span>
               </div>
               <div className="space-y-1.5 max-h-24 overflow-y-auto custom-scrollbar">
                 {pinnedMessages.map((msg) => (
-                  <div className="flex items-center justify-between gap-3 text-[13px] bg-white p-2 rounded border border-outline-variant shadow-sm" key={msg.id}>
+                  <div className="flex items-center justify-between gap-3 text-[13px] bg-white p-2 rounded border border-[#d8e4d4] shadow-sm" key={msg.id}>
                     <div className="min-w-0 flex-1">
-                      <span className="font-bold text-on-surface mr-1">{msg.author}:</span>
-                      <span className="text-on-surface-variant">{msg.text}</span>
+                      <span className="font-bold text-[#0b2228] mr-1">{msg.author}:</span>
+                      <span className="text-[#64736a]">{msg.text}</span>
                     </div>
                     {isGroupManager && (
                       <button
@@ -1231,28 +1231,28 @@ export const ClubDashboard = () => {
                   {renderAvatar(message.avatar, "h-9 w-9 mt-1")}
                   <div className={message.mine ? 'text-right' : ''}>
                     <div className={`mb-1 flex items-center gap-2 ${message.mine ? 'justify-end' : ''}`}>
-                      <span className="text-[12px] font-bold text-on-surface-variant">{message.author}</span>
-                      <span className="text-[11px] text-on-surface-variant">{message.time}</span>
+                      <span className="text-[12px] font-bold text-[#64736a]">{message.author}</span>
+                      <span className="text-[11px] text-[#64736a]">{message.time}</span>
                     </div>
                     <div
                       className={`rounded-2xl px-4 py-3 text-[14px] leading-6 shadow-sm ${
                         message.mine
                           ? 'rounded-tr-sm bg-primary text-white'
-                          : 'rounded-tl-sm border border-outline-variant bg-white text-on-surface'
+                          : 'rounded-tl-sm border border-[#d8e4d4] bg-white text-[#0b2228]'
                       }`}
                     >
                       {message.text}
                     </div>
-                    <div className={`mt-1 flex items-center gap-2.5 text-[11px] font-bold text-on-surface-variant ${message.mine ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`mt-1 flex items-center gap-2.5 text-[11px] font-bold text-[#64736a] ${message.mine ? 'justify-end' : 'justify-start'}`}>
                       {message.isPinned && (
-                        <span className="flex items-center gap-1 text-primary">
+                        <span className="flex items-center gap-1 text-[#477313]">
                           <Pin className="h-3 w-3 fill-current" />
                           Đã ghim
                         </span>
                       )}
                       {isGroupManager && (
                         <button
-                          className="hover:text-primary transition-colors text-on-surface-variant"
+                          className="hover:text-[#477313] transition-colors text-[#64736a]"
                           onClick={() => handleTogglePinChatMessage(message.id, message.isPinned)}
                           type="button"
                         >
@@ -1261,7 +1261,7 @@ export const ClubDashboard = () => {
                       )}
                       {(message.mine || isGroupManager) && (
                         <button
-                          className="hover:text-[#ba1a1a] transition-colors text-on-surface-variant"
+                          className="hover:text-[#ba1a1a] transition-colors text-[#64736a]"
                           onClick={() => handleDeleteChatMessage(message.id)}
                           type="button"
                         >
@@ -1270,7 +1270,7 @@ export const ClubDashboard = () => {
                       )}
                       {message.mine && (
                         <button
-                          className="hover:text-primary transition-colors text-on-surface-variant"
+                          className="hover:text-[#477313] transition-colors text-[#64736a]"
                           onClick={() => handleModifyChatMessage(message.id, message.text || '')}
                           type="button"
                         >
@@ -1284,10 +1284,10 @@ export const ClubDashboard = () => {
             ))}
           </div>
 
-        <div className="shrink-0 border-t border-outline-variant px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:p-4">
+        <div className="shrink-0 border-t border-[#d8e4d4] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:p-4">
           <div className="flex items-end gap-2">
             <textarea
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-[#d8e4d4] bg-[#edf5e9] px-4 py-3 text-[14px] outline-none focus:border-[#477313] focus:ring-2 focus:ring-primary/20"
               onChange={(event) => setChatDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
@@ -1313,8 +1313,8 @@ export const ClubDashboard = () => {
       </section>
 
       <aside className="space-y-6">
-        <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-          <h2 className="text-[20px] font-bold">Thành viên trực tuyến</h2>
+        <section className="rounded-xl border border-[#d8e4d4] bg-white p-5 shadow-sm">
+          <h2 className="text-[17px] font-bold">Thành viên trực tuyến</h2>
           <div className="mt-4 space-y-3">
             {members.slice(0, 4).map((member) => (
               <div className="flex items-center gap-3" key={member.id}>
@@ -1324,14 +1324,14 @@ export const ClubDashboard = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-bold">{member.name}</p>
-                  <p className="truncate text-[12px] text-on-surface-variant">{member.role}</p>
+                  <p className="truncate text-[12px] text-[#64736a]">{member.role}</p>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-xl border border-outline-variant bg-[#fff8e6] p-5 shadow-sm">
+        <section className="rounded-xl border border-[#d8e4d4] bg-[#fff8e6] p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-[18px] font-bold text-[#7a5600]">
             <LockKeyhole className="h-5 w-5" />
             Quyền chat CLB
@@ -1361,26 +1361,26 @@ export const ClubDashboard = () => {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* Main Settings Form */}
         <div className="space-y-6">
-          <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
-            <h2 className="text-[20px] font-bold text-on-surface mb-6">Thông tin chung câu lạc bộ</h2>
+          <section className="rounded-xl border border-[#d8e4d4] bg-white p-6 shadow-sm">
+            <h2 className="text-[17px] font-bold text-[#0b2228] mb-6">Thông tin chung câu lạc bộ</h2>
             
             <div className="space-y-5">
               <div>
-                <label className="text-[13px] font-bold text-on-surface-variant block mb-1.5">
+                <label className="text-[13px] font-bold text-[#64736a] block mb-1.5">
                   Tên câu lạc bộ <span className="text-[#ba1a1a]">*</span>
                 </label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded-lg border border-outline-variant px-3.5 py-2.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white text-on-surface"
+                  className="w-full rounded-lg border border-[#d8e4d4] px-3.5 py-2.5 text-[14px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none bg-white text-[#0b2228]"
                   placeholder="Nhập tên câu lạc bộ..."
                   required
                 />
               </div>
 
-              <div className="space-y-3 rounded-xl border border-outline-variant bg-surface-container-low p-4">
-                <p className="text-[13px] font-bold text-on-surface">Quyền tham gia và đăng bài</p>
+              <div className="space-y-3 rounded-xl border border-[#d8e4d4] bg-[#edf5e9] p-4">
+                <p className="text-[13px] font-bold text-[#0b2228]">Quyền tham gia và đăng bài</p>
                 <label className="flex cursor-pointer items-start gap-3 text-[13px]">
                   <input
                     checked={editRequireMemberApproval}
@@ -1389,8 +1389,8 @@ export const ClubDashboard = () => {
                     type="checkbox"
                   />
                   <span>
-                    <span className="block font-bold text-on-surface">Duyệt thành viên trước khi tham gia</span>
-                    <span className="mt-0.5 block text-[12px] text-on-surface-variant">Tắt để người chơi tham gia ngay, không cần chủ CLB duyệt.</span>
+                    <span className="block font-bold text-[#0b2228]">Duyệt thành viên trước khi tham gia</span>
+                    <span className="mt-0.5 block text-[12px] text-[#64736a]">Tắt để người chơi tham gia ngay, không cần chủ CLB duyệt.</span>
                   </span>
                 </label>
                 <label className="flex cursor-pointer items-start gap-3 text-[13px]">
@@ -1401,43 +1401,43 @@ export const ClubDashboard = () => {
                     type="checkbox"
                   />
                   <span>
-                    <span className="block font-bold text-on-surface">Duyệt bài viết trước khi đăng</span>
-                    <span className="mt-0.5 block text-[12px] text-on-surface-variant">Tắt để bài viết của thành viên hiển thị ngay.</span>
+                    <span className="block font-bold text-[#0b2228]">Duyệt bài viết trước khi đăng</span>
+                    <span className="mt-0.5 block text-[12px] text-[#64736a]">Tắt để bài viết của thành viên hiển thị ngay.</span>
                   </span>
                 </label>
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-on-surface-variant block mb-1.5">
+                <label className="text-[13px] font-bold text-[#64736a] block mb-1.5">
                   Giới thiệu câu lạc bộ
                 </label>
                 <textarea
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
                   rows={4}
-                  className="w-full rounded-lg border border-outline-variant px-3.5 py-2.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y bg-white text-on-surface"
+                  className="w-full rounded-lg border border-[#d8e4d4] px-3.5 py-2.5 text-[14px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none resize-y bg-white text-[#0b2228]"
                   placeholder="Mô tả mục tiêu, đối tượng người chơi..."
                 />
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-on-surface-variant block mb-1.5">
+                <label className="text-[13px] font-bold text-[#64736a] block mb-1.5">
                   Vị trí hoạt động (City/District)
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                  <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64736a]" />
                   <input
                     type="text"
                     value={editLocation}
                     onChange={(e) => setEditLocation(e.target.value)}
-                    className="w-full rounded-lg border border-outline-variant pl-10 pr-3.5 py-2.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white text-on-surface"
+                    className="w-full rounded-lg border border-[#d8e4d4] pl-10 pr-3.5 py-2.5 text-[14px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none bg-white text-[#0b2228]"
                     placeholder="Ví dụ: Quận Cầu Giấy, Hà Nội..."
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-on-surface-variant block mb-1.5 font-semibold">
+                <label className="text-[13px] font-bold text-[#64736a] block mb-1.5 font-semibold">
                   Chế độ nhóm (Quyền riêng tư)
                 </label>
                 <div className="flex gap-3">
@@ -1446,8 +1446,8 @@ export const ClubDashboard = () => {
                     onClick={() => setEditGroupType('Public')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-[13px] font-bold transition-colors ${
                       editGroupType === 'Public'
-                        ? 'bg-primary-container text-on-primary-container border-primary'
-                        : 'border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
+                        ? 'bg-primary-container text-on-primary-container border-[#477313]'
+                        : 'border-[#d8e4d4] bg-white text-[#64736a] hover:bg-[#edf5e9]'
                     }`}
                   >
                     <Globe className="h-4 w-4" />
@@ -1458,8 +1458,8 @@ export const ClubDashboard = () => {
                     onClick={() => setEditGroupType('Private')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-[13px] font-bold transition-colors ${
                       editGroupType === 'Private'
-                        ? 'bg-primary-container text-on-primary-container border-primary'
-                        : 'border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
+                        ? 'bg-primary-container text-on-primary-container border-[#477313]'
+                        : 'border-[#d8e4d4] bg-white text-[#64736a] hover:bg-[#edf5e9]'
                     }`}
                   >
                     <Lock className="h-4 w-4" />
@@ -1469,21 +1469,21 @@ export const ClubDashboard = () => {
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-on-surface-variant block mb-1.5">
+                <label className="text-[13px] font-bold text-[#64736a] block mb-1.5">
                   Quy định nội bộ
                 </label>
                 <textarea
                   value={editRules}
                   onChange={(e) => setEditRules(e.target.value)}
                   rows={5}
-                  className="w-full rounded-lg border border-outline-variant px-3.5 py-2.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-y bg-white text-on-surface"
+                  className="w-full rounded-lg border border-[#d8e4d4] px-3.5 py-2.5 text-[14px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none resize-y bg-white text-[#0b2228]"
                   placeholder="Nêu rõ nội quy tham gia, đóng phí sân..."
                 />
               </div>
             </div>
 
             {hasChanges && (
-              <div className="mt-6 flex justify-end gap-3 border-t border-outline-variant pt-4">
+              <div className="mt-6 flex justify-end gap-3 border-t border-[#d8e4d4] pt-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -1495,7 +1495,7 @@ export const ClubDashboard = () => {
                     setEditRequirePostApproval(groupInfo.requirePostApproval ?? true);
                     setEditRequireMemberApproval(groupInfo.requireMemberApproval ?? groupInfo.groupType === 'Private');
                   }}
-                  className="rounded-lg border border-outline-variant px-4 py-2 text-[13px] font-bold text-on-surface hover:bg-surface-container-low transition-colors"
+                  className="rounded-lg border border-[#d8e4d4] px-4 py-2 text-[13px] font-bold text-[#0b2228] hover:bg-[#edf5e9] transition-colors"
                 >
                   Hủy thay đổi
                 </button>
@@ -1523,13 +1523,13 @@ export const ClubDashboard = () => {
           </section>
 
           {/* Intro Images Section */}
-          <section className="rounded-xl border border-outline-variant bg-white p-6 shadow-sm">
+          <section className="rounded-xl border border-[#d8e4d4] bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-[18px] font-bold text-on-surface">Ảnh giới thiệu</h2>
-                <p className="text-[12px] text-on-surface-variant mt-0.5 font-medium">Hiển thị trên trang chi tiết của câu lạc bộ.</p>
+                <h2 className="text-[18px] font-bold text-[#0b2228]">Ảnh giới thiệu</h2>
+                <p className="text-[12px] text-[#64736a] mt-0.5 font-medium">Hiển thị trên trang chi tiết của câu lạc bộ.</p>
               </div>
-              <label className="flex items-center gap-1.5 cursor-pointer rounded-lg bg-primary/10 px-3.5 py-2 text-[13px] font-bold text-primary hover:bg-primary/20 transition-colors">
+              <label className="flex items-center gap-1.5 cursor-pointer rounded-lg bg-primary/10 px-3.5 py-2 text-[13px] font-bold text-[#477313] hover:bg-primary/20 transition-colors">
                 {uploadingIntro ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -1548,7 +1548,7 @@ export const ClubDashboard = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {(groupInfo.images || []).map((img) => (
-                <div key={img.groupImageId} className="group relative aspect-video rounded-lg overflow-hidden border border-outline-variant bg-surface-container-low">
+                <div key={img.groupImageId} className="group relative aspect-video rounded-lg overflow-hidden border border-[#d8e4d4] bg-[#edf5e9]">
                   <img
                     src={img.imageUrl}
                     alt={img.caption || 'Ảnh giới thiệu câu lạc bộ'}
@@ -1567,7 +1567,7 @@ export const ClubDashboard = () => {
               ))}
 
               {(groupInfo.images || []).length === 0 && (
-                <div className="col-span-full py-8 text-center text-[13px] text-on-surface-variant border border-dashed border-outline-variant rounded-lg font-medium">
+                <div className="col-span-full py-8 text-center text-[13px] text-[#64736a] border border-dashed border-[#d8e4d4] rounded-lg font-medium">
                   Chưa có ảnh giới thiệu nào.
                 </div>
               )}
@@ -1577,9 +1577,9 @@ export const ClubDashboard = () => {
 
         {/* Sidebar Info & Cover Image */}
         <div className="space-y-6">
-          <section className="rounded-xl border border-outline-variant bg-white p-5 shadow-sm">
-            <h3 className="text-[15px] font-bold text-on-surface mb-4">Ảnh bìa câu lạc bộ</h3>
-            <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-outline-variant bg-surface-container-low">
+          <section className="rounded-xl border border-[#d8e4d4] bg-white p-5 shadow-sm">
+            <h3 className="text-[15px] font-bold text-[#0b2228] mb-4">Ảnh bìa câu lạc bộ</h3>
+            <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-[#d8e4d4] bg-[#edf5e9]">
               {groupInfo.coverImageUrl ? (
                 <img
                   src={groupInfo.coverImageUrl}
@@ -1587,7 +1587,7 @@ export const ClubDashboard = () => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-[12px] text-on-surface-variant font-medium">
+                <div className="w-full h-full flex items-center justify-center text-[12px] text-[#64736a] font-medium">
                   Chưa có ảnh bìa
                 </div>
               )}
@@ -1617,10 +1617,10 @@ export const ClubDashboard = () => {
                 {groupInfo.overallRating > 0 ? groupInfo.overallRating.toFixed(1) : 'Chưa có'}
               </span>
               <div>
-                <p className="text-[13px] font-bold text-on-surface">
+                <p className="text-[13px] font-bold text-[#0b2228]">
                   {groupInfo.ratingCount > 0 ? `${groupInfo.ratingCount} lượt đánh giá` : 'Chưa có đánh giá'}
                 </p>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">Rating được tích hợp từ các review hội viên.</p>
+                <p className="text-[11px] text-[#64736a] mt-0.5">Rating được tích hợp từ các review hội viên.</p>
               </div>
             </div>
           </section>
@@ -1693,7 +1693,7 @@ export const ClubDashboard = () => {
                 {item.label}
               </span>
               {item.badge !== undefined && item.badge > 0 && (
-                <span className={`rounded-full px-2 py-0.5 text-[11px] ${activeTab === item.id ? 'bg-white text-primary' : 'bg-[#eab526] text-white'}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] ${activeTab === item.id ? 'bg-white text-[#477313]' : 'bg-[#eab526] text-white'}`}>
                   {item.badge}
                 </span>
               )}
@@ -1707,14 +1707,14 @@ export const ClubDashboard = () => {
         <header className="sticky top-[72px] z-20 border-b border-[#d8e4d4] bg-[#f8fbf4]/94 px-4 py-3 backdrop-blur-xl md:px-6">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-on-surface-variant">
-                <Link className="hover:text-primary" to="/clubs">
+              <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-[#64736a]">
+                <Link className="hover:text-[#477313]" to="/clubs">
                   CLB
                 </Link>
                 <ChevronRight className="h-4 w-4" />
-                <span className="text-on-surface">{clubCode}</span>
+                <span className="text-[#0b2228]">{clubCode}</span>
               </div>
-              <h1 className="mt-1.5 text-[23px] font-bold leading-tight tracking-[-0.03em] md:text-[27px]">
+              <h1 className="mt-1.5 text-[19px] font-bold leading-tight tracking-[-0.03em] md:text-[22px]">
                 Quản lý CLB
               </h1>
               <p className="mt-0.5 text-[12px] text-[#64736a]">
@@ -1736,7 +1736,7 @@ export const ClubDashboard = () => {
                 <item.icon className="h-4 w-4" />
                 {item.label}
                 {item.badge !== undefined && item.badge > 0 && (
-                  <span className={`rounded-full px-1.5 text-[11px] ${activeTab === item.id ? 'bg-white text-primary' : 'bg-[#eab526] text-white'}`}>
+                  <span className={`rounded-full px-1.5 text-[11px] ${activeTab === item.id ? 'bg-white text-[#477313]' : 'bg-[#eab526] text-white'}`}>
                     {item.badge}
                   </span>
                 )}

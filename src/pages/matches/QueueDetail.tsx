@@ -423,7 +423,7 @@ export const QueueDetail = () => {
       return (
         <div className="space-y-2">
           <p className="text-[12px] font-extrabold text-[#526158]">Tần suất lịch</p>
-          <div className="flex w-28 flex-col overflow-hidden rounded-xl border border-primary/20 bg-white shadow-sm">
+          <div className="flex w-28 flex-col overflow-hidden rounded-xl border border-[#477313]/20 bg-white shadow-sm">
             <div className="bg-primary py-1 text-center text-[10px] font-bold text-white uppercase">
               Tần suất
             </div>
@@ -577,7 +577,7 @@ export const QueueDetail = () => {
             >
               <ChevronLeft className="h-4 w-4" /> Quay lại phòng của tôi
             </Link>
-            <h1 className="text-[24px] sm:text-[28px] font-black leading-tight">
+            <h1 className="text-[20px] sm:text-[23px] font-black leading-tight">
               Chi tiết lời mời ghép trận
             </h1>
             <p className="text-[13px] leading-relaxed text-white/70 max-w-xl">
@@ -842,7 +842,7 @@ export const QueueDetail = () => {
                       }
                       setShowInviteModal(true);
                     }}
-                    className="flex flex-col items-center justify-center h-20 w-full border-2 border-dashed border-[#b9dca8] hover:border-primary hover:bg-[#edf5e9]/20 bg-[#fbfdfa] rounded-2xl transition-all duration-300 group cursor-pointer"
+                    className="flex flex-col items-center justify-center h-20 w-full border-2 border-dashed border-[#b9dca8] hover:border-[#477313] hover:bg-[#edf5e9]/20 bg-[#fbfdfa] rounded-2xl transition-all duration-300 group cursor-pointer"
                   >
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-[#edf5e9] text-[#477313] group-hover:bg-primary group-hover:text-white transition-colors duration-300">
                       <Plus className="h-4 w-4" />

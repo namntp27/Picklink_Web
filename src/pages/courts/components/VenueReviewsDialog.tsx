@@ -61,7 +61,7 @@ export const VenueReviewsDialog = ({ venue, onClose }: VenueReviewsDialogProps) 
 
         {loading && (
           <div aria-label="Đang tải đánh giá" className="flex min-h-40 items-center justify-center" role="status">
-            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+            <Loader2 className="h-7 w-7 animate-spin text-[#477313]" />
           </div>
         )}
 
@@ -86,7 +86,7 @@ export const VenueReviewsDialog = ({ venue, onClose }: VenueReviewsDialogProps) 
               <article className="rounded-xl border border-[#dbe8d3] p-3.5" key={review.ratingId}>
                 <div className="flex flex-wrap items-start justify-between gap-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f0f8e8] text-primary"><UserRound className="h-3.5 w-3.5" /></span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f0f8e8] text-[#477313]"><UserRound className="h-3.5 w-3.5" /></span>
                     <div>
                       <h3 className="text-[13px] font-bold">{review.reviewerName}</h3>
                       <p className="text-[11px] text-[#66766d]">{review.courtNumber ? `Sân ${review.courtNumber} · ` : ''}{dateTime.format(new Date(review.createdAt))}</p>

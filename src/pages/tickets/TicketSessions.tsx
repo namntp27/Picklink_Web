@@ -129,7 +129,7 @@ export const TicketSessions = () => {
             <span className="inline-flex items-center gap-2 rounded-lg bg-primary-container px-3 py-1.5 text-[12px] font-bold text-on-primary-container">
               <Ticket aria-hidden="true" className="h-4 w-4" /> Xé vé Pickleball
             </span>
-            <h1 className="mt-4 text-[clamp(2rem,5vw,3.5rem)] font-bold leading-[1.05] tracking-[-0.03em]">
+            <h1 className="mt-4 text-[clamp(1.65rem,4vw,2.85rem)] font-bold leading-[1.08] tracking-[-0.03em]">
               Có sân, có giờ. Chỉ cần vào đội.
             </h1>
             <p className="mt-4 max-w-[65ch] text-[15px] leading-7 text-on-surface-variant">
@@ -138,7 +138,7 @@ export const TicketSessions = () => {
           </div>
           <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4">
             <p className="text-[12px] font-semibold text-on-surface-variant">Buổi đang hiển thị</p>
-            <p className="mt-1 font-mono text-[30px] font-bold text-on-surface">
+            <p className="mt-1 font-mono text-[24px] font-bold text-on-surface">
               {pagination.totalCount.toLocaleString('vi-VN')}
             </p>
             <p className="mt-1 text-[13px] text-on-surface-variant">Kết quả còn hiệu lực và đã được Owner đăng.</p>
@@ -239,7 +239,7 @@ export const TicketSessions = () => {
         ) : sessions.length === 0 ? (
           <section className="mt-6 rounded-xl border border-dashed border-outline-variant px-6 py-14 text-center">
             <Ticket aria-hidden="true" className="mx-auto h-10 w-10 text-outline" />
-            <h2 className="mt-4 text-[20px] font-bold">Chưa có buổi phù hợp</h2>
+            <h2 className="mt-4 text-[17px] font-bold">Chưa có buổi phù hợp</h2>
             <p className="mx-auto mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">
               Thử đổi ngày, khoảng giá hoặc bỏ bộ lọc “chỉ còn chỗ”.
             </p>
@@ -259,7 +259,7 @@ export const TicketSessions = () => {
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <p className="text-[12px] font-bold text-primary">Level {session.minSkillLevel}–{session.maxSkillLevel}</p>
-                    <h2 className="mt-2 line-clamp-2 text-[20px] font-bold leading-7 tracking-[-0.02em]">{session.title}</h2>
+                    <h2 className="mt-2 line-clamp-2 text-[17px] font-bold leading-7 tracking-[-0.02em]">{session.title}</h2>
                     <div className="mt-4 grid gap-2 text-[13px] text-on-surface-variant">
                       <span className="flex items-start gap-2"><MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span>{session.venueName} · Sân {session.courtNumber}</span></span>
                       <span className="flex items-start gap-2"><CalendarDays aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span>{formatDate(session.startTime)}</span></span>

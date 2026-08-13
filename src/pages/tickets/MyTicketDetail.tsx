@@ -119,7 +119,7 @@ const CancelTicketDialog = ({
         <header className="flex items-start justify-between gap-4 border-b border-outline-variant bg-error-container px-5 py-4">
           <div className="min-w-0">
             <p className="break-all font-mono text-[12px] font-bold text-error">{code}</p>
-            <h2 className="mt-1 text-[22px] font-bold" id="cancel-ticket-title">Hủy vé xé sân</h2>
+            <h2 className="mt-1 text-[18px] font-bold" id="cancel-ticket-title">Hủy vé xé sân</h2>
           </div>
           <button aria-label="Đóng" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-error hover:bg-white/60 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-error/70" disabled={busy} onClick={onClose} type="button">
             <X aria-hidden="true" className="h-5 w-5" />
@@ -302,7 +302,7 @@ export const MyTicketDetail = () => {
       <div className="grid min-h-dvh place-items-center bg-white px-4 pt-16">
         <section className="w-full max-w-md rounded-xl border border-error/25 bg-white p-7 text-center shadow-[0_12px_32px_rgba(22,26,18,0.08)]">
           <XCircle aria-hidden="true" className="mx-auto h-11 w-11 text-error" />
-          <h1 className="mt-4 text-[22px] font-bold">Không thể mở vé</h1>
+          <h1 className="mt-4 text-[18px] font-bold">Không thể mở vé</h1>
           <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{error || 'Vé không tồn tại hoặc không thuộc tài khoản của bạn.'}</p>
           <Link className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container" to="/my-tickets">Về lịch sử vé</Link>
         </section>
@@ -348,7 +348,7 @@ export const MyTicketDetail = () => {
                 <span className={`rounded-lg border px-2.5 py-1 text-[12px] font-bold ${statusClass(displayedTicketStatus)}`}>{ticketStatusLabels[displayedTicketStatus] ?? displayedTicketStatus}</span>
                 <span className="rounded-lg border border-outline-variant bg-surface-container-low px-2.5 py-1 text-[12px] font-semibold text-on-surface-variant">{paymentStatusLabels[ticket.paymentStatus] ?? ticket.paymentStatus}</span>
               </div>
-              <h1 className="mt-4 text-[clamp(1.9rem,5vw,3.4rem)] font-bold leading-[1.06] tracking-[-0.03em]">{session.title}</h1>
+              <h1 className="mt-4 text-[clamp(1.65rem,4vw,2.75rem)] font-bold leading-[1.08] tracking-[-0.03em]">{session.title}</h1>
               <p className="mt-3 flex items-start gap-2 text-[14px] leading-6 text-on-surface-variant"><MapPin aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span><strong className="text-on-surface">{session.venueName} · Sân {session.courtNumber}</strong><br />{session.venueAddress}</span></p>
             </div>
             <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4">
@@ -373,8 +373,8 @@ export const MyTicketDetail = () => {
             {showPaymentPanel && (
               <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-[0_8px_24px_rgba(22,26,18,0.05)] sm:p-6" aria-labelledby="ticket-payment-title">
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div><p className="text-[12px] font-bold text-primary">Thanh toán QR</p><h2 className="mt-1 text-[22px] font-bold" id="ticket-payment-title">Hoàn tất chuyển khoản để giữ vé</h2></div>
-                  <div className="rounded-xl bg-on-surface px-4 py-2 text-right text-white"><p className="text-[10px] font-semibold text-white/70">Còn lại</p><p className="font-mono text-[25px] font-bold text-primary-container">{countdown}</p></div>
+                  <div><p className="text-[12px] font-bold text-primary">Thanh toán QR</p><h2 className="mt-1 text-[18px] font-bold" id="ticket-payment-title">Hoàn tất chuyển khoản để giữ vé</h2></div>
+                  <div className="rounded-xl bg-on-surface px-4 py-2 text-right text-white"><p className="text-[10px] font-semibold text-white/70">Còn lại</p><p className="font-mono text-[20px] font-bold text-primary-container">{countdown}</p></div>
                 </div>
                 <div className="mt-5 grid gap-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
                   <div className="aspect-square overflow-hidden rounded-xl border border-outline-variant bg-white p-2">
@@ -417,7 +417,7 @@ export const MyTicketDetail = () => {
             {isAwaitingReview && (
               <section className="rounded-2xl border border-primary-container/60 bg-primary-container/15 p-6">
                 <CheckCircle2 className="h-8 w-8 text-primary" />
-                <h2 className="mt-3 text-[21px] font-bold">Đã gửi biên lai</h2>
+                <h2 className="mt-3 text-[18px] font-bold">Đã gửi biên lai</h2>
                 <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Đang chờ chủ sân kiểm tra. Thời gian giữ vé đã được tạm dừng.</p>
                 {ticket.receiptImageUrl && <img alt="Biên lai đã gửi" className="mt-4 max-h-72 rounded-xl border border-outline-variant bg-white object-contain" src={ticket.receiptImageUrl} />}
               </section>
@@ -426,7 +426,7 @@ export const MyTicketDetail = () => {
             {locallyExpired && (
               <section className="rounded-2xl border border-outline-variant bg-surface-container-low p-6">
                 <RefreshCw aria-hidden="true" className="h-7 w-7 text-primary" />
-                <h2 className="mt-3 text-[21px] font-bold">Lượt giữ vé đã hết hạn</h2>
+                <h2 className="mt-3 text-[18px] font-bold">Lượt giữ vé đã hết hạn</h2>
                 <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Nếu buổi vẫn còn chỗ, bạn có thể tạo lại QR với thời gian giữ vé mới.</p>
                 {canRetry ? (
                   <Button aria-busy={busyAction === 'retry'} className="mt-4" onClick={() => void retry()} type="button">
@@ -441,7 +441,7 @@ export const MyTicketDetail = () => {
             {(ticket.status === 'Paid' || ticket.status === 'CheckedIn') && (
               <section className="rounded-2xl border border-primary-container/60 bg-primary-container/15 p-6">
                 {ticket.status === 'CheckedIn' ? <UserCheck aria-hidden="true" className="h-8 w-8 text-[#477313]" /> : <CheckCircle2 aria-hidden="true" className="h-8 w-8 text-[#477313]" />}
-                <h2 className="mt-3 text-[22px] font-bold">{ticket.status === 'CheckedIn' ? 'Vé đã được check-in' : 'Vé đã sẵn sàng'}</h2>
+                <h2 className="mt-3 text-[18px] font-bold">{ticket.status === 'CheckedIn' ? 'Vé đã được check-in' : 'Vé đã sẵn sàng'}</h2>
                 <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{ticket.status === 'CheckedIn' ? `Check-in lúc ${ticket.checkedInAt ? dateTime.format(new Date(ticket.checkedInAt)) : 'đã ghi nhận'}.` : 'Đưa mã vé ở đầu trang cho Staff khi đến sân. Một vé chỉ check-in được một lần.'}</p>
               </section>
             )}
@@ -449,13 +449,13 @@ export const MyTicketDetail = () => {
             {(ticket.status === 'RefundPending' || ticket.status === 'Refunded') && (
               <section className="rounded-2xl border border-outline-variant bg-surface-container-low p-6">
                 <Banknote aria-hidden="true" className="h-8 w-8 text-primary" />
-                <h2 className="mt-3 text-[22px] font-bold">{ticket.status === 'Refunded' ? 'Đã hoàn tiền vé' : 'Đang chờ hoàn tiền'}</h2>
+                <h2 className="mt-3 text-[18px] font-bold">{ticket.status === 'Refunded' ? 'Đã hoàn tiền vé' : 'Đang chờ hoàn tiền'}</h2>
                 <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{ticket.status === 'Refunded' ? 'Owner đã ghi nhận hoàn tiền. Xem mã đối soát trong lịch sử giao dịch bên dưới.' : 'Owner đã nhận yêu cầu và sẽ cập nhật mã đối soát sau khi hoàn tiền.'}</p>
               </section>
             )}
 
             {ticket.status === 'Cancelled' && (
-              <section className="rounded-2xl border border-error/20 bg-error-container p-6"><XCircle aria-hidden="true" className="h-8 w-8 text-error" /><h2 className="mt-3 text-[22px] font-bold">Vé đã hủy</h2>{ticket.cancellationReason && <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Lý do: {ticket.cancellationReason}</p>}</section>
+              <section className="rounded-2xl border border-error/20 bg-error-container p-6"><XCircle aria-hidden="true" className="h-8 w-8 text-error" /><h2 className="mt-3 text-[18px] font-bold">Vé đã hủy</h2>{ticket.cancellationReason && <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Lý do: {ticket.cancellationReason}</p>}</section>
             )}
 
             {ticket.sePayTransactions.length > 0 && (

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, Crosshair, ListChecks, MapPin, Moon, Plus, PlusCircle, Route, SlidersHorizontal, Sparkles, Trash2, Trophy, X, Settings, Repeat, User } from 'lucide-react';
+import { AlertTriangle, Crosshair, ListChecks, MapPin, Moon, Plus, PlusCircle, Route, SlidersHorizontal, Sparkles, Trash2, Trophy, X, Repeat, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -914,11 +914,11 @@ export const Opponents = () => {
         stats={(
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="font-mono text-[24px] font-extrabold text-[#e2ff57]">{selectedVenueIds.length}</p>
+              <p className="font-mono text-[20px] font-extrabold text-[#e2ff57]">{selectedVenueIds.length}</p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">cụm sân đã chọn</p>
             </div>
             <div>
-              <p className="font-mono text-[24px] font-extrabold text-[#e2ff57]">{format}</p>
+              <p className="font-mono text-[20px] font-extrabold text-[#e2ff57]">{format}</p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">hình thức tìm</p>
             </div>
           </div>
@@ -928,7 +928,7 @@ export const Opponents = () => {
 
 
       <main className="community-container grid items-start gap-5 xl:grid-cols-[430px_minmax(0,1fr)]">
-        <form className="community-panel space-y-4 p-4 sm:p-5" noValidate onSubmit={submit}>
+        <form className="community-panel space-y-5 p-4 sm:p-5" noValidate onSubmit={submit}>
           {/* Mode Selector */}
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#edf2ea] p-1">
             <button
@@ -951,13 +951,14 @@ export const Opponents = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#0b2228] text-[#e2ff57]"><PlusCircle className="h-5 w-5" /></div>
-            <div>
-              <h2 className="text-[17px] font-extrabold text-[#0b2228]">Lời mời ghép trận</h2>
-              <p className="text-[11px] font-semibold text-[#718077]">Thiết lập khung giờ và sân ưu tiên</p>
+          <section className="rounded-2xl border border-[#d8e4d4] bg-white p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0b2228] text-[12px] font-black text-[#e2ff57]">1</span>
+              <div>
+                <h2 className="text-[14px] font-extrabold text-[#0b2228]">Thông tin & thể thức</h2>
+                <p className="text-[11px] font-semibold text-[#718077]">Ai có thể tham gia và chơi theo hình thức nào</p>
+              </div>
             </div>
-          </div>
 
           {creationMode === 'manual' && (
             <>
@@ -1016,6 +1017,32 @@ export const Opponents = () => {
             </>
           )}
 
+            <div>
+              <p className="mb-2 text-[12px] font-extrabold text-[#526158]">Hình thức lời mời</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['1vs1', '2vs2'] as const).map((value) => (
+                  <button
+                    className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`}
+                    key={value}
+                    onClick={() => changeFormat(value)}
+                    type="button"
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#d8e4d4] bg-white p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0b2228] text-[12px] font-black text-[#e2ff57]">2</span>
+              <div>
+                <h2 className="text-[14px] font-extrabold text-[#0b2228]">Khu vực & sân</h2>
+                <p className="text-[11px] font-semibold text-[#718077]">Bán kính tìm sân và các cụm sân ưu tiên</p>
+              </div>
+            </div>
+
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <label>
               <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Bán kính tìm sân</span>
@@ -1056,9 +1083,9 @@ export const Opponents = () => {
                     <input checked={selectedVenueIds.includes(venue.venueId)} className="mt-1 accent-primary" onChange={() => toggleVenue(venue.venueId)} type="checkbox" />
                     <span>
                       <strong className="block text-[14px]">{venue.venueName}</strong>
-                      <span className="mt-1 block text-[12px] leading-5 text-on-surface-variant">{venue.address}</span>
+                      <span className="mt-1 block text-[12px] leading-5 text-[#64736a]">{venue.address}</span>
                       {distanceKm != null && (
-                        <span className={`text-[12px] font-bold ${isOutsideRadius ? 'text-amber-700' : 'text-primary'}`}>
+                        <span className={`text-[12px] font-bold ${isOutsideRadius ? 'text-amber-700' : 'text-[#477313]'}`}>
                           {distanceKm.toFixed(2)} km{isOutsideRadius ? ' · Ngoài bán kính' : ''}
                         </span>
                       )}
@@ -1066,30 +1093,19 @@ export const Opponents = () => {
                   </label>
                 );
               })}
-              {preferredVenueOptions.length === 0 && <p className="p-4 text-center text-[13px] text-on-surface-variant">{isSearching ? 'Đang tải các cụm sân...' : 'Chưa có cụm sân nào trong bán kính đã chọn.'}</p>}
+              {preferredVenueOptions.length === 0 && <p className="p-4 text-center text-[13px] text-[#64736a]">{isSearching ? 'Đang tải các cụm sân...' : 'Chưa có cụm sân nào trong bán kính đã chọn.'}</p>}
             </div>
           </div>
 
-          <div>
-            <p className="mb-2 text-[13px] font-bold">Hình thức lời mời</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['1vs1', '2vs2'] as const).map((value) => (
-                <button
-                  className={`min-h-10 rounded-[10px] border px-3 text-[13px] font-extrabold transition-colors ${format === value ? 'border-[#0b2228] bg-[#0b2228] text-white' : 'border-[#d8e4d4] hover:bg-[#edf5e9]'}`}
-                  key={value}
-                  onClick={() => changeFormat(value)}
-                  type="button"
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
+          </section>
 
-          <div className="space-y-4 border-t border-[#cfe0c8] pt-4">
-            <div className="flex items-center gap-2">
-              <Settings className="h-4 w-4 text-[#477313]" />
-              <h3 className="text-[13px] font-extrabold text-[#0b2228]">Cấu hình lời mời</h3>
+          <section className="rounded-2xl border border-[#d8e4d4] bg-white p-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0b2228] text-[12px] font-black text-[#e2ff57]">3</span>
+              <div>
+                <h2 className="text-[14px] font-extrabold text-[#0b2228]">Lịch chơi</h2>
+                <p className="text-[11px] font-semibold text-[#718077]">Ngày, khung giờ và tần suất tìm lại</p>
+              </div>
             </div>
 
             <label className="block">
@@ -1385,7 +1401,7 @@ export const Opponents = () => {
               </>
             )}
 
-          </div>
+          </section>
 
           {error && (
             <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-red-800 text-[12px] font-bold">
@@ -1446,7 +1462,7 @@ export const Opponents = () => {
               )}
               {venues.filter((venue) => venue.latitude != null && venue.longitude != null).map((venue) => (
                 <Marker eventHandlers={{ click: () => toggleVenue(venue.venueId) }} icon={markerIcon(selectedVenueIds.includes(venue.venueId))} key={venue.venueId} position={[venue.latitude!, venue.longitude!]}>
-                  <Popup minWidth={220}><strong>{venue.venueName}</strong><p className="my-2 text-[12px]">{venue.address}</p><button className="text-[12px] font-bold text-primary" onClick={() => toggleVenue(venue.venueId)} type="button">{selectedVenueIds.includes(venue.venueId) ? 'Bỏ chọn' : 'Chọn cụm sân'}</button></Popup>
+                  <Popup minWidth={220}><strong>{venue.venueName}</strong><p className="my-2 text-[12px]">{venue.address}</p><button className="text-[12px] font-bold text-[#477313]" onClick={() => toggleVenue(venue.venueId)} type="button">{selectedVenueIds.includes(venue.venueId) ? 'Bỏ chọn' : 'Chọn cụm sân'}</button></Popup>
                 </Marker>
               ))}
             </MapContainer>

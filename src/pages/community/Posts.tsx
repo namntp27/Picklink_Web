@@ -236,7 +236,7 @@ export const PostCard = ({
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718077]">
                 {post.level && <span className="community-badge !min-h-5 !px-2 !py-1">Trình độ {post.level}</span>}
                 {post.groupName && post.groupId && (
-                  <Link to={`/clubs/${post.groupId}`} className="community-badge !min-h-5 !px-2 !py-1 !bg-primary/10 !text-primary hover:bg-primary/20 transition-colors font-extrabold">
+                  <Link to={`/clubs/${post.groupId}`} className="community-badge !min-h-5 !px-2 !py-1 !bg-[#477313]/10 !text-[#477313] hover:bg-[#477313]/20 transition-colors font-extrabold">
                     CLB: {post.groupName}
                   </Link>
                 )}

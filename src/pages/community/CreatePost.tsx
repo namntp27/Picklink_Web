@@ -146,14 +146,14 @@ export const CreatePost = () => {
           <section className="community-panel p-4 sm:p-5">
             <span className="mb-3 flex items-center gap-2 text-[15px] font-extrabold text-[#0b2228]"><ImageIcon className="h-4 w-4 text-[#477313]" />Ảnh bài viết</span>
             {imageUrl ? (
-              <div className="flex items-center justify-between gap-4 rounded-lg border border-outline-variant bg-[#f8f9fa] p-4"><img alt="Ảnh đã chọn" className="h-16 w-24 rounded-md border border-outline-variant object-cover" src={imageUrl} /><button className="rounded-lg bg-[#ffdad6] px-3 py-2 text-[13px] font-bold text-[#ba1a1a]" onClick={handleDeleteImage} type="button">Xóa ảnh</button></div>
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-[#d8e4d4] bg-[#f8f9fa] p-4"><img alt="Ảnh đã chọn" className="h-16 w-24 rounded-md border border-[#d8e4d4] object-cover" src={imageUrl} /><button className="rounded-lg bg-[#ffdad6] px-3 py-2 text-[13px] font-bold text-[#ba1a1a]" onClick={handleDeleteImage} type="button">Xóa ảnh</button></div>
             ) : (
-              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-outline-variant p-6 hover:bg-surface-container-low">
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#d8e4d4] p-6 hover:bg-[#edf5e9]">
                 <ImageIcon className="mb-2 h-8 w-8 text-[#555f6f]" /><span className="text-[13px] font-bold text-[#555f6f]">{uploadingImage ? 'Đang tải ảnh...' : 'Chọn ảnh tải lên'}</span>
                 <input ref={imageInputRef} accept="image/*" className="sr-only" disabled={uploadingImage} onChange={handleImageUpload} type="file" />
               </label>
             )}
-            {uploadingImage && uploadProgress !== null && <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f0f3ff]"><div className="h-full rounded-full bg-primary" style={{ width: `${uploadProgress}%` }} /></div>}
+            {uploadingImage && uploadProgress !== null && <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f0f3ff]"><div className="h-full rounded-full bg-[#477313]" style={{ width: `${uploadProgress}%` }} /></div>}
           </section>
         </main>
 

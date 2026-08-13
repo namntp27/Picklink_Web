@@ -111,7 +111,7 @@ export const TicketSessionDetail = () => {
       <div className="grid min-h-dvh place-items-center bg-white px-4 pt-16">
         <section className="w-full max-w-md rounded-xl border border-error/25 bg-white p-7 text-center shadow-[0_12px_32px_rgba(22,26,18,0.08)]">
           <XCircle aria-hidden="true" className="mx-auto h-11 w-11 text-error" />
-          <h1 className="mt-4 text-[22px] font-bold">Không thể mở buổi xé vé</h1>
+          <h1 className="mt-4 text-[18px] font-bold">Không thể mở buổi xé vé</h1>
           <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{error || 'Buổi chơi không tồn tại hoặc đã ngừng công khai.'}</p>
           <Link className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container" to="/ticket-sessions">
             Xem các buổi khác
@@ -151,7 +151,7 @@ export const TicketSessionDetail = () => {
                   {session.remainingTickets > 0 ? `Còn ${session.remainingTickets} chỗ` : 'Đã hết chỗ'}
                 </span>
               </div>
-              <h1 className="mt-5 max-w-[20ch] text-[clamp(2rem,5vw,4rem)] font-bold leading-[1.04] tracking-[-0.03em]">{session.title}</h1>
+              <h1 className="mt-5 max-w-[20ch] text-[clamp(1.65rem,4vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em]">{session.title}</h1>
               <p className="mt-5 flex max-w-2xl items-start gap-2 text-[14px] leading-6 text-on-surface-variant">
                 <MapPin aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <span><strong className="text-on-surface">{session.venueName}</strong><br />{session.venueAddress}</span>
@@ -166,7 +166,7 @@ export const TicketSessionDetail = () => {
 
             <aside className="border-t border-outline-variant bg-surface-container-low p-5 sm:p-7 lg:border-l lg:border-t-0">
               <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Giá mỗi vé</p>
-              <p className="mt-2 text-[32px] font-bold tracking-[-0.03em]">{formatPrice(session.ticketPrice)}</p>
+              <p className="mt-2 text-[26px] font-bold tracking-[-0.03em]">{formatPrice(session.ticketPrice)}</p>
               <div className="mt-5 grid gap-3 border-y border-outline-variant py-5 text-[13px]">
                 <div className="flex items-start gap-3"><CalendarDays aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span><strong className="block text-on-surface">Ngày chơi</strong><span className="text-on-surface-variant">{fullDate.format(new Date(session.startTime))}</span></span></div>
                 <div className="flex items-start gap-3"><Clock3 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span><strong className="block text-on-surface">Khung giờ</strong><span className="text-on-surface-variant">{clockTime.format(new Date(session.startTime))} – {clockTime.format(new Date(session.endTime))}</span></span></div>

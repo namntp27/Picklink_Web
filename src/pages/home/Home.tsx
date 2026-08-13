@@ -4,15 +4,16 @@ import {
   ArrowRight,
   Building2,
   Calendar,
+  CalendarClock,
   Clock,
   Compass,
+  Crown,
   MapPin,
-  Network,
   Radio,
   RefreshCw,
   Search,
-  Shield,
   Star,
+  Swords,
   Users,
   Zap,
 } from 'lucide-react';
@@ -32,10 +33,10 @@ const emptyClubs: CommunityGroup[] = [];
 const emptyInvitations: MatchSummary[] = [];
 
 const benefits = [
-  { label: 'Đặt sân nhanh', icon: Zap },
-  { label: 'Tìm hội cùng trình', icon: Network },
-  { label: 'Quản lý CLB', icon: Shield },
-  { label: 'Theo dõi lịch chơi', icon: Calendar },
+  { label: 'Đặt sân nhanh', desc: 'Giữ chỗ chỉ trong vài chạm', icon: Zap },
+  { label: 'Tìm hội cùng trình', desc: 'Ghép trận đúng trình độ', icon: Swords },
+  { label: 'Quản lý CLB', desc: 'Thành viên, vai trò rõ ràng', icon: Crown },
+  { label: 'Theo dõi lịch chơi', desc: 'Không bỏ lỡ buổi nào', icon: CalendarClock },
 ];
 
 const quickMoves = [
@@ -74,8 +75,8 @@ const SectionHeader = ({
 }) => (
   <div className="mb-7 flex flex-col items-start justify-between gap-4 sm:mb-9 md:flex-row md:items-end">
     <div className="max-w-2xl">
-      <p className="text-[13px] font-bold text-primary">{label}</p>
-      <h2 className="mt-2 max-w-[16ch] text-[clamp(1.65rem,3vw,2.35rem)] font-bold leading-[1.08] tracking-[-0.025em] text-on-background">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#477313]">{label}</p>
+      <h2 className="mt-2 max-w-[16ch] text-[clamp(1.65rem,3vw,2.35rem)] font-bold leading-[1.08] tracking-[-0.025em] text-[#0b2228]">
         {title}
       </h2>
     </div>
@@ -144,7 +145,7 @@ export const Home = () => {
   const featuredVenue = venues[0];
 
   return (
-    <div className="min-w-0 flex-1 overflow-x-clip bg-[#f8fbf4] text-on-background">
+    <div className="min-w-0 flex-1 overflow-x-clip bg-[#f8fbf4] text-[#0b2228]">
       <section className="relative overflow-hidden bg-[#081d24] px-4 pb-10 pt-24 text-white sm:px-6 md:pb-14 lg:px-8">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(152,217,81,0.22),transparent_32%),radial-gradient(circle_at_88%_12%,rgba(225,255,87,0.16),transparent_28%),linear-gradient(135deg,#081d24_0%,#0f2e32_50%,#143f34_100%)]" />
@@ -162,7 +163,7 @@ export const Home = () => {
               <Zap aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
               Cộng đồng pickleball cho người chơi thật
             </p>
-            <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(2.35rem,6vw,4.9rem)] font-bold leading-[0.98] tracking-[-0.04em]">
+            <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(1.9rem,4.8vw,3.9rem)] font-bold leading-[1.02] tracking-[-0.04em]">
               Chơi đều hơn. Kết nối nhanh hơn.
             </h1>
             <p className="mt-5 max-w-[58ch] text-[15px] leading-7 text-white/76 md:text-[17px] md:leading-8">
@@ -184,7 +185,7 @@ export const Home = () => {
             initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
             transition={{ delay: shouldReduceMotion ? 0 : 0.08, duration: shouldReduceMotion ? 0.01 : 0.42 }}
           >
-            <div className="overflow-hidden rounded-2xl border border-white/14 bg-white text-on-surface shadow-[0_24px_80px_rgba(0,0,0,0.24)]">
+            <div className="overflow-hidden rounded-2xl border border-white/14 bg-white text-[#0b2228] shadow-[0_24px_80px_rgba(0,0,0,0.24)]">
               {isLoadingVenues ? (
                 <div aria-label="Đang tải sân nổi bật" className="h-52 animate-pulse bg-[#dce8d7] motion-reduce:animate-none" role="status" />
               ) : venueError ? (
@@ -205,9 +206,9 @@ export const Home = () => {
                       src={featuredVenue.imageUrl}
                       width="720"
                     />
-                    <figcaption className="border-b border-outline-variant bg-[#edf5e9] px-4 py-3">
+                    <figcaption className="border-b border-[#d8e4d4] bg-[#edf5e9] px-4 py-3">
                       <p className="line-clamp-1 text-[14px] font-bold">{featuredVenue.venueName}</p>
-                      <p className="mt-1 line-clamp-1 text-[12px] font-semibold text-on-surface-variant">{featuredVenue.address}</p>
+                      <p className="mt-1 line-clamp-1 text-[12px] font-semibold text-[#64736a]">{featuredVenue.address}</p>
                     </figcaption>
                   </figure>
                 ) : (
@@ -232,13 +233,13 @@ export const Home = () => {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <AdministrativeAreaSelects
                     fieldClassName="grid min-w-0 gap-1.5"
-                    labelClassName="text-[12px] font-bold text-on-surface-variant"
+                    labelClassName="text-[12px] font-bold text-[#64736a]"
                     onAreaChange={(province, ward) => {
                       setSelectedProvince(province ?? '');
                       setSelectedWard(ward ?? '');
                     }}
                     province={selectedProvince}
-                    selectClassName="h-11 w-full min-w-0 rounded-lg border border-outline-variant bg-surface-container px-3 text-[13px] font-semibold text-on-surface outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/25"
+                    selectClassName="h-11 w-full min-w-0 rounded-lg border border-[#d8e4d4] bg-white px-3 text-[13px] font-semibold text-[#0b2228] outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/25"
                     ward={selectedWard}
                   />
                 </div>
@@ -256,22 +257,22 @@ export const Home = () => {
         </div>
       </section>
       <section className="px-4 pb-8 pt-2 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-[1180px] gap-3 rounded-2xl border border-outline-variant bg-white p-3 shadow-[0_16px_42px_rgba(18,45,34,0.07)] md:grid-cols-3">
+        <div className="mx-auto grid max-w-[1180px] gap-3 rounded-2xl border border-[#d8e4d4] bg-white p-3 shadow-[0_16px_42px_rgba(18,45,34,0.07)] md:grid-cols-3">
           {quickMoves.map((item) => {
             const Icon = item.icon;
             return (
               <Link
-                className={'group flex min-h-16 items-center justify-between gap-4 rounded-xl px-4 py-3 text-on-surface hover:bg-[#f0f8e8] ' + interactiveLinkClass}
+                className={'group flex min-h-16 items-center justify-between gap-4 rounded-xl px-4 py-3 text-[#0b2228] hover:bg-[#f0f8e8] ' + interactiveLinkClass}
                 key={item.label}
                 to={item.to}
               >
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e8f8cf] text-primary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#e8f8cf] text-[#477313]">
                     <Icon aria-hidden="true" className="h-5 w-5" />
                   </span>
                   <span className="text-[14px] font-bold">{item.label}</span>
                 </span>
-                <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-on-surface-variant transition-transform group-hover:translate-x-1" />
+                <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-[#64736a] transition-transform group-hover:translate-x-1" />
               </Link>
             );
           })}
@@ -283,7 +284,7 @@ export const Home = () => {
           <SectionHeader
             action={(
               <Link
-                className={'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold text-primary hover:bg-primary/5 ' + interactiveLinkClass}
+                className={'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold text-[#477313] hover:bg-primary/5 ' + interactiveLinkClass}
                 to={courtSearchPath}
               >
                 Xem tất cả
@@ -297,7 +298,7 @@ export const Home = () => {
           {isLoadingVenues ? (
             <div aria-label="Đang tải danh sách sân" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" role="status">
               {[0, 1, 2, 3].map((item) => (
-                <article className="overflow-hidden rounded-2xl border border-outline-variant bg-white" key={item}>
+                <article className="overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white" key={item}>
                   <div className="h-48 animate-pulse bg-[#dce8d7] motion-reduce:animate-none" />
                   <div className="grid gap-3 p-5">
                     <div className="h-5 w-2/3 animate-pulse rounded bg-[#dce8d7] motion-reduce:animate-none" />
@@ -310,7 +311,7 @@ export const Home = () => {
             <div className="rounded-2xl border border-[#e7c8c4] bg-white p-6" role="alert">
               <AlertTriangle aria-hidden="true" className="h-7 w-7 text-[#ba1a1a]" />
               <h3 className="mt-4 text-[19px] font-bold">Không thể tải danh sách sân</h3>
-              <p className="mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">{venueError}</p>
+              <p className="mt-2 max-w-xl text-[14px] leading-6 text-[#64736a]">{venueError}</p>
               <button
                 className={'mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#0b2228] px-4 py-2.5 text-[14px] font-bold text-white ' + interactiveLinkClass}
                 onClick={() => void reloadVenues()}
@@ -321,10 +322,10 @@ export const Home = () => {
               </button>
             </div>
           ) : venues.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-outline-variant bg-white p-8 text-center">
-              <Building2 aria-hidden="true" className="mx-auto h-9 w-9 text-primary" />
+            <div className="rounded-2xl border border-dashed border-[#d8e4d4] bg-white p-8 text-center">
+              <Building2 aria-hidden="true" className="mx-auto h-9 w-9 text-[#477313]" />
               <h3 className="mt-4 text-[19px] font-bold">Chưa có sân phù hợp</h3>
-              <p className="mx-auto mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">
+              <p className="mx-auto mt-2 max-w-xl text-[14px] leading-6 text-[#64736a]">
                 {selectedArea ? 'Hãy chọn khu vực khác hoặc xem toàn bộ sân.' : 'Hiện chưa có sân nào được mở để đặt.'}
               </p>
               <Link className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-[#e2ff57] px-4 text-[14px] font-bold text-[#102414]" to="/book-court">
@@ -354,26 +355,31 @@ export const Home = () => {
                         src={venue.imageUrl}
                       />
                     ) : (
-                      <div className="grid h-full place-items-center bg-[#276b3f]">
-                        <Building2 aria-hidden="true" className="h-12 w-12 text-[#e2ff57]" />
+                      <div className="relative grid h-full place-items-center overflow-hidden bg-[#276b3f]">
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 opacity-40 [background-image:repeating-linear-gradient(45deg,rgba(255,255,255,0.08)_0px,rgba(255,255,255,0.08)_1.5px,transparent_1.5px,transparent_16px)]"
+                        />
+                        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_30%,rgba(8,29,36,0.35)_100%)]" />
+                        <Building2 aria-hidden="true" className="relative h-12 w-12 text-[#e2ff57]" strokeWidth={1.5} />
                       </div>
                     )}
                   </div>
                   <div className="grid gap-4 p-5">
                     <div className="flex items-start justify-between gap-4">
                       <h3 className="min-w-0 text-[17px] font-bold leading-6">{venue.venueName}</h3>
-                      <span className="shrink-0 rounded-lg bg-[#f0f8e8] px-2.5 py-1 text-[13px] font-bold text-primary">
+                      <span className="shrink-0 rounded-lg bg-[#f0f8e8] px-2.5 py-1 text-[13px] font-bold text-[#477313]">
                         {currency.format(venue.fromPrice)}/giờ
                       </span>
                     </div>
-                    <p className="line-clamp-2 text-[13px] font-semibold leading-5 text-on-surface-variant">
-                      <MapPin aria-hidden="true" className="mr-1.5 inline h-4 w-4 text-primary" />
+                    <p className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#64736a]">
+                      <MapPin aria-hidden="true" className="mr-1.5 inline h-4 w-4 text-[#477313]" />
                       {venue.address}
                     </p>
-                    <div className="flex flex-wrap gap-3 text-[12px] font-semibold text-on-surface-variant">
-                      <span><Clock aria-hidden="true" className="mr-1 inline h-4 w-4 text-primary" />{venue.openTime.slice(0, 5)} - {venue.closeTime.slice(0, 5)}</span>
+                    <div className="flex flex-wrap gap-3 text-[12px] font-semibold text-[#64736a]">
+                      <span><Clock aria-hidden="true" className="mr-1 inline h-4 w-4 text-[#477313]" />{venue.openTime.slice(0, 5)} - {venue.closeTime.slice(0, 5)}</span>
                       <span>{venue.courtCount.toLocaleString('vi-VN')} sân</span>
-                      {venue.overallRating > 0 && <span><Star aria-hidden="true" className="mr-1 inline h-4 w-4 fill-[#e2ff57] text-primary" />{venue.overallRating.toFixed(1)}</span>}
+                      {venue.overallRating > 0 && <span><Star aria-hidden="true" className="mr-1 inline h-4 w-4 fill-[#e2ff57] text-[#477313]" />{venue.overallRating.toFixed(1)}</span>}
                     </div>
                     <Button onClick={() => navigate('/court/' + venue.venueId + '/schedule')} type="button" variant="outline">
                       Đặt sân
@@ -389,7 +395,7 @@ export const Home = () => {
         <div className="mx-auto grid max-w-[1180px] gap-5 rounded-2xl bg-[#0b2228] p-5 text-white shadow-[0_20px_60px_rgba(8,29,36,0.14)] lg:grid-cols-[0.68fr_1.32fr] lg:p-8">
           <div className="flex flex-col justify-between gap-6 rounded-xl border border-white/12 bg-white/7 p-5">
             <div>
-              <p className="text-[13px] font-bold text-[#e2ff57]">Lời mời đang mở</p>
+              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#e2ff57]">Lời mời đang mở</p>
               <h2 className="mt-2 max-w-[11ch] text-[clamp(1.7rem,3vw,2.45rem)] font-bold leading-[1.06]">
                 Có hội đang chờ bạn vào sân
               </h2>
@@ -501,7 +507,7 @@ export const Home = () => {
           <SectionHeader
             action={(
               <Link
-                className={'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold text-primary hover:bg-primary/5 ' + interactiveLinkClass}
+                className={'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold text-[#477313] hover:bg-primary/5 ' + interactiveLinkClass}
                 to="/clubs"
               >
                 Xem tất cả
@@ -515,7 +521,7 @@ export const Home = () => {
           {isLoadingClubs ? (
             <div aria-label="Đang tải câu lạc bộ" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status">
               {[0, 1, 2].map((item) => (
-                <article className="overflow-hidden rounded-2xl border border-outline-variant bg-white" key={item}>
+                <article className="overflow-hidden rounded-2xl border border-[#d8e4d4] bg-white" key={item}>
                   <div className="h-40 animate-pulse bg-[#dce8d7] motion-reduce:animate-none" />
                   <div className="grid gap-3 p-5">
                     <div className="h-5 w-2/3 animate-pulse rounded bg-[#dce8d7] motion-reduce:animate-none" />
@@ -528,7 +534,7 @@ export const Home = () => {
             <div className="rounded-2xl border border-[#e7c8c4] bg-white p-6" role="alert">
               <AlertTriangle aria-hidden="true" className="h-7 w-7 text-[#ba1a1a]" />
               <h3 className="mt-4 text-[19px] font-bold">Không thể tải câu lạc bộ</h3>
-              <p className="mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">{clubError}</p>
+              <p className="mt-2 max-w-xl text-[14px] leading-6 text-[#64736a]">{clubError}</p>
               <button
                 className={'mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#0b2228] px-4 py-2.5 text-[14px] font-bold text-white ' + interactiveLinkClass}
                 onClick={() => void reloadClubs()}
@@ -539,10 +545,10 @@ export const Home = () => {
               </button>
             </div>
           ) : clubs.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-outline-variant bg-white p-8 text-center">
-              <Users aria-hidden="true" className="mx-auto h-9 w-9 text-primary" />
+            <div className="rounded-2xl border border-dashed border-[#d8e4d4] bg-white p-8 text-center">
+              <Users aria-hidden="true" className="mx-auto h-9 w-9 text-[#477313]" />
               <h3 className="mt-4 text-[19px] font-bold">Chưa có câu lạc bộ phù hợp</h3>
-              <p className="mx-auto mt-2 max-w-xl text-[14px] leading-6 text-on-surface-variant">
+              <p className="mx-auto mt-2 max-w-xl text-[14px] leading-6 text-[#64736a]">
                 {selectedArea ? 'Hãy chọn khu vực khác hoặc xem toàn bộ câu lạc bộ.' : 'Bạn có thể bắt đầu cộng đồng đầu tiên.'}
               </p>
               <Link className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-[#e2ff57] px-4 text-[14px] font-bold text-[#102414]" to="/clubs/create">
@@ -570,26 +576,31 @@ export const Home = () => {
                         src={club.coverImageUrl}
                       />
                     ) : (
-                      <div className="grid h-full place-items-center bg-[#143f34]">
-                        <Users aria-hidden="true" className="h-11 w-11 text-[#e2ff57]" />
+                      <div className="relative grid h-full place-items-center overflow-hidden bg-[#143f34]">
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(circle,rgba(255,255,255,0.5)_1px,transparent_1px)] [background-size:18px_18px]"
+                        />
+                        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_25%,rgba(8,29,36,0.4)_100%)]" />
+                        <Users aria-hidden="true" className="relative h-11 w-11 text-[#e2ff57]" strokeWidth={1.5} />
                       </div>
                     )}
                   </div>
                   <div className="flex flex-1 flex-col p-5">
-                    <div className="flex flex-wrap gap-3 text-[12px] font-bold text-primary">
+                    <div className="flex flex-wrap gap-3 text-[12px] font-bold text-[#477313]">
                       <span>{club.memberCount.toLocaleString('vi-VN')} thành viên</span>
                       {club.activeLocation && <span className="line-clamp-1">{club.activeLocation}</span>}
                     </div>
                     <h3 className="mt-3 text-[19px] font-bold leading-7">{club.groupName}</h3>
-                    <p className="mt-2 line-clamp-3 text-[14px] leading-6 text-on-surface-variant">
+                    <p className="mt-2 line-clamp-3 text-[14px] leading-6 text-[#64736a]">
                       {club.description || 'Câu lạc bộ chưa có mô tả.'}
                     </p>
                     <div className="mt-auto flex items-center justify-between gap-3 pt-6">
-                      <span className="text-[12px] font-semibold text-on-surface-variant">
+                      <span className="text-[12px] font-semibold text-[#64736a]">
                         {club.groupType === 'Private' ? 'Riêng tư' : 'Công khai'}
                       </span>
                       <Link
-                        className={'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold hover:bg-primary/5 hover:text-primary ' + interactiveLinkClass}
+                        className={'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[14px] font-bold hover:bg-primary/5 hover:text-[#477313] ' + interactiveLinkClass}
                         to={'/clubs/' + club.groupId}
                       >
                         Xem câu lạc bộ
@@ -605,23 +616,31 @@ export const Home = () => {
       </section>
 
       <section className="px-4 pb-16 pt-8 sm:px-6 md:pb-20 lg:px-8">
-        <div className="mx-auto max-w-[1180px] overflow-hidden rounded-2xl border border-outline-variant bg-white shadow-[0_16px_42px_rgba(18,45,34,0.07)]">
-          <div className="grid divide-y divide-outline-variant md:grid-cols-4 md:divide-x md:divide-y-0">
+        <div className="relative mx-auto max-w-[1180px] overflow-hidden rounded-2xl bg-[#081d24] shadow-[0_20px_50px_rgba(8,29,36,0.18)]">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-[0.14] [background-image:radial-gradient(circle,#ffffff_1px,transparent_1px)] [background-size:22px_22px]"
+          />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_-10%,rgba(226,255,87,0.16),transparent_38%)]" />
+          <div className="relative grid divide-y divide-white/10 md:grid-cols-4 md:divide-x md:divide-y-0">
             {benefits.map((benefit, index) => {
               const Icon = benefit.icon;
               return (
                 <motion.div
-                  className="flex min-w-0 items-center gap-4 p-5 md:flex-col md:items-start md:p-6"
+                  className="flex min-w-0 items-start gap-4 p-5 transition-colors duration-200 hover:bg-white/[0.04] md:flex-col md:gap-0 md:p-6"
                   initial={revealInitial}
                   key={benefit.label}
                   transition={{ ...sectionRevealTransition, delay: shouldReduceMotion ? 0 : index * 0.04 }}
                   viewport={{ amount: 0.2, once: true }}
                   whileInView={{ opacity: 1, y: 0 }}
                 >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#e2ff57] text-[#102414]">
-                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e2ff57] text-[#102414] shadow-[0_8px_18px_rgba(226,255,87,0.22)]">
+                    <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
                   </div>
-                  <h3 className="text-[15px] font-bold leading-6">{benefit.label}</h3>
+                  <div className="md:mt-4">
+                    <h3 className="text-[15px] font-bold leading-6 text-white">{benefit.label}</h3>
+                    <p className="mt-1 text-[12.5px] font-medium leading-5 text-white/56">{benefit.desc}</p>
+                  </div>
                 </motion.div>
               );
             })}

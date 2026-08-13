@@ -88,7 +88,7 @@ export const BookingSuccess = () => {
               <CheckCircle2 className="h-4 w-4 text-primary-fixed" />
               Thanh toán đã xác nhận
             </p>
-            <h1 className="mt-5 text-[clamp(2rem,4vw,3.2rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
+            <h1 className="mt-5 text-[clamp(1.65rem,3.3vw,2.6rem)] font-extrabold leading-[1.1] tracking-[-0.03em]">
               Đặt sân{' '}
               <span className="inline-block text-[1.12em] text-primary-fixed [text-shadow:0_0_8px_rgba(152,217,81,0.65),0_0_18px_rgba(152,217,81,0.38)]">
                 thành công

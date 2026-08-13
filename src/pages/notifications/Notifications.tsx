@@ -229,7 +229,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
               <BellRing aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
               {workspace === 'owner' ? 'Trung tâm vận hành' : 'Trung tâm thông báo'}
             </p>
-            <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-[-0.035em] sm:text-[32px]">
+            <h1 className="mt-1.5 text-[22px] font-bold leading-tight tracking-[-0.035em] sm:text-[26px]">
               {workspace === 'owner' ? 'Thông báo chủ sân' : 'Thông báo'}
             </h1>
             <p className="mt-1 max-w-[62ch] text-[13px] leading-5 text-white/68">

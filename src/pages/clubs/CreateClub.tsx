@@ -119,11 +119,11 @@ export const CreateClub = () => {
           </button>
           <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
             <div>
-              <p className="inline-flex items-center gap-2 text-[12px] font-bold text-[#dff6b2]">
+              <p className="inline-flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#dff6b2]">
                 <Sparkles aria-hidden="true" className="h-4 w-4 text-[#e2ff57]" />
                 Khởi tạo cộng đồng mới
               </p>
-              <h1 className="mt-2 max-w-[15ch] text-[clamp(2rem,5vw,3.5rem)] font-bold leading-[0.98] tracking-[-0.04em]">
+              <h1 className="mt-2 max-w-[15ch] text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold leading-[1.02] tracking-[-0.04em]">
                 Tạo câu lạc bộ theo cách bạn muốn chơi.
               </h1>
               <p className="mt-3 max-w-[58ch] text-[14px] leading-6 text-white/68">
@@ -158,7 +158,7 @@ export const CreateClub = () => {
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#0b2228] text-[#e2ff57]">
               <Building2 aria-hidden="true" className="h-5 w-5" />
             </span>
-            <h2 className="mt-4 text-[20px] font-bold tracking-[-0.025em]">Nền tảng cho một CLB hoạt động bền vững</h2>
+            <h2 className="mt-4 text-[17px] font-bold tracking-[-0.025em]">Nền tảng cho một CLB hoạt động bền vững</h2>
             <p className="mt-2 text-[13px] leading-5 text-[#64736a]">
               Thông tin này xuất hiện trên trang công khai và giúp người chơi tìm đúng cộng đồng.
             </p>
@@ -179,7 +179,7 @@ export const CreateClub = () => {
           <div className="p-5 sm:p-6">
             <div className="border-b border-[#e0e9dc] pb-4">
               <p className="text-[12px] font-bold text-[#477313]">Thông tin cơ bản</p>
-              <h2 className="mt-1 text-[22px] font-bold tracking-[-0.025em]">Hồ sơ câu lạc bộ</h2>
+              <h2 className="mt-1 text-[18px] font-bold tracking-[-0.025em]">Hồ sơ câu lạc bộ</h2>
             </div>
 
             {error && (

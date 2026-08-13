@@ -176,15 +176,15 @@ export const Register = () => {
 
         <label className="group flex min-h-10 cursor-pointer items-start gap-2 text-[12px] font-semibold leading-5 text-[#66766d]">
           <input
-            className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[#dbe8d3] bg-white text-primary-container outline-none transition-colors group-hover:border-primary-container focus:ring-primary-container/30"
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[#dbe8d3] bg-white text-[#477313]-container outline-none transition-colors group-hover:border-primary-container focus:ring-primary-container/30"
             required
             type="checkbox"
           />
           <span>
             Tôi đồng ý với{' '}
-            <strong className="font-bold text-on-surface">Điều khoản dịch vụ</strong>{' '}
+            <strong className="font-bold text-[#0b2228]">Điều khoản dịch vụ</strong>{' '}
             và{' '}
-            <strong className="font-bold text-on-surface">Chính sách bảo mật</strong>{' '}
+            <strong className="font-bold text-[#0b2228]">Chính sách bảo mật</strong>{' '}
             của Picklink.
           </span>
         </label>
@@ -206,7 +206,7 @@ export const Register = () => {
       <p className="mt-4 text-center text-[13px] font-semibold text-[#66766d] md:hidden">
         Đã có tài khoản?{' '}
         <Link
-          className="font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
+          className="font-bold text-[#477313] underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70"
           to="/login"
         >
           Đăng nhập

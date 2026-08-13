@@ -989,24 +989,24 @@ export const Messages = () => {
   };
 
   return (
-    <div className="min-h-dvh bg-[#f9f9ff] pt-[72px] text-on-surface">
-      <div className="flex h-[calc(100dvh-72px)] min-h-0 flex-col overflow-hidden border-t border-outline-variant bg-[#f9f9ff] lg:flex-row">
-        <aside className={`${activeConversationId ? 'hidden lg:flex' : 'flex'} h-full w-full shrink-0 flex-col border-b border-outline-variant bg-white lg:w-[360px] lg:border-b-0 lg:border-r`}>
-          <div className="border-b border-outline-variant p-4">
+    <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]">
+      <div className="flex h-[calc(100dvh-72px)] min-h-0 flex-col overflow-hidden border-t border-[#d8e4d4] bg-[#f8fbf4] lg:flex-row">
+        <aside className={`${activeConversationId ? 'hidden lg:flex' : 'flex'} h-full w-full shrink-0 flex-col border-b border-[#d8e4d4] bg-white lg:w-[360px] lg:border-b-0 lg:border-r`}>
+          <div className="border-b border-[#d8e4d4] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h1 className="text-[22px] font-bold text-on-surface">Tin nhắn</h1>
-                <p className="mt-1 text-[13px] font-medium text-on-surface-variant">
+                <h1 className="text-[18px] font-bold text-[#0b2228]">Tin nhắn</h1>
+                <p className="mt-1 text-[13px] font-medium text-[#64736a]">
                   Trao đổi với người chơi, CLB và phòng trận.
                 </p>
               </div>
             </div>
 
             <div className="relative mt-4">
-              <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+              <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64736a]" />
               <input
                 aria-label="Tìm hội thoại"
-                className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] font-medium outline-none placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="h-11 w-full rounded-lg border border-[#d8e4d4] bg-[#edf5e9] pl-9 pr-3 text-[14px] font-medium outline-none placeholder:text-[#64736a]/70 focus:border-[#477313] focus:ring-2 focus:ring-primary/20"
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Tìm người chơi, sân, CLB..."
                 type="text"
@@ -1021,7 +1021,7 @@ export const Messages = () => {
                   className={`h-9 shrink-0 rounded-lg px-3 text-[13px] font-bold transition-colors ${
                     filter === option.id
                       ? 'bg-primary text-white'
-                      : 'border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
+                      : 'border border-[#d8e4d4] bg-white text-[#64736a] hover:bg-[#edf5e9]'
                   }`}
                   key={option.id}
                   onClick={() => setFilter(option.id)}
@@ -1036,8 +1036,8 @@ export const Messages = () => {
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
             {clubGroupsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="ml-2 text-[13px] text-on-surface-variant">Đang tải CLB...</span>
+                <Loader2 className="h-5 w-5 animate-spin text-[#477313]" />
+                <span className="ml-2 text-[13px] text-[#64736a]">Đang tải CLB...</span>
               </div>
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map((conversation) => {
@@ -1051,8 +1051,8 @@ export const Messages = () => {
                       isActive
                         ? 'bg-primary-container text-on-primary-container shadow-sm'
                         : unread
-                          ? 'bg-[#eef8e6] text-on-surface ring-1 ring-[#cfe5c4]'
-                          : 'text-on-surface hover:bg-surface-container-low'
+                          ? 'bg-[#eef8e6] text-[#0b2228] ring-1 ring-[#cfe5c4]'
+                          : 'text-[#0b2228] hover:bg-[#edf5e9]'
                     }`}
                     key={conversation.id}
                     onClick={() => setActiveConversationId(conversation.id)}
@@ -1074,7 +1074,7 @@ export const Messages = () => {
                         <p className={`truncate text-[14px] ${unread ? 'font-black text-[#102b2e]' : 'font-bold'}`}>{conversation.name}</p>
                         <span
                           className={`shrink-0 text-[11px] font-bold ${
-                            isActive ? 'text-on-primary-container/70' : 'text-on-surface-variant'
+                            isActive ? 'text-on-primary-container/70' : 'text-[#64736a]'
                           }`}
                         >
                           {conversation.lastTime || null}
@@ -1082,7 +1082,7 @@ export const Messages = () => {
                       </div>
                       <p
                         className={`mt-1 truncate text-[12px] font-medium ${
-                          isActive ? 'text-on-primary-container/80' : unread ? 'font-extrabold text-[#274c35]' : 'text-on-surface-variant'
+                          isActive ? 'text-on-primary-container/80' : unread ? 'font-extrabold text-[#274c35]' : 'text-[#64736a]'
                         }`}
                       >
                         {conversation.lastMessage}
@@ -1090,7 +1090,7 @@ export const Messages = () => {
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                            isActive ? 'bg-white/35 text-on-primary-container' : 'bg-surface-container-low text-primary'
+                            isActive ? 'bg-white/35 text-on-primary-container' : 'bg-[#edf5e9] text-[#477313]'
                           }`}
                         >
                           {kindLabels[conversation.kind]}
@@ -1103,21 +1103,21 @@ export const Messages = () => {
               })
             ) : (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                <Search className="h-9 w-9 text-on-surface-variant" />
-                <p className="mt-3 text-[14px] font-bold text-on-surface">Không tìm thấy hội thoại</p>
-                <p className="mt-1 text-[13px] text-on-surface-variant">Thử đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+                <Search className="h-9 w-9 text-[#64736a]" />
+                <p className="mt-3 text-[14px] font-bold text-[#0b2228]">Không tìm thấy hội thoại</p>
+                <p className="mt-1 text-[13px] text-[#64736a]">Thử đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
               </div>
             )}
           </div>
         </aside>
 
-        <main className={`${activeConversationId ? 'flex' : 'hidden lg:flex'} min-h-0 min-w-0 flex-1 flex-col bg-[#f9f9ff]`}>
+        <main className={`${activeConversationId ? 'flex' : 'hidden lg:flex'} min-h-0 min-w-0 flex-1 flex-col bg-[#f8fbf4]`}>
           {activeConversation && (
             <>
-              <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-outline-variant bg-white px-3 shadow-sm md:h-[72px] md:px-6">
+              <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[#d8e4d4] bg-white px-3 shadow-sm md:h-[72px] md:px-6">
                 <button
                   aria-label="Quay lại danh sách hội thoại"
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-on-surface-variant hover:bg-surface-container-low lg:hidden"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[#64736a] hover:bg-[#edf5e9] lg:hidden"
                   onClick={() => {
                     setActiveConversationId('');
                     setShowSettings(false);
@@ -1138,8 +1138,8 @@ export const Messages = () => {
                     ) : activeConversation.avatar}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="truncate text-[16px] font-bold text-on-surface">{activeConversation.name}</h2>
-                    <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold text-on-surface-variant">
+                    <h2 className="truncate text-[16px] font-bold text-[#0b2228]">{activeConversation.name}</h2>
+                    <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold text-[#64736a]">
                       <span className="truncate">{getLevelLabel(activeConversation)}</span>
                       {activeConversation.accessRole === 'Replacement' && (
                         <span className="rounded-full bg-[#fff3cd] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#7a5600]">
@@ -1149,11 +1149,11 @@ export const Messages = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-on-surface-variant">
+                <div className="flex items-center gap-1 text-[#64736a]">
                   <button
                     aria-label="Thông tin hội thoại"
                     className={`rounded-lg p-2 transition-colors ${
-                      showSettings ? 'bg-primary/10 text-primary' : 'hover:bg-surface-container-low hover:text-primary'
+                      showSettings ? 'bg-primary/10 text-[#477313]' : 'hover:bg-[#edf5e9] hover:text-[#477313]'
                     }`}
                     onClick={() => setShowSettings(!showSettings)}
                     type="button"
@@ -1173,17 +1173,17 @@ export const Messages = () => {
               )}
 
               {activeConversation.groupId && pinnedMessages.length > 0 && (
-                <div className="bg-[#f0f3ff] border-b border-outline-variant px-5 py-3 flex flex-col gap-2 shrink-0">
-                  <div className="flex items-center gap-2 text-[12px] font-bold text-primary">
+                <div className="bg-[#f0f3ff] border-b border-[#d8e4d4] px-5 py-3 flex flex-col gap-2 shrink-0">
+                  <div className="flex items-center gap-2 text-[12px] font-bold text-[#477313]">
                     <Pin className="h-3.5 w-3.5 fill-current" />
                     <span>TIN NHẮN ĐÃ GHIM ({pinnedMessages.length})</span>
                   </div>
                   <div className="space-y-1.5 max-h-24 overflow-y-auto custom-scrollbar">
                     {pinnedMessages.map((msg) => (
-                      <div className="flex items-center justify-between gap-3 text-[13px] bg-white p-2 rounded border border-outline-variant shadow-sm" key={msg.id}>
+                      <div className="flex items-center justify-between gap-3 text-[13px] bg-white p-2 rounded border border-[#d8e4d4] shadow-sm" key={msg.id}>
                         <div className="min-w-0 flex-1">
-                          <span className="font-bold text-on-surface mr-1">{msg.author}:</span>
-                          <span className="text-on-surface-variant">{msg.text}</span>
+                          <span className="font-bold text-[#0b2228] mr-1">{msg.author}:</span>
+                          <span className="text-[#64736a]">{msg.text}</span>
                         </div>
                         {isManager && (
                           <button
@@ -1211,18 +1211,18 @@ export const Messages = () => {
               >
                 {clubMessagesLoading ? (
                   <div className="flex items-center justify-center py-20">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <Loader2 className="h-8 w-8 animate-spin text-[#477313]" />
                   </div>
                 ) : activeMessages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <MessageCircle className="h-8 w-8 text-on-surface-variant" />
-                    <p className="mt-3 text-[14px] font-bold text-on-surface">Chưa có tin nhắn nào</p>
-                    <p className="mt-1 text-[13px] text-on-surface-variant">Hãy gửi tin nhắn đầu tiên!</p>
+                    <MessageCircle className="h-8 w-8 text-[#64736a]" />
+                    <p className="mt-3 text-[14px] font-bold text-[#0b2228]">Chưa có tin nhắn nào</p>
+                    <p className="mt-1 text-[13px] text-[#64736a]">Hãy gửi tin nhắn đầu tiên!</p>
                   </div>
                 ) : (
                   <>
                     <div className="flex justify-center">
-                      <span className="rounded-full bg-[#e2e8f8] px-3 py-1 text-[11px] font-bold text-on-surface-variant">
+                      <span className="rounded-full bg-[#e2e8f8] px-3 py-1 text-[11px] font-bold text-[#64736a]">
                         Hôm nay
                       </span>
                     </div>
@@ -1247,24 +1247,24 @@ export const Messages = () => {
                           )}
                           <div className={`min-w-0 ${message.mine ? 'items-end text-right' : ''}`}>
                             <div className={`mb-1 flex items-center gap-2 ${message.mine ? 'justify-end' : ''}`}>
-                              <span className="text-[12px] font-bold text-on-surface-variant">{message.author}</span>
+                              <span className="text-[12px] font-bold text-[#64736a]">{message.author}</span>
                               {activeConversation.kind === 'match' && message.senderRole === 'Replacement' && (
                                 <span className="rounded-full bg-[#fff3cd] px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-[#7a5600]">
                                   Người thay thế
                                 </span>
                               )}
-                              <span className="text-[11px] font-medium text-on-surface-variant">{message.time}</span>
+                              <span className="text-[11px] font-medium text-[#64736a]">{message.time}</span>
                             </div>
                             <div className="relative flex items-center gap-1.5 group">
                               <div
                                 className={`rounded-2xl px-4 py-3 text-[14px] leading-6 shadow-sm ${
                                   message.mine
                                     ? 'rounded-tr-sm bg-primary text-white'
-                                    : 'rounded-tl-sm border border-outline-variant bg-white text-on-surface'
+                                    : 'rounded-tl-sm border border-[#d8e4d4] bg-white text-[#0b2228]'
                                 }`}
                               >
                                 {message.isPinned && (
-                                  <div className="mb-1 flex items-center gap-1 text-[11px] font-bold text-primary-container bg-primary/20 px-1.5 py-0.5 rounded w-fit">
+                                  <div className="mb-1 flex items-center gap-1 text-[11px] font-bold text-[#477313]-container bg-primary/20 px-1.5 py-0.5 rounded w-fit">
                                     <Pin className="h-3 w-3 fill-current" />
                                     <span>Đã ghim</span>
                                   </div>
@@ -1273,7 +1273,7 @@ export const Messages = () => {
                                 {message.mediaUrl && (
                                   <img
                                     alt="Nội dung đính kèm"
-                                    className="mt-2 max-h-56 max-w-[240px] rounded-lg border border-outline-variant object-cover"
+                                    className="mt-2 max-h-56 max-w-[240px] rounded-lg border border-[#d8e4d4] object-cover"
                                     decoding="async"
                                     loading="lazy"
                                     src={message.mediaUrl}
@@ -1285,7 +1285,7 @@ export const Messages = () => {
                                 <div className="relative flex items-center justify-center shrink-0">
                                   <button
                                     aria-label="Tùy chọn tin nhắn"
-                                    className="h-10 w-10 flex items-center justify-center text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container-low transition-colors"
+                                    className="h-10 w-10 flex items-center justify-center text-[#64736a] hover:text-[#477313] rounded-full hover:bg-[#edf5e9] transition-colors"
                                     onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
                                     type="button"
                                   >
@@ -1293,10 +1293,10 @@ export const Messages = () => {
                                   </button>
 
                                   {activeMenuMessageId === message.id && (
-                                    <div className="absolute right-0 top-11 z-50 w-44 rounded-xl border border-outline-variant bg-white p-1.5 shadow-lg text-left">
+                                    <div className="absolute right-0 top-11 z-50 w-44 rounded-xl border border-[#d8e4d4] bg-white p-1.5 shadow-lg text-left">
                                       {message.mine && (
                                         <button
-                                          className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-on-surface hover:bg-surface-container-low"
+                                          className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-[#0b2228] hover:bg-[#edf5e9]"
                                           onClick={() => {
                                             handleModifyChatMessage(message.id, message.text);
                                             setActiveMenuMessageId(null);
@@ -1318,7 +1318,7 @@ export const Messages = () => {
                                       </button>
                                       {isManager && (
                                         <button
-                                          className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-primary hover:bg-primary/10"
+                                          className="w-full flex items-center gap-2 rounded-lg px-3 py-3 text-[14px] font-bold text-[#477313] hover:bg-primary/10"
                                           onClick={() => {
                                             handleTogglePinChatMessage(message.id, message.isPinned || false);
                                             setActiveMenuMessageId(null);
@@ -1335,8 +1335,8 @@ export const Messages = () => {
                             </div>
                             {message.mine && (
                               <div className="mt-1 flex items-center justify-end gap-1 text-[11px] font-medium">
-                                <CheckCheck className={`h-3.5 w-3.5 transition-colors ${message.read ? 'text-[#0284c7]' : 'text-on-surface-variant/60'}`} />
-                                <span className={message.read ? 'font-bold text-[#0284c7]' : 'text-on-surface-variant/70'}>
+                                <CheckCheck className={`h-3.5 w-3.5 transition-colors ${message.read ? 'text-[#0284c7]' : 'text-[#64736a]/60'}`} />
+                                <span className={message.read ? 'font-bold text-[#0284c7]' : 'text-[#64736a]/70'}>
                                   {message.read ? 'Đã xem' : 'Đã gửi'}
                                 </span>
                               </div>
@@ -1350,7 +1350,7 @@ export const Messages = () => {
                 )}
               </div>
 
-              <div className="shrink-0 border-t border-outline-variant bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 md:p-4">
+              <div className="shrink-0 border-t border-[#d8e4d4] bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 md:p-4">
                 <div className="flex items-end gap-2">
                   <input
                     type="file"
@@ -1361,7 +1361,7 @@ export const Messages = () => {
                   />
                   <button
                     aria-label="Gửi hình ảnh"
-                    className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary sm:flex disabled:opacity-50"
+                    className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#64736a] transition-colors hover:bg-[#edf5e9] hover:text-[#477313] sm:flex disabled:opacity-50"
                     onClick={() => mediaInputRef.current?.click()}
                     disabled={uploadingMedia || (!activeConversation?.groupId && !activeConversation?.conversationId)}
                     type="button"
@@ -1372,9 +1372,9 @@ export const Messages = () => {
                       <ImageIcon className="h-5 w-5" />
                     )}
                   </button>
-                  <div className="relative flex-1 rounded-xl border border-outline-variant bg-surface-container-low focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+                  <div className="relative flex-1 rounded-xl border border-[#d8e4d4] bg-[#edf5e9] focus-within:border-[#477313] focus-within:ring-1 focus-within:ring-primary">
                     <textarea
-                      className="max-h-32 min-h-11 w-full resize-none bg-transparent px-4 py-3 pr-11 text-[14px] leading-5 outline-none placeholder:text-on-surface-variant/70"
+                      className="max-h-32 min-h-11 w-full resize-none bg-transparent px-4 py-3 pr-11 text-[14px] leading-5 outline-none placeholder:text-[#64736a]/70"
                       onChange={(event) => setDraftMessage(event.target.value)}
                       onKeyDown={handleComposerKeyDown}
                       placeholder="Nhập tin nhắn..."
@@ -1400,31 +1400,31 @@ export const Messages = () => {
             </>
           )}
           {!activeConversation && !clubGroupsLoading && (
-            <div className="flex h-full flex-1 flex-col items-center justify-center p-8 text-center text-on-surface-variant">
-              <MessageCircle className="h-12 w-12 text-primary" />
-              <p className="mt-4 text-[15px] font-bold text-on-surface">Chưa chọn cuộc trò chuyện nào</p>
+            <div className="flex h-full flex-1 flex-col items-center justify-center p-8 text-center text-[#64736a]">
+              <MessageCircle className="h-12 w-12 text-[#477313]" />
+              <p className="mt-4 text-[15px] font-bold text-[#0b2228]">Chưa chọn cuộc trò chuyện nào</p>
               <p className="mt-1 text-[13px]">Hãy chọn một phòng trận, câu lạc bộ hoặc người chơi để bắt đầu.</p>
             </div>
           )}
         </main>
 
         {showSettings && activeConversation && (
-          <aside className="custom-scrollbar fixed inset-x-0 bottom-0 top-16 z-[70] flex w-full flex-col overflow-y-auto border-l border-outline-variant bg-white pb-[env(safe-area-inset-bottom)] lg:static lg:h-full lg:w-[330px] lg:shrink-0 lg:pb-0">
+          <aside className="custom-scrollbar fixed inset-x-0 bottom-0 top-16 z-[70] flex w-full flex-col overflow-y-auto border-l border-[#d8e4d4] bg-white pb-[env(safe-area-inset-bottom)] lg:static lg:h-full lg:w-[330px] lg:shrink-0 lg:pb-0">
             {activeConversation.kind === 'club' && activeGroup ? (
               <>
-                <div className="flex items-center justify-between border-b border-outline-variant p-4 shrink-0">
-                  <h3 className="text-[16px] font-bold text-on-surface">Thông tin nhóm</h3>
+                <div className="flex items-center justify-between border-b border-[#d8e4d4] p-4 shrink-0">
+                  <h3 className="text-[16px] font-bold text-[#0b2228]">Thông tin nhóm</h3>
                   <button
                     aria-label="Đóng thông tin nhóm"
                     onClick={() => setShowSettings(false)}
-                    className="rounded-full p-1.5 hover:bg-surface-container-low text-on-surface-variant"
+                    className="rounded-full p-1.5 hover:bg-[#edf5e9] text-[#64736a]"
                     type="button"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
                 
-                <div className="relative h-40 bg-surface-container-low shrink-0">
+                <div className="relative h-40 bg-[#edf5e9] shrink-0">
                   {activeGroup.coverImageUrl ? (
                     <img
                       src={activeGroup.coverImageUrl}
@@ -1432,7 +1432,7 @@ export const Messages = () => {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary font-bold text-2xl">
+                    <div className="flex h-full w-full items-center justify-center bg-primary/10 text-[#477313] font-bold text-2xl">
                       {activeConversation.avatar}
                     </div>
                   )}
@@ -1461,14 +1461,14 @@ export const Messages = () => {
                 <div className="flex-1 p-4 space-y-6">
                   <div className="space-y-4">
                     <div>
-                      <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">Tên nhóm</label>
+                      <label className="text-[12px] font-bold text-[#64736a] uppercase tracking-wider">Tên nhóm</label>
                       {isManager ? (
                         <div className="mt-1 flex gap-2">
                           <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="flex-1 rounded-lg border border-outline-variant px-3 py-1.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            className="flex-1 rounded-lg border border-[#d8e4d4] px-3 py-1.5 text-[14px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none"
                           />
                           {editName !== activeGroup.groupName && (
                             <button
@@ -1481,19 +1481,19 @@ export const Messages = () => {
                           )}
                         </div>
                       ) : (
-                        <p className="mt-1 text-[14px] font-semibold text-on-surface">{activeGroup.groupName}</p>
+                        <p className="mt-1 text-[14px] font-semibold text-[#0b2228]">{activeGroup.groupName}</p>
                       )}
                     </div>
 
                     <div>
-                      <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">Mô tả</label>
+                      <label className="text-[12px] font-bold text-[#64736a] uppercase tracking-wider">Mô tả</label>
                       {isManager ? (
                         <div className="mt-1 space-y-2">
                           <textarea
                             value={editDesc}
                             onChange={(e) => setEditDesc(e.target.value)}
                             rows={3}
-                            className="w-full rounded-lg border border-outline-variant px-3 py-1.5 text-[14px] focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
+                            className="w-full rounded-lg border border-[#d8e4d4] px-3 py-1.5 text-[14px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none resize-none"
                             placeholder="Thêm mô tả về nhóm..."
                           />
                           {editDesc !== (activeGroup.description || '') && (
@@ -1509,22 +1509,22 @@ export const Messages = () => {
                           )}
                         </div>
                       ) : (
-                        <p className="mt-1 text-[13px] text-on-surface-variant leading-relaxed">
+                        <p className="mt-1 text-[13px] text-[#64736a] leading-relaxed">
                           {activeGroup.description || 'Không có mô tả.'}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Chế độ nhóm</label>
+                      <label className="text-[12px] font-bold text-[#64736a] uppercase tracking-wider block mb-1">Chế độ nhóm</label>
                       {isManager ? (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleUpdateGroup({ groupType: 'Public' })}
                             className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
                               activeGroup.groupType === 'Public'
-                                ? 'bg-primary-container text-on-primary-container border-primary'
-                                : 'border-outline-variant hover:bg-surface-container-low text-on-surface-variant'
+                                ? 'bg-primary-container text-on-primary-container border-[#477313]'
+                                : 'border-[#d8e4d4] hover:bg-[#edf5e9] text-[#64736a]'
                             }`}
                           >
                             <Globe className="h-4 w-4" />
@@ -1534,8 +1534,8 @@ export const Messages = () => {
                             onClick={() => handleUpdateGroup({ groupType: 'Private' })}
                             className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[13px] font-medium transition-colors ${
                               activeGroup.groupType === 'Private'
-                                ? 'bg-primary-container text-on-primary-container border-primary'
-                                : 'border-outline-variant hover:bg-surface-container-low text-on-surface-variant'
+                                ? 'bg-primary-container text-on-primary-container border-[#477313]'
+                                : 'border-[#d8e4d4] hover:bg-[#edf5e9] text-[#64736a]'
                             }`}
                           >
                             <Lock className="h-4 w-4" />
@@ -1543,15 +1543,15 @@ export const Messages = () => {
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 mt-1 text-[13px] font-medium text-on-surface">
+                        <div className="flex items-center gap-1.5 mt-1 text-[13px] font-medium text-[#0b2228]">
                           {activeGroup.groupType === 'Public' ? (
                             <>
-                              <Globe className="h-4 w-4 text-on-surface-variant" />
+                              <Globe className="h-4 w-4 text-[#64736a]" />
                               <span>Công khai</span>
                             </>
                           ) : (
                             <>
-                              <Lock className="h-4 w-4 text-on-surface-variant" />
+                              <Lock className="h-4 w-4 text-[#64736a]" />
                               <span>Riêng tư</span>
                             </>
                           )}
@@ -1561,8 +1561,8 @@ export const Messages = () => {
                   </div>
 
                   {/* Quick Rules */}
-                  <div className="border-t border-outline-variant pt-4">
-                    <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">
+                  <div className="border-t border-[#d8e4d4] pt-4">
+                    <label className="text-[12px] font-bold text-[#64736a] uppercase tracking-wider block mb-1">
                       Quy định nhanh
                     </label>
                     {isManager ? (
@@ -1571,7 +1571,7 @@ export const Messages = () => {
                           value={editRules}
                           onChange={(e) => setEditRules(e.target.value)}
                           rows={4}
-                          className="w-full rounded-lg border border-outline-variant px-3 py-1.5 text-[13px] focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
+                          className="w-full rounded-lg border border-[#d8e4d4] px-3 py-1.5 text-[13px] focus:border-[#477313] focus:ring-1 focus:ring-primary outline-none resize-none"
                           placeholder="Nhập quy định của câu lạc bộ..."
                         />
                         {editRules !== (activeGroup.rules || '') && (
@@ -1587,15 +1587,15 @@ export const Messages = () => {
                         )}
                       </div>
                     ) : (
-                      <p className="mt-1 text-[13px] text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                      <p className="mt-1 text-[13px] text-[#64736a] leading-relaxed whitespace-pre-wrap">
                         {activeGroup.rules || 'Chưa có quy định.'}
                       </p>
                     )}
                   </div>
 
                   {/* Rating */}
-                  <div className="border-t border-outline-variant pt-4">
-                    <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider block mb-2">
+                  <div className="border-t border-[#d8e4d4] pt-4">
+                    <label className="text-[12px] font-bold text-[#64736a] uppercase tracking-wider block mb-2">
                       Đánh giá câu lạc bộ
                     </label>
                     <div className="flex items-center gap-2">
@@ -1604,19 +1604,19 @@ export const Messages = () => {
                         {activeGroup.overallRating > 0 ? activeGroup.overallRating.toFixed(1) : 'Chưa có'}
                       </span>
                       {activeGroup.ratingCount > 0 && (
-                        <span className="text-[12px] text-on-surface-variant">{activeGroup.ratingCount} đánh giá từ người chơi</span>
+                        <span className="text-[12px] text-[#64736a]">{activeGroup.ratingCount} đánh giá từ người chơi</span>
                       )}
                     </div>
                   </div>
 
                   {/* Intro Images */}
-                  <div className="border-t border-outline-variant pt-4">
+                  <div className="border-t border-[#d8e4d4] pt-4">
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">
+                      <label className="text-[12px] font-bold text-[#64736a] uppercase tracking-wider">
                         Ảnh giới thiệu ({introImages.length})
                       </label>
                       {isManager && (
-                        <label className="flex items-center gap-1 cursor-pointer rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors">
+                        <label className="flex items-center gap-1 cursor-pointer rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-bold text-[#477313] hover:bg-primary/20 transition-colors">
                           {uploadingIntro ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
@@ -1635,11 +1635,11 @@ export const Messages = () => {
                     </div>
 
                     {introImages.length === 0 ? (
-                      <p className="text-[12px] text-on-surface-variant">Chưa có ảnh giới thiệu.</p>
+                      <p className="text-[12px] text-[#64736a]">Chưa có ảnh giới thiệu.</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
                         {introImages.map((img) => (
-                          <div key={img.groupImageId} className="group relative aspect-video overflow-hidden rounded-lg border border-outline-variant bg-surface-container-low">
+                          <div key={img.groupImageId} className="group relative aspect-video overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#edf5e9]">
                             <img
                               src={img.imageUrl}
                               alt={img.caption || 'Ảnh giới thiệu'}
@@ -1668,9 +1668,9 @@ export const Messages = () => {
                   </div>
 
                   {/* Members List */}
-                  <div className="border-t border-outline-variant pt-4">
+                  <div className="border-t border-[#d8e4d4] pt-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-[14px] font-bold text-on-surface flex items-center gap-1.5">
+                      <h4 className="text-[14px] font-bold text-[#0b2228] flex items-center gap-1.5">
                         <Users className="h-4 w-4" />
                         <span>Thành viên ({settingsMembers.length})</span>
                       </h4>
@@ -1678,7 +1678,7 @@ export const Messages = () => {
 
                     {membersLoading ? (
                       <div className="flex justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <Loader2 className="h-5 w-5 animate-spin text-[#477313]" />
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
@@ -1694,13 +1694,13 @@ export const Messages = () => {
                                   loading="lazy"
                                 />
                               ) : (
-                                <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 text-[#477313] flex items-center justify-center font-bold text-xs shrink-0">
                                   {member.username[0]?.toUpperCase()}
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <p className="font-semibold text-on-surface truncate">{member.username}</p>
-                                <p className="text-[10px] text-on-surface-variant">
+                                <p className="font-semibold text-[#0b2228] truncate">{member.username}</p>
+                                <p className="text-[10px] text-[#64736a]">
                                   {member.role === 'Owner'
                                     ? 'Trưởng nhóm'
                                     : member.role === 'Admin'
@@ -1719,7 +1719,7 @@ export const Messages = () => {
                                 <>
                                   <button
                                     onClick={() => handleApproveMember(member.userId)}
-                                    className="rounded bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors"
+                                    className="rounded bg-primary/10 px-2 py-1 text-[11px] font-bold text-[#477313] hover:bg-primary/20 transition-colors"
                                   >
                                     Duyệt
                                   </button>
@@ -1735,7 +1735,7 @@ export const Messages = () => {
                                 member.status === 'Accepted' && member.userId !== activeGroup.ownerPlayerId && (
                                 <button
                                   onClick={() => handleRemoveMember(member.userId)}
-                                  className="rounded p-1 hover:bg-[#ba1a1a]/10 text-on-surface-variant hover:text-[#ba1a1a] transition-colors"
+                                  className="rounded p-1 hover:bg-[#ba1a1a]/10 text-[#64736a] hover:text-[#ba1a1a] transition-colors"
                                   title="Xóa khỏi nhóm"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -1750,7 +1750,7 @@ export const Messages = () => {
 
                   {/* Danger zone */}
                   {activeGroup.myRole !== 'Owner' && (
-                    <div className="border-t border-outline-variant pt-4 pb-2">
+                    <div className="border-t border-[#d8e4d4] pt-4 pb-2">
                       <button
                         onClick={handleLeaveGroup}
                         className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-[#ba1a1a]/20 hover:bg-[#ba1a1a]/5 text-[#ba1a1a] text-[13px] font-bold transition-colors"
@@ -1764,7 +1764,7 @@ export const Messages = () => {
               </>
             ) : (
               <>
-                <div className="border-b border-outline-variant p-5 shrink-0 flex items-center justify-between">
+                <div className="border-b border-[#d8e4d4] p-5 shrink-0 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="mx-auto flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-[18px] font-bold text-white">
                       {activeConversation.avatarUrl ? (
@@ -1772,15 +1772,15 @@ export const Messages = () => {
                       ) : activeConversation.avatar}
                     </div>
                     <div>
-                      <h2 className="text-[16px] font-bold text-on-surface">{activeConversation.name}</h2>
-                      <p className="text-[12px] font-bold text-primary">
+                      <h2 className="text-[16px] font-bold text-[#0b2228]">{activeConversation.name}</h2>
+                      <p className="text-[12px] font-bold text-[#477313]">
                         {kindLabels[activeConversation.kind]} · {getLevelLabel(activeConversation)}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowSettings(false)}
-                    className="rounded-full p-1.5 hover:bg-surface-container-low text-on-surface-variant lg:hidden"
+                    className="rounded-full p-1.5 hover:bg-[#edf5e9] text-[#64736a] lg:hidden"
                     aria-label="Đóng thông tin hội thoại"
                     type="button"
                   >
@@ -1789,40 +1789,40 @@ export const Messages = () => {
                 </div>
 
                 <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-                  <section className="rounded-lg border border-outline-variant bg-surface-container-low p-4">
+                  <section className="rounded-lg border border-[#d8e4d4] bg-[#edf5e9] p-4">
                     <h3 className="flex items-center gap-2 text-[15px] font-bold">
-                      <ShieldCheck className="h-5 w-5 text-primary" />
+                      <ShieldCheck className="h-5 w-5 text-[#477313]" />
                       Ngữ cảnh trao đổi
                     </h3>
-                    <p className="mt-3 text-[14px] font-bold text-on-surface">{activeConversation.contextTitle}</p>
-                    <p className="mt-1 text-[13px] leading-5 text-on-surface-variant">{activeConversation.contextMeta}</p>
+                    <p className="mt-3 text-[14px] font-bold text-[#0b2228]">{activeConversation.contextTitle}</p>
+                    <p className="mt-1 text-[13px] leading-5 text-[#64736a]">{activeConversation.contextMeta}</p>
                   </section>
 
-                  <section className="rounded-lg border border-outline-variant p-4">
+                  <section className="rounded-lg border border-[#d8e4d4] p-4">
                     <h3 className="text-[15px] font-bold">Thông tin nhanh</h3>
                     <div className="mt-4 space-y-3">
                       <div className="flex gap-3 text-[13px]">
-                        <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-[#477313]" />
                         <div>
-                          <p className="font-bold text-on-surface">Trình độ</p>
-                          <p className="mt-0.5 text-on-surface-variant">{getLevelLabel(activeConversation)}</p>
+                          <p className="font-bold text-[#0b2228]">Trình độ</p>
+                          <p className="mt-0.5 text-[#64736a]">{getLevelLabel(activeConversation)}</p>
                         </div>
                       </div>
                     </div>
                   </section>
 
-                  <section className="rounded-lg border border-outline-variant p-4">
+                  <section className="rounded-lg border border-[#d8e4d4] p-4">
                     <h3 className="flex items-center gap-2 text-[15px] font-bold">
-                      <CalendarClock className="h-5 w-5 text-primary" />
+                      <CalendarClock className="h-5 w-5 text-[#477313]" />
                       Lịch hẹn liên quan
                     </h3>
                     <div className="mt-4 rounded-lg bg-[#eaf7df] p-3">
-                      <p className="text-[13px] font-bold text-primary">{activeConversation.contextTitle}</p>
-                      <p className="mt-1 text-[12px] font-medium text-on-surface-variant">{activeConversation.contextMeta}</p>
+                      <p className="text-[13px] font-bold text-[#477313]">{activeConversation.contextTitle}</p>
+                      <p className="mt-1 text-[12px] font-medium text-[#64736a]">{activeConversation.contextMeta}</p>
                     </div>
                   </section>
 
-                  <section className="rounded-lg border border-outline-variant bg-[#fff8e6] p-4">
+                  <section className="rounded-lg border border-[#d8e4d4] bg-[#fff8e6] p-4">
                     <h3 className="flex items-center gap-2 text-[15px] font-bold text-[#7a5600]">
                       <UserRound className="h-5 w-5" />
                       An toàn cộng đồng

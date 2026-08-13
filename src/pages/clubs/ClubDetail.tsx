@@ -342,7 +342,7 @@ export const ClubDetail = () => {
                 {club.groupType}
               </span>
             </div>
-            <h1 className="text-[32px] font-bold leading-[1.02] tracking-[-0.04em] md:text-[42px]">{club.groupName}</h1>
+            <h1 className="text-[26px] font-bold leading-[1.05] tracking-[-0.04em] md:text-[34px]">{club.groupName}</h1>
             {club.description && (
               <p className="mt-3 max-w-3xl text-[14px] leading-6 text-white/74 md:text-[15px]">
                 {club.description}

@@ -240,7 +240,7 @@ export const PendingInvites = () => {
         stats={(
           <div className="grid grid-cols-2 gap-5">
             <div>
-              <p className="font-mono text-[28px] font-extrabold text-[#e2ff57]">
+              <p className="font-mono text-[23px] font-extrabold text-[#e2ff57]">
                 {filteredQueues.length}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">
@@ -248,7 +248,7 @@ export const PendingInvites = () => {
               </p>
             </div>
             <div>
-              <p className="font-mono text-[28px] font-extrabold text-[#e2ff57]">{remainingSlots}</p>
+              <p className="font-mono text-[23px] font-extrabold text-[#e2ff57]">{remainingSlots}</p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">chỗ trống trên trang</p>
             </div>
           </div>
