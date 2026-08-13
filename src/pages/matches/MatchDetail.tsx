@@ -371,7 +371,7 @@ export const MatchDetail = () => {
     }
     const targetDates = datesForMonthDuration(bookingDate, bookingMonths);
     if (!targetDates.length || bookingRangeEnd > maxMatchBookingDate()) {
-      setError('Khoảng đặt sân phải kết thúc trong vòng 12 tháng kể từ hôm nay.');
+      setError(`Khoảng đặt sân phải kết thúc trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`);
       return;
     }
 

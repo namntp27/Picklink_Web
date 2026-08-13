@@ -26,11 +26,7 @@ const localDate = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
-const maxScheduleDate = () => {
-  const now = new Date();
-  now.setMonth(now.getMonth() + 1);
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
+const maxScheduleDate = () => addCalendarMonths(localDate(), maximumAdvanceBookingMonths);
 const maxBookingDate = () => addCalendarMonths(localDate(), maximumAdvanceBookingMonths);
 const maximumMonthDurationFrom = (startDate: string) => {
   for (let months = maximumAdvanceBookingMonths; months >= 1; months -= 1) {
@@ -249,7 +245,7 @@ export const CourtScheduleDetail = () => {
     }
     const targetDates = datesForMonthDuration(date, bookingMonths);
     if (!targetDates.length || bookingRangeEnd > maxBookingDate()) {
-      setError('Khoảng đặt sân phải kết thúc trong vòng 12 tháng kể từ hôm nay.');
+      setError(`Khoảng đặt sân phải kết thúc trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`);
       return;
     }
 

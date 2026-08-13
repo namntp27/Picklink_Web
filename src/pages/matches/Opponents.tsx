@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, Crosshair, ListChecks, MapPin, Moon, Plus, PlusCircle, Route, SlidersHorizontal, Sparkles, Trash2, Trophy, X, Repeat, User } from 'lucide-react';
+import { AlertTriangle, Crosshair, ListChecks, MapPin, Moon, PlusCircle, Route, Sparkles, Trophy, X, Repeat, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -14,177 +14,15 @@ import { forwardGeocodeArea, reverseGeocodeArea } from '../../api/geocoding';
 import { resolveAdministrativeArea } from '../../api/locations';
 import {
   joinSoloQueue,
-  type JoinSoloQueueRequest,
   type QueueSlotRequest,
 } from '../../api/matchmaking';
 import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../utils/playerLocation';
+import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
-
-const minutesToHHMM = (totalMinutes: number) => {
-  const normalized = Math.min(1440, Math.max(0, totalMinutes));
-  if (normalized === 1440) return '00:00';
-  const hours = Math.floor(normalized / 60);
-  const mins = normalized % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-};
-
-const hhmmToMinutes = (timeStr: string, isEnd = false) => {
-  if (!timeStr) return 0;
-  if (isEnd && timeStr === '00:00') return 1440;
-  const [h, m] = timeStr.split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-};
-
-interface SlotTimeSliderProps {
-  timeFrom: string;
-  timeTo: string;
-  onChange: (timeFrom: string, timeTo: string) => void;
-}
-
-const SlotTimeSlider = ({ timeFrom, timeTo, onChange }: SlotTimeSliderProps) => {
-  const startMin = hhmmToMinutes(timeFrom);
-  const endMin = hhmmToMinutes(timeTo, true);
-
-  const currentDuration = Math.max(30, endMin > startMin ? endMin - startMin : 120);
-
-  const handleDurationChange = (delta: number) => {
-    const newDuration = Math.min(1440, Math.max(30, currentDuration + delta));
-    let newEnd = startMin + newDuration;
-    let newStart = startMin;
-    if (newEnd > 1440) {
-      newEnd = 1440;
-      newStart = Math.max(0, 1440 - newDuration);
-    }
-    onChange(minutesToHHMM(newStart), minutesToHHMM(newEnd));
-  };
-
-  const handleStartChange = (val: number) => {
-    let newStart = val;
-    let newEnd = newStart + currentDuration;
-    if (newEnd > 1440) {
-      newEnd = 1440;
-      newStart = 1440 - currentDuration;
-    }
-    onChange(minutesToHHMM(newStart), minutesToHHMM(newEnd));
-  };
-
-  const handleTypeStart = (newStartStr: string) => {
-    if (!newStartStr) return;
-    const newStartMin = hhmmToMinutes(newStartStr);
-    let newEndMin = newStartMin + currentDuration;
-    let finalStartMin = newStartMin;
-
-    if (newEndMin > 1440) {
-      newEndMin = 1440;
-      finalStartMin = Math.max(0, 1440 - currentDuration);
-    }
-    onChange(minutesToHHMM(finalStartMin), minutesToHHMM(newEndMin));
-  };
-
-  const handleTypeEnd = (newEndStr: string) => {
-    if (!newEndStr) return;
-    const newEndMin = hhmmToMinutes(newEndStr, true);
-    let newStartMin = newEndMin - currentDuration;
-    let finalEndMin = newEndMin;
-
-    if (newStartMin < 0) {
-      newStartMin = 0;
-      finalEndMin = currentDuration;
-    }
-    onChange(minutesToHHMM(newStartMin), minutesToHHMM(finalEndMin));
-  };
-
-  const startPercent = (startMin / 1440) * 100;
-  const blockWidthPercent = (currentDuration / 1440) * 100;
-  const durationHours = (currentDuration / 60).toFixed(1).replace('.0', '');
-
-  return (
-    <div className="space-y-3 rounded-xl border border-[#d8e4d4] bg-[#f7fbf6] p-3.5 shadow-xs">
-      <div className="flex items-center justify-between gap-3 border-b border-[#e2e9df] pb-2.5 flex-wrap">
-        <span className="text-[11px] font-extrabold text-[#526158]">Thời lượng chơi mong muốn:</span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => handleDurationChange(-30)}
-            disabled={currentDuration <= 30}
-            className="grid h-7 w-7 place-items-center rounded-lg border border-[#c3d5be] bg-white text-[#0b2228] font-bold hover:bg-[#edf5e9] disabled:opacity-30 transition-colors shadow-2xs"
-            title="Giảm 30 phút"
-          >
-            -
-          </button>
-          <span className="min-w-[120px] text-center font-bold text-[12px] text-[#0b2228] bg-white px-3 py-1 rounded-lg border border-[#d8e4d4]">
-            {durationHours} tiếng ({currentDuration} phút)
-          </span>
-          <button
-            type="button"
-            onClick={() => handleDurationChange(30)}
-            disabled={currentDuration >= 1440}
-            className="grid h-7 w-7 place-items-center rounded-lg border border-[#c3d5be] bg-white text-[#0b2228] font-bold hover:bg-[#edf5e9] disabled:opacity-30 transition-colors shadow-2xs"
-            title="Tăng 30 phút"
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-2 text-[12px] font-extrabold text-[#0b2228] flex-wrap">
-        <span className="text-[11px] text-[#718077]">Khung giờ đã chọn:</span>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-[#718077]">Bắt đầu:</span>
-            <input
-              type="time"
-              value={timeFrom}
-              onChange={(e) => handleTypeStart(e.target.value)}
-              className="rounded-lg border border-[#c3d5be] bg-white px-2 py-1 font-mono text-[12px] font-bold text-[#0b2228] focus:border-[#477313] focus:outline-none shadow-2xs"
-            />
-          </label>
-          <span className="text-[#718077]">đến</span>
-          <label className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-[#718077]">Kết thúc:</span>
-            <input
-              type="time"
-              value={timeTo}
-              onChange={(e) => handleTypeEnd(e.target.value)}
-              className="rounded-lg border border-[#c3d5be] bg-white px-2 py-1 font-mono text-[12px] font-bold text-[#0b2228] focus:border-[#477313] focus:outline-none shadow-2xs"
-            />
-          </label>
-        </div>
-      </div>
-
-      <div className="relative pt-1 pb-4">
-        <div className="relative h-4 w-full rounded-full bg-[#dce7d8] overflow-hidden">
-          <div
-            className="absolute top-0 bottom-0 rounded-full bg-gradient-to-r from-[#477313] to-[#71a32a] shadow-md transition-all"
-            style={{ left: `${startPercent}%`, width: `${blockWidthPercent}%` }}
-          />
-        </div>
-
-        <input
-          type="range"
-          min={0}
-          max={Math.max(0, 1440 - currentDuration)}
-          step={15}
-          value={startMin}
-          onChange={(e) => handleStartChange(Number(e.target.value))}
-          className="absolute top-1 left-0 h-4 w-full cursor-pointer appearance-none bg-transparent accent-[#0b2228]"
-        />
-
-        <div className="mt-1 flex justify-between text-[9px] font-extrabold text-[#86968c]">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-          <span>24:00</span>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const nextDateStr = (dateStr: string) => {
   if (!dateStr) return '';
@@ -222,6 +60,7 @@ const lastOneOffDate = (startDate: string) => {
   date.setUTCDate(date.getUTCDate() + 30);
   return date.toISOString().slice(0, 10);
 };
+const maxAdvanceBookingDate = () => addCalendarMonths(today(), maximumAdvanceBookingMonths);
 
 const isAbortError = (reason: unknown) => reason instanceof Error && reason.name === 'AbortError';
 const locationErrorMessage = (error: GeolocationPositionError) => {
@@ -293,19 +132,6 @@ export const Opponents = () => {
   const navigate = useNavigate();
   const [creationMode, setCreationMode] = useState<'auto' | 'manual'>('auto');
   const [title, setTitle] = useState('');
-  const [replayType, setReplayType] = useState<JoinSoloQueueRequest['replayType']>('None');
-  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
-  const [selectedDaysOfMonth, setSelectedDaysOfMonth] = useState<number[]>([]);
-  const [weeklySlots, setWeeklySlots] = useState<Record<number, AvailabilitySlotInput[]>>({
-    0: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-    1: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-    2: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-    3: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-    4: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-    5: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-    6: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }],
-  });
-  const [monthlySlots, setMonthlySlots] = useState<Record<number, AvailabilitySlotInput[]>>({});
   const [{ province, ward }, setArea] = useState({ province: '', ward: '' });
   const [radiusKm, setRadiusKm] = useState(5);
   const [location, setLocation] = useState<PlayerLocation | null>(null);
@@ -317,7 +143,6 @@ export const Opponents = () => {
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlotInput[]>([
     { id: 1, timeFrom: '18:00', timeTo: '20:00' },
   ]);
-  const [useSliderMode, setUseSliderMode] = useState(true);
   const [format, setFormat] = useState<MatchFormat>('2vs2');
   const [playerCount, setPlayerCount] = useState(4);
   const [minSkillLevel, setMinSkillLevel] = useState(1);
@@ -331,7 +156,6 @@ export const Opponents = () => {
   const geocodeRequestId = useRef(0);
   const geocodeAbortController = useRef<AbortController | null>(null);
   const locationRequestId = useRef(0);
-  const nextAvailabilitySlotId = useRef(2);
 
   const orderedAvailabilitySlots = useMemo(
     () => [...availabilitySlots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom)),
@@ -594,84 +418,6 @@ export const Opponents = () => {
       slot.id === slotId ? { ...slot, [field]: value } : slot));
   };
 
-  const addAvailabilitySlot = () => {
-    setAvailabilitySlots((current) => {
-      if (current.length >= 20) return current;
-      const previous = current.at(-1);
-      return [...current, {
-        id: nextAvailabilitySlotId.current++,
-        timeFrom: previous?.timeFrom ?? '18:00',
-        timeTo: previous?.timeTo ?? '20:00',
-      }];
-    });
-  };
-
-  const removeAvailabilitySlot = (slotId: number) => {
-    setAvailabilitySlots((current) => current.length === 1
-      ? current
-      : current.filter((slot) => slot.id !== slotId));
-  };
-
-  const addWeeklySlot = (day: number) => {
-    setWeeklySlots((current) => {
-      const slots = current[day] ?? [];
-      if (slots.length >= 20) return current;
-      const previous = slots.at(-1);
-      const newSlot = {
-        id: nextAvailabilitySlotId.current++,
-        timeFrom: previous?.timeFrom ?? '18:00',
-        timeTo: previous?.timeTo ?? '20:00',
-      };
-      return { ...current, [day]: [...slots, newSlot] };
-    });
-  };
-
-  const removeWeeklySlot = (day: number, slotId: number) => {
-    setWeeklySlots((current) => {
-      const slots = current[day] ?? [];
-      if (slots.length <= 1) return current;
-      return { ...current, [day]: slots.filter((slot) => slot.id !== slotId) };
-    });
-  };
-
-  const updateWeeklySlot = (day: number, slotId: number, field: keyof Omit<AvailabilitySlotInput, 'id'>, value: string) => {
-    setWeeklySlots((current) => {
-      const slots = current[day] ?? [];
-      const updated = slots.map((slot) => slot.id === slotId ? { ...slot, [field]: value } : slot);
-      return { ...current, [day]: updated };
-    });
-  };
-
-  const addMonthlySlot = (day: number) => {
-    setMonthlySlots((current) => {
-      const slots = current[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
-      if (slots.length >= 20) return current;
-      const previous = slots.at(-1);
-      const newSlot = {
-        id: nextAvailabilitySlotId.current++,
-        timeFrom: previous?.timeFrom ?? '18:00',
-        timeTo: previous?.timeTo ?? '20:00',
-      };
-      return { ...current, [day]: [...slots, newSlot] };
-    });
-  };
-
-  const removeMonthlySlot = (day: number, slotId: number) => {
-    setMonthlySlots((current) => {
-      const slots = current[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
-      if (slots.length <= 1) return current;
-      return { ...current, [day]: slots.filter((slot) => slot.id !== slotId) };
-    });
-  };
-
-  const updateMonthlySlot = (day: number, slotId: number, field: keyof Omit<AvailabilitySlotInput, 'id'>, value: string) => {
-    setMonthlySlots((current) => {
-      const slots = current[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
-      const updated = slots.map((slot) => slot.id === slotId ? { ...slot, [field]: value } : slot);
-      return { ...current, [day]: updated };
-    });
-  };
-
   const changeFormat = (value: MatchFormat) => {
     setFormat(value);
   };
@@ -741,120 +487,59 @@ export const Opponents = () => {
       return null;
     };
 
-    let queueSlots: QueueSlotRequest[] = [];
+    const queueSlots: QueueSlotRequest[] = [];
 
-    if (replayType === 'None' || replayType === 'Daily') {
+    {
       const errorMsg = validateSlotList(availabilitySlots, 'khung giờ chơi');
       if (errorMsg) {
         setError(errorMsg);
         return;
       }
-      if (replayType === 'Daily') {
-        queueSlots = orderedAvailabilitySlots.map((slot) => ({
-          timeStart: slot.timeFrom,
-          timeEnd: slot.timeTo,
-        }));
-      } else {
-        // None (One-off)
-        if (!dateFrom || !dateTo) {
-          setError('Vui lòng chọn đầy đủ ngày có thể chơi.');
-          return;
-        }
-        if (dateFrom < today()) {
-          setError('Ngày bắt đầu không được ở trong quá khứ.');
-          return;
-        }
-        if (dateTo < dateFrom) {
-          setError('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
-          return;
-        }
-        if (dateTo > lastOneOffDate(dateFrom)) {
-          setError('Khoảng ngày có thể chơi không được vượt quá 31 ngày.');
-          return;
-        }
-        if (dateFrom === today() && orderedAvailabilitySlots.some((slot) => slot.timeTo <= currentTime())) {
-          setError('Khung giờ được chọn cho hôm nay đã trôi qua. Vui lòng chọn khung giờ trong tương lai.');
-          return;
-        }
-
-        const [y1, m1, d1] = dateFrom.split('-').map(Number);
-        const [y2, m2, d2] = dateTo.split('-').map(Number);
-        const curDate = new Date(y1, m1 - 1, d1);
-        const endDate = new Date(y2, m2 - 1, d2);
-
-        while (curDate <= endDate) {
-          const year = curDate.getFullYear();
-          const monthStr = String(curDate.getMonth() + 1).padStart(2, '0');
-          const dayStr = String(curDate.getDate()).padStart(2, '0');
-          const dateStr = `${year}-${monthStr}-${dayStr}`;
-
-          orderedAvailabilitySlots.forEach((slot) => {
-            queueSlots.push({
-              specificDate: dateStr,
-              timeStart: slot.timeFrom,
-              timeEnd: slot.timeTo,
-            });
-          });
-          curDate.setDate(curDate.getDate() + 1);
-        }
-      }
-    } else if (replayType === 'Weekly') {
-      if (selectedWeekdays.length === 0) {
-        setError('Vui lòng chọn ít nhất một ngày trong tuần.');
+      if (!dateFrom || !dateTo) {
+        setError('Vui lòng chọn đầy đủ ngày có thể chơi.');
         return;
       }
-      const weekdayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-      for (const day of selectedWeekdays) {
-        const slots = weeklySlots[day] ?? [];
-        if (slots.length === 0) {
-          setError(`Vui lòng thêm ít nhất một khung giờ cho ${weekdayNames[day]}.`);
-          return;
-        }
-        const errorMsg = validateSlotList(slots, weekdayNames[day]);
-        if (errorMsg) {
-          setError(errorMsg);
-          return;
-        }
-        const ordered = [...slots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom));
-        ordered.forEach((slot) => {
+      if (dateFrom < today()) {
+        setError('Ngày bắt đầu không được ở trong quá khứ.');
+        return;
+      }
+      if (dateFrom > maxAdvanceBookingDate()) {
+        setError(`Ngày bắt đầu không được quá ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`);
+        return;
+      }
+      if (dateTo < dateFrom) {
+        setError('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
+        return;
+      }
+      if (dateTo > lastOneOffDate(dateFrom)) {
+        setError('Khoảng ngày có thể chơi không được vượt quá 31 ngày.');
+        return;
+      }
+      if (dateFrom === today() && orderedAvailabilitySlots.some((slot) => slot.timeTo <= currentTime())) {
+        setError('Khung giờ được chọn cho hôm nay đã trôi qua. Vui lòng chọn khung giờ trong tương lai.');
+        return;
+      }
+
+      const [y1, m1, d1] = dateFrom.split('-').map(Number);
+      const [y2, m2, d2] = dateTo.split('-').map(Number);
+      const curDate = new Date(y1, m1 - 1, d1);
+      const endDate = new Date(y2, m2 - 1, d2);
+
+      while (curDate <= endDate) {
+        const year = curDate.getFullYear();
+        const monthStr = String(curDate.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(curDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+        orderedAvailabilitySlots.forEach((slot) => {
           queueSlots.push({
-            dayOfWeek: day,
+            specificDate: dateStr,
             timeStart: slot.timeFrom,
             timeEnd: slot.timeTo,
           });
         });
+        curDate.setDate(curDate.getDate() + 1);
       }
-    } else if (replayType === 'Monthly') {
-      if (selectedDaysOfMonth.length === 0) {
-        setError('Vui lòng chọn ít nhất một ngày trong tháng.');
-        return;
-      }
-      for (const day of selectedDaysOfMonth) {
-        const slots = monthlySlots[day] ?? [];
-        if (slots.length === 0) {
-          setError(`Vui lòng thêm ít nhất một khung giờ cho Ngày ${day}.`);
-          return;
-        }
-        const errorMsg = validateSlotList(slots, `Ngày ${day}`);
-        if (errorMsg) {
-          setError(errorMsg);
-          return;
-        }
-        const ordered = [...slots].sort((left, right) => left.timeFrom.localeCompare(right.timeFrom));
-        ordered.forEach((slot) => {
-          queueSlots.push({
-            dayOfMonth: day,
-            timeStart: slot.timeFrom,
-            timeEnd: slot.timeTo,
-          });
-        });
-      }
-    }
-
-    let replayWeekdaysStr: string | null = null;
-    if (replayType === 'Weekly') {
-      const weekdaysNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      replayWeekdaysStr = selectedWeekdays.map((d) => weekdaysNames[d]).join(',');
     }
 
     setIsCreating(true);
@@ -870,8 +555,8 @@ export const Opponents = () => {
         searchRadiusKm: radiusKm,
         searchLatitude: location?.latitude,
         searchLongitude: location?.longitude,
-        replayType,
-        replayWeekdays: replayWeekdaysStr,
+        replayType: 'None',
+        replayWeekdays: null,
         isPublic: creationMode === 'manual',
         isActive: true,
         province: province.trim() || null,
@@ -1104,303 +789,61 @@ export const Opponents = () => {
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0b2228] text-[12px] font-black text-[#e2ff57]">3</span>
               <div>
                 <h2 className="text-[14px] font-extrabold text-[#0b2228]">Lịch chơi</h2>
-                <p className="text-[11px] font-semibold text-[#718077]">Ngày, khung giờ và tần suất tìm lại</p>
+                <p className="text-[11px] font-semibold text-[#718077]">Ngày và khung giờ có thể chơi</p>
               </div>
             </div>
 
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Tần suất tìm lại (Replay)</span>
-              <select
-                className={inputClass}
-                value={replayType}
-                onChange={(event) =>
-                  setReplayType(event.target.value as JoinSoloQueueRequest['replayType'])}
-              >
-                <option value="None">Một lần (Không tìm lại sau khi khớp)</option>
-                <option value="Daily">Hàng ngày (Daily replay)</option>
-                <option value="Weekly">Hàng tuần (Weekly replay)</option>
-                <option value="Monthly">Hàng tháng (Monthly replay)</option>
-              </select>
-            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label>
+                <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
+                <input
+                  className={inputClass}
+                  max={maxAdvanceBookingDate()}
+                  min={today()}
+                  onChange={(event) => {
+                    const nextDateFrom = event.target.value;
+                    setDateFrom(nextDateFrom);
+                    if (nextDateFrom > dateTo) setDateTo(nextDateFrom);
+                    else if (dateTo > lastOneOffDate(nextDateFrom)) setDateTo(lastOneOffDate(nextDateFrom));
+                  }}
+                  type="date"
+                  value={dateFrom}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
+                <input
+                  className={inputClass}
+                  max={lastOneOffDate(dateFrom)}
+                  min={dateFrom}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  type="date"
+                  value={dateTo}
+                />
+              </label>
+            </div>
 
-            {replayType === 'None' && (
-              <div className="grid grid-cols-2 gap-2">
-                <label>
-                  <span className="mb-1 block text-[11px] font-bold text-[#718077]">Từ ngày</span>
-                  <input
-                    className={inputClass}
-                    min={today()}
-                    onChange={(event) => {
-                      const nextDateFrom = event.target.value;
-                      setDateFrom(nextDateFrom);
-                      if (nextDateFrom > dateTo) setDateTo(nextDateFrom);
-                      else if (dateTo > lastOneOffDate(nextDateFrom)) setDateTo(lastOneOffDate(nextDateFrom));
-                    }}
-                    type="date"
-                    value={dateFrom}
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
-                  <input
-                    className={inputClass}
-                    max={lastOneOffDate(dateFrom)}
-                    min={dateFrom}
-                    onChange={(event) => setDateTo(event.target.value)}
-                    type="date"
-                    value={dateTo}
-                  />
-                </label>
-              </div>
-            )}
-
-            {(replayType === 'None' || replayType === 'Daily') && (
-              <div className="border-t border-[#cfe0c8] pt-3">
-                <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[12px] font-bold text-[#0b2228]">Khung giờ có thể chơi ({availabilitySlots.length})</span>
-                    <button
-                      type="button"
-                      onClick={() => setUseSliderMode((prev) => !prev)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#b8caa0] bg-[#eef6ec] px-2.5 py-1 text-[11px] font-extrabold text-[#2a4530] hover:bg-[#e0edd9] transition-colors shadow-xs"
-                      title="Bấm để chuyển đổi giữa Thanh Trượt 24h và Nhập giờ thủ công"
-                    >
-                      <SlidersHorizontal className="h-3.5 w-3.5 text-[#477313]" />
-                      <span>{useSliderMode ? 'Đang bật: Thanh Trượt (Slider 24h)' : 'Đang bật: Nhập Thủ Công'}</span>
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addAvailabilitySlot}
-                    className="community-button-quiet !min-h-8 !px-2.5"
-                    disabled={availabilitySlots.length >= 20}
-                  >
-                    <Plus className="h-4 w-4" /> Thêm
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {availabilitySlots.map((slot, index) => (
-                    <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df] pb-3 last:border-b-0 last:pb-0 items-start">
-                      {useSliderMode ? (
-                        <SlotTimeSlider
-                          timeFrom={slot.timeFrom}
-                          timeTo={slot.timeTo}
-                          onChange={(newFrom, newTo) => {
-                            setAvailabilitySlots((prev) =>
-                              prev.map((item) => (item.id === slot.id ? { ...item, timeFrom: newFrom, timeTo: newTo } : item))
-                            );
-                          }}
-                        />
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2">
-                          <label>
-                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Slot {index + 1} bắt đầu</span>
-                            <input
-                              type="time"
-                              className={inputClass}
-                              min={replayType === 'None' && dateFrom === today() ? currentTime() : undefined}
-                              value={slot.timeFrom}
-                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeFrom', e.target.value)}
-                            />
-                          </label>
-                          <label>
-                            <span className="mb-1 block text-[11px] font-bold text-[#718077]">Kết thúc</span>
-                            <input
-                              type="time"
-                              className={inputClass}
-                              value={slot.timeTo}
-                              onChange={(e) => updateAvailabilitySlot(slot.id, 'timeTo', e.target.value)}
-                            />
-                          </label>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        disabled={availabilitySlots.length === 1}
-                        onClick={() => removeAvailabilitySlot(slot.id)}
-                        className="mt-[18px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {replayType === 'Weekly' && (
-              <>
-                <div>
-                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Chọn các thứ trong tuần</span>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((label, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => {
-                          setSelectedWeekdays((prev) =>
-                            prev.includes(index) ? prev.filter((d) => d !== index) : [...prev, index]
-                          );
-                        }}
-                        className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${selectedWeekdays.includes(index)
-                          ? 'border-[#0b2228] bg-[#0b2228] text-white'
-                          : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {selectedWeekdays.map((day) => {
-                    const weekdayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-                    const slots = weeklySlots[day] ?? [];
-                    return (
-                      <div key={day} className="rounded-xl border border-[#d8e4d4] p-3 bg-[#edf5e9]/20">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="text-[12px] font-extrabold text-[#0b2228]">Khung giờ {weekdayNames[day]} ({slots.length})</span>
-                          <button
-                            type="button"
-                            onClick={() => addWeeklySlot(day)}
-                            className="community-button-quiet !min-h-8 !px-2.5"
-                            disabled={slots.length >= 20}
-                          >
-                            <Plus className="h-4 w-4" /> Thêm
-                          </button>
-                        </div>
-                        <div className="space-y-3">
-                          {slots.map((slot, index) => (
-                            <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df]/60 pb-3 last:border-b-0 last:pb-0">
-                              <div className="grid grid-cols-2 gap-2">
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Bắt đầu</span>
-                                  <input
-                                    type="time"
-                                    className={inputClass}
-                                    value={slot.timeFrom}
-                                    onChange={(e) => updateWeeklySlot(day, slot.id, 'timeFrom', e.target.value)}
-                                  />
-                                </label>
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Kết thúc</span>
-                                  <input
-                                    type="time"
-                                    className={inputClass}
-                                    value={slot.timeTo}
-                                    onChange={(e) => updateWeeklySlot(day, slot.id, 'timeTo', e.target.value)}
-                                  />
-                                </label>
-                              </div>
-                              <button
-                                type="button"
-                                disabled={slots.length === 1}
-                                onClick={() => removeWeeklySlot(day, slot.id)}
-                                className="mt-[18px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {replayType === 'Monthly' && (
-              <>
-                <div>
-                  <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Chọn các ngày trong tháng (1 - 31)</span>
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDaysOfMonth((prev) => {
-                            const next = prev.includes(d) ? prev.filter((val) => val !== d) : [...prev, d];
-                            if (!prev.includes(d) && !monthlySlots[d]) {
-                              setMonthlySlots((curr) => ({
-                                ...curr,
-                                [d]: [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }]
-                              }));
-                            }
-                            return next;
-                          });
-                        }}
-                        className={`min-h-9 rounded-lg border text-[11px] font-extrabold transition-colors ${selectedDaysOfMonth.includes(d)
-                          ? 'border-[#0b2228] bg-[#0b2228] text-white'
-                          : 'border-[#d8e4d4] hover:bg-[#edf5e9]'
-                          }`}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {selectedDaysOfMonth.map((day) => {
-                    const slots = monthlySlots[day] ?? [{ id: 1, timeFrom: '18:00', timeTo: '20:00' }];
-                    return (
-                      <div key={day} className="rounded-xl border border-[#d8e4d4] p-3 bg-[#edf5e9]/20">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="text-[12px] font-extrabold text-[#0b2228]">Khung giờ Ngày {day} ({slots.length})</span>
-                          <button
-                            type="button"
-                            onClick={() => addMonthlySlot(day)}
-                            className="community-button-quiet !min-h-8 !px-2.5"
-                            disabled={slots.length >= 20}
-                          >
-                            <Plus className="h-4 w-4" /> Thêm
-                          </button>
-                        </div>
-                        <div className="space-y-3">
-                          {slots.map((slot, index) => (
-                            <div key={slot.id} className="grid grid-cols-[1fr_38px] gap-2 border-b border-[#e2e9df]/60 pb-3 last:border-b-0 last:pb-0">
-                              <div className="grid grid-cols-2 gap-2">
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Bắt đầu</span>
-                                  <input
-                                    type="time"
-                                    className={inputClass}
-                                    value={slot.timeFrom}
-                                    onChange={(e) => updateMonthlySlot(day, slot.id, 'timeFrom', e.target.value)}
-                                  />
-                                </label>
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-bold text-[#718077]">Kết thúc</span>
-                                  <input
-                                    type="time"
-                                    className={inputClass}
-                                    value={slot.timeTo}
-                                    onChange={(e) => updateMonthlySlot(day, slot.id, 'timeTo', e.target.value)}
-                                  />
-                                </label>
-                              </div>
-                              <button
-                                type="button"
-                                disabled={slots.length === 1}
-                                onClick={() => removeMonthlySlot(day, slot.id)}
-                                className="mt-[18px] grid h-10 w-[38px] place-items-center text-red-600 disabled:opacity-30"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
+            <div className="grid grid-cols-2 gap-2 border-t border-[#cfe0c8] pt-3">
+              <label>
+                <span className="mb-1 block text-[11px] font-bold text-[#718077]">Giờ bắt đầu</span>
+                <input
+                  type="time"
+                  className={inputClass}
+                  min={dateFrom === today() ? currentTime() : undefined}
+                  value={availabilitySlots[0].timeFrom}
+                  onChange={(e) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeFrom', e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-[11px] font-bold text-[#718077]">Giờ kết thúc</span>
+                <input
+                  type="time"
+                  className={inputClass}
+                  value={availabilitySlots[0].timeTo}
+                  onChange={(e) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeTo', e.target.value)}
+                />
+              </label>
+            </div>
           </section>
 
           {error && (

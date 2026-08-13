@@ -1,4 +1,4 @@
-export const maximumAdvanceBookingMonths = 12;
+export const maximumAdvanceBookingMonths = 1;
 
 const bookingDateTimeMinute = (value: string) => `${value.slice(0, 10)}T${value.slice(11, 16)}`;
 
