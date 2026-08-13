@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CalendarCheck, CreditCard, Loader2, Search } from 'lucide-react';
+import { AlertTriangle, Ban, CalendarCheck, CreditCard, Loader2, Search } from 'lucide-react';
 import {
+  cancelAdminBooking,
   listAdminBookings,
   type AdminBookingSummary,
 } from '../../api/adminBookings';
-import { type PaginatedResponse } from '../../api/client';
+import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
+import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
@@ -16,6 +18,8 @@ import type { Tone } from './types';
 const PAGE_SIZE = 12;
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+const outlineButton = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-white px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
+const cancellableStatuses = ['Holding', 'Confirmed'];
 
 const emptyPage: PaginatedResponse<AdminBookingSummary> = {
   items: [],
@@ -61,11 +65,13 @@ const formatDateTime = (value: string) =>
 
 export const AdminBookings = () => {
   const { token } = useAuth();
+  const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [page, setPage] = useState(1);
+  const [busyId, setBusyId] = useState<number | null>(null);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -74,7 +80,7 @@ export const AdminBookings = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const { data = emptyPage, error, loading, refresh: loadBookings } = useApiQuery(
+  const { data = emptyPage, error, loading, refresh: loadBookings, setData } = useApiQuery(
     ['admin-bookings', token, debouncedSearch, status, paymentStatus, page],
     () => listAdminBookings(token!, {
       search: debouncedSearch,
@@ -90,6 +96,33 @@ export const AdminBookings = () => {
     () => data.items.filter((booking) => booking.paymentStatus === 'WaitingForConfirmation').length,
     [data.items],
   );
+
+  const cancelBooking = async (booking: AdminBookingSummary) => {
+    if (!token) return;
+    const reason = window.prompt(
+      `Lý do hủy booking ${booking.bookingCode || `#${booking.bookingId}`} (dùng cho tranh chấp/hoàn tiền):`,
+      '',
+    )?.trim();
+    if (!reason) return;
+    if (!window.confirm(`Xác nhận hủy booking ${booking.bookingCode || `#${booking.bookingId}`}?`)) return;
+
+    setBusyId(booking.bookingId);
+    try {
+      const updated = await cancelAdminBooking(token, booking.bookingId, reason);
+      setData((current) => {
+        const page = current ?? emptyPage;
+        return {
+          ...page,
+          items: page.items.map((item) => item.bookingId === updated.bookingId ? updated : item),
+        };
+      });
+      notify('Đã hủy booking.', 'success');
+    } catch (requestError) {
+      notify(requestError instanceof ApiError ? requestError.message : 'Không thể hủy booking.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <AdminShell activeId="bookings">
@@ -157,10 +190,10 @@ export const AdminBookings = () => {
 
       <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1120px] text-left">
+          <table className="w-full min-w-[1220px] text-left">
             <thead className="border-b border-outline-variant bg-surface-container-low text-xs uppercase tracking-wider text-on-surface-variant">
               <tr>
-                {['Mã booking', 'Người đặt', 'Sân', 'Thời gian', 'Số tiền', 'Thanh toán', 'Trạng thái'].map((heading) => (
+                {['Mã booking', 'Người đặt', 'Sân', 'Thời gian', 'Số tiền', 'Thanh toán', 'Trạng thái', 'Thao tác'].map((heading) => (
                   <th className="px-4 py-3 font-bold" key={heading}>{heading}</th>
                 ))}
               </tr>
@@ -198,6 +231,17 @@ export const AdminBookings = () => {
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge tone={bookingTone(booking.status)}>{booking.status}</StatusBadge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      className={`${outlineButton} text-error`}
+                      disabled={busyId === booking.bookingId || !cancellableStatuses.includes(booking.status)}
+                      onClick={() => void cancelBooking(booking)}
+                      type="button"
+                    >
+                      {busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                      Hủy
+                    </button>
                   </td>
                 </tr>
               ))}

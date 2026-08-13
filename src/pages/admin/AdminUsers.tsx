@@ -39,6 +39,9 @@ const emptyPage: PaginatedResponse<AdminUserSummary> = {
   totalPages: 0,
 };
 
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+
 const roleOptions: Array<{ value: AdminUserRole | 'all'; label: string }> = [
   { value: 'all', label: 'Tất cả' },
   { value: 'Player', label: 'Người chơi' },
@@ -263,9 +266,21 @@ export const AdminUsers = () => {
                         {account.lockReason && (
                           <p className="mt-1 max-w-52 text-xs text-error">{account.lockReason}</p>
                         )}
+                        {account.lockedByName && account.lockedAt && (
+                          <p className="mt-1 max-w-52 text-xs text-on-surface-variant">
+                            Bởi {account.lockedByName} · {formatDateTime(account.lockedAt)}
+                          </p>
+                        )}
                       </>
                     ) : (
-                      <StatusBadge tone="success">Đang hoạt động</StatusBadge>
+                      <>
+                        <StatusBadge tone="success">Đang hoạt động</StatusBadge>
+                        {account.unlockedByName && account.unlockedAt && (
+                          <p className="mt-1 max-w-52 text-xs text-on-surface-variant">
+                            Mở khóa bởi {account.unlockedByName} · {formatDateTime(account.unlockedAt)}
+                          </p>
+                        )}
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">

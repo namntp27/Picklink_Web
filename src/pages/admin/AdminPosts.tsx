@@ -1,3 +1,263 @@
-import { AdminUnavailable } from './components/AdminUnavailable';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Eye, EyeOff, FileText, Loader2, Search, Trash2 } from 'lucide-react';
+import {
+  deleteAdminPost,
+  listAdminPosts,
+  moderateAdminPost,
+  type AdminPost,
+} from '../../api/adminPosts';
+import { ApiError, type PaginatedResponse } from '../../api/client';
+import { useAuth } from '../../auth/AuthContext';
+import { PaginationControls } from '../../components/PaginationControls';
+import { useToast } from '../../components/ui/ToastRegion';
+import { useApiQuery } from '../../hooks/useApiQuery';
+import { AdminShell } from './components/AdminShell';
+import { MobileAdminNav } from './components/MobileAdminNav';
+import { StatusBadge } from './components/StatusBadge';
 
-export const AdminPosts = () => <AdminUnavailable activeId="posts" title="Quản lý bài viết" />;
+const PAGE_SIZE = 12;
+const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+const primaryButton = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
+const outlineButton = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-white px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
+
+const emptyPage: PaginatedResponse<AdminPost> = {
+  items: [],
+  page: 1,
+  pageSize: PAGE_SIZE,
+  totalCount: 0,
+  totalPages: 0,
+};
+
+const visibilityOptions = [
+  { label: 'Tất cả', value: 'all' },
+  { label: 'Đang hiển thị', value: 'visible' },
+  { label: 'Đã ẩn', value: 'hidden' },
+];
+
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+
+export const AdminPosts = () => {
+  const { token } = useAuth();
+  const notify = useToast();
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [visibilityFilter, setVisibilityFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const {
+    data = emptyPage,
+    error,
+    loading,
+    refresh: loadPosts,
+    setData,
+  } = useApiQuery(
+    ['admin-posts', token, debouncedSearch, visibilityFilter, page],
+    () => listAdminPosts(token!, {
+      search: debouncedSearch,
+      hiddenOnly: visibilityFilter === 'hidden' ? true : undefined,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách bài viết.' },
+  );
+
+  const hiddenOnPage = useMemo(() => data.items.filter((item) => item.isHidden).length, [data.items]);
+
+  const moderate = async (post: AdminPost, isHidden: boolean) => {
+    if (!token) return;
+    const moderationNote = window.prompt(
+      isHidden ? 'Lý do ẩn bài viết:' : 'Ghi chú kiểm duyệt (không bắt buộc):',
+      post.moderationNote ?? '',
+    )?.trim();
+    if (moderationNote === undefined) return;
+    if (!window.confirm(`Xác nhận ${isHidden ? 'ẩn' : 'hiện lại'} bài viết này?`)) return;
+
+    setBusyId(post.postId);
+    try {
+      const updated = await moderateAdminPost(token, post.postId, { isHidden, moderationNote });
+      setData((current) => {
+        const page = current ?? emptyPage;
+        return {
+          ...page,
+          items: page.items.map((item) => item.postId === updated.postId ? updated : item),
+        };
+      });
+      notify(isHidden ? 'Đã ẩn bài viết.' : 'Đã hiện lại bài viết.', 'success');
+    } catch (requestError) {
+      notify(requestError instanceof ApiError ? requestError.message : 'Không thể cập nhật bài viết.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (post: AdminPost) => {
+    if (!token) return;
+    if (!window.confirm(`Xóa vĩnh viễn bài viết #${post.postId}? Hành động này không thể hoàn tác.`)) return;
+
+    setBusyId(post.postId);
+    try {
+      await deleteAdminPost(token, post.postId);
+      setData((current) => {
+        const page = current ?? emptyPage;
+        return {
+          ...page,
+          items: page.items.filter((item) => item.postId !== post.postId),
+          totalCount: Math.max(0, page.totalCount - 1),
+        };
+      });
+      notify('Đã xóa bài viết.', 'success');
+    } catch (requestError) {
+      notify(requestError instanceof ApiError ? requestError.message : 'Không thể xóa bài viết.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <AdminShell activeId="posts">
+      <MobileAdminNav activeId="posts" />
+
+      <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Kiểm duyệt nội dung</p>
+          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Quản lý bài viết</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
+            Xem bài viết thật từ cộng đồng và ẩn hoặc xóa nội dung spam, công kích hoặc vi phạm chính sách.
+          </p>
+        </div>
+        <div className="grid min-w-64 grid-cols-2 overflow-hidden rounded-xl border border-outline-variant bg-white">
+          <div className="p-3">
+            <p className="text-2xl font-bold text-primary">{data.totalCount}</p>
+            <p className="text-xs text-on-surface-variant">bài viết phù hợp</p>
+          </div>
+          <div className="border-l border-outline-variant p-3">
+            <p className="text-2xl font-bold text-error">{hiddenOnPage}</p>
+            <p className="text-xs text-on-surface-variant">đang ẩn trên trang</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-4 rounded-xl border border-outline-variant bg-white p-4 shadow-sm">
+        <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_auto] lg:items-center">
+          <div className="relative">
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+            <input aria-label="Tìm bài viết" className={`${inputClass} pl-9`} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm nội dung, tác giả, nhóm..." value={search} />
+          </div>
+          <div className="flex gap-2 overflow-x-auto">
+            {visibilityOptions.map((option) => (
+              <button
+                aria-pressed={visibilityFilter === option.value}
+                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${visibilityFilter === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}
+                key={option.value}
+                onClick={() => { setVisibilityFilter(option.value); setPage(1); }}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {error && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-sm font-semibold text-error" role="alert">
+          <AlertTriangle className="h-5 w-5 shrink-0" />{error}
+          <button className="ml-auto underline" onClick={() => void loadPosts()} type="button">Thử lại</button>
+        </div>
+      )}
+
+      <section className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1060px] text-left">
+            <thead className="border-b border-outline-variant bg-surface-container-low text-xs uppercase tracking-wider text-on-surface-variant">
+              <tr>
+                {['Bài viết', 'Tác giả', 'Nhóm', 'Nội dung', 'Trạng thái', 'Thao tác'].map((heading) => (
+                  <th className="px-4 py-3 font-bold" key={heading}>{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {data.items.map((post) => (
+                <tr className="align-top hover:bg-surface-container-low" key={post.postId}>
+                  <td className="px-4 py-3">
+                    <p className="font-bold">#{post.postId}</p>
+                    <p className="mt-1 text-xs text-on-surface-variant">{formatDateTime(post.createdAt)}</p>
+                    <p className="mt-1 text-xs text-on-surface-variant">{post.likeCount} lượt thích · {post.commentCount} bình luận</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-bold">{post.authorName}</p>
+                    <p className="mt-1 text-xs text-on-surface-variant">{post.authorEmail}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm">{post.groupName ?? 'Bài cá nhân'}</p>
+                  </td>
+                  <td className="max-w-md px-4 py-3">
+                    <p className="text-sm leading-6">{post.content || 'Không có nội dung văn bản.'}</p>
+                    {post.moderationNote && <p className="mt-2 rounded-lg bg-surface-container-low p-2 text-xs font-semibold text-on-surface-variant">Admin: {post.moderationNote}</p>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {post.isHidden ? (
+                      <>
+                        <StatusBadge tone="danger">Đã ẩn</StatusBadge>
+                        {post.moderatedByName && post.moderatedAt && (
+                          <p className="mt-1 text-xs text-on-surface-variant">Bởi {post.moderatedByName} · {formatDateTime(post.moderatedAt)}</p>
+                        )}
+                      </>
+                    ) : (
+                      <StatusBadge tone="success">Đang hiển thị</StatusBadge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      {post.isHidden ? (
+                        <button className={primaryButton} disabled={busyId === post.postId} onClick={() => void moderate(post, false)} type="button">
+                          {busyId === post.postId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}Hiện
+                        </button>
+                      ) : (
+                        <button className={`${outlineButton} text-error`} disabled={busyId === post.postId} onClick={() => void moderate(post, true)} type="button">
+                          {busyId === post.postId ? <Loader2 className="h-4 w-4 animate-spin" /> : <EyeOff className="h-4 w-4" />}Ẩn
+                        </button>
+                      )}
+                      <button className={`${outlineButton} text-error`} disabled={busyId === post.postId} onClick={() => void remove(post)} type="button">
+                        <Trash2 className="h-4 w-4" />Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {loading && (
+          <div className="grid min-h-56 place-items-center border-t border-outline-variant">
+            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          </div>
+        )}
+        {!loading && !data.items.length && (
+          <div className="grid min-h-56 place-items-center border-t border-outline-variant p-6 text-center">
+            <div>
+              <FileText className="mx-auto h-8 w-8 text-primary" />
+              <p className="mt-3 font-bold">Không có bài viết phù hợp</p>
+              <p className="mt-1 text-sm text-on-surface-variant">Thử đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <div className="mt-4">
+        <PaginationControls page={data} onPageChange={setPage} />
+      </div>
+    </AdminShell>
+  );
+};

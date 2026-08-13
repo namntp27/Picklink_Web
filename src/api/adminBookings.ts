@@ -50,3 +50,14 @@ export const listAdminBookings = (
     accessToken,
   );
 };
+
+export const cancelAdminBooking = (
+  accessToken: string,
+  bookingId: number,
+  reason: string,
+) =>
+  apiRequest<AdminBookingSummary>(
+    `/api/admin/bookings/${bookingId}/cancel`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
+    accessToken,
+  );

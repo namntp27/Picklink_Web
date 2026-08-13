@@ -10,6 +10,10 @@ export type AdminUserSummary = {
   roleLabel: string;
   isLocked: boolean;
   lockReason?: string | null;
+  lockedAt?: string | null;
+  lockedByName?: string | null;
+  unlockedAt?: string | null;
+  unlockedByName?: string | null;
   city?: string | null;
   commune?: string | null;
   avatarUrl?: string | null;
