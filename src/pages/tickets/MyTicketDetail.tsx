@@ -163,6 +163,7 @@ export const MyTicketDetail = () => {
   const navigationTicket = (location.state as { ticket?: SessionTicket } | null)?.ticket;
   const initialTicket = navigationTicket?.sessionTicketId === ticketId ? navigationTicket : null;
   const [busyAction, setBusyAction] = useState<'cancel' | 'retry' | 'receipt' | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [receipt, setReceipt] = useState<File | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -276,9 +277,10 @@ export const MyTicketDetail = () => {
       return;
     }
     setBusyAction('receipt');
+    setUploadProgress(0);
     setError('');
     try {
-      await submitTicketReceipt(token, ticket.sessionTicketId, receipt);
+      await submitTicketReceipt(token, ticket.sessionTicketId, receipt, setUploadProgress);
       setTicket(await getPlayerTicket(token, ticket.sessionTicketId));
       setReceipt(null);
       notify('Đã gửi biên lai cho chủ sân kiểm tra.', 'success');
@@ -286,6 +288,7 @@ export const MyTicketDetail = () => {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi biên lai.');
     } finally {
       setBusyAction(null);
+      setUploadProgress(null);
     }
   };
 
@@ -398,6 +401,21 @@ export const MyTicketDetail = () => {
                 </div>
                 <p className="mt-4 flex items-start gap-2 rounded-xl bg-surface-container-low p-3 text-[12px] leading-5 text-on-surface-variant"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />Giữ nguyên số tiền và nội dung chuyển khoản. SePay sẽ tự động cập nhật vé khi ngân hàng ghi nhận giao dịch.</p>
                 {ticket.rejectionReason && <p className="mt-4 rounded-xl border border-error/20 bg-error-container p-3 text-[13px] font-bold text-error">Biên lai trước bị từ chối: {ticket.rejectionReason}</p>}
+                {uploadProgress !== null && busyAction === 'receipt' && (
+                  <div className="mt-3 rounded-xl border border-outline-variant bg-surface-container-low p-3">
+                    <div className="flex items-center justify-between text-[12px] font-bold text-primary">
+                      <span>Đang tải ảnh biên lai lên Cloud...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-outline-variant">
+                      <div
+                        className="h-full bg-primary transition-all duration-200"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                   <label className="block min-w-0">
                     <span className="text-[13px] font-bold">Ảnh biên lai chuyển khoản</span>
@@ -408,7 +426,7 @@ export const MyTicketDetail = () => {
                     </span>
                   </label>
                   <Button aria-busy={busyAction === 'receipt'} disabled={!receipt || Boolean(busyAction)} onClick={() => void submitReceipt()} type="button">
-                    {busyAction === 'receipt' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Gửi biên lai
+                    {busyAction === 'receipt' ? (uploadProgress !== null ? `Đang tải ${uploadProgress}%` : <Loader2 className="h-4 w-4 animate-spin" />) : <Upload className="h-4 w-4" />} Gửi biên lai
                   </Button>
                 </div>
               </section>

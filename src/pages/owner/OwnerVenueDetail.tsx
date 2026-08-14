@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Banknote, Building2, Camera, Check, Edit3, MapPin, Send, Star, Trash2, Upload } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
+import { uploadToCloudinary } from '../../api/cloudinary';
 import { previewOwnerListingFee, submitOwnerListingFeePayment, type OwnerListingFeePreview } from '../../api/listingFees';
 import {
   deleteOwnerVenueImage,
@@ -47,6 +48,7 @@ export const OwnerVenueDetail = () => {
   const [listingReceipt, setListingReceipt] = useState<File | null>(null);
   const [listingPreview, setListingPreview] = useState<OwnerListingFeePreview | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [actionError, setActionError] = useState('');
   const error = actionError || loadError;
 
@@ -74,8 +76,16 @@ export const OwnerVenueDetail = () => {
 
   const submitListingFee = async () => {
     if (!token || !listingReceipt) return;
-    await run(() => submitOwnerListingFeePayment(token, venueId, listingMonths, listingReceipt));
-    setListingReceipt(null);
+    setUploadProgress(0);
+    try {
+      await uploadToCloudinary(token, listingReceipt, setUploadProgress, 'picklink_receipts');
+      await run(() => submitOwnerListingFeePayment(token, venueId, listingMonths, listingReceipt));
+      setListingReceipt(null);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Không thể tải biên lai lên Cloud.');
+    } finally {
+      setUploadProgress(null);
+    }
   };
 
   return (
@@ -156,9 +166,23 @@ export const OwnerVenueDetail = () => {
                   onClick={() => void submitListingFee()}
                   type="button"
                 >
-                  <Upload className="h-4 w-4" /> Gửi biên lai
+                  <Upload className="h-4 w-4" /> {isBusy && uploadProgress !== null ? `Đang tải ${uploadProgress}%...` : 'Gửi biên lai'}
                 </button>
               </div>
+              {uploadProgress !== null && isBusy && (
+                <div className="mt-3 rounded-xl border border-primary/20 bg-white p-3">
+                  <div className="flex items-center justify-between text-[12px] font-bold text-primary">
+                    <span>Đang tải ảnh biên lai lên Cloud...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full bg-primary transition-all duration-200"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               {listingReceipt && <p className="mt-2 text-[12px] font-bold text-primary">Đã chọn: {listingReceipt.name}</p>}
             </div>
           </div>

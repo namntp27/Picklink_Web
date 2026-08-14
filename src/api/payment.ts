@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type { BankTransfer } from './booking';
 import { optimizeReceiptImage } from '../utils/receiptImage';
+import { uploadToCloudinary } from './cloudinary';
 
 export type OwnerBankAccount = {
   ownerBankAccountId: number;
@@ -35,23 +36,50 @@ export type BatchPaymentResponse = {
   payments: BankTransfer[];
 };
 
-export const submitBankTransfer = async (token: string, bookingId: number, receipt: File, payerId?: number) => {
+export const submitBankTransfer = async (
+  token: string,
+  bookingId: number,
+  receipt: File,
+  payerId?: number,
+  onProgress?: (progress: number) => void,
+) => {
+  const optimized = await optimizeReceiptImage(receipt);
+  if (onProgress) {
+    onProgress(5);
+    await uploadToCloudinary(token, optimized, (pct) => onProgress(Math.min(90, Math.max(5, pct))), 'picklink_receipts');
+    onProgress(95);
+  }
   const formData = new FormData();
-  formData.append('receipt', await optimizeReceiptImage(receipt));
+  formData.append('receipt', optimized);
   if (payerId !== undefined) formData.append('payerId', String(payerId));
-  return apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}/submit`, {
+  const response = await apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}/submit`, {
     method: 'POST',
     body: formData,
   }, token);
+  if (onProgress) onProgress(100);
+  return response;
 };
 
-export const submitTicketReceipt = async (token: string, sessionTicketId: number, receipt: File) => {
+export const submitTicketReceipt = async (
+  token: string,
+  sessionTicketId: number,
+  receipt: File,
+  onProgress?: (progress: number) => void,
+) => {
+  const optimized = await optimizeReceiptImage(receipt);
+  if (onProgress) {
+    onProgress(5);
+    await uploadToCloudinary(token, optimized, (pct) => onProgress(Math.min(90, Math.max(5, pct))), 'picklink_receipts');
+    onProgress(95);
+  }
   const formData = new FormData();
-  formData.append('receipt', await optimizeReceiptImage(receipt));
-  return apiRequest<BankTransfer>(`/api/payments/tickets/${sessionTicketId}/submit`, {
+  formData.append('receipt', optimized);
+  const response = await apiRequest<BankTransfer>(`/api/payments/tickets/${sessionTicketId}/submit`, {
     method: 'POST',
     body: formData,
   }, token);
+  if (onProgress) onProgress(100);
+  return response;
 };
 
 export const getPlayerBookingPayment = (token: string, bookingId: number) =>
@@ -71,14 +99,23 @@ export const submitBatchBankTransfer = async (
   bookingId: number,
   payerIds: number[],
   receipt: File,
+  onProgress?: (progress: number) => void,
 ) => {
+  const optimized = await optimizeReceiptImage(receipt);
+  if (onProgress) {
+    onProgress(5);
+    await uploadToCloudinary(token, optimized, (pct) => onProgress(Math.min(90, Math.max(5, pct))), 'picklink_receipts');
+    onProgress(95);
+  }
   const formData = new FormData();
   payerIds.forEach((payerId) => formData.append('payerIds', String(payerId)));
-  formData.append('receipt', await optimizeReceiptImage(receipt));
-  return apiRequest<BatchPaymentResponse>(`/api/payments/bookings/${bookingId}/submit-batch`, {
+  formData.append('receipt', optimized);
+  const response = await apiRequest<BatchPaymentResponse>(`/api/payments/bookings/${bookingId}/submit-batch`, {
     method: 'POST',
     body: formData,
   }, token);
+  if (onProgress) onProgress(100);
+  return response;
 };
 
 export const getOwnerBankAccount = (token: string) =>

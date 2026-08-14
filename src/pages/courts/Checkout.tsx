@@ -88,6 +88,7 @@ const CourtCheckout = () => {
   const [receiptPreview, setReceiptPreview] = useState('');
   const [now, setNow] = useState(Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isReturning, setIsReturning] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showSlotDetails, setShowSlotDetails] = useState(false);
@@ -226,9 +227,10 @@ const CourtCheckout = () => {
     if (!window.confirm(`Gửi biên lai và xác nhận đã chuyển ${currency.format(booking.totalAmount)}?`)) return;
 
     setIsSubmitting(true);
+    setUploadProgress(0);
     setError('');
     try {
-      const updatedPayment = await submitBankTransfer(token, bookingId, receipt);
+      const updatedPayment = await submitBankTransfer(token, bookingId, receipt, undefined, setUploadProgress);
       setBooking((current) => current ? {
         ...current,
         paymentStatus: updatedPayment.paymentStatus,
@@ -241,6 +243,7 @@ const CourtCheckout = () => {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi xác nhận chuyển khoản.');
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -416,8 +419,23 @@ const CourtCheckout = () => {
                     <Upload className="mx-auto h-6 w-6 text-[#477313]" />
                     <span className="mt-2 block break-words text-[13px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span>
                     <span className="mt-1 block text-[12px] text-[#66766d]">JPG, PNG hoặc WEBP. Tối đa 12 MB.</span>
-                    <input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                    <input accept="image/jpeg,image/png,image/webp" className="hidden" disabled={isSubmitting} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
                   </label>
+
+                  {uploadProgress !== null && isSubmitting && (
+                    <div className="rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
+                      <div className="flex items-center justify-between text-[12px] font-bold text-[#477313]">
+                        <span>Đang tải ảnh biên lai lên Cloud...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#dbe8d3]">
+                        <div
+                          className="h-full bg-[#477313] transition-all duration-200"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {receiptPreview && (
                     <div className="rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
@@ -428,7 +446,7 @@ const CourtCheckout = () => {
 
                   <Button aria-busy={isSubmitting} className="h-11 w-full rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d]" disabled={isSubmitting} onClick={() => void submit()} type="button">
                     <ShieldCheck className="h-5 w-5" />
-                    {isSubmitting ? 'Đang gửi biên lai...' : 'Tôi đã chuyển khoản'}
+                    {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : 'Tôi đã chuyển khoản'}
                   </Button>
                 </div>
               </div>

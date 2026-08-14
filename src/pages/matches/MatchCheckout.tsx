@@ -32,6 +32,7 @@ export const MatchCheckout = () => {
   const [receipt, setReceipt] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [paymentDeadlineAt, setPaymentDeadlineAt] = useState(0);
@@ -160,15 +161,17 @@ export const MatchCheckout = () => {
     if (!window.confirm(`Gửi biên lai thanh toán cho ${selectedPayerIds.length} thành viên đã chọn?`)) return;
 
     setIsSubmitting(true);
+    setUploadProgress(0);
     setError('');
     try {
-      await submitBatchBankTransfer(token, bookingId, selectedPayerIds, receipt);
+      await submitBatchBankTransfer(token, bookingId, selectedPayerIds, receipt, setUploadProgress);
       setReceipt(null);
       await loadMatch();
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : 'Không thể gửi xác nhận thanh toán.');
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -231,7 +234,38 @@ export const MatchCheckout = () => {
               </div>
             )}
 
-            {!paymentExpired && preview && <div className="mt-5 border-t border-dashed border-[#dbe8d3] pt-5"><label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center hover:border-primary"><Upload className="mx-auto h-6 w-6 text-[#477313]" /><span className="mt-2 block text-[13px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span><span className="mt-1 block text-[12px] text-[#66766d]">JPG, PNG hoặc WEBP · tối đa 12 MB</span><input accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" /></label>{receiptPreview && <img alt="Xem trước biên lai" className="mx-auto mt-4 max-h-56 rounded-xl border border-[#dbe8d3] object-contain" src={receiptPreview} />}<button aria-busy={isSubmitting} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d] disabled:cursor-not-allowed disabled:opacity-60" disabled={!receipt || isSubmitting} onClick={() => void submit()} type="button"><ShieldCheck className="h-5 w-5" />{isSubmitting ? 'Đang gửi biên lai...' : `Gửi thanh toán cho ${selectedPayerIds.length} người`}</button></div>}
+            {!paymentExpired && preview && (
+              <div className="mt-5 border-t border-dashed border-[#dbe8d3] pt-5">
+                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center hover:border-primary">
+                  <Upload className="mx-auto h-6 w-6 text-[#477313]" />
+                  <span className="mt-2 block text-[13px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span>
+                  <span className="mt-1 block text-[12px] text-[#66766d]">JPG, PNG hoặc WEBP · tối đa 12 MB</span>
+                  <input accept="image/jpeg,image/png,image/webp" className="hidden" disabled={isSubmitting} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                </label>
+
+                {uploadProgress !== null && isSubmitting && (
+                  <div className="mt-3 rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
+                    <div className="flex items-center justify-between text-[12px] font-bold text-[#477313]">
+                      <span>Đang tải ảnh biên lai lên Cloud...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#dbe8d3]">
+                      <div
+                        className="h-full bg-[#477313] transition-all duration-200"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {receiptPreview && <img alt="Xem trước biên lai" className="mx-auto mt-4 max-h-56 rounded-xl border border-[#dbe8d3] object-contain" src={receiptPreview} />}
+
+                <button aria-busy={isSubmitting} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d] disabled:cursor-not-allowed disabled:opacity-60" disabled={!receipt || isSubmitting} onClick={() => void submit()} type="button">
+                  <ShieldCheck className="h-5 w-5" />
+                  {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : `Gửi thanh toán cho ${selectedPayerIds.length} người`}
+                </button>
+              </div>
+            )}
           </section>
 
           <aside className="h-fit rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] lg:sticky lg:top-4"><h2 className="flex items-center gap-2 text-lg font-extrabold"><ReceiptText className="h-5 w-5 text-[#477313]" /> Thông tin booking</h2><div className="mt-4 space-y-4 text-[13px]"><div className="flex gap-3"><MapPin className="h-5 w-5 shrink-0 text-[#477313]" /><div><strong>{match.venueName}</strong><p className="mt-1 text-[#66766d]">{match.address}</p></div></div><div className="flex gap-3"><Clock className="h-5 w-5 shrink-0 text-[#477313]" /><div>{bookingGroups.map((group) => <p className="mt-1 text-[#66766d]" key={group.bookingCheckInGroupId}>Sân {group.courtNumber}: {slotDateText(group.startTime)} · {timeText(group.startTime)} - {timeText(group.endTime)}</p>)}</div></div></div><div className="my-4 border-t border-dashed border-[#dbe8d3]" /><div className="space-y-2 text-[14px]"><div className="flex justify-between gap-3"><span>Phần mỗi người</span><strong>{currency.format(match.amountPerPlayer)}</strong></div><div className="flex justify-between gap-3"><span>Tổng booking</span><strong>{currency.format(match.totalBookingAmount)}</strong></div></div>{preview && <div className="mt-4 rounded-2xl bg-[#0b2228] p-4 text-white"><p className="text-[12px] font-bold text-white/70">Tổng thanh toán đã chọn</p><strong className="mt-1 block text-2xl font-black text-[#e2ff57]">{currency.format(preview.totalAmount)}</strong></div>}</aside>
