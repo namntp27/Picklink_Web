@@ -21,19 +21,20 @@ test('public ticket pages support discovery, filters, realtime capacity, and pur
   assert.match(detail, /user\.role !== 'player'/);
 });
 
-test('player ticket pages cover QR payment, expiry retry, cancellation, and refund history', () => {
+test('player ticket pages cover QR payment, expiry retry, and non-refundable cancellation', () => {
   const history = source('MyTickets.tsx');
   const detail = source('MyTicketDetail.tsx');
 
   assert.match(history, /getPlayerTickets/);
   assert.match(history, /PendingPayment/);
-  assert.match(history, /RefundPending/);
+  assert.match(history, /không được hoàn lại/);
   assert.match(detail, /qrImageUrl/);
   assert.match(detail, /useVisiblePolling/);
   assert.match(detail, /buySessionTicket/);
   assert.match(detail, /cancelPlayerTicket/);
   assert.match(detail, /sePayTransactions/);
-  assert.match(detail, /AdditionalRefundPending/);
+  assert.match(detail, /Vé đã thanh toán không được hoàn tiền/);
+  assert.match(detail, /Khoản đã thanh toán \(nếu có\) không được hoàn lại/);
   assert.match(detail, /submitTicketReceipt/);
   assert.match(detail, /Gửi biên lai/);
   assert.match(detail, /Chờ chủ sân xác nhận/);

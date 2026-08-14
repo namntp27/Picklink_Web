@@ -21,6 +21,7 @@ import { ApiError } from '../../api/client';
 import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { Button } from '../../components/ui/Button';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { MatchCheckout } from '../matches/MatchCheckout';
@@ -139,6 +140,22 @@ const CourtCheckout = () => {
     return () => URL.revokeObjectURL(previewUrl);
   }, [receipt]);
 
+  const syncPayment = async () => {
+    if (!token) return;
+    try {
+      const payment = await getPlayerBookingPayment(token, bookingId);
+      setBooking((current) => current ? {
+        ...current,
+        paymentStatus: payment.paymentStatus,
+        status: payment.bookingStatus as BookingHolding['status'],
+        holdExpiresAt: payment.holdExpiresAt,
+        bankTransfer: payment,
+      } : current);
+    } catch {
+      // Best-effort refresh; the next realtime event or poll tick will retry.
+    }
+  };
+
   usePaymentRealtime((event) => {
     if (event.bookingId === bookingId && !isSubmitting) {
       setBooking((current) => {
@@ -159,18 +176,15 @@ const CourtCheckout = () => {
           } : current.bankTransfer,
         };
       });
-      if (!token) return;
-      void getPlayerBookingPayment(token, bookingId)
-        .then((payment) => setBooking((current) => current ? {
-          ...current,
-          paymentStatus: payment.paymentStatus,
-          status: payment.bookingStatus as BookingHolding['status'],
-          holdExpiresAt: payment.holdExpiresAt,
-          bankTransfer: payment,
-        } : current))
-        .catch(() => undefined);
+      void syncPayment();
     }
   });
+
+  // Mirrors the polling already used on the ticket checkout screen: while the booking is
+  // still holding a slot, actively re-check payment status every few seconds instead of
+  // waiting solely on the realtime push (the backend opportunistically reconciles with
+  // SePay on this same call, see PaymentService.GetPlayerBookingPayment).
+  useVisiblePolling(syncPayment, 7_500, Boolean(booking && booking.status === 'Holding' && !isSubmitting));
 
   const remainingSeconds = useMemo(() => booking?.holdExpiresAt
     ? Math.max(0, Math.floor((utcTimestamp(booking.holdExpiresAt) - now) / 1000)) : 0, [booking?.holdExpiresAt, now]);

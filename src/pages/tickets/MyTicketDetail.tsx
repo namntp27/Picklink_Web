@@ -67,8 +67,8 @@ const ticketStatusLabels: Record<string, string> = {
   CheckedIn: 'Đã check-in',
   Cancelled: 'Đã hủy',
   Expired: 'Hết thời gian giữ',
-  RefundPending: 'Đang hoàn tiền',
-  Refunded: 'Đã hoàn tiền',
+  RefundPending: 'Chờ đối soát',
+  Refunded: 'Đã đối soát',
 };
 
 const paymentStatusLabels: Record<string, string> = {
@@ -77,16 +77,16 @@ const paymentStatusLabels: Record<string, string> = {
   Paid: 'Đã thanh toán',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
-  RefundPending: 'Đang hoàn tiền',
-  Refunded: 'Đã hoàn tiền',
+  RefundPending: 'Chờ đối soát',
+  Refunded: 'Đã đối soát',
 };
 
 const transactionStatusLabels: Record<string, string> = {
   Applied: 'Đã ghi nhận',
-  AdditionalRefundPending: 'Chờ hoàn phần chuyển dư',
-  TicketRefundPending: 'Chờ hoàn giao dịch đến muộn',
+  AdditionalRefundPending: 'Chuyển dư cần đối soát',
+  TicketRefundPending: 'Giao dịch đến muộn cần đối soát',
   ReviewRequired: 'Đang đối soát',
-  Refunded: 'Đã hoàn tiền',
+  Refunded: 'Đã đối soát',
 };
 
 const statusClass = (status: SessionTicketStatus) => {
@@ -128,7 +128,7 @@ const CancelTicketDialog = ({
         <div className="p-5">
           <div className="flex items-start gap-3 rounded-xl border border-error/20 bg-error-container/50 p-4 text-[13px] leading-6 text-on-surface-variant">
             <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-error" />
-            Vé đã thanh toán sẽ chuyển sang chờ Owner xử lý hoàn tiền. Thao tác này không thể hoàn tác.
+            Hủy vé không hoàn lại khoản đã thanh toán. Chỗ của bạn sẽ được nhả cho người khác và thao tác này không thể hoàn tác.
           </div>
           <label className="mt-4 block">
             <span className="text-[13px] font-bold">Lý do hủy (không bắt buộc)</span>
@@ -258,7 +258,7 @@ export const MyTicketDetail = () => {
       const updated = await cancelPlayerTicket(token, ticket.sessionTicketId, reason);
       setTicket(updated);
       setShowCancelDialog(false);
-      notify(updated.status === 'RefundPending' ? 'Vé đã hủy và đang chờ hoàn tiền.' : 'Vé đã được hủy.', 'success');
+      notify('Vé đã được hủy. Khoản đã thanh toán (nếu có) không được hoàn lại.', 'success');
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể hủy vé.');
     } finally {
@@ -449,13 +449,13 @@ export const MyTicketDetail = () => {
             {(ticket.status === 'RefundPending' || ticket.status === 'Refunded') && (
               <section className="rounded-2xl border border-outline-variant bg-surface-container-low p-6">
                 <Banknote aria-hidden="true" className="h-8 w-8 text-primary" />
-                <h2 className="mt-3 text-[18px] font-bold">{ticket.status === 'Refunded' ? 'Đã hoàn tiền vé' : 'Đang chờ hoàn tiền'}</h2>
-                <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{ticket.status === 'Refunded' ? 'Owner đã ghi nhận hoàn tiền. Xem mã đối soát trong lịch sử giao dịch bên dưới.' : 'Owner đã nhận yêu cầu và sẽ cập nhật mã đối soát sau khi hoàn tiền.'}</p>
+                <h2 className="mt-3 text-[18px] font-bold">{ticket.status === 'Refunded' ? 'Đã đối soát giao dịch cũ' : 'Giao dịch cũ đang đối soát'}</h2>
+                <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Trạng thái này chỉ áp dụng cho dữ liệu phát sinh trước chính sách không hoàn tiền hiện tại.</p>
               </section>
             )}
 
             {ticket.status === 'Cancelled' && (
-              <section className="rounded-2xl border border-error/20 bg-error-container p-6"><XCircle aria-hidden="true" className="h-8 w-8 text-error" /><h2 className="mt-3 text-[18px] font-bold">Vé đã hủy</h2>{ticket.cancellationReason && <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Lý do: {ticket.cancellationReason}</p>}</section>
+              <section className="rounded-2xl border border-error/20 bg-error-container p-6"><XCircle aria-hidden="true" className="h-8 w-8 text-error" /><h2 className="mt-3 text-[18px] font-bold">Vé đã hủy</h2>{ticket.paymentStatus === 'Paid' && <p className="mt-2 text-[14px] font-semibold leading-6 text-on-surface-variant">Khoản đã thanh toán không được hoàn lại.</p>}{ticket.cancellationReason && <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Lý do: {ticket.cancellationReason}</p>}</section>
             )}
 
             {ticket.sePayTransactions.length > 0 && (
@@ -485,7 +485,7 @@ export const MyTicketDetail = () => {
             <section className="rounded-xl border border-outline-variant bg-surface-container-low p-5">
               <ShieldCheck aria-hidden="true" className="h-6 w-6 text-primary" />
               <h2 className="mt-3 text-[15px] font-bold">Chính sách hủy</h2>
-              <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">Chỉ hủy trước giờ chơi ít nhất {session.cancellationDeadlineHours} giờ. Vé đã thanh toán sẽ chuyển sang chờ hoàn tiền.</p>
+              <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">Chỉ hủy trước giờ chơi ít nhất {session.cancellationDeadlineHours} giờ. Vé đã thanh toán không được hoàn tiền.</p>
               {canCancel && <Button className="mt-4 w-full" onClick={() => setShowCancelDialog(true)} type="button" variant="danger">Hủy vé</Button>}
             </section>
             <Link className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-outline-variant bg-white px-4 text-[13px] font-bold text-primary hover:border-primary-container hover:bg-surface-container-low focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" to={`/ticket-sessions/${session.ticketSessionId}`}>Xem lại buổi chơi</Link>

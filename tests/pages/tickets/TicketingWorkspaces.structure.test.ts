@@ -28,9 +28,11 @@ test('owner and staff ticketing screens expose protected lifecycle actions', () 
   assert.match(ownerList, /getOwnerVenues/);
   assert.match(ownerDetail, /publishOwnerTicketSession/);
   assert.match(ownerDetail, /cancelOwnerTicketSession/);
-  assert.match(ownerDetail, /completeOwnerTicketRefund/);
-  assert.match(ownerDetail, /completeOwnerAdditionalRefund/);
-  assert.match(ownerDetail, /AdditionalRefundPending/);
+  assert.doesNotMatch(ownerDetail, /completeOwnerTicketRefund/);
+  assert.doesNotMatch(ownerDetail, /completeOwnerAdditionalRefund/);
+  assert.match(ownerDetail, /Vé đã thanh toán không được hoàn lại/);
+  assert.match(ownerList, /max=\{maxTicketSessionDate\(\)\}/);
+  assert.match(ownerDetail, /max=\{maxTicketSessionDate\(\)\}/);
   assert.match(ownerDetail, /checkInOwnerSessionTicket/);
   assert.match(ownerDetail, /onSubmit={submitCheckIn}/);
   assert.match(ownerDetail, /ticket\.status === 'Paid'\s*&& ticket\.paymentStatus === 'Paid'/);

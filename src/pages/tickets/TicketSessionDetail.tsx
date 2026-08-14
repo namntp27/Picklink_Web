@@ -188,7 +188,7 @@ export const TicketSessionDetail = () => {
           <div className="bg-white p-5">
             <ShieldCheck aria-hidden="true" className="h-6 w-6 text-primary" />
             <h2 className="mt-3 text-[15px] font-bold">Chính sách hủy</h2>
-            <p className="mt-1 text-[13px] leading-6 text-on-surface-variant">Hủy trước giờ chơi ít nhất {session.cancellationDeadlineHours} giờ để được xử lý theo chính sách.</p>
+            <p className="mt-1 text-[13px] leading-6 text-on-surface-variant">Có thể hủy trước giờ chơi ít nhất {session.cancellationDeadlineHours} giờ. Vé đã thanh toán không được hoàn tiền.</p>
           </div>
           <div className="bg-white p-5">
             <CheckCircle2 aria-hidden="true" className="h-6 w-6 text-primary" />

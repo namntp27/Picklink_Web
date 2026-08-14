@@ -8,7 +8,6 @@ import {
   Loader2,
   MapPin,
   QrCode,
-  RotateCcw,
   Send,
   Ticket,
   UserCheck,
@@ -22,13 +21,9 @@ import { getOwnerVenues, type OwnerVenue } from '../../api/owner';
 import {
   cancelOwnerTicketSession,
   checkInOwnerSessionTicket,
-  completeOwnerAdditionalRefund,
-  completeOwnerTicketRefund,
   getOwnerTicketSessionParticipants,
   publishOwnerTicketSession,
   updateOwnerTicketSession,
-  type SePayTransaction,
-  type SessionTicket,
   type TicketSession,
   type TicketSessionInput,
   type TicketSessionParticipants,
@@ -40,6 +35,7 @@ import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
 
@@ -53,11 +49,11 @@ const statusLabels: Record<TicketSessionStatus, string> = {
 };
 const ticketStatusLabels: Record<string, string> = {
   PendingPayment: 'Chờ thanh toán', Paid: 'Đã thanh toán', CheckedIn: 'Đã check-in',
-  Cancelled: 'Đã hủy', Expired: 'Hết hạn giữ chỗ', RefundPending: 'Chờ hoàn tiền', Refunded: 'Đã hoàn tiền',
+  Cancelled: 'Đã hủy', Expired: 'Hết hạn giữ chỗ', RefundPending: 'Chờ đối soát', Refunded: 'Đã đối soát',
 };
 const paymentStatusLabels: Record<string, string> = {
   Pending: 'Chờ thanh toán', Paid: 'Đã thanh toán', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
-  RefundPending: 'Chờ hoàn tiền', Refunded: 'Đã hoàn tiền', WaitingForConfirmation: 'Chờ xác nhận',
+  RefundPending: 'Chờ đối soát', Refunded: 'Đã đối soát', WaitingForConfirmation: 'Chờ xác nhận',
 };
 const badgeClass = (status: string) => status === 'Published' || status === 'Paid' || status === 'CheckedIn'
   ? 'bg-[#e2ff57]/55 text-[#17310a]'
@@ -67,6 +63,11 @@ const badgeClass = (status: string) => status === 'Published' || status === 'Pai
       ? 'bg-red-50 text-red-700'
       : 'bg-[#eef2e8] text-[#596151]';
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
+const localDateKey = () => {
+  const value = new Date();
+  return [value.getFullYear(), String(value.getMonth() + 1).padStart(2, '0'), String(value.getDate()).padStart(2, '0')].join('-');
+};
+const maxTicketSessionDate = () => addCalendarMonths(localDateKey(), maximumAdvanceBookingMonths);
 
 type EditState = {
   venueId: string;
@@ -97,42 +98,6 @@ const editState = (session: TicketSession): EditState => ({
   ticketPrice: String(session.ticketPrice),
 });
 
-type RefundTarget =
-  | { kind: 'ticket'; ticket: SessionTicket }
-  | { kind: 'additional'; ticket: SessionTicket; transaction: SePayTransaction };
-
-const RefundModal = ({ target, busy, onClose, onSubmit }: {
-  target: RefundTarget;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (reference: string) => void;
-}) => {
-  const [reference, setReference] = useState('');
-  const additional = target.kind === 'additional';
-  return (
-    <ModalDialog aria-labelledby="refund-ticket-title" canClose={!busy} className="owner-modal max-w-lg" onRequestClose={onClose} style={{ width: 'calc(100% - 1.75rem)' }}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="owner-kicker"><RotateCcw className="h-4 w-4" /> Đối soát hoàn tiền</p>
-          <h2 className="mt-1 text-[23px]" id="refund-ticket-title">{additional ? 'Xác nhận hoàn khoản chuyển thêm' : 'Xác nhận hoàn vé'}</h2>
-        </div>
-        <button aria-label="Đóng" className="rounded-lg p-2 hover:bg-surface-container-low" disabled={busy} onClick={onClose} type="button"><X className="h-5 w-5" /></button>
-      </div>
-      <div className="mt-4 rounded-lg bg-surface-container-low p-4 text-[13px]">
-        <p><strong>Vé:</strong> {target.ticket.ticketCode} · {target.ticket.playerName}</p>
-        <p className="mt-1"><strong>Số tiền:</strong> {money.format(additional ? target.transaction.amount : target.ticket.amount)}</p>
-        {additional && <p className="mt-1"><strong>Mã SePay:</strong> {target.transaction.externalTransactionId}</p>}
-      </div>
-      <p className="mt-4 text-[13px] leading-5 text-on-surface-variant">Chỉ xác nhận sau khi đã chuyển tiền cho Player. Thao tác này ghi nhận kết quả đối soát, không tự thực hiện lệnh chuyển tiền.</p>
-      <label className="mt-4 block"><span className="mb-1.5 block text-[13px] font-bold">Mã tham chiếu hoàn tiền *</span><input className="w-full px-3" maxLength={200} minLength={3} onChange={(event) => setReference(event.target.value)} placeholder="Mã giao dịch hoặc ghi chú đối soát" value={reference} /></label>
-      <div className="mt-5 flex justify-end gap-3">
-        <button className="rounded-lg border border-outline-variant px-4 py-2.5 text-[13px] font-bold" disabled={busy} onClick={onClose} type="button">Đóng</button>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold disabled:opacity-50" disabled={busy || reference.trim().length < 3} onClick={() => onSubmit(reference.trim())} type="button">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Xác nhận đã hoàn</button>
-      </div>
-    </ModalDialog>
-  );
-};
-
 const emptyVenues: OwnerVenue[] = [];
 
 export const OwnerTicketSessionDetail = () => {
@@ -146,7 +111,6 @@ export const OwnerTicketSessionDetail = () => {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [checkInCode, setCheckInCode] = useState('');
-  const [refundTarget, setRefundTarget] = useState<RefundTarget | null>(null);
   const [reviewPaymentId, setReviewPaymentId] = useState<number | null>(null);
 
   const hasValidId = Boolean(token) && Number.isInteger(ticketSessionId) && ticketSessionId >= 1;
@@ -176,12 +140,10 @@ export const OwnerTicketSessionDetail = () => {
   const session = details?.session;
   const hasTickets = (details?.tickets.length ?? 0) > 0;
   const activeMinimum = (session?.soldTickets ?? 0) + (session?.reservedTickets ?? 0);
-  const priceLocked = details?.tickets.some((ticket) => ['PendingPayment', 'Paid', 'CheckedIn', 'Expired'].includes(ticket.status)) ?? false;
-  const pendingMainRefunds = details?.tickets.filter((ticket) => ticket.status === 'RefundPending' && ticket.paymentStatus === 'RefundPending').length ?? 0;
-  const pendingAdditionalRefunds = details?.tickets.reduce(
-    (total, ticket) => total + ticket.sePayTransactions.filter((transaction) => transaction.status === 'AdditionalRefundPending').length,
-    0,
-  ) ?? 0;
+  const priceLocked = hasTickets;
+  const collectedRevenue = details?.tickets
+    .filter((ticket) => ticket.paymentStatus === 'Paid')
+    .reduce((total, ticket) => total + ticket.amount, 0) ?? 0;
   const selectedVenue = edit && venues.find((venue) => venue.venueId === Number(edit.venueId));
   const editableVenues = useMemo(
     () => venues.filter((venue) => venue.approvalStatus === 'Approved' && venue.isOpen || venue.venueId === session?.venueId),
@@ -238,13 +200,15 @@ export const OwnerTicketSessionDetail = () => {
           ? 'Giờ kết thúc phải sau giờ bắt đầu.'
             : start <= new Date()
               ? 'Khung giờ chơi phải ở trong tương lai.'
-              : minSkillLevel > maxSkillLevel
-                ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
-                : !Number.isInteger(maxPlayers) || maxPlayers < Math.max(1, activeMinimum) || maxPlayers > 100
-                  ? `Số người tối đa phải từ ${Math.max(1, activeMinimum)} đến 100.`
-                  : !Number.isInteger(ticketPrice) || ticketPrice < 0
-                    ? 'Giá vé phải là số nguyên VND không âm.'
-                    : '';
+              : edit.date > maxTicketSessionDate()
+                ? `Chỉ được tạo buổi xé vé trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`
+                : minSkillLevel > maxSkillLevel
+                  ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
+                  : !Number.isInteger(maxPlayers) || maxPlayers < Math.max(1, activeMinimum) || maxPlayers > 100
+                    ? `Số người tối đa phải từ ${Math.max(1, activeMinimum)} đến 100.`
+                    : !Number.isInteger(ticketPrice) || ticketPrice < 0
+                      ? 'Giá vé phải là số nguyên VND không âm.'
+                      : '';
     if (validation) { setError(validation); return; }
     const input: TicketSessionInput = {
       venueId: Number(edit.venueId), courtId: Number(edit.courtId), date: edit.date,
@@ -262,18 +226,10 @@ export const OwnerTicketSessionDetail = () => {
   };
   const cancel = async () => {
     if (!token || cancelReason.trim().length < 3) return;
-    if (await perform('cancel', () => cancelOwnerTicketSession(token, ticketSessionId, cancelReason), 'Đã hủy buổi xé vé và chuyển các vé cần hoàn sang hàng chờ.')) {
+    if (await perform('cancel', () => cancelOwnerTicketSession(token, ticketSessionId, cancelReason), 'Đã hủy buổi xé vé. Các khoản đã thanh toán được giữ nguyên theo chính sách không hoàn tiền.')) {
       setCancelOpen(false);
       setCancelReason('');
     }
-  };
-  const refund = async (reference: string) => {
-    if (!token || !refundTarget) return;
-    const target = refundTarget;
-    const action = target.kind === 'ticket'
-      ? () => completeOwnerTicketRefund(token, ticketSessionId, target.ticket.sessionTicketId, reference)
-      : () => completeOwnerAdditionalRefund(token, ticketSessionId, target.ticket.sessionTicketId, target.transaction.sePayTransactionId, reference);
-    if (await perform('refund', action, 'Đã ghi nhận hoàn tiền thành công.')) setRefundTarget(null);
   };
   const checkInTicket = async (code: string) => {
     const ticketCode = code.trim();
@@ -333,7 +289,7 @@ export const OwnerTicketSessionDetail = () => {
             <div className="owner-stat-card"><p className="text-[12px] font-bold text-on-surface-variant">Vé đã bán</p><p className="mt-2 text-[24px] font-extrabold">{session.soldTickets}/{session.maxPlayers}</p></div>
             <div className="owner-stat-card"><p className="text-[12px] font-bold text-on-surface-variant">Chỗ còn lại</p><p className="mt-2 text-[24px] font-extrabold">{session.remainingTickets}</p><p className="mt-1 text-[11px] text-on-surface-variant">{session.reservedTickets} đang giữ thanh toán</p></div>
             <div className="owner-stat-card"><p className="text-[12px] font-bold text-on-surface-variant">Giá mỗi vé</p><p className="mt-2 text-[21px] font-extrabold">{session.ticketPrice === 0 ? 'Miễn phí' : money.format(session.ticketPrice)}</p></div>
-            <div className="owner-stat-card"><p className="text-[12px] font-bold text-on-surface-variant">Cần hoàn tiền</p><p className="mt-2 text-[24px] font-extrabold">{pendingMainRefunds + pendingAdditionalRefunds}</p><p className="mt-1 text-[11px] text-on-surface-variant">{pendingMainRefunds} vé · {pendingAdditionalRefunds} khoản chuyển thêm</p></div>
+            <div className="owner-stat-card"><p className="text-[12px] font-bold text-on-surface-variant">Doanh thu đã thu</p><p className="mt-2 text-[21px] font-extrabold">{money.format(collectedRevenue)}</p><p className="mt-1 text-[11px] text-on-surface-variant">Vé đã thanh toán không hoàn tiền</p></div>
           </section>
 
           <section className="owner-panel p-5">
@@ -352,7 +308,7 @@ export const OwnerTicketSessionDetail = () => {
 
           <section className="owner-panel">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4">
-              <div><h2 className="flex items-center gap-2 text-[18px]"><UsersRound className="h-5 w-5 text-primary" /> Người tham gia</h2><p className="mt-1 text-[12px] text-on-surface-variant">Theo dõi vé, thanh toán, check-in và các khoản cần hoàn.</p></div>
+              <div><h2 className="flex items-center gap-2 text-[18px]"><UsersRound className="h-5 w-5 text-primary" /> Người tham gia</h2><p className="mt-1 text-[12px] text-on-surface-variant">Theo dõi vé, thanh toán và check-in. Vé đã thanh toán không được hoàn lại.</p></div>
               <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto">
                 {session.status === 'Published' && (
                   <form className="flex w-full items-center gap-2 sm:w-auto" onSubmit={submitCheckIn}>
@@ -388,11 +344,10 @@ export const OwnerTicketSessionDetail = () => {
               <div className="grid min-h-44 place-items-center p-6 text-center"><div><Ticket className="mx-auto h-8 w-8 text-on-surface-variant" /><p className="mt-2 text-[13px] font-bold">Chưa có Player đăng ký.</p></div></div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1040px] text-left">
-                  <thead><tr><th>Player & mã vé</th><th>Trạng thái vé</th><th>Thanh toán</th><th>Check-in</th><th>Số tiền</th><th className="text-right">Hoàn tiền</th></tr></thead>
+                <table className="w-full min-w-[920px] text-left">
+                  <thead><tr><th>Player & mã vé</th><th>Trạng thái vé</th><th>Thanh toán</th><th>Check-in</th><th>Số tiền</th></tr></thead>
                   <tbody>{details.tickets.map((ticket) => {
                     const additional = ticket.sePayTransactions.filter((transaction) => transaction.status === 'AdditionalRefundPending');
-                    const mainRefund = ticket.status === 'RefundPending' && ticket.paymentStatus === 'RefundPending';
                     const checkedIn = ticket.status === 'CheckedIn' || Boolean(ticket.checkedInAt);
                     const canCheckIn = session.status === 'Published'
                       && ticket.status === 'Paid'
@@ -422,7 +377,6 @@ export const OwnerTicketSessionDetail = () => {
                           )}
                         </td>
                         <td className="font-bold"><Banknote className="mr-1 inline h-4 w-4 text-primary" />{money.format(ticket.amount)}{additional.map((transaction) => <p className="mt-2 text-[11px] font-bold text-amber-800" key={transaction.sePayTransactionId}>Chuyển thêm: {money.format(transaction.amount)}</p>)}</td>
-                        <td><div className="flex flex-col items-end gap-2">{mainRefund && <button className="rounded-lg border border-amber-300 px-3 py-2 text-[11px] font-bold text-amber-800" disabled={Boolean(busy)} onClick={() => setRefundTarget({ kind: 'ticket', ticket })} type="button">Hoàn vé</button>}{additional.map((transaction) => <button className="rounded-lg border border-amber-300 px-3 py-2 text-[11px] font-bold text-amber-800" disabled={Boolean(busy)} key={transaction.sePayTransactionId} onClick={() => setRefundTarget({ kind: 'additional', ticket, transaction })} type="button">Hoàn khoản chuyển thêm</button>)}{!mainRefund && additional.length === 0 && <span className="text-[11px] text-on-surface-variant">Không có khoản chờ hoàn</span>}</div></td>
                       </tr>
                     );
                   })}</tbody>
@@ -444,7 +398,7 @@ export const OwnerTicketSessionDetail = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <label><span className="mb-1.5 block text-[13px] font-bold">Cụm sân *</span><select className="w-full disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => changeEditVenue(event.target.value)} required value={edit.venueId}>{editableVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
               <label><span className="mb-1.5 block text-[13px] font-bold">Sân *</span><select className="w-full disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('courtId', event.target.value)} required value={edit.courtId}>{editableCourts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType}</option>)}</select></label>
-              <label><span className="mb-1.5 block text-[13px] font-bold">Ngày chơi *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('date', event.target.value)} required type="date" value={edit.date} /></label>
+              <label><span className="mb-1.5 block text-[13px] font-bold">Ngày chơi *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} max={maxTicketSessionDate()} min={localDateKey()} onChange={(event) => setEditValue('date', event.target.value)} required type="date" value={edit.date} /></label>
               <div className="grid grid-cols-2 gap-3">
                 <label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('startTime', event.target.value)} required step={1800} type="time" value={edit.startTime} /></label>
                 <label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('endTime', event.target.value)} required step={1800} type="time" value={edit.endTime} /></label>
@@ -476,12 +430,11 @@ export const OwnerTicketSessionDetail = () => {
       {cancelOpen && session && (
         <ModalDialog aria-labelledby="cancel-session-title" canClose={busy !== 'cancel'} className="owner-modal max-w-lg" onRequestClose={() => setCancelOpen(false)} style={{ width: 'calc(100% - 1.75rem)' }}>
           <div className="flex items-start justify-between gap-4"><div><p className="owner-kicker text-red-700"><XCircle className="h-4 w-4" /> Hủy buổi chơi</p><h2 className="mt-1 text-[23px]" id="cancel-session-title">Hủy {session.title}?</h2></div><button aria-label="Đóng" className="rounded-lg p-2" disabled={busy === 'cancel'} onClick={() => setCancelOpen(false)} type="button"><X className="h-5 w-5" /></button></div>
-          <p className="mt-4 text-[13px] leading-5 text-on-surface-variant">Player sẽ nhận thông báo. Các vé đã thanh toán được chuyển sang trạng thái chờ hoàn tiền để Owner xử lý đối soát.</p>
+          <p className="mt-4 text-[13px] leading-5 text-on-surface-variant">Player sẽ nhận thông báo và booking sân được giải phóng. Các vé đã thanh toán sẽ bị hủy nhưng khoản thanh toán vẫn được giữ nguyên, không hoàn tiền.</p>
           <label className="mt-4 block"><span className="mb-1.5 block text-[13px] font-bold">Lý do hủy *</span><textarea className="min-h-24 w-full border p-3" maxLength={400} minLength={3} onChange={(event) => setCancelReason(event.target.value)} value={cancelReason} /></label>
           <div className="mt-5 flex justify-end gap-3"><button className="rounded-lg border border-outline-variant px-4 py-2.5 text-[13px] font-bold" disabled={busy === 'cancel'} onClick={() => setCancelOpen(false)} type="button">Quay lại</button><button className="inline-flex items-center gap-2 rounded-lg bg-red-700 px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={busy === 'cancel' || cancelReason.trim().length < 3} onClick={() => void cancel()} type="button">{busy === 'cancel' && <Loader2 className="h-4 w-4 animate-spin" />} Xác nhận hủy</button></div>
         </ModalDialog>
       )}
-      {refundTarget && <RefundModal busy={busy === 'refund'} onClose={() => setRefundTarget(null)} onSubmit={(reference) => void refund(reference)} target={refundTarget} />}
     </OwnerShell>
   );
 };

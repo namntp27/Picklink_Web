@@ -17,6 +17,7 @@ import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -46,6 +47,7 @@ const today = () => {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
 };
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
+const maxTicketSessionDate = () => addCalendarMonths(today(), maximumAdvanceBookingMonths);
 
 const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
   token: string;
@@ -107,13 +109,15 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
           ? 'Giờ kết thúc phải sau giờ bắt đầu.'
             : start <= new Date()
               ? 'Khung giờ chơi phải ở trong tương lai.'
-              : minSkill > maxSkill
-                ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
-                : !Number.isInteger(players) || players < 1 || players > 100
-                  ? 'Số người tối đa phải từ 1 đến 100.'
-                  : !Number.isInteger(price) || price < 0
-                    ? 'Giá vé phải là số nguyên VND không âm.'
-                    : '';
+              : date > maxTicketSessionDate()
+                ? `Chỉ được tạo buổi xé vé trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`
+                : minSkill > maxSkill
+                  ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
+                  : !Number.isInteger(players) || players < 1 || players > 100
+                    ? 'Số người tối đa phải từ 1 đến 100.'
+                    : !Number.isInteger(price) || price < 0
+                      ? 'Giá vé phải là số nguyên VND không âm.'
+                      : '';
     if (validation) { setError(validation); return; }
 
     const input: TicketSessionInput = {
@@ -149,7 +153,7 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
         <div className="grid gap-4 sm:grid-cols-2">
           <label><span className="mb-1.5 block text-[13px] font-bold">Cụm sân *</span><select className="w-full" onChange={(event) => changeVenue(event.target.value)} required value={venueId}><option value="">Chọn cụm sân</option>{selectableVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
           <label><span className="mb-1.5 block text-[13px] font-bold">Sân *</span><select className="w-full" onChange={(event) => setCourtId(event.target.value)} required value={courtId}><option value="">Chọn sân</option>{courts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType}</option>)}</select></label>
-          <label><span className="mb-1.5 block text-[13px] font-bold">Ngày chơi *</span><input className="w-full px-3" min={today()} onChange={(event) => setDate(event.target.value)} required type="date" value={date} /></label>
+          <label><span className="mb-1.5 block text-[13px] font-bold">Ngày chơi *</span><input className="w-full px-3" max={maxTicketSessionDate()} min={today()} onChange={(event) => setDate(event.target.value)} required type="date" value={date} /></label>
           <div className="grid grid-cols-2 gap-3">
             <label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu *</span><input className="w-full px-3" onChange={(event) => setStartTime(event.target.value)} required step={1800} type="time" value={startTime} /></label>
             <label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc *</span><input className="w-full px-3" onChange={(event) => setEndTime(event.target.value)} required step={1800} type="time" value={endTime} /></label>

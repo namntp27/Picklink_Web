@@ -189,25 +189,6 @@ export const checkInOwnerSessionTicket = (token: string, ticketSessionId: number
     body: JSON.stringify({ ticketCode: ticketCode.trim() }),
   }, token);
 
-export const completeOwnerTicketRefund = (token: string, ticketSessionId: number, ticketId: number, reference: string) =>
-  apiRequest<SessionTicket>('/api/owner/ticket-sessions/' + ticketSessionId + '/tickets/' + ticketId + '/refund', {
-    method: 'POST',
-    body: JSON.stringify({ reference: reference.trim() }),
-  }, token);
-
-export const completeOwnerAdditionalRefund = (
-  token: string,
-  ticketSessionId: number,
-  ticketId: number,
-  sePayTransactionId: number,
-  reference: string,
-) => apiRequest<SePayTransaction>(
-  '/api/owner/ticket-sessions/' + ticketSessionId + '/tickets/' + ticketId
-    + '/sepay-transactions/' + sePayTransactionId + '/refund',
-  { method: 'POST', body: JSON.stringify({ reference: reference.trim() }) },
-  token,
-);
-
 export const getStaffTicketSessions = (
   token: string,
   filters: PaginationParams & { date?: string } = {},

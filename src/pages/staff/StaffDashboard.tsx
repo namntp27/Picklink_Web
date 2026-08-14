@@ -88,7 +88,7 @@ const paymentStatusLabel: Record<string, string> = {
   Paid: 'Đã thanh toán',
   Failed: 'Thanh toán lỗi',
   Rejected: 'Đã từ chối',
-  Refunded: 'Đã hoàn tiền',
+  Refunded: 'Đã đối soát',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
 };
@@ -113,8 +113,8 @@ const ticketStatusLabel: Record<string, string> = {
   CheckedIn: 'Đã vào sân',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
-  RefundPending: 'Chờ hoàn tiền',
-  Refunded: 'Đã hoàn tiền',
+  RefundPending: 'Chờ đối soát',
+  Refunded: 'Đã đối soát',
 };
 
 const viLabel = (labels: Record<string, string>, value?: string | null, fallback = 'Chưa cập nhật') =>

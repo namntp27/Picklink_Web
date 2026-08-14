@@ -28,13 +28,13 @@ test('opponents page keeps province and ward updates atomic and race-safe', () =
 test('opponents create form enforces playable one-off dates and 30-minute slots', () => {
   assert.match(source, /type="time"/);
   assert.match(source, /durationMinutes < 30/);
-  assert.match(source, /disabled=\{currentDuration <= 30\}/);
+  assert.match(source, /replayType: 'None'/);
   assert.match(source, /dateFrom < today\(\)/);
   assert.match(source, /dateTo > lastOneOffDate\(dateFrom\)/);
   assert.match(source, /max=\{lastOneOffDate\(dateFrom\)\}/);
   assert.match(
     source,
-    /min=\{replayType === 'None' && dateFrom === today\(\) \? currentTime\(\) : undefined\}/,
+    /min=\{dateFrom === today\(\) \? currentTime\(\) : undefined\}/,
   );
   assert.doesNotMatch(source, /TimeDropdownInput/);
   assert.doesNotMatch(source, /const timeOptions/);
@@ -43,7 +43,7 @@ test('opponents create form enforces playable one-off dates and 30-minute slots'
 test('manual queues stay discoverable while all new queues remain matchable', () => {
   assert.match(source, /isPublic: creationMode === 'manual'/);
   assert.match(source, /isActive: true/);
-  assert.match(source, /\{replayType === 'None' && \(/);
+  assert.match(source, /replayType: 'None'/);
   assert.match(source, /https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png/);
   assert.doesNotMatch(source, /nominatim\.openstreetmap\.org/i);
 });

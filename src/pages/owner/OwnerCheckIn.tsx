@@ -56,7 +56,7 @@ const paymentLabels: Record<string, string> = {
   Paid: 'Đã thanh toán',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
-  Refunded: 'Đã hoàn tiền',
+  Refunded: 'Đã đối soát',
 };
 const attendanceLabels: Record<string, string> = {
   Pending: 'Chờ điểm danh',

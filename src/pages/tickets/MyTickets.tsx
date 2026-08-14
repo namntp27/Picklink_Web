@@ -50,8 +50,8 @@ const ticketStatusLabels: Record<string, string> = {
   CheckedIn: 'Đã check-in',
   Cancelled: 'Đã hủy',
   Expired: 'Hết thời gian giữ',
-  RefundPending: 'Đang hoàn tiền',
-  Refunded: 'Đã hoàn tiền',
+  RefundPending: 'Chờ đối soát',
+  Refunded: 'Đã đối soát',
 };
 
 const paymentStatusLabels: Record<string, string> = {
@@ -59,8 +59,8 @@ const paymentStatusLabels: Record<string, string> = {
   Paid: 'Đã thanh toán',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
-  RefundPending: 'Đang hoàn tiền',
-  Refunded: 'Đã hoàn tiền',
+  RefundPending: 'Chờ đối soát',
+  Refunded: 'Đã đối soát',
 };
 
 const statusOptions: Array<{ value: '' | SessionTicketStatus; label: string }> = [
@@ -68,8 +68,8 @@ const statusOptions: Array<{ value: '' | SessionTicketStatus; label: string }> =
   { value: 'PendingPayment', label: 'Chờ thanh toán' },
   { value: 'Paid', label: 'Đã thanh toán' },
   { value: 'CheckedIn', label: 'Đã check-in' },
-  { value: 'RefundPending', label: 'Đang hoàn tiền' },
-  { value: 'Refunded', label: 'Đã hoàn tiền' },
+  { value: 'RefundPending', label: 'Đối soát cũ' },
+  { value: 'Refunded', label: 'Đã đối soát' },
   { value: 'Cancelled', label: 'Đã hủy' },
   { value: 'Expired', label: 'Đã hết hạn' },
 ];
@@ -130,7 +130,7 @@ export const MyTickets = () => {
           <div>
             <span className="inline-flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-primary"><Ticket aria-hidden="true" className="h-5 w-5" /> Vé của tôi</span>
             <h1 className="mt-2 text-[clamp(1.65rem,4vw,2.65rem)] font-bold leading-tight tracking-[-0.03em]">Lịch sử xé vé</h1>
-            <p className="mt-2 max-w-[65ch] text-[14px] leading-6 text-on-surface-variant">Theo dõi thanh toán, mã check-in, hủy vé và hoàn tiền của từng buổi chơi.</p>
+            <p className="mt-2 max-w-[65ch] text-[14px] leading-6 text-on-surface-variant">Theo dõi thanh toán, mã check-in và trạng thái hủy của từng buổi chơi. Vé đã thanh toán không được hoàn lại.</p>
           </div>
           <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container transition-transform hover:-translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" to="/ticket-sessions">
             Tìm buổi mới

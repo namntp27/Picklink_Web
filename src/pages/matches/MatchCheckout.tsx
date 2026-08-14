@@ -6,6 +6,7 @@ import { previewBatchPayment, submitBatchBankTransfer, type BatchPaymentPreview 
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -133,6 +134,16 @@ export const MatchCheckout = () => {
   usePaymentRealtime((event) => {
     if (event.bookingId === bookingId && !isSubmitting) void loadMatch();
   });
+
+  // Mirrors the polling already used on the other checkout screens: while a teammate's
+  // payment is still outstanding, actively re-check every few seconds instead of waiting
+  // solely on the realtime push (the backend opportunistically reconciles with SePay on
+  // this same call, see MatchService.ReconcilePendingMatchPaymentsAsync).
+  useVisiblePolling(
+    loadMatch,
+    7_500,
+    Boolean(match && !isSubmitting && !paymentExpired && (pendingPayerIds.size > 0 || isAwaitingReceiptReview)),
+  );
 
   const copyContent = async () => {
     if (!preview?.transferContent) return;

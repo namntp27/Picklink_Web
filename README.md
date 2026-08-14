@@ -18,7 +18,7 @@ Terminal 1 — backend:
 
 ```powershell
 cd D:\SEP490pass\PicklinkBackend
-dotnet run --project PicklinkBackend\PicklinkBackend.csproj --launch-profile http
+dotnet run --project PicklinkBackend\Picklink_API.csproj --launch-profile http
 ```
 
 Backend mặc định chạy tại `http://localhost:5209`.

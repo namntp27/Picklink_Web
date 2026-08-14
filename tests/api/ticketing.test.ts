@@ -105,8 +105,6 @@ test('player, owner and staff commands follow the ticketing backend contract', a
   await ticketing.cancelOwnerTicketSession('token', 11, 'Sân bảo trì');
   await ticketing.getOwnerTicketSessionParticipants('token', 11);
   await ticketing.checkInOwnerSessionTicket('token', 11, ' PLT-OWNER123 ');
-  await ticketing.completeOwnerTicketRefund('token', 11, 22, 'REF-22');
-  await ticketing.completeOwnerAdditionalRefund('token', 11, 22, 33, 'REF-33');
   await ticketing.getStaffTicketSessionParticipants('token', 11);
   await ticketing.checkInSessionTicket('token', 'PLT-ABC123');
 
@@ -119,8 +117,6 @@ test('player, owner and staff commands follow the ticketing backend contract', a
     { path: '/api/owner/ticket-sessions/11/cancel', method: 'POST', body: { reason: 'Sân bảo trì' } },
     { path: '/api/owner/ticket-sessions/11/participants', method: 'GET', body: undefined },
     { path: '/api/owner/ticket-sessions/11/tickets/check-in', method: 'POST', body: { ticketCode: 'PLT-OWNER123' } },
-    { path: '/api/owner/ticket-sessions/11/tickets/22/refund', method: 'POST', body: { reference: 'REF-22' } },
-    { path: '/api/owner/ticket-sessions/11/tickets/22/sepay-transactions/33/refund', method: 'POST', body: { reference: 'REF-33' } },
     { path: '/api/staff/ticket-sessions/11/participants', method: 'GET', body: undefined },
     { path: '/api/staff/tickets/check-in', method: 'POST', body: { ticketCode: 'PLT-ABC123' } },
   ]);
