@@ -3,9 +3,13 @@ import {
   Banknote,
   CheckCircle2,
   CircleAlert,
+  Eye,
+  EyeOff,
+  KeyRound,
   Loader2,
   Save,
   Settings,
+  ShieldCheck,
 } from 'lucide-react';
 import { ApiError } from '../../api/client';
 import { getOwnerBankAccount, saveOwnerBankAccount } from '../../api/payment';
@@ -25,12 +29,22 @@ type Feedback = {
   tone: 'error' | 'success';
 };
 
+/** What the backend reports about the stored SePay token. The token itself is never sent back. */
+type TokenStatus = {
+  configured: boolean;
+  masked: string | null;
+};
+
 const initialPayout: PayoutSettings = {
   bankCode: '',
   bankName: '',
   accountNumber: '',
   accountHolder: '',
 };
+
+const initialTokenStatus: TokenStatus = { configured: false, masked: null };
+
+const minimumTokenLength = 10;
 
 const vietnameseBanks = [
   { code: 'VCB', name: 'Vietcombank' },
@@ -58,6 +72,10 @@ const vietnameseBanks = [
 export const OwnerSettings = () => {
   const { token } = useAuth();
   const [payout, setPayout] = useState<PayoutSettings>(initialPayout);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus>(initialTokenStatus);
+  const [sePayToken, setSePayToken] = useState('');
+  const [isTokenVisible, setIsTokenVisible] = useState(false);
+  const [isReplacingToken, setIsReplacingToken] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -79,11 +97,20 @@ export const OwnerSettings = () => {
       accountNumber: account.accountNumber,
       accountHolder: account.accountHolderName,
     });
+    setTokenStatus({ configured: account.hasSePayApiToken, masked: account.maskedSePayApiToken });
   }, [account]);
 
   useEffect(() => {
     if (loadError) setFeedback({ message: loadError, tone: 'error' });
   }, [loadError]);
+
+  // An owner without a token gets the field straight away; one who already has a token has to
+  // ask for it, so a routine bank-details save can never wipe the token by leaving the box empty.
+  const isTokenFieldOpen = !tokenStatus.configured || isReplacingToken;
+  const trimmedToken = sePayToken.trim();
+  const tokenIsTooShort = isTokenFieldOpen
+    && trimmedToken.length > 0
+    && trimmedToken.length < minimumTokenLength;
 
   const payoutIsValid = Boolean(
     payout.bankCode
@@ -129,6 +156,13 @@ export const OwnerSettings = () => {
       });
       return;
     }
+    if (tokenIsTooShort) {
+      setFeedback({
+        message: `SePay API Token quá ngắn (cần ít nhất ${minimumTokenLength} ký tự). Vui lòng dán lại token từ my.sepay.vn.`,
+        tone: 'error',
+      });
+      return;
+    }
 
     setIsSaving(true);
     setFeedback(null);
@@ -138,6 +172,8 @@ export const OwnerSettings = () => {
         bankName: payout.bankName,
         accountNumber: payout.accountNumber,
         accountHolderName: payout.accountHolder.trim(),
+        // Left out entirely when untouched, so the backend keeps the token it already stores.
+        ...(isTokenFieldOpen && trimmedToken ? { sePayApiToken: trimmedToken } : {}),
       });
       setPayout({
         bankCode: account.bankCode,
@@ -145,7 +181,16 @@ export const OwnerSettings = () => {
         accountNumber: account.accountNumber,
         accountHolder: account.accountHolderName,
       });
-      setFeedback({ message: 'Đã lưu tài khoản nhận chuyển khoản.', tone: 'success' });
+      setTokenStatus({ configured: account.hasSePayApiToken, masked: account.maskedSePayApiToken });
+      setSePayToken('');
+      setIsTokenVisible(false);
+      setIsReplacingToken(false);
+      setFeedback({
+        message: isTokenFieldOpen && trimmedToken
+          ? 'Đã lưu tài khoản nhận chuyển khoản và SePay API Token.'
+          : 'Đã lưu tài khoản nhận chuyển khoản.',
+        tone: 'success',
+      });
     } catch (requestError) {
       setFeedback({
         message: requestError instanceof ApiError
@@ -259,6 +304,88 @@ export const OwnerSettings = () => {
                   value={payout.accountHolder}
                 />
               </label>
+
+              <div className="rounded-lg border border-outline-variant p-4 sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-[13px] font-bold text-on-surface-variant">
+                    <KeyRound aria-hidden="true" className="h-4 w-4 text-primary" />
+                    SePay API Token / Secret API
+                  </span>
+                  {tokenStatus.configured && !isReplacingToken && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[12px] font-bold text-primary">
+                      <ShieldCheck aria-hidden="true" className="h-4 w-4" />
+                      Đã cấu hình ({tokenStatus.masked ?? '****'})
+                    </span>
+                  )}
+                </div>
+
+                {isTokenFieldOpen ? (
+                  <>
+                    <div className="mt-2 flex items-stretch gap-2">
+                      <input
+                        aria-label="SePay API Token"
+                        autoComplete="off"
+                        className="h-12 w-full rounded-lg border border-outline-variant px-3 font-mono text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        maxLength={200}
+                        onChange={(event) => {
+                          setSePayToken(event.target.value.trim());
+                          setFeedback(null);
+                        }}
+                        placeholder="Dán API Token từ my.sepay.vn"
+                        type={isTokenVisible ? 'text' : 'password'}
+                        value={sePayToken}
+                      />
+                      <button
+                        aria-label={isTokenVisible ? 'Ẩn API Token' : 'Hiện API Token'}
+                        aria-pressed={isTokenVisible}
+                        className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary"
+                        onClick={() => setIsTokenVisible((current) => !current)}
+                        type="button"
+                      >
+                        {isTokenVisible
+                          ? <EyeOff aria-hidden="true" className="h-5 w-5" />
+                          : <Eye aria-hidden="true" className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    {tokenIsTooShort && (
+                      <span className="mt-1 block text-[12px] text-red-600">
+                        Token cần ít nhất {minimumTokenLength} ký tự.
+                      </span>
+                    )}
+                    {isReplacingToken && (
+                      <button
+                        className="mt-2 text-[12px] font-bold text-on-surface-variant underline hover:text-primary"
+                        onClick={() => {
+                          setSePayToken('');
+                          setIsTokenVisible(false);
+                          setIsReplacingToken(false);
+                          setFeedback(null);
+                        }}
+                        type="button"
+                      >
+                        Hủy thay đổi, giữ token hiện tại
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg border border-outline-variant px-4 py-2 text-[13px] font-bold text-primary hover:border-primary"
+                    onClick={() => {
+                      setIsReplacingToken(true);
+                      setFeedback(null);
+                    }}
+                    type="button"
+                  >
+                    <KeyRound aria-hidden="true" className="h-4 w-4" />
+                    Thay đổi Token
+                  </button>
+                )}
+
+                <p className="mt-3 text-[12px] leading-5 text-on-surface-variant">
+                  Đăng nhập vào my.sepay.vn → Tích hợp API → Copy API Token và dán vào đây để hệ thống tự động đối soát thanh toán.
+                  Token được mã hóa trước khi lưu và không bao giờ hiển thị lại.
+                </p>
+              </div>
 
               <div className="rounded-lg bg-primary/5 p-4 text-[13px] sm:col-span-2">
                 <p className="font-bold text-primary">Thông tin người chuyển sẽ thấy</p>

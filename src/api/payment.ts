@@ -8,10 +8,17 @@ export type OwnerBankAccount = {
   bankName: string;
   accountNumber: string;
   accountHolderName: string;
+  /** The SePay token itself never leaves the backend; only these two fields describe it. */
+  hasSePayApiToken: boolean;
+  maskedSePayApiToken: string | null;
   isActive: boolean;
 };
 
-export type OwnerBankAccountInput = Omit<OwnerBankAccount, 'ownerBankAccountId' | 'isActive'>;
+export type OwnerBankAccountInput =
+  Omit<OwnerBankAccount, 'ownerBankAccountId' | 'isActive' | 'hasSePayApiToken' | 'maskedSePayApiToken'> & {
+    /** Omit to keep the stored token, send '' to remove it, send a value to replace it. */
+    sePayApiToken?: string;
+  };
 
 export type BatchPaymentPreview = {
   bookingId: number;
