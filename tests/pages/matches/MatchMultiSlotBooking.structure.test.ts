@@ -19,6 +19,8 @@ test('match booking submits independent slots through the public booking contrac
   assert.ok(detailSource.includes('Slot không còn trống'));
   assert.ok(detailSource.includes('disabledSlotKeys={unavailableSlotKeysForDate}'));
   assert.ok(detailSource.includes('slots: selectedSlots.map(({ courtId, startTime, endTime })'));
+  assert.ok(detailSource.includes("isCreatingBookingRef.current && notification.entryType === 'Holding' && notification.action === 'Created'"));
+  assert.ok(detailSource.indexOf('isCreatingBookingRef.current = true') < detailSource.indexOf('await createMatchBooking'));
   assert.ok(!detailSource.includes('const consecutive ='));
   assert.ok(apiSource.includes('slots: Array<{ courtId: number; startTime: string; endTime: string }>;'));
   assert.ok(detailSource.includes('max={maximumMonthDuration}'));

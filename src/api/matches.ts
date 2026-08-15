@@ -93,6 +93,9 @@ export type MatchParticipant = {
   qrImageUrl?: string | null;
   transferContent?: string | null;
   paymentRejectionReason?: string | null;
+  allowPaymentByOthers: boolean;
+  paymentClaimedByPlayerId?: number | null;
+  paymentClaimExpiresAt?: string | null;
   checkInStatus: string;
   checkedInAt?: string | null;
 };

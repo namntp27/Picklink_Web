@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clipboard, Clock, Loader2, MapPin, ReceiptText, ShieldCheck, Upload, Users } from 'lucide-react';
 import { getMatchDetail, type MatchDetailResponse } from '../../api/matches';
-import { previewBatchPayment, submitBatchBankTransfer, type BatchPaymentPreview } from '../../api/payment';
+import { previewBatchPayment, setPaymentSponsorship, submitBatchBankTransfer, type BatchPaymentPreview } from '../../api/payment';
 import { ApiError, ApiErrorCodes } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -20,6 +20,8 @@ const utcTimestamp = (value?: string | null) => {
   const normalized = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}+07:00`;
   return new Date(normalized).getTime();
 };
+const activeClaimedBy = (playerId?: number | null, expiresAt?: string | null, now = Date.now()) =>
+  playerId && utcTimestamp(expiresAt) > now ? playerId : null;
 
 export const MatchCheckout = () => {
   const [params] = useSearchParams();
@@ -33,10 +35,12 @@ export const MatchCheckout = () => {
   const [receipt, setReceipt] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingSponsorship, setIsUpdatingSponsorship] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [paymentDeadlineAt, setPaymentDeadlineAt] = useState(0);
+  const [isPaymentReviewPaused, setIsPaymentReviewPaused] = useState(false);
   const [error, setError] = useState('');
   const phoneRedirecting = useRef(false);
 
@@ -61,6 +65,7 @@ export const MatchCheckout = () => {
       const receivedAt = Date.now();
       setMatch(detail);
       setNow(receivedAt);
+      setIsPaymentReviewPaused(!detail.paymentDeadline && detail.paymentHoldRemainingSeconds != null);
       setPaymentDeadlineAt(detail.paymentHoldRemainingSeconds != null
         ? receivedAt + Math.max(0, detail.paymentHoldRemainingSeconds) * 1_000
         : utcTimestamp(detail.paymentDeadline));
@@ -80,29 +85,46 @@ export const MatchCheckout = () => {
     return targets;
   }, [match]);
   const pendingPayerIds = useMemo(() => new Set(paymentTargets.filter((participant) => participant.paymentStatus === 'Pending').map((participant) => participant.playerId)), [paymentTargets]);
+  const selectablePayerIds = useMemo(() => new Set(paymentTargets.filter((participant) => {
+    if (participant.paymentStatus !== 'Pending') return false;
+    const claimedBy = activeClaimedBy(participant.paymentClaimedByPlayerId, participant.paymentClaimExpiresAt, now);
+    if (participant.playerId === match?.myPlayerId) return !claimedBy || claimedBy === match.myPlayerId;
+    return participant.allowPaymentByOthers && (!claimedBy || claimedBy === match?.myPlayerId);
+  }).map((participant) => participant.playerId)), [match?.myPlayerId, now, paymentTargets]);
+  const myPayment = paymentTargets.find((participant) => participant.playerId === match?.myPlayerId);
+  const myPaymentClaimedByOther = Boolean(myPayment
+    && activeClaimedBy(myPayment.paymentClaimedByPlayerId, myPayment.paymentClaimExpiresAt, now)
+    && myPayment.paymentClaimedByPlayerId !== match?.myPlayerId);
   const rejectedPayment = paymentTargets.find((participant) => participant.paymentStatus === 'Pending' && participant.paymentRejectionReason);
   const myPaymentApproved = match?.myPaymentStatus === 'Paid';
   const selectedKey = useMemo(() => [...selectedPayerIds].sort((left, right) => left - right).join(','), [selectedPayerIds]);
-  const isAwaitingReceiptReview = paymentTargets.some((participant) => participant.paymentStatus === 'WaitingForConfirmation');
+  const hasInvalidSelection = selectedPayerIds.some((playerId) => !selectablePayerIds.has(playerId));
+  const hasPendingPayments = pendingPayerIds.size > 0;
+  const hasReceiptAwaitingReview = paymentTargets.some((participant) => participant.paymentStatus === 'WaitingForConfirmation');
+  const isAwaitingReceiptReview = !hasPendingPayments && hasReceiptAwaitingReview;
+  const hasRefundPending = paymentTargets.some((participant) => participant.paymentStatus === 'RefundPending');
+  const hasTerminalPaymentStatus = hasRefundPending
+    || paymentTargets.some((participant) => participant.paymentStatus === 'Expired');
   const deadline = paymentDeadlineAt;
   const remainingSeconds = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
-  const paymentExpired = Boolean(deadline && remainingSeconds <= 0 && !isAwaitingReceiptReview);
+  const paymentExpired = hasTerminalPaymentStatus
+    || Boolean(!isPaymentReviewPaused && deadline && remainingSeconds <= 0 && hasPendingPayments);
   const bookingGroups = match?.bookingCheckIns.find((booking) => booking.bookingId === bookingId)?.checkInGroups ?? [];
 
   useEffect(() => {
     if (!match) return;
-    setSelectedPayerIds((current) => reconcileSelectedPayerIds(current, pendingPayerIds, match.myPlayerId));
-  }, [match, pendingPayerIds]);
+    setSelectedPayerIds((current) => reconcileSelectedPayerIds(current, selectablePayerIds, match.myPlayerId));
+  }, [match, selectablePayerIds]);
 
   useEffect(() => {
-    if (!deadline || paymentExpired || isAwaitingReceiptReview) return;
+    if (!deadline || paymentExpired || !hasPendingPayments || isPaymentReviewPaused) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(timer);
-  }, [deadline, isAwaitingReceiptReview, paymentExpired]);
+  }, [deadline, hasPendingPayments, isPaymentReviewPaused, paymentExpired]);
 
   useEffect(() => {
-    if (!token || !match || !selectedKey || paymentExpired) {
+    if (!token || !match || !selectedKey || hasInvalidSelection || paymentExpired) {
       setPreview(null);
       return undefined;
     }
@@ -114,15 +136,17 @@ export const MatchCheckout = () => {
         if (cancelled) return;
         console.log('[MatchCheckout] Batch payment preview response:', value);
         setPreview(value);
+        setError('');
       })
       .catch((reason) => {
         if (cancelled) return;
         console.error('[MatchCheckout] Batch payment preview error:', reason);
         if (redirectToPhoneProfile(reason)) return;
         setError(reason instanceof Error ? reason.message : 'Không thể tạo mã thanh toán.');
+        if (reason instanceof ApiError && reason.status === 409) void loadMatch();
       });
     return () => { cancelled = true; };
-  }, [bookingId, paymentExpired, selectedKey, token]);
+  }, [bookingId, hasInvalidSelection, paymentExpired, selectedKey, token]);
 
   useEffect(() => {
     if (!receipt) { setReceiptPreview(''); return; }
@@ -152,7 +176,7 @@ export const MatchCheckout = () => {
   useVisiblePolling(
     loadMatch,
     7_500,
-    Boolean(match && !isSubmitting && !paymentExpired && (pendingPayerIds.size > 0 || isAwaitingReceiptReview)),
+    Boolean(match && !isSubmitting && (hasPendingPayments || hasReceiptAwaitingReview)),
   );
 
   const copyContent = async () => {
@@ -160,6 +184,22 @@ export const MatchCheckout = () => {
     await navigator.clipboard.writeText(preview.transferContent);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1_500);
+  };
+
+  const toggleSponsorship = async () => {
+    if (!token || !myPayment || myPayment.paymentStatus !== 'Pending') return;
+    setIsUpdatingSponsorship(true);
+    setError('');
+    try {
+      await setPaymentSponsorship(token, bookingId, !myPayment.allowPaymentByOthers);
+      await loadMatch();
+    } catch (reason) {
+      if (redirectToPhoneProfile(reason)) return;
+      setError(reason instanceof ApiError ? reason.message : 'Không thể cập nhật quyền trả hộ.');
+      if (reason instanceof ApiError && reason.status === 409) await loadMatch();
+    } finally {
+      setIsUpdatingSponsorship(false);
+    }
   };
 
   const submit = async () => {
@@ -179,6 +219,7 @@ export const MatchCheckout = () => {
     } catch (reason) {
       if (redirectToPhoneProfile(reason)) return;
       setError(reason instanceof ApiError ? reason.message : 'Không thể gửi xác nhận thanh toán.');
+      if (reason instanceof ApiError && reason.status === 409) await loadMatch();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(null);
@@ -198,7 +239,7 @@ export const MatchCheckout = () => {
             <h1 className="mt-3 text-[clamp(1.55rem,2.7vw,2.25rem)] font-extrabold tracking-[-0.035em]">Thanh toán booking ghép trận</h1>
             <p className="mt-1 text-[13px] font-semibold text-[#66766d]">Booking #{bookingId} · {match.title}</p>
           </div>
-          <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right"><p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p><p className="font-mono text-[26px] font-black leading-none text-[#e2ff57]">{deadline ? countdown : '--:--'}</p><p className="mt-1 text-[12px] font-bold text-white/80">{isAwaitingReceiptReview ? 'Đang chờ duyệt biên lai' : paymentExpired ? 'Đã hết hạn' : 'Chờ thanh toán'}</p></div>
+          <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right"><p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p><p className="font-mono text-[26px] font-black leading-none text-[#e2ff57]">{deadline ? countdown : '--:--'}</p><p className="mt-1 text-[12px] font-bold text-white/80">{hasRefundPending ? 'Đang chờ hoàn tiền' : paymentExpired ? 'Đã hết hạn' : isPaymentReviewPaused ? 'Tạm dừng khi owner duyệt' : hasPendingPayments ? 'Chờ các phần còn lại thanh toán' : isAwaitingReceiptReview ? 'Đang chờ duyệt biên lai' : 'Chờ thanh toán'}</p></div>
         </header>
 
         {error && <div className="mt-4 flex items-start gap-2 rounded-xl border border-error/25 bg-error-container px-4 py-3 text-[13px] font-bold text-error" role="alert"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />{error}</div>}
@@ -218,18 +259,49 @@ export const MatchCheckout = () => {
         )}
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           <section className="rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]">
-            {paymentExpired ? <div className="grid min-h-80 place-items-center text-center"><AlertCircle className="h-14 w-14 text-error" /><div><h2 className="mt-4 text-xl font-extrabold">Thời gian thanh toán đã hết</h2><p className="mt-2 text-[#66766d]">Quay lại phòng ghép trận để tạo booking mới.</p></div></div> : (
+            {paymentExpired ? <div className="grid min-h-80 place-items-center text-center"><AlertCircle className="h-14 w-14 text-error" /><div><h2 className="mt-4 text-xl font-extrabold">{hasRefundPending ? 'Booking đã hủy vì thiếu thanh toán' : 'Thời gian thanh toán đã hết'}</h2><p className="mt-2 text-[#66766d]">{hasRefundPending ? 'Các khoản đã chuyển được đánh dấu chờ hoàn tiền. Thành viên chưa thanh toán đã bị đưa khỏi phòng.' : 'Quay lại phòng ghép trận để tạo booking mới.'}</p></div></div> : (
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <div>
-                  <div className="flex items-center gap-2"><Users className="h-5 w-5 text-[#477313]" /><h2 className="text-lg font-extrabold">Chọn người thanh toán thêm</h2></div>
-                  <p className="mt-1 text-[13px] text-[#66766d]">Phần của bạn được chọn tự động. Bạn có thể chọn thanh toán thêm cho các thành viên còn chờ.</p>
+                  <div className="flex items-center gap-2"><Users className="h-5 w-5 text-[#477313]" /><h2 className="text-lg font-extrabold">Chọn phần cần thanh toán</h2></div>
+                  <p className="mt-1 text-[13px] text-[#66766d]">Phần của bạn được chọn tự động. Phần của người khác chỉ chọn được khi họ đã cho phép trả hộ.</p>
+                  {myPayment?.paymentStatus === 'Pending' && (
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
+                      <div><p className="text-[13px] font-extrabold">Cho phép người khác trả hộ phần của tôi</p><p className="mt-0.5 text-[11px] text-[#66766d]">Chỉ bật khi bạn đã đồng ý để thành viên khác thanh toán.</p></div>
+                      <button className={`shrink-0 rounded-lg px-3 py-2 text-[12px] font-black ${myPayment.allowPaymentByOthers ? 'bg-[#0b2228] text-white' : 'border border-[#b9cbb0] bg-white text-[#477313]'}`} disabled={isUpdatingSponsorship || isSubmitting || myPaymentClaimedByOther} onClick={() => void toggleSponsorship()} type="button">{isUpdatingSponsorship ? 'Đang lưu...' : myPaymentClaimedByOther ? 'Đang được trả hộ' : myPayment.allowPaymentByOthers ? 'Đang cho phép' : 'Cho phép trả hộ'}</button>
+                    </div>
+                  )}
                   <div className="mt-4 space-y-2">
                     {paymentTargets.map((participant) => {
-                      const canSelect = participant.paymentStatus === 'Pending';
                       const isCurrentPayer = participant.playerId === match.myPlayerId;
+                      const claimedBy = activeClaimedBy(participant.paymentClaimedByPlayerId, participant.paymentClaimExpiresAt, now);
+                      const claimedByMe = claimedBy === match.myPlayerId;
+                      const claimedByOther = Boolean(claimedBy && !claimedByMe);
+                      const canSelect = selectablePayerIds.has(participant.playerId);
                       const isAutoSelected = canSelect && isCurrentPayer;
                       const isSelected = selectedPayerIds.includes(participant.playerId);
-                      return <label className={`flex items-center gap-3 rounded-xl border p-3 ${isSelected ? 'border-primary bg-[#eef8e6]' : 'border-[#dbe8d3]'} ${canSelect && !isAutoSelected ? 'cursor-pointer' : 'opacity-75'}`} key={participant.playerId}><input checked={isSelected} className="h-4 w-4 accent-primary" disabled={!canSelect || isAutoSelected || isSubmitting} onChange={(event) => setSelectedPayerIds((current) => event.target.checked ? [...current, participant.playerId] : current.filter((id) => id !== participant.playerId))} type="checkbox" /><span className="min-w-0 flex-1"><strong className="flex items-center gap-2 text-[13px]">{participant.playerName}{isCurrentPayer && <span className="rounded-full bg-[#dff4cf] px-2 py-0.5 text-[10px] font-black text-[#477313]">Bạn · Tự động</span>}</strong><span className="text-[12px] text-[#66766d]">{currency.format(participant.paymentAmount ?? match.amountPerPlayer)} · {participant.paymentStatus === 'Pending' ? 'Chờ thanh toán' : participant.paymentStatus}</span></span></label>;
+                      const paymentState = participant.paymentStatus !== 'Pending'
+                        ? participant.paymentStatus
+                        : claimedByMe
+                          ? isCurrentPayer ? 'Bạn đang thanh toán' : 'Bạn đang trả hộ'
+                          : claimedByOther
+                            ? 'Đang được thành viên khác thanh toán'
+                            : isCurrentPayer
+                              ? 'Chờ bạn thanh toán'
+                              : participant.allowPaymentByOthers ? 'Đã cho phép trả hộ' : 'Chưa cho phép trả hộ';
+
+                      return (
+                        <label className={`flex items-center gap-3 rounded-xl border p-3 ${isSelected ? 'border-primary bg-[#eef8e6]' : 'border-[#dbe8d3]'} ${canSelect && !isAutoSelected ? 'cursor-pointer' : 'opacity-75'}`} key={participant.playerId}>
+                          <input checked={isSelected} className="h-4 w-4 accent-primary" disabled={!canSelect || isAutoSelected || isSubmitting} onChange={(event) => setSelectedPayerIds((current) => event.target.checked ? [...current, participant.playerId] : current.filter((id) => id !== participant.playerId))} type="checkbox" />
+                          <span className="min-w-0 flex-1">
+                            <strong className="flex flex-wrap items-center gap-2 text-[13px]">
+                              {participant.playerName}
+                              {isCurrentPayer && <span className="rounded-full bg-[#dff4cf] px-2 py-0.5 text-[10px] font-black text-[#477313]">Bạn · Tự động</span>}
+                              {!isCurrentPayer && participant.allowPaymentByOthers && <span className="rounded-full bg-[#e7f0ff] px-2 py-0.5 text-[10px] font-black text-[#315c9a]">Cho phép trả hộ</span>}
+                            </strong>
+                            <span className="text-[12px] text-[#66766d]">{currency.format(participant.paymentAmount ?? match.amountPerPlayer)} · {paymentState}</span>
+                          </span>
+                        </label>
+                      );
                     })}
                     {!paymentTargets.length && <p className="rounded-xl bg-[#f8fbf4] p-4 text-center text-[13px] font-bold text-[#66766d]">Không có khoản thanh toán nào.</p>}
                   </div>

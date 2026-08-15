@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -237,6 +237,7 @@ export const MatchDetail = () => {
   const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<MatchParticipant | null>(null);
   const [bookingClock, setBookingClock] = useState(() => Date.now());
   const [isBusy, setIsBusy] = useState(false);
+  const isCreatingBookingRef = useRef(false);
   const [error, setError] = useState('');
   const [bookingSubmitError, setBookingSubmitError] = useState('');
   const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
@@ -325,6 +326,7 @@ export const MatchDetail = () => {
 
   useScheduleRealtime((notification) => {
     if (notification.venueId !== selectedVenueId || notification.startTime.slice(0, 10) !== bookingDate) return;
+    if (isCreatingBookingRef.current && notification.entryType === 'Holding' && notification.action === 'Created') return;
     if (notification.action !== 'Deleted' && notificationTouchesSelection(notification)) {
       setSelectedSlotsByDate((current) => {
         const next = { ...current };
@@ -605,6 +607,7 @@ export const MatchDetail = () => {
       return;
     }
     setIsBusy(true);
+    isCreatingBookingRef.current = true;
     setError('');
     setBookingSubmitError('');
     try {
@@ -644,6 +647,7 @@ export const MatchDetail = () => {
       }
       setBookingSubmitError(reason instanceof Error ? reason.message : 'Không thể tạo booking.');
     } finally {
+      isCreatingBookingRef.current = false;
       setIsBusy(false);
     }
   };

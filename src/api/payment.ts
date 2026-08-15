@@ -28,6 +28,7 @@ export type BatchPaymentPreview = {
   totalAmount: number;
   transferContent: string;
   qrImageUrl: string;
+  claimExpiresAt: string;
 };
 
 export type BatchPaymentResponse = {
@@ -93,6 +94,19 @@ export const previewBatchPayment = (
   method: 'POST',
   body: JSON.stringify({ payerIds }),
 }, token);
+
+export const setPaymentSponsorship = (
+  token: string,
+  bookingId: number,
+  allowPaymentByOthers: boolean,
+) => apiRequest<{ paymentId: number; allowPaymentByOthers: boolean }>(
+  `/api/payments/bookings/${bookingId}/sponsorship`,
+  {
+    method: 'PUT',
+    body: JSON.stringify({ allowPaymentByOthers }),
+  },
+  token,
+);
 
 export const submitBatchBankTransfer = async (
   token: string,

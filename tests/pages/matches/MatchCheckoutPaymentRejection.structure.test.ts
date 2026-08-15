@@ -24,9 +24,32 @@ test('match checkout anchors its countdown to the remaining seconds returned by 
 });
 
 test('match checkout always includes the current player while their payment is pending', () => {
-  assert.ok(source.includes('reconcileSelectedPayerIds(current, pendingPayerIds, match.myPlayerId)'));
-  assert.ok(source.includes("const isAutoSelected = canSelect && isCurrentPayer;"));
+  assert.ok(source.includes('reconcileSelectedPayerIds(current, selectablePayerIds, match.myPlayerId)'));
+  assert.ok(source.includes('const isAutoSelected = canSelect && isCurrentPayer;'));
   assert.ok(source.includes('disabled={!canSelect || isAutoSelected || isSubmitting}'));
   assert.ok(source.includes('Bạn · Tự động'));
   assert.ok(source.includes('Phần của bạn được chọn tự động.'));
+});
+
+test('another player can pay only after the share owner opts in', () => {
+  assert.ok(source.includes('participant.allowPaymentByOthers'));
+  assert.ok(source.includes('setPaymentSponsorship(token, bookingId'));
+  assert.ok(source.includes('Cho phép người khác trả hộ phần của tôi'));
+  assert.ok(source.includes('Đang được thành viên khác thanh toán'));
+});
+
+test('owner receipt review freezes the displayed remaining time until a decision', () => {
+  assert.ok(source.includes('const [isPaymentReviewPaused, setIsPaymentReviewPaused] = useState(false);'));
+  assert.ok(source.includes('setIsPaymentReviewPaused(!detail.paymentDeadline && detail.paymentHoldRemainingSeconds != null)'));
+  assert.ok(source.includes('!isPaymentReviewPaused && deadline && remainingSeconds <= 0'));
+  assert.ok(source.includes('|| isPaymentReviewPaused) return;'));
+  assert.ok(source.includes("isPaymentReviewPaused ? '"));
+  assert.ok(source.includes('hasPendingPayments || hasReceiptAwaitingReview'));
+});
+
+test('expired partial match payments explain the refund state', () => {
+  assert.ok(source.includes("participant.paymentStatus === 'RefundPending'"));
+  assert.ok(source.includes('hasRefundPending'));
+  assert.ok(source.includes('Booking đã hủy vì thiếu thanh toán'));
+  assert.ok(source.includes('đánh dấu chờ hoàn tiền'));
 });
