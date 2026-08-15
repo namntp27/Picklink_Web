@@ -45,7 +45,7 @@ const statusLabel: Record<AvailabilitySlot['status'], string> = {
 const stateClasses = {
   empty: 'bg-white hover:bg-[#eef8e6] focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#276b3f]',
   selected: 'z-10 border-[#081d24] bg-[#e2ff57] shadow-[inset_0_0_0_1px_#081d24]',
-  owned: 'bg-[#e2ff57] hover:bg-[#d6f64d]',
+  owned: 'bg-[#fbbf24] hover:bg-[#f59e0b] focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#92400e]',
   booked: 'cursor-not-allowed bg-[#f26767]',
   locked: 'cursor-not-allowed bg-[#aeb8b0]',
   event: 'cursor-not-allowed bg-[#c86fd5] text-white',
@@ -53,6 +53,7 @@ const stateClasses = {
 
 const legendItems = [
   { label: 'Trống', className: 'bg-white' },
+  { label: 'Bạn đang giữ', className: 'bg-[#fbbf24]' },
   { label: 'Đã đặt', className: 'bg-[#f26767]' },
   { label: 'Khoá', className: 'bg-[#aeb8b0]' },
   { label: 'Sự kiện', className: 'bg-[#c86fd5]', marker: '!' },
@@ -115,6 +116,7 @@ export const CourtTimelineGrid = ({
                 const selected = selectedSlotKeys.includes(slotKey(court.courtId, tick));
                 const past = slot ? parseSlotDate(slot.startTime) <= Date.now() : false;
                 const resumableHolding = Boolean(slot?.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId);
+                const displayStatus = resumableHolding ? 'Bạn đang giữ · Nhấn để tiếp tục thanh toán' : statusLabel[slot?.status ?? 'Blocked'];
                 const disabled = forcedUnavailable || !slot || (!resumableHolding && (slot.status !== 'Available' || past));
                 const statusClass = forcedUnavailable
                   ? stateClasses.locked
@@ -132,12 +134,12 @@ export const CourtTimelineGrid = ({
 
                 return (
                   <button
-                    aria-label={`Sân ${court.courtNumber} ${tick} ${slot ? statusLabel[slot.status] : 'Khoá'}`}
+                    aria-label={`Sân ${court.courtNumber} ${tick} ${slot ? displayStatus : 'Khoá'}`}
                     className={`h-10 border-b border-l border-[#dbe8d3] text-[0px] transition-colors ${statusClass}`}
                     disabled={disabled}
                     key={`${court.courtId}-${tick}`}
                     onClick={() => slot && onSelectSlot(slot)}
-                    title={slot ? `${tick} - ${slotTime(slot.endTime)} · ${statusLabel[slot.status]}` : `${tick} · Khoá`}
+                    title={slot ? `${tick} - ${slotTime(slot.endTime)} · ${displayStatus}` : `${tick} · Khoá`}
                     type="button"
                   >
                     {slot?.status === 'Event' ? 'Sự kiện' : statusLabel[slot?.status ?? 'Blocked']}

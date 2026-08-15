@@ -41,6 +41,7 @@ export type AvailabilitySlot = {
   endTime: string;
   status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed';
   bookingId?: number | null;
+  matchId?: number | null;
   isOwnedByCurrentUser?: boolean;
 };
 

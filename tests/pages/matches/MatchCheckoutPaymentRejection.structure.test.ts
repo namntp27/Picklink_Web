@@ -22,3 +22,11 @@ test('match checkout anchors its countdown to the remaining seconds returned by 
   assert.match(source, /`\$\{value\}\+07:00`/);
   assert.doesNotMatch(source, /`\$\{value\}Z`/);
 });
+
+test('match checkout always includes the current player while their payment is pending', () => {
+  assert.ok(source.includes('reconcileSelectedPayerIds(current, pendingPayerIds, match.myPlayerId)'));
+  assert.ok(source.includes("const isAutoSelected = canSelect && isCurrentPayer;"));
+  assert.ok(source.includes('disabled={!canSelect || isAutoSelected || isSubmitting}'));
+  assert.ok(source.includes('Bạn · Tự động'));
+  assert.ok(source.includes('Phần của bạn được chọn tự động.'));
+});

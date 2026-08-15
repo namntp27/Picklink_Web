@@ -14,6 +14,17 @@ test('a booked match can submit another booking from the frontend', () => {
   assert.ok(detailSource.includes("const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';"));
   assert.ok(detailSource.includes("{isApprovedMember && canBookAnotherRound && ("));
   assert.ok(detailSource.includes('Booking đã thanh toán thành công.'));
+  assert.ok(detailSource.includes('const createdMatch = await createMatchBooking'));
+  assert.ok(detailSource.includes('if (!createdMatch.bookingId)'));
+  assert.ok(detailSource.includes('navigate(`/checkout?bookingId=${createdMatch.bookingId}'));
+  assert.ok(detailSource.includes("isBusy ? 'Đang tạo booking...'"));
+  assert.ok(detailSource.includes("'Tạo booking và chuyển sang thanh toán'"));
+  assert.ok(detailSource.includes('className="match-booking-notice" role="status"'));
+  assert.ok(detailSource.includes('bookingSubmitError && <div aria-live="assertive" className="match-alert picklink-inline-alert'));
+  assert.ok(detailSource.includes("slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId"));
+  assert.ok(detailSource.includes('holdingCheckoutPath(slot, bookingDate)'));
+  assert.ok(detailSource.includes('thuộc phòng #${holding.matchId}, không phải phòng #${matchId}'));
+  assert.ok(detailSource.includes("currentMatchHolding ? 'Tiếp tục thanh toán booking đang giữ'"));
   assert.ok(createBookingStart >= 0 && cancelBookingStart > createBookingStart);
   assert.ok(createBookingSource.includes('/api/matches/${matchId}/booking'));
   assert.ok(createBookingSource.includes("method: 'POST'"));

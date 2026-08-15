@@ -38,3 +38,16 @@ test('profile shows match reviews received by the current player', () => {
   assert.match(profileSource, /review\.comment/);
   assert.match(profileSource, /to=\{`\/matches\/\$\{review\.matchId\}`\}/);
 });
+
+test('profile lets the player view and update their phone number', () => {
+  assert.match(profileSource, /Số điện thoại/);
+  assert.match(profileSource, /type="tel"/);
+  assert.match(profileSource, /setField\('phoneNumber', event\.target\.value\)/);
+  assert.equal(profileSource.match(/phoneNumber: profile\.phoneNumber/g)?.length, 2);
+});
+
+test('profile uses half-point skill increments and normalizes legacy values', () => {
+  assert.match(profileSource, /step="0\.5"/);
+  assert.match(profileSource, /Math\.round\(\(value \?\? 0\) \* 2\) \/ 2/);
+  assert.match(profileSource, /skillLevel: toHalfPoint\(loadedProfile\.skillLevel\)/);
+});

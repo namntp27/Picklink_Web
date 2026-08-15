@@ -78,9 +78,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
   const [isInitializing, setIsInitializing] = useState(Boolean(session));
 
-  const saveSession = useCallback((nextSession: AuthSession | null) => {
-    clearPrefetchedApiData();
-    clearApiQueryCache();
+  const saveSession = useCallback((nextSession: AuthSession | null, clearUserData = true) => {
+    if (clearUserData) {
+      clearPrefetchedApiData();
+      clearApiQueryCache();
+    }
     setSession(nextSession);
     persistSession(nextSession);
   }, []);
@@ -127,7 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let isActive = true;
     getCurrentUser(session.token)
       .then((user) => {
-        if (isActive) saveSession({ ...session, user });
+        if (isActive) saveSession({ ...session, user }, false);
       })
       .catch(() => {
         if (isActive) saveSession(null);
@@ -169,7 +171,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshUser: async () => {
       if (!session) return;
       const user = await getCurrentUser(session.token);
-      saveSession({ ...session, user });
+      saveSession({ ...session, user }, false);
     },
     logout: () => saveSession(null),
   }), [isInitializing, saveSession, session]);

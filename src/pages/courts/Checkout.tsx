@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cancelBookingHolding, getBookingHolding, type BankTransfer, type BookingHolding } from '../../api/booking';
-import { ApiError } from '../../api/client';
+import { ApiError, ApiErrorCodes } from '../../api/client';
 import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -93,14 +93,29 @@ const CourtCheckout = () => {
   const [copied, setCopied] = useState(false);
   const [showSlotDetails, setShowSlotDetails] = useState(false);
   const [error, setError] = useState('');
+  const phoneRedirecting = useRef(false);
   const shouldReduceMotion = useReducedMotion();
+
+  const redirectToPhoneProfile = (reason: unknown) => {
+    if (!(reason instanceof ApiError) || reason.body?.errorCode !== ApiErrorCodes.phoneNumberRequired) return false;
+    if (phoneRedirecting.current) return true;
+    phoneRedirecting.current = true;
+    window.alert(reason.message);
+    navigate('/profile');
+    return true;
+  };
 
   const loadBooking = async (silent = false) => {
     if (!token || !Number.isInteger(bookingId)) { setError('Booking không hợp lệ.'); return; }
     try {
-      setBooking(await getBookingHolding(token, bookingId));
+      const [loadedBooking] = await Promise.all([
+        getBookingHolding(token, bookingId),
+        getPlayerBookingPayment(token, bookingId),
+      ]);
+      setBooking(loadedBooking);
       if (!silent) setError('');
     } catch (requestError) {
+      if (redirectToPhoneProfile(requestError)) return;
       if (!silent) setError(requestError instanceof ApiError ? requestError.message : 'Không thể tải booking.');
     }
   };
@@ -240,6 +255,7 @@ const CourtCheckout = () => {
       setError('');
       setReceipt(null);
     } catch (requestError) {
+      if (redirectToPhoneProfile(requestError)) return;
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi xác nhận chuyển khoản.');
     } finally {
       setIsSubmitting(false);

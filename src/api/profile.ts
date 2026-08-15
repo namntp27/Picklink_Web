@@ -14,6 +14,7 @@ export type PlayerProfile = {
   playerSubType?: string | null;
   playFrequency?: string | null;
   preferredTimeSlot?: string | null;
+  phoneNumber?: string | null;
   bio?: string | null;
   birthDate?: string | null;
   gender?: string | null;
@@ -31,6 +32,7 @@ export type UpdatePlayerProfile = {
   playerSubType?: string | null;
   playFrequency?: string | null;
   preferredTimeSlot?: string | null;
+  phoneNumber?: string | null;
   bio?: string | null;
   birthDate?: string | null;
   gender?: string | null;

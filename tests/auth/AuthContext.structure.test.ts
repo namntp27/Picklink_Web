@@ -13,3 +13,8 @@ test('auth expires an open session and synchronizes session changes across tabs'
   assert.ok(source.includes('setSession(getStoredSession())'));
   assert.ok(source.includes('[saveSession, session?.token]'));
 });
+
+test('refreshing the current user preserves loaded screen data', () => {
+  assert.match(source, /saveSession = useCallback\(\(nextSession: AuthSession \| null, clearUserData = true\)/);
+  assert.equal(source.match(/saveSession\(\{ \.\.\.session, user \}, false\)/g)?.length, 2);
+});

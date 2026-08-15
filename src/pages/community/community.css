@@ -1275,6 +1275,29 @@ textarea.community-control {
   color: rgb(255 255 255 / 0.68);
 }
 
+.match-booking-slot-list {
+  display: grid;
+  max-height: 144px;
+  margin-top: 6px;
+  padding-right: 3px;
+  gap: 5px;
+  overflow-y: auto;
+}
+
+.match-booking-slot-list > div {
+  border-left: 2px solid var(--community-accent);
+  padding-left: 7px;
+}
+
+.match-booking-slot-list strong {
+  margin-top: 0;
+  font-size: 12px;
+}
+
+.match-booking-slot-list span {
+  margin-top: 1px;
+}
+
 .match-checkin-card {
   overflow: hidden;
   border-radius: 14px;
@@ -1354,6 +1377,17 @@ textarea.community-control {
   color: #9e2a23;
   font-size: 13px;
   font-weight: 800;
+  line-height: 1.55;
+}
+
+.match-booking-notice {
+  border: 1px solid #b9dca8;
+  border-radius: 14px;
+  background: #eef8e6;
+  padding: 12px 14px;
+  color: #315c16;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.55;
 }
 

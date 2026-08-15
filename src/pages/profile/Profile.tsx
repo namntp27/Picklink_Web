@@ -36,6 +36,7 @@ const emptyProfile: PlayerProfile = {
 };
 
 const toOptionalNumber = (value: string) => value === '' ? null : Number(value);
+const toHalfPoint = (value: number | null | undefined) => Math.round((value ?? 0) * 2) / 2;
 
 export const Profile = () => {
   const { token, refreshUser } = useAuth();
@@ -65,7 +66,7 @@ export const Profile = () => {
   useEffect(() => {
     if (!loadedProfile || seededProfileRef.current === loadedProfile) return;
     seededProfileRef.current = loadedProfile;
-    setProfile(loadedProfile);
+    setProfile({ ...loadedProfile, skillLevel: toHalfPoint(loadedProfile.skillLevel) });
   }, [loadedProfile]);
 
   const setField = <Key extends keyof PlayerProfile>(key: Key, value: PlayerProfile[Key]) => {
@@ -88,6 +89,7 @@ export const Profile = () => {
         playerSubType: profile.playerSubType,
         playFrequency: profile.playFrequency,
         preferredTimeSlot: profile.preferredTimeSlot,
+        phoneNumber: profile.phoneNumber,
         bio: profile.bio,
         birthDate: profile.birthDate,
         gender: profile.gender,
@@ -120,6 +122,7 @@ export const Profile = () => {
         playerSubType: profile.playerSubType,
         playFrequency: profile.playFrequency,
         preferredTimeSlot: profile.preferredTimeSlot,
+        phoneNumber: profile.phoneNumber,
         bio: profile.bio,
         birthDate: profile.birthDate,
         gender: profile.gender,
@@ -307,6 +310,19 @@ export const Profile = () => {
                       value={profile.email}
                     />
                     <span className="profile-field-helper">Email đăng nhập không thể chỉnh sửa tại đây.</span>
+                  </label>
+                  <label className="profile-field">
+                    <span className="profile-field-label">Số điện thoại</span>
+                    <input
+                      autoComplete="tel"
+                      className="profile-control"
+                      inputMode="tel"
+                      maxLength={30}
+                      onChange={(event) => setField('phoneNumber', event.target.value)}
+                      placeholder="0901234567"
+                      type="tel"
+                      value={profile.phoneNumber ?? ''}
+                    />
                   </label>
                   <label className="profile-field">
                     <span className="profile-field-label">Ngày sinh</span>

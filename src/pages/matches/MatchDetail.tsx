@@ -40,12 +40,13 @@ import {
   updateMatchInvitation,
   voteMatchSlot,
   type MatchDetailResponse,
+  type MatchBookingSlot,
   type MatchFormat,
   type MatchPreferredVenue,
   type MatchParticipant,
   type MatchSlotOption,
 } from '../../api/matches';
-import { ApiError } from '../../api/client';
+import { ApiError, ApiErrorCodes } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useApiQuery } from '../../hooks/useApiQuery';
@@ -58,6 +59,7 @@ import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { holdingCheckoutPath } from '../../utils/bookingCheckout';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -102,6 +104,28 @@ const currency = new Intl.NumberFormat('vi-VN', {
 });
 const approvedStatus = (status: string) => status === 'Approved' || status === 'Accepted';
 const timePart = (value: string) => value.slice(11, 16);
+export const matchBookingSlotLabel = (startTime: string, endTime: string) =>
+  `${datePart(startTime)} · ${timePart(startTime)}–${timePart(endTime)}`;
+export const mergeAdjacentMatchBookingSlots = (slots: MatchBookingSlot[]) => {
+  const merged: MatchBookingSlot[] = [];
+
+  [...slots]
+    .sort((left, right) => left.startTime.slice(0, 10).localeCompare(right.startTime.slice(0, 10))
+      || left.courtId - right.courtId
+      || left.startTime.localeCompare(right.startTime))
+    .forEach((slot) => {
+      const previous = merged.at(-1);
+      const isAdjacent = previous
+        && previous.courtId === slot.courtId
+        && previous.startTime.slice(0, 10) === slot.startTime.slice(0, 10)
+        && previous.endTime === slot.startTime;
+
+      if (isAdjacent) previous.endTime = slot.endTime;
+      else merged.push({ ...slot });
+    });
+
+  return merged.sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId);
+};
 const minuteOfDay = (value: string) => {
   const [hour, minute] = value.split(':').map(Number);
   return hour * 60 + minute;
@@ -214,6 +238,7 @@ export const MatchDetail = () => {
   const [bookingClock, setBookingClock] = useState(() => Date.now());
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
+  const [bookingSubmitError, setBookingSubmitError] = useState('');
   const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
 
   useEffect(() => {
@@ -339,6 +364,26 @@ export const MatchDetail = () => {
       .sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId),
     [selectedSlotsByDate],
   );
+  const ownedHoldingBookings = useMemo(() => {
+    const groups = new Map<number, { bookingId: number; matchId?: number | null; date: string; slotCount: number; slot: AvailabilitySlot }>();
+    availability?.slots.forEach((slot) => {
+      if (slot.status !== 'Holding' || !slot.isOwnedByCurrentUser || !slot.bookingId) return;
+      const current = groups.get(slot.bookingId);
+      if (current) {
+        current.slotCount += 1;
+      } else {
+        groups.set(slot.bookingId, {
+          bookingId: slot.bookingId,
+          matchId: slot.matchId,
+          date: slot.startTime.slice(0, 10),
+          slotCount: 1,
+          slot,
+        });
+      }
+    });
+    return [...groups.values()];
+  }, [availability]);
+  const currentMatchHolding = ownedHoldingBookings.find((holding) => holding.matchId === matchId);
   const selectedDates = useMemo(
     () => Object.keys(selectedSlotsByDate).filter((date) => selectedSlotsByDate[date].length).sort(),
     [selectedSlotsByDate],
@@ -361,6 +406,7 @@ export const MatchDetail = () => {
   const changeBookingDate = (nextDate: string) => {
     setBookingDate(nextDate);
     setBookingMonths((current) => Math.min(current, maximumMonthDurationFrom(nextDate)));
+    setBookingSubmitError('');
   };
 
 
@@ -442,6 +488,11 @@ export const MatchDetail = () => {
 
 
   const selectSlot = (slot: AvailabilitySlot) => {
+    if (slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId) {
+      const checkoutPath = holdingCheckoutPath(slot, bookingDate);
+      if (checkoutPath) navigate(checkoutPath);
+      return;
+    }
     const parseSlotTime = (str: string) => new Date(str.includes('Z') || str.includes('+') ? str : str + '+07:00').getTime();
     if (slot.status !== 'Available'
       || unavailableSlotKeysForDate.includes(slotKey(slot))
@@ -467,6 +518,7 @@ export const MatchDetail = () => {
       return { ...current, [bookingDate]: nextDateSlots };
     });
     setError('');
+    setBookingSubmitError('');
   };
 
   const toggleSlotVote = async (option: MatchSlotOption) => {
@@ -549,18 +601,30 @@ export const MatchDetail = () => {
 
   const createBooking = async (allowScheduleConflicts = false) => {
     if (!token || !selectedSlots.length) {
-      setError('Vui lòng chọn ít nhất một slot.');
+      setBookingSubmitError('Vui lòng chọn ít nhất một slot.');
       return;
     }
     setIsBusy(true);
     setError('');
+    setBookingSubmitError('');
     try {
-      await createMatchBooking(token, matchId, {
+      const createdMatch = await createMatchBooking(token, matchId, {
         slots: selectedSlots.map(({ courtId, startTime, endTime }) => ({ courtId, startTime, endTime })),
         allowScheduleConflicts,
       });
-      await loadMatch();
+      if (!createdMatch.bookingId) {
+        throw new Error('Booking đã được xử lý nhưng không nhận được mã booking. Vui lòng tải lại trang.');
+      }
+      const checkoutDate = createdMatch.bookingSlots?.[0]?.startTime.slice(0, 10)
+        ?? createdMatch.startTime?.slice(0, 10)
+        ?? bookingDate;
+      navigate(`/checkout?bookingId=${createdMatch.bookingId}&date=${encodeURIComponent(checkoutDate)}&matchId=${matchId}`);
     } catch (reason) {
+      if (reason instanceof ApiError && reason.body?.errorCode === ApiErrorCodes.phoneNumberRequired) {
+        window.alert(reason.message);
+        navigate('/profile');
+        return;
+      }
       const body = reason instanceof ApiError ? reason.body as {
         requiresScheduleConflictConfirmation?: boolean;
         conflicts?: ScheduleConflict[];
@@ -573,10 +637,12 @@ export const MatchDetail = () => {
         );
         if (window.confirm(`${details.join('\n\n')}\n\nBạn có muốn tiếp tục tạo booking trùng lịch không?`)) {
           await createBooking(true);
+        } else {
+          setBookingSubmitError('Booking chưa được tạo vì lịch đã chọn đang trùng với lịch của thành viên.');
         }
         return;
       }
-      setError(reason instanceof Error ? reason.message : 'Không thể tạo booking.');
+      setBookingSubmitError(reason instanceof Error ? reason.message : 'Không thể tạo booking.');
     } finally {
       setIsBusy(false);
     }
@@ -601,6 +667,7 @@ export const MatchDetail = () => {
   const playableSlotLabels = match.availabilitySlots.length > 0
     ? match.availabilitySlots.map((slot) => `${slot.timeStart.slice(0, 5)} - ${slot.timeEnd.slice(0, 5)}`)
     : [`${match.preferredTimeStart.slice(0, 5)} - ${match.preferredTimeEnd.slice(0, 5)}`];
+  const bookedSlotGroups = mergeAdjacentMatchBookingSlots(match.bookingSlots ?? []);
 
   return (
     <CommunityPage className="match-detail-page">
@@ -872,7 +939,7 @@ export const MatchDetail = () => {
           </div>
 
           {isApprovedMember && match.status === 'Booked' && (
-            <section className="match-alert" role="alert">
+            <section aria-live="polite" className="match-booking-notice" role="status">
               <strong>{bookingHasEnded ? 'Lượt booking gần nhất đã hết giờ.' : 'Booking đã thanh toán thành công.'}</strong> Bạn có thể chọn slot bên dưới để tạo booking tiếp theo ngay.
             </section>
           )}
@@ -934,9 +1001,24 @@ export const MatchDetail = () => {
                     <div className="flex flex-wrap gap-2 text-[11px] font-bold">
                       <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-[#477313]">Trống</span>
                       <span className="rounded-full border border-[#0b2228] bg-[#0b2228] px-2 py-1 text-white">Đã chọn</span>
+                      <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-1 text-amber-900">Bạn đang giữ</span>
                       <span className="rounded-full border border-[#d8e4d4] bg-white px-2 py-1 text-[#8a968f]">Không khả dụng</span>
                     </div>
                   </div>
+                  {ownedHoldingBookings.map((holding) => {
+                    const checkoutPath = holdingCheckoutPath(holding.slot, holding.date);
+                    const holdingContext = holding.matchId === matchId
+                      ? 'của phòng này'
+                      : holding.matchId
+                        ? `thuộc phòng #${holding.matchId}, không phải phòng #${matchId}`
+                        : 'thuộc một booking sân khác của bạn';
+                    return (
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-950" key={holding.bookingId} role="status">
+                        <span>{holding.slotCount} slot màu vàng đang được bạn giữ tạm {holdingContext}.</span>
+                        {checkoutPath && <button className="rounded-lg bg-amber-900 px-3 py-1.5 text-white hover:bg-amber-800" onClick={() => navigate(checkoutPath)} type="button">Tiếp tục thanh toán</button>}
+                      </div>
+                    );
+                  })}
                   {availability && <CourtTimelineGrid availability={availability} disabledSlotKeys={unavailableSlotKeysForDate} onSelectSlot={selectSlot} selectedSlotKeys={selectedSlotKeys} />}
                 </div>
               </div>
@@ -947,7 +1029,17 @@ export const MatchDetail = () => {
                   <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-[#477313]">{currency.format(estimatedAmountPerPlayer)}</p></div>
                 </div>
               )}
-              <button className="community-button mt-4 w-full" disabled={isBusy || !selectedSlots.length} onClick={() => void createBooking()} type="button"><CreditCard className="h-4 w-4" /> Tạo booking và chuyển sang thanh toán</button>
+              <button className="community-button mt-4 w-full" disabled={isBusy || (!selectedSlots.length && !currentMatchHolding)} onClick={() => {
+                if (currentMatchHolding) {
+                  const checkoutPath = holdingCheckoutPath(currentMatchHolding.slot, currentMatchHolding.date);
+                  if (checkoutPath) navigate(checkoutPath);
+                  return;
+                }
+                void createBooking();
+              }} type="button">
+                <CreditCard className="h-4 w-4" /> {isBusy ? 'Đang tạo booking...' : currentMatchHolding ? 'Tiếp tục thanh toán booking đang giữ' : 'Tạo booking và chuyển sang thanh toán'}
+              </button>
+              {bookingSubmitError && <div aria-live="assertive" className="match-alert picklink-inline-alert mt-3" role="alert">{bookingSubmitError}</div>}
             </section>
           )}
 
@@ -958,8 +1050,25 @@ export const MatchDetail = () => {
                 <span className="match-soft-badge">{statusLabels[match.status]}</span>
               </div>
               <div className="match-booking-grid">
-                <div><p>Sân</p><strong>{match.venueName} · Sân {match.courtNumber}</strong><span>{match.address}</span></div>
-                <div><p>Thời gian</p><strong>{match.startTime && dateTimeLabel(match.startTime)}</strong><span>Đến {match.endTime && dateTimeLabel(match.endTime)}</span></div>
+                <div><p>Cụm sân</p><strong>{match.venueName}</strong><span>{match.address}</span></div>
+                <div>
+                  <p>Thời gian slot đã đặt</p>
+                  {bookedSlotGroups.length > 0 ? (
+                    <div className="match-booking-slot-list">
+                      {bookedSlotGroups.map((slot) => (
+                        <div key={slot.bookingSlotId}>
+                          <strong>{matchBookingSlotLabel(slot.startTime, slot.endTime)}</strong>
+                          <span>Sân {slot.courtNumber}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <strong>{match.startTime && dateTimeLabel(match.startTime)}</strong>
+                      <span>{match.endTime && `Đến ${dateTimeLabel(match.endTime)}`}</span>
+                    </>
+                  )}
+                </div>
                 <div><p>Chi phí</p><strong>{currency.format(match.amountPerPlayer)}/người</strong><span>Tổng {currency.format(match.totalBookingAmount)}</span></div>
               </div>
             </section>

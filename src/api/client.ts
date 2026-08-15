@@ -47,6 +47,7 @@ type ApiErrorBody = {
  */
 export const ApiErrorCodes = {
   cloudinaryNotConfigured: 'CLOUDINARY_NOT_CONFIGURED',
+  phoneNumberRequired: 'PHONE_NUMBER_REQUIRED',
 } as const;
 
 const repairResponseText = (value: unknown): unknown => {

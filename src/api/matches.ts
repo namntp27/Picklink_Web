@@ -159,8 +159,17 @@ export type MatchBookingCheckIn = {
   checkInGroups: MatchBookingCheckInGroup[];
 };
 
+export type MatchBookingSlot = {
+  bookingSlotId: number;
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+};
+
 export type MatchDetailResponse = MatchSummary & {
   bookingId?: number | null;
+  bookingSlots: MatchBookingSlot[];
   conversationId?: number | null;
   chatAccessRole?: 'Member' | 'Replacement' | string | null;
   chatAccessExpiresAt?: string | null;

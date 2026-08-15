@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createBookingHolding, getCourtAvailabilities, getCourtAvailability, type AvailabilitySlot, type BookingScheduleConflict, type CourtAvailability } from '../../api/booking';
-import { ApiError } from '../../api/client';
+import { ApiError, ApiErrorCodes } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/useScheduleRealtime';
@@ -20,6 +20,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { CourtTimelineGrid } from './components/CourtTimelineGrid';
 import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { holdingCheckoutPath } from '../../utils/bookingCheckout';
 
 const maxBookingSlots = 496;
 const localDate = () => {
@@ -209,7 +210,8 @@ export const CourtScheduleDetail = () => {
 
   const selectSlot = (slot: AvailabilitySlot) => {
     if (slot.status === 'Holding' && slot.isOwnedByCurrentUser && slot.bookingId) {
-      navigate('/checkout?bookingId=' + slot.bookingId + '&date=' + encodeURIComponent(date));
+      const checkoutPath = holdingCheckoutPath(slot, date);
+      if (checkoutPath) navigate(checkoutPath);
       return;
     }
     const key = slotKey(slot.courtId, time(slot.startTime));
@@ -343,6 +345,11 @@ export const CourtScheduleDetail = () => {
       });
       navigate('/checkout?bookingId=' + booking.bookingId + '&date=' + encodeURIComponent(selectedDates[0] ?? date), { state: { booking } });
     } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.body?.errorCode === ApiErrorCodes.phoneNumberRequired) {
+        window.alert(requestError.message);
+        navigate('/profile');
+        return;
+      }
       const body = requestError instanceof ApiError ? requestError.body as {
         requiresScheduleConflictConfirmation?: boolean;
         conflicts?: BookingScheduleConflict[];
