@@ -86,6 +86,9 @@ export const submitTicketReceipt = async (
 export const getPlayerBookingPayment = (token: string, bookingId: number) =>
   apiRequest<BankTransfer>(`/api/payments/bookings/${bookingId}`, {}, token);
 
+export const getCheckoutBookingContext = (token: string, bookingId: number) =>
+  apiRequest<{ matchId: number | null }>(`/api/payments/bookings/${bookingId}/checkout-context`, {}, token);
+
 export const previewBatchPayment = (
   token: string,
   bookingId: number,
@@ -95,15 +98,27 @@ export const previewBatchPayment = (
   body: JSON.stringify({ payerIds }),
 }, token);
 
-export const setPaymentSponsorship = (
+export const requestPaymentSponsorship = (
   token: string,
   bookingId: number,
-  allowPaymentByOthers: boolean,
-) => apiRequest<{ paymentId: number; allowPaymentByOthers: boolean }>(
-  `/api/payments/bookings/${bookingId}/sponsorship`,
+  targetPlayerId: number,
+) => apiRequest<{ paymentId: number; requestedByPlayerId: number; targetPlayerId: number; status: string }>(
+  `/api/payments/bookings/${bookingId}/sponsorship-requests/${targetPlayerId}`,
   {
-    method: 'PUT',
-    body: JSON.stringify({ allowPaymentByOthers }),
+    method: 'POST',
+  },
+  token,
+);
+
+export const respondPaymentSponsorship = (
+  token: string,
+  bookingId: number,
+  accept: boolean,
+) => apiRequest<{ paymentId: number; requestedByPlayerId: number; targetPlayerId: number; status: string }>(
+  `/api/payments/bookings/${bookingId}/sponsorship-requests/respond`,
+  {
+    method: 'POST',
+    body: JSON.stringify({ accept }),
   },
   token,
 );

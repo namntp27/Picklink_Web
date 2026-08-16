@@ -13,7 +13,7 @@ import {
 type Props = {
   token?: string | null;
   matchId: number;
-  group: MatchBookingCheckInGroup;
+  groups: MatchBookingCheckInGroup[];
   canReview: boolean;
   isBusy: boolean;
   run: (action: () => Promise<unknown>) => Promise<void>;
@@ -28,18 +28,23 @@ const requestStatusLabel: Record<string, string> = {
   Removed: 'Đã bị đưa khỏi nhóm thay thế',
 };
 
-export const MatchSlotReplacementPanel = ({ token, matchId, group, canReview, isBusy, run }: Props) => {
+export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, isBusy, run }: Props) => {
+  const reportableGroups = groups.filter((group) => group.canReportUnavailable);
   const reportUnavailable = () => {
     if (!token) return;
     const reason = window.prompt('Lý do bạn bận buổi này (có thể để trống):', '');
     if (reason === null) return;
-    void run(() => reportMatchSlotUnavailable(token, matchId, group.bookingCheckInGroupId, reason));
+    void run(async () => {
+      for (const group of reportableGroups) {
+        await reportMatchSlotUnavailable(token, matchId, group.bookingCheckInGroupId, reason);
+      }
+    });
   };
-  const absences = group.absences ?? [];
+  const absenceEntries = groups.flatMap((group) => (group.absences ?? []).map((absence) => ({ absence, group })));
 
   return (
     <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
-      {group.canReportUnavailable && (
+      {reportableGroups.length > 0 && (
         <button
           className="w-full rounded-lg border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-[11px] font-extrabold text-amber-100 transition hover:bg-amber-300/20 disabled:opacity-50"
           disabled={isBusy || !token}
@@ -50,7 +55,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, group, canReview, is
         </button>
       )}
 
-      {absences.map((absence) => {
+      {absenceEntries.map(({ absence, group }) => {
         const pendingMine = absence.myRequestStatus === 'Pending';
         const approvedMine = absence.myRequestStatus === 'Approved';
         const replacementRequests = absence.replacementRequests ?? [];

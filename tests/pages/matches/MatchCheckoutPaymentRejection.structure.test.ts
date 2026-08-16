@@ -23,19 +23,24 @@ test('match checkout anchors its countdown to the remaining seconds returned by 
   assert.doesNotMatch(source, /`\$\{value\}Z`/);
 });
 
-test('match checkout always includes the current player while their payment is pending', () => {
-  assert.ok(source.includes('reconcileSelectedPayerIds(current, selectablePayerIds, match.myPlayerId)'));
+test('match checkout auto-selects the current player unless their payment belongs to an accepted sponsor', () => {
+  assert.ok(source.includes('selectablePayerIds.has(match.myPlayerId) ? match.myPlayerId : null'));
   assert.ok(source.includes('const isAutoSelected = canSelect && isCurrentPayer;'));
   assert.ok(source.includes('disabled={!canSelect || isAutoSelected || isSubmitting}'));
   assert.ok(source.includes('Bạn · Tự động'));
   assert.ok(source.includes('Phần của bạn được chọn tự động.'));
 });
 
-test('another player can pay only after the share owner opts in', () => {
+test('proxy payment uses a request and explicit accept or reject flow', () => {
   assert.ok(source.includes('participant.allowPaymentByOthers'));
-  assert.ok(source.includes('setPaymentSponsorship(token, bookingId'));
-  assert.ok(source.includes('Cho phép người khác trả hộ phần của tôi'));
-  assert.ok(source.includes('Đang được thành viên khác thanh toán'));
+  assert.ok(source.includes('requestPaymentSponsorship(token, bookingId, targetPlayerId)'));
+  assert.ok(source.includes('respondPaymentSponsorship(token, bookingId, accept)'));
+  assert.ok(source.includes('!participant.paymentSponsorshipRequestedByPlayerId && (!claimedBy || claimedBy === match.myPlayerId)'));
+  assert.ok(source.includes('muốn trả hộ phần của bạn'));
+  assert.ok(source.includes('Đồng ý'));
+  assert.ok(source.includes('Từ chối'));
+  assert.ok(source.includes('Đã đồng ý để bạn trả hộ'));
+  assert.ok(source.includes('Đã gửi yêu cầu'));
 });
 
 test('owner receipt review freezes the displayed remaining time until a decision', () => {

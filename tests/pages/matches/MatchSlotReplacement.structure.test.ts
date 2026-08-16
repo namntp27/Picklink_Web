@@ -15,7 +15,8 @@ test('multi-day match rooms support reporting one busy slot and recruiting one r
   assert.ok(panel.includes('Tôi bận buổi này · Tuyển người thay thế'));
   assert.ok(panel.includes('Đăng ký chơi thay đúng buổi này'));
   assert.ok(panel.includes('Ứng viên thay thế'));
-  assert.ok(panel.includes('group.absences ?? []'));
+  assert.ok(panel.includes('groups.flatMap'));
+  assert.ok(panel.includes('reportableGroups'));
   assert.ok(panel.includes('absence.replacementRequests ?? []'));
 });
 

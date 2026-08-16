@@ -94,6 +94,7 @@ export type MatchParticipant = {
   transferContent?: string | null;
   paymentRejectionReason?: string | null;
   allowPaymentByOthers: boolean;
+  paymentSponsorshipRequestedByPlayerId?: number | null;
   paymentClaimedByPlayerId?: number | null;
   paymentClaimExpiresAt?: string | null;
   checkInStatus: string;
@@ -157,8 +158,10 @@ export type MatchBookingCheckIn = {
   bookingStatus: string;
   venueId: number;
   venueName: string;
+  venueAddress?: string | null;
   startTime: string;
   endTime: string;
+  totalBookingAmount: number;
   checkInGroups: MatchBookingCheckInGroup[];
 };
 
@@ -179,6 +182,10 @@ export type MatchDetailResponse = MatchSummary & {
   myPlayerId?: number | null;
   checkInCode?: string | null;
   bookingCheckIns: MatchBookingCheckIn[];
+  bookingCheckInsPage?: number;
+  bookingCheckInsPageSize?: number;
+  bookingCheckInsTotalCount?: number;
+  bookingCheckInsTotalPages?: number;
   paymentDeadline?: string | null;
   paymentHoldRemainingSeconds?: number | null;
   myPaymentId?: number | null;
@@ -294,6 +301,16 @@ export const getMatchDetail = (token: string, matchId: number, reconcilePayments
     {},
     token,
   );
+
+export const getMatchBookingRounds = (
+  token: string,
+  matchId: number,
+  pagination: PaginationParams = {},
+) => apiRequest<PaginatedResponse<MatchBookingCheckIn>>(
+  `/api/matches/${matchId}/booking-rounds${queryString(pagination)}`,
+  {},
+  token,
+);
 
 export const createMatch = (token: string, input: {
   title: string;

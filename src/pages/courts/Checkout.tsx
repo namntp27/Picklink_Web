@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cancelBookingHolding, getBookingHolding, type BankTransfer, type BookingHolding } from '../../api/booking';
 import { ApiError, ApiErrorCodes } from '../../api/client';
-import { getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
+import { getCheckoutBookingContext, getPlayerBookingPayment, submitBankTransfer } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
@@ -585,7 +585,30 @@ const CourtCheckout = () => {
 
 export const Checkout = () => {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { token } = useAuth();
+  const bookingId = Number(params.get('bookingId'));
+  const bookingKey = params.get('bookingId');
   const matchId = params.get('matchId');
   const isMatchCheckout = matchId !== null && /^\d+$/.test(matchId) && Number(matchId) > 0;
-  return isMatchCheckout ? <MatchCheckout /> : <CourtCheckout />;
+  const [resolvedBookingKey, setResolvedBookingKey] = useState<string | null>(null);
+  const needsMatchCheck = !isMatchCheckout && Boolean(token) && Number.isInteger(bookingId) && resolvedBookingKey !== bookingKey;
+
+  useEffect(() => {
+    if (!needsMatchCheck || !token || bookingKey === null) return;
+    let active = true;
+    void getCheckoutBookingContext(token, bookingId).then((context) => {
+      if (!active) return;
+      if (context.matchId) {
+        const next = new URLSearchParams(params);
+        next.set('matchId', String(context.matchId));
+        navigate({ search: `?${next.toString()}` }, { replace: true });
+      } else {
+        setResolvedBookingKey(bookingKey);
+      }
+    }).catch(() => active && setResolvedBookingKey(bookingKey));
+    return () => { active = false; };
+  }, [bookingId, bookingKey, navigate, needsMatchCheck, params, token]);
+
+  return isMatchCheckout ? <MatchCheckout /> : needsMatchCheck ? null : <CourtCheckout />;
 };

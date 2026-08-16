@@ -9,6 +9,11 @@ const modelsSource = readFileSync(new URL('../../../src/pages/messages/messageMo
 test('match room chat opens the full messages page', () => {
   assert.match(detailSource, /navigate\(`\/messages\?matchId=\$\{matchId\}`\)/);
   assert.match(detailSource, /Chat phòng/);
+  assert.match(detailSource, /Booking đã tạo/);
+  assert.match(detailSource, /match-booking-rounds/);
+  assert.match(detailSource, /const \[showBookingRounds, setShowBookingRounds\] = useState\(false\)/);
+  assert.match(detailSource, /match\.bookingId && showBookingRounds/);
+  assert.match(detailSource, /onClick=\{openBookingRounds\}/);
   assert.doesNotMatch(detailSource, /getMatchMessages|sendMatchMessage|messagesContainerRef/);
 });
 

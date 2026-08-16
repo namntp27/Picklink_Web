@@ -29,6 +29,7 @@ import {
   declineMatchInvitation,
   getMatchSlotOptions,
   getMatchDetail,
+  getMatchBookingRounds,
   inviteMatchPlayers,
   joinMatch,
   leaveMatch,
@@ -40,6 +41,8 @@ import {
   updateMatchInvitation,
   voteMatchSlot,
   type MatchDetailResponse,
+  type MatchBookingCheckIn,
+  type MatchBookingCheckInGroup,
   type MatchBookingSlot,
   type MatchFormat,
   type MatchPreferredVenue,
@@ -90,6 +93,11 @@ const paymentStatusClass = (status?: string | null) => {
   if (status === 'Rejected' || status === 'Failed' || status === 'Cancelled' || status === 'Expired') return 'bg-red-100 text-red-700';
   return 'bg-slate-100 text-slate-700';
 };
+const bookingRoundStatusLabel = (status: string) => {
+  if (status === 'Completed') return 'Đã hoàn thành';
+  if (status === 'Confirmed') return 'Đã thanh toán';
+  return 'Chờ thanh toán';
+};
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
   weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
@@ -102,6 +110,15 @@ const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency', currency: 'VND', maximumFractionDigits: 0,
 });
+const matchBookingRoundTotalLabel = (booking: MatchBookingCheckIn, match: MatchDetailResponse) => {
+  const bookingTotal = Number(booking.totalBookingAmount);
+  if (Number.isFinite(bookingTotal)) return currency.format(bookingTotal);
+
+  const currentBookingTotal = Number(match.totalBookingAmount);
+  return booking.bookingId === match.bookingId && Number.isFinite(currentBookingTotal)
+    ? currency.format(currentBookingTotal)
+    : 'Đang cập nhật';
+};
 const approvedStatus = (status: string) => status === 'Approved' || status === 'Accepted';
 const timePart = (value: string) => value.slice(11, 16);
 export const matchBookingSlotLabel = (startTime: string, endTime: string) =>
@@ -122,6 +139,43 @@ export const mergeAdjacentMatchBookingSlots = (slots: MatchBookingSlot[]) => {
 
       if (isAdjacent) previous.endTime = slot.endTime;
       else merged.push({ ...slot });
+    });
+
+  return merged.sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId);
+};
+type MergedMatchBookingCheckInGroup = {
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  groups: MatchBookingCheckInGroup[];
+};
+export const mergeAdjacentMatchBookingCheckInGroups = (groups: MatchBookingCheckInGroup[]) => {
+  const merged: MergedMatchBookingCheckInGroup[] = [];
+
+  [...groups]
+    .sort((left, right) => left.startTime.slice(0, 10).localeCompare(right.startTime.slice(0, 10))
+      || left.courtId - right.courtId
+      || left.startTime.localeCompare(right.startTime))
+    .forEach((group) => {
+      const previous = merged.at(-1);
+      const isAdjacent = previous
+        && previous.courtId === group.courtId
+        && previous.startTime.slice(0, 10) === group.startTime.slice(0, 10)
+        && previous.endTime === group.startTime;
+
+      if (isAdjacent) {
+        previous.endTime = group.endTime;
+        previous.groups.push(group);
+      } else {
+        merged.push({
+          courtId: group.courtId,
+          courtNumber: group.courtNumber,
+          startTime: group.startTime,
+          endTime: group.endTime,
+          groups: [group],
+        });
+      }
     });
 
   return merged.sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId);
@@ -185,6 +239,7 @@ type ScheduleConflict = {
   matchType: MatchFormat;
 };
 const maxMatchBookingSlots = 496;
+const matchBookingRoundsPageSize = 3;
 const todayDateKey = () => {
   const today = new Date();
   return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
@@ -222,8 +277,8 @@ export const MatchDetail = () => {
   const [bookingMonths, setBookingMonths] = useState(1);
   const [monthUnavailableSlots, setMonthUnavailableSlots] = useState<MonthUnavailableSlot[]>([]);
   const [showVenueMap, setShowVenueMap] = useState(false);
-  const [showBookingRounds, setShowBookingRounds] = useState(false);
   const [showPostMatchReviews, setShowPostMatchReviews] = useState(false);
+  const [showBookingRounds, setShowBookingRounds] = useState(false);
   const [showEditBookingConfirmation, setShowEditBookingConfirmation] = useState(false);
   const [showInvitationEditor, setShowInvitationEditor] = useState(false);
   const [invitationDraft, setInvitationDraft] = useState<InvitationDraft>({
@@ -240,6 +295,11 @@ export const MatchDetail = () => {
   const isCreatingBookingRef = useRef(false);
   const [error, setError] = useState('');
   const [bookingSubmitError, setBookingSubmitError] = useState('');
+  const [additionalBookingRounds, setAdditionalBookingRounds] = useState<MatchBookingCheckIn[]>([]);
+  const [nextBookingRoundsPage, setNextBookingRoundsPage] = useState(2);
+  const [loadedBookingRoundsTotalPages, setLoadedBookingRoundsTotalPages] = useState(1);
+  const [isLoadingMoreBookingRounds, setIsLoadingMoreBookingRounds] = useState(false);
+  const [bookingRoundsError, setBookingRoundsError] = useState('');
   const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
 
   useEffect(() => {
@@ -249,6 +309,22 @@ export const MatchDetail = () => {
     setBookingDate((current) => current || defaultBookingDate);
     setError('');
   }, [match]);
+
+  useEffect(() => {
+    setAdditionalBookingRounds([]);
+    setNextBookingRoundsPage(2);
+    setLoadedBookingRoundsTotalPages(1);
+    setBookingRoundsError('');
+    setShowBookingRounds(false);
+  }, [matchId]);
+
+  useEffect(() => {
+    if (!showBookingRounds) return;
+    const animationFrame = window.requestAnimationFrame(() => {
+      document.getElementById('match-booking-rounds')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [showBookingRounds]);
 
   useEffect(() => {
     const now = Date.now();
@@ -366,6 +442,30 @@ export const MatchDetail = () => {
       .sort((left, right) => left.startTime.localeCompare(right.startTime) || left.courtId - right.courtId),
     [selectedSlotsByDate],
   );
+  const displayedBookingRounds = useMemo(() => {
+    const roundsByBookingId = new Map<number, MatchBookingCheckIn>();
+    [...additionalBookingRounds, ...(match?.bookingCheckIns ?? [])].forEach((booking) => {
+      roundsByBookingId.set(booking.bookingId, booking);
+    });
+    return [...roundsByBookingId.values()]
+      .sort((left, right) => left.startTime.localeCompare(right.startTime) || left.bookingId - right.bookingId);
+  }, [additionalBookingRounds, match?.bookingCheckIns]);
+  const bookingRoundsTotalCount = Math.max(
+    match?.bookingCheckInsTotalCount ?? 0,
+    displayedBookingRounds.length,
+  );
+  const bookingRoundsTotalPages = Math.max(
+    match?.bookingCheckInsTotalPages ?? 1,
+    loadedBookingRoundsTotalPages,
+  );
+  const canLoadMoreBookingRounds = nextBookingRoundsPage <= bookingRoundsTotalPages;
+  const openBookingRounds = () => {
+    if (showBookingRounds) {
+      document.getElementById('match-booking-rounds')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    setShowBookingRounds(true);
+  };
   const ownedHoldingBookings = useMemo(() => {
     const groups = new Map<number, { bookingId: number; matchId?: number | null; date: string; slotCount: number; slot: AvailabilitySlot }>();
     availability?.slots.forEach((slot) => {
@@ -593,6 +693,9 @@ export const MatchDetail = () => {
         onSuccess();
       } else {
         await loadMatch();
+        setAdditionalBookingRounds([]);
+        setNextBookingRoundsPage(2);
+        setLoadedBookingRoundsTotalPages(1);
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể thực hiện thao tác.');
@@ -649,6 +752,28 @@ export const MatchDetail = () => {
     } finally {
       isCreatingBookingRef.current = false;
       setIsBusy(false);
+    }
+  };
+
+  const loadMoreBookingRounds = async () => {
+    if (!token || !Number.isInteger(matchId) || isLoadingMoreBookingRounds || !canLoadMoreBookingRounds) return;
+    setIsLoadingMoreBookingRounds(true);
+    setBookingRoundsError('');
+    try {
+      const response = await getMatchBookingRounds(token, matchId, {
+        page: nextBookingRoundsPage,
+        pageSize: matchBookingRoundsPageSize,
+      });
+      setAdditionalBookingRounds((current) => {
+        const existingBookingIds = new Set(current.map((booking) => booking.bookingId));
+        return [...current, ...response.items.filter((booking) => !existingBookingIds.has(booking.bookingId))];
+      });
+      setNextBookingRoundsPage(response.page + 1);
+      setLoadedBookingRoundsTotalPages(response.totalPages);
+    } catch (reason) {
+      setBookingRoundsError(reason instanceof Error ? reason.message : 'Không thể tải thêm lịch sử booking.');
+    } finally {
+      setIsLoadingMoreBookingRounds(false);
     }
   };
 
@@ -1047,58 +1172,113 @@ export const MatchDetail = () => {
             </section>
           )}
 
-          {match.bookingId && (
-            <section className="community-panel match-panel match-booking-card">
+          {match.bookingId && showBookingRounds && (
+            <section className="community-panel match-panel match-booking-card" id="match-booking-rounds">
               <div className="match-section-heading">
-                <div><p className="match-eyebrow">booking đã tạo</p><h2>Booking đã chọn</h2></div>
-                <span className="match-soft-badge">{statusLabels[match.status]}</span>
+                <div><p className="match-eyebrow">booking đã tạo</p><h2>Các lượt booking</h2></div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="match-soft-badge">{bookingRoundsTotalCount || 1} lượt</span>
+                  <span className="match-soft-badge">{statusLabels[match.status]}</span>
+                </div>
               </div>
-              <div className="match-booking-grid">
-                <div><p>Cụm sân</p><strong>{match.venueName}</strong><span>{match.address}</span></div>
-                <div>
-                  <p>Thời gian slot đã đặt</p>
-                  {bookedSlotGroups.length > 0 ? (
-                    <div className="match-booking-slot-list">
-                      {bookedSlotGroups.map((slot) => (
-                        <div key={slot.bookingSlotId}>
-                          <strong>{matchBookingSlotLabel(slot.startTime, slot.endTime)}</strong>
-                          <span>Sân {slot.courtNumber}</span>
+              <div className="mt-4 space-y-3">
+                {displayedBookingRounds.length > 0 ? displayedBookingRounds.map((booking, bookingIndex) => (
+                  <article className="rounded-xl border border-white/20 bg-white/10 p-3" key={booking.bookingId}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-[12px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p>
+                        </div>
+                        <p className="mt-1 text-[10px] font-semibold text-white/70">{booking.venueName}{booking.venueAddress ? ` · ${booking.venueAddress}` : ''}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-white/15 px-2 py-1 text-[9px] font-bold text-white">{bookingRoundStatusLabel(booking.bookingStatus)}</span>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {mergeAdjacentMatchBookingCheckInGroups(booking.checkInGroups).map((mergedGroup) => (
+                        <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={mergedGroup.groups.map((group) => group.bookingCheckInGroupId).join('-')}>
+                          <p className="text-[11px] font-bold text-white">Sân {mergedGroup.courtNumber} · {dateTimeLabel(mergedGroup.startTime)}–{timePart(mergedGroup.endTime)}</p>
+                          {mergedGroup.groups.slice(0, 1).map((group) => (
+                            <div className={mergedGroup.groups.length > 1 ? 'mt-2 border-t border-white/10 pt-2' : ''} key={group.bookingCheckInGroupId}>
+                              {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen && <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Mã check-in cá nhân của bạn</p>}
+                              {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen ? (
+                                <div className="match-checkin-code">{group.checkInCode}</div>
+                              ) : (
+                                <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus === 'Completed' ? 'Lượt chơi đã hoàn thành.' : booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
+                              )}
+                            </div>
+                          ))}
+                          <MatchSlotReplacementPanel
+                            groups={mergedGroup.groups}
+                            isBusy={isBusy}
+                            canReview={isApprovedMember}
+                            matchId={matchId}
+                            run={run}
+                            token={token}
+                          />
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <>
-                      <strong>{match.startTime && dateTimeLabel(match.startTime)}</strong>
-                      <span>{match.endTime && `Đến ${dateTimeLabel(match.endTime)}`}</span>
-                    </>
-                  )}
-                </div>
-                <div><p>Chi phí</p><strong>{currency.format(match.amountPerPlayer)}/người</strong><span>Tổng {currency.format(match.totalBookingAmount)}</span></div>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-white/15 pt-3 text-[10px] font-semibold text-white/75">
+                      <span>Tổng tiền <strong className="ml-1 text-white">{matchBookingRoundTotalLabel(booking, match)}</strong></span>
+                    </div>
+                  </article>
+                )) : (
+                  <article className="rounded-xl border border-white/20 bg-white/10 p-3">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Cụm sân</p><strong className="mt-1 block text-[12px] text-white">{match.venueName}</strong><span className="mt-1 block text-[10px] text-white/70">{match.address}</span></div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Thời gian slot đã đặt</p>
+                        {bookedSlotGroups.length > 0 ? (
+                          <div className="match-booking-slot-list">
+                            {bookedSlotGroups.map((slot) => (
+                              <div key={slot.bookingSlotId}>
+                                <strong>{matchBookingSlotLabel(slot.startTime, slot.endTime)}</strong>
+                                <span>Sân {slot.courtNumber}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <>
+                            <strong className="mt-1 block text-[12px] text-white">{match.startTime && dateTimeLabel(match.startTime)}</strong>
+                            <span className="mt-1 block text-[10px] text-white/70">{match.endTime && `Đến ${dateTimeLabel(match.endTime)}`}</span>
+                          </>
+                        )}
+                      </div>
+                      <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Tổng tiền</p><strong className="mt-1 block text-[12px] text-white">{currency.format(match.totalBookingAmount)}</strong></div>
+                    </div>
+                  </article>
+                )}
+                {canLoadMoreBookingRounds && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5">
+                    <p className="text-[10px] font-semibold text-white/70">Đang hiển thị {displayedBookingRounds.length}/{bookingRoundsTotalCount} lượt booking.</p>
+                    <button
+                      className="rounded-lg border border-[#e2ff57]/60 px-3 py-1.5 text-[10px] font-extrabold text-[#e2ff57] transition hover:bg-[#e2ff57] hover:text-[#092129] disabled:cursor-wait disabled:opacity-50"
+                      disabled={isLoadingMoreBookingRounds}
+                      onClick={() => void loadMoreBookingRounds()}
+                      type="button"
+                    >
+                      {isLoadingMoreBookingRounds ? 'Đang tải...' : 'Xem thêm lịch sử'}
+                    </button>
+                  </div>
+                )}
+                {bookingRoundsError && <p className="text-[11px] font-semibold text-rose-200" role="alert">{bookingRoundsError}</p>}
               </div>
             </section>
           )}
         </div>
 
         <aside className="match-aside space-y-4 lg:sticky lg:top-20 lg:self-start">
-          {isApprovedMember && match.bookingCheckIns.length > 0 && (
-            <section className="match-checkin-card">
-              <p className="match-eyebrow">check-in theo lượt</p>
-              <div className="flex items-center justify-between gap-3"><h3>Các lượt booking</h3><button className="rounded-lg bg-white/15 px-3 py-1.5 text-[11px] font-extrabold text-white hover:bg-white/25" onClick={() => setShowBookingRounds(true)} type="button">{`Xem danh s\u00e1ch (${match.bookingCheckIns.length})`}</button></div>
-
-            </section>
-          )}
-
-          {!isApprovedMember && match.bookingCheckIns.length > 0 && (
+          {!isApprovedMember && displayedBookingRounds.length > 0 && (
             <section className="match-checkin-card">
               <p className="match-eyebrow">tuyển theo buổi</p>
               <div className="flex items-center justify-between gap-3">
                 <h3>Cần người thay thế</h3>
-                <button className="rounded-lg bg-[#e2ff57] px-3 py-1.5 text-[11px] font-extrabold text-[#092129] hover:bg-white" onClick={() => setShowBookingRounds(true)} type="button">Xem các buổi trống</button>
+                <button className="rounded-lg bg-[#e2ff57] px-3 py-1.5 text-[11px] font-extrabold text-[#092129] hover:bg-white" onClick={openBookingRounds} type="button">Xem các lượt booking</button>
               </div>
               <p className="mt-2 text-[11px] text-white/70">Đăng ký đúng ngày và khung giờ bạn có thể tham gia.</p>
             </section>
           )}
-          {!(isApprovedMember && match.bookingCheckIns.length > 0) && (
+          {!(isApprovedMember && displayedBookingRounds.length > 0) && (
             <section className="community-panel match-side-panel">
               <h3 className="text-[18px] font-bold">Thao tác</h3>
               {match.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
@@ -1168,6 +1348,17 @@ export const MatchDetail = () => {
               >
                 <MessageCircle className="h-5 w-5" /> Chat phòng
               </button>
+              {match.bookingId && (
+                <button
+                  className="community-button-secondary mt-2 w-full py-3"
+                  aria-controls="match-booking-rounds"
+                  aria-expanded={showBookingRounds}
+                  onClick={openBookingRounds}
+                  type="button"
+                >
+                  <CalendarRange className="h-5 w-5" /> Booking đã tạo
+                </button>
+              )}
               {match.chatAccessRole === 'Replacement' && (
                 <p className="mt-2 rounded-lg bg-[#fff8e6] px-3 py-2 text-[12px] leading-5 text-[#7a5600]">
                   <strong>Quyền người thay thế.</strong> Bạn xem tin nhắn từ lúc được duyệt
@@ -1229,45 +1420,6 @@ export const MatchDetail = () => {
         </ModalDialog>
       )}
 
-      {showBookingRounds && (
-        <ModalDialog aria-labelledby="match-booking-rounds-title" className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl bg-[#0b2228] p-5 text-white shadow-2xl" onRequestClose={() => setShowBookingRounds(false)}>
-          <div className="flex items-start justify-between gap-4">
-            <div><p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#e2ff57]">{'Check-in theo l\u01b0\u1ee3t'}</p><h2 className="mt-1 text-xl font-black" id="match-booking-rounds-title">{'Danh s\u00e1ch l\u01b0\u1ee3t booking'}</h2></div>
-            <button aria-label={'\u0110\u00f3ng'} className="rounded-lg p-2 hover:bg-white/10" onClick={() => setShowBookingRounds(false)} type="button"><X className="h-5 w-5" /></button>
-          </div>
-          <div className="mt-4 space-y-3">
-                {match.bookingCheckIns.map((booking, bookingIndex) => (
-                  <article className="rounded-xl border border-white/20 bg-white/10 p-2.5" key={booking.bookingId}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div><p className="text-[11px] font-extrabold text-white">Lượt {bookingIndex + 1} · {dateTimeLabel(booking.startTime)}</p><p className="mt-0.5 text-[10px] text-white/70">{booking.bookingStatus === 'Completed' ? 'Đã hoàn thành' : booking.bookingStatus === 'Confirmed' ? 'Đã thanh toán' : 'Chờ thanh toán'}</p></div>
-                      <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-bold">{booking.checkInGroups.length} sân / khung giờ</span>
-                    </div>
-                    <div className="mt-2 space-y-2">
-                      {booking.checkInGroups.map((group) => (
-                        <div className="rounded-lg bg-[#082127]/75 px-2.5 py-2" key={group.bookingCheckInGroupId}>
-                          <p className="text-[11px] font-bold text-white">Sân {group.courtNumber} · {dateTimeLabel(group.startTime)}–{timePart(group.endTime)}</p>
-                          {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen && <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#e2ff57]">Mã check-in cá nhân của bạn</p>}
-                          {group.checkInCode && booking.bookingStatus === 'Confirmed' && group.isCheckInWindowOpen ? (
-                            <div className="match-checkin-code">{group.checkInCode}</div>
-                          ) : (
-                            <p className="mt-1 text-[10px] font-semibold text-white/75">{booking.bookingStatus === 'Completed' ? 'Lượt chơi đã hoàn thành.' : booking.bookingStatus !== 'Confirmed' ? 'Mã mở sau khi thanh toán.' : group.checkInStatus === 'CheckedIn' ? 'Đã check-in.' : group.checkInStatus === 'NoShow' ? 'Đã ghi nhận vắng mặt.' : group.isCheckInWindowOpen ? 'Đang chờ nhân viên xác nhận.' : new Date(group.endTime).getTime() < bookingClock ? 'Đã hết thời gian check-in.' : 'Mã mở trước giờ chơi 30 phút.'}</p>
-                          )}
-                          <MatchSlotReplacementPanel
-                            group={group}
-                            isBusy={isBusy}
-                            canReview={isApprovedMember}
-                            matchId={matchId}
-                            run={run}
-                            token={token}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-                        </div>
-        </ModalDialog>
-      )}
       {showVenueMap && (
         <Suspense fallback={<p className="p-4 text-center" role="status">Đang tải bản đồ...</p>}>
           <MatchVenueMapDialog
