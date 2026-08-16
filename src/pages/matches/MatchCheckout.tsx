@@ -53,14 +53,13 @@ export const MatchCheckout = () => {
     return true;
   };
 
-  const loadMatch = async () => {
+  const loadMatch = async (reconcilePayments = false) => {
     if (!token || !Number.isInteger(bookingId) || !Number.isInteger(matchId)) {
       setError('Booking ghép trận không hợp lệ.');
       return;
     }
     try {
-      const detail = await getMatchDetail(token, matchId);
-      console.log('[MatchCheckout] Loaded match detail:', detail);
+      const detail = await getMatchDetail(token, matchId, reconcilePayments);
       if (detail.bookingId !== bookingId) throw new Error('Booking không thuộc phòng ghép trận này.');
       const receivedAt = Date.now();
       setMatch(detail);
@@ -80,8 +79,6 @@ export const MatchCheckout = () => {
 
   const paymentTargets = useMemo(() => {
     const targets = match?.participants.filter((participant) => approved(participant.status) && participant.paymentId) ?? [];
-    console.log('[MatchCheckout] All participants:', match?.participants);
-    console.log('[MatchCheckout] Filtered payment targets:', targets);
     return targets;
   }, [match]);
   const pendingPayerIds = useMemo(() => new Set(paymentTargets.filter((participant) => participant.paymentStatus === 'Pending').map((participant) => participant.playerId)), [paymentTargets]);
@@ -130,17 +127,14 @@ export const MatchCheckout = () => {
     }
     let cancelled = false;
     setPreview(null);
-    console.log('[MatchCheckout] Requesting batch payment preview for payers:', selectedKey);
     void previewBatchPayment(token, bookingId, selectedKey.split(',').map(Number))
       .then((value) => {
         if (cancelled) return;
-        console.log('[MatchCheckout] Batch payment preview response:', value);
         setPreview(value);
         setError('');
       })
       .catch((reason) => {
         if (cancelled) return;
-        console.error('[MatchCheckout] Batch payment preview error:', reason);
         if (redirectToPhoneProfile(reason)) return;
         setError(reason instanceof Error ? reason.message : 'Không thể tạo mã thanh toán.');
         if (reason instanceof ApiError && reason.status === 409) void loadMatch();
@@ -174,7 +168,7 @@ export const MatchCheckout = () => {
   // solely on the realtime push (the backend opportunistically reconciles with SePay on
   // this same call, see MatchService.ReconcilePendingMatchPaymentsAsync).
   useVisiblePolling(
-    loadMatch,
+    () => loadMatch(true),
     7_500,
     Boolean(match && !isSubmitting && (hasPendingPayments || hasReceiptAwaitingReview)),
   );

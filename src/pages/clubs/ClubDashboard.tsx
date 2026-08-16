@@ -533,10 +533,13 @@ export const ClubDashboard = () => {
   useEffect(() => {
     loadGroupInfo();
     loadMembers();
-    loadChatMessages();
-    loadPinnedMessages();
     loadGroupPosts();
-  }, [token, groupId, loadGroupInfo, loadMembers, loadChatMessages, loadPinnedMessages, loadGroupPosts]);
+  }, [loadGroupInfo, loadMembers, loadGroupPosts]);
+
+  useEffect(() => {
+    if (activeTab !== 'chat') return;
+    void Promise.all([loadChatMessages(), loadPinnedMessages()]);
+  }, [activeTab, loadChatMessages, loadPinnedMessages]);
 
   useEffect(() => {
     if (activeTab !== 'posts') return;

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const source = readFileSync(new URL('../../../src/pages/clubs/Clubs.tsx', import.meta.url), 'utf8');
+const dashboardSource = readFileSync(new URL('../../../src/pages/clubs/ClubDashboard.tsx', import.meta.url), 'utf8');
+const routePrefetchSource = readFileSync(new URL('../../../src/navigation/routePrefetch.ts', import.meta.url), 'utf8');
 
 test('clubs page uses shared province and ward dropdowns for area filtering', () => {
   assert.match(source, /from '..\/..\/components\/location\/AdministrativeAreaSelects';/);
@@ -50,4 +52,15 @@ test('clubs page distinguishes instant joins from pending requests', () => {
   assert.match(source, /joinedClub\.myStatus === 'Accepted'/);
   assert.match(source, /Bạn đã tham gia câu lạc bộ\./);
   assert.match(source, /Yêu cầu tham gia câu lạc bộ đã được gửi\./);
+});
+
+test('clubs page loads the first visible batch in one request', () => {
+  assert.match(source, /const pageSize = 6;/);
+  assert.match(routePrefetchSource, /getGroups\(token, undefined, 1, 6, 'All', 'newest'\)/);
+});
+
+test('club dashboard defers chat requests until the chat tab opens', () => {
+  assert.match(dashboardSource, /if \(activeTab !== 'chat'\) return;/);
+  assert.match(dashboardSource, /Promise\.all\(\[loadChatMessages\(\), loadPinnedMessages\(\)\]\)/);
+  assert.match(dashboardSource, /\[activeTab, loadChatMessages, loadPinnedMessages\]/);
 });

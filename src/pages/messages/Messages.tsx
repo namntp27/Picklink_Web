@@ -306,7 +306,6 @@ export const Messages = () => {
     onReadReceiptUpdated: useCallback((receipt: ReadReceiptData) => {
       const receiptUserId = receipt.UserId ?? receipt.userId;
       const activeConvId = activeConversation?.id;
-      console.log('[Sender Firebase ReadReceipt Received]', { receipt, activeConvId, currentUserId, receiptUserId });
       if (!activeConvId || (currentUserId && receiptUserId === currentUserId)) return;
 
       const lastReadMessageId = receipt.LastReadMessageId ?? receipt.lastReadMessageId;
@@ -325,16 +324,10 @@ export const Messages = () => {
             receipt.lastReadAt
           ) {
             changed = true;
-            console.log(`[Sender UI Updated] Sent message #${msg.id} marked as Đã xem ✔️✔️ by User #${receiptUserId}`);
             return { ...msg, read: true };
           }
           return msg;
         });
-
-        if (changed) {
-          console.log('[Sender UI] Successfully updated sent messages status to read: true!');
-        }
-
         return changed ? { ...prev, [activeConvId]: updatedMsgs } : prev;
       });
     }, [activeConversation?.id, currentUserId]),

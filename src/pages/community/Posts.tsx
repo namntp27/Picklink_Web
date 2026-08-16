@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -504,7 +504,7 @@ export const Posts = () => {
     async () => (await getGlobalPosts(token, 1, pageSize)).filter((post) => post.groupId === null).map(toDisplayPost),
     { errorMessage: 'Không thể tải bảng tin.' },
   );
-  const posts = [...firstPosts, ...morePosts];
+  const posts = useMemo(() => [...firstPosts, ...morePosts], [firstPosts, morePosts]);
 
   useEffect(() => {
     setMorePosts([]);

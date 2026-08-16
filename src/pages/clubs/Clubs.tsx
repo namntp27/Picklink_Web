@@ -33,7 +33,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { useToast } from '../../components/ui/ToastRegion';
 import './club-pages.css';
 
-const pageSize = 3;
+const pageSize = 6;
 const emptyClubs: CommunityGroup[] = [];
 
 // Color gradient pairs for club cards without cover images

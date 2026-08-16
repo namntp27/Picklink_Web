@@ -29,12 +29,7 @@ export const useConversationRealtime = (
     if (!numericConversationId || numericConversationId <= 0) return;
 
     const streamUrl = getConversationStreamUrl(numericConversationId);
-    console.log(`[Firebase SSE] Subscribing to conversation #${numericConversationId}:`, streamUrl);
     const eventSource = new EventSource(streamUrl);
-
-    eventSource.onopen = () => {
-      console.log(`[Firebase SSE] Connected to conversation #${numericConversationId}`);
-    };
 
     eventSource.onerror = (err) => {
       console.error(`[Firebase SSE Error] Conversation #${numericConversationId}`, err);
@@ -48,8 +43,6 @@ export const useConversationRealtime = (
         const path = payload.path || '/';
         const data = payload.data;
         if (!data) return;
-
-        console.log(`[Firebase SSE Event] path="${path}"`, data);
 
         // Path matches root conversation node or read_receipts subnode
         if (path === '/' && data.read_receipts) {
@@ -101,7 +94,6 @@ export const useConversationRealtime = (
     eventSource.addEventListener('patch', handleStreamEvent as EventListener);
 
     return () => {
-      console.log(`[Firebase SSE] Closing subscription to conversation #${numericConversationId}`);
       eventSource.removeEventListener('put', handleStreamEvent as EventListener);
       eventSource.removeEventListener('patch', handleStreamEvent as EventListener);
       eventSource.close();

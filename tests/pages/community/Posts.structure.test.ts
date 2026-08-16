@@ -41,6 +41,11 @@ test('posts feed preserves privacy and loads updates without a manual refresh', 
   assert.match(apiSource, /page=\$\{page\}&pageSize=\$\{pageSize\}/);
 });
 
+test('friendship status batching depends on a stable posts collection', () => {
+  assert.match(postsSource, /const posts = useMemo\(\(\) => \[\.\.\.firstPosts, \.\.\.morePosts\], \[firstPosts, morePosts\]\);/);
+  assert.match(postsSource, /getFriendshipStatuses\(token, authorIds\)/);
+});
+
 test('post composer keeps one text field, an image, and the preview without attachments or player matching', () => {
   const createSource = readFileSync(new URL('../../../src/pages/community/CreatePost.tsx', import.meta.url), 'utf8');
 

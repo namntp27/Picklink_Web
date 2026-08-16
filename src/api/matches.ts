@@ -288,8 +288,12 @@ export const getMyMatches = (
   options: Pick<RequestInit, 'signal'> = {},
 ) => apiRequest<PaginatedResponse<MatchSummary>>(`/api/matches/mine${queryString(pagination)}`, options, token);
 
-export const getMatchDetail = (token: string, matchId: number) =>
-  apiRequest<MatchDetailResponse>(`/api/matches/${matchId}`, {}, token);
+export const getMatchDetail = (token: string, matchId: number, reconcilePayments = false) =>
+  apiRequest<MatchDetailResponse>(
+    `/api/matches/${matchId}${reconcilePayments ? '?reconcilePayments=true' : ''}`,
+    {},
+    token,
+  );
 
 export const createMatch = (token: string, input: {
   title: string;

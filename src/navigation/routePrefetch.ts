@@ -56,8 +56,8 @@ const commonDataLoaders = new Map<string, DataLoader>([
   }],
   ['/ticket-sessions', () => import('../api/ticketing')
     .then((api) => prefetch(() => api.getTicketSessions({ page: 1, pageSize: 9 })))],
-  ['/clubs', (token) => prefetch(() => communityApi.getGroups(token, undefined, 1, 3, 'All', 'newest'))],
-  ['/listclubs', (token) => prefetch(() => communityApi.getGroups(token, undefined, 1, 3, 'All', 'newest'))],
+  ['/clubs', (token) => prefetch(() => communityApi.getGroups(token, undefined, 1, 6, 'All', 'newest'))],
+  ['/listclubs', (token) => prefetch(() => communityApi.getGroups(token, undefined, 1, 6, 'All', 'newest'))],
   ['/opponents', (token) => import('../api/matchmaking')
     .then((api) => prefetch(() => api.getPublicQueues(token)))],
   ['/opponents/pending', (token) => import('../api/matchmaking')

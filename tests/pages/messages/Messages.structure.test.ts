@@ -5,6 +5,7 @@ import { test } from 'node:test';
 const source = readFileSync(new URL('../../../src/pages/messages/Messages.tsx', import.meta.url), 'utf8');
 const modelsSource = readFileSync(new URL('../../../src/pages/messages/messageModels.ts', import.meta.url), 'utf8');
 const matchesApiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
+const realtimeSource = readFileSync(new URL('../../../src/hooks/useConversationRealtime.ts', import.meta.url), 'utf8');
 
 test('messages page keeps data types and helpers in a companion module', () => {
   assert.match(source, /from '\.\/messageModels';/);
@@ -33,4 +34,9 @@ test('messages page includes a matchId room in the active conversation list', ()
 
 test('messages page keeps a requested club conversation selected', () => {
   assert.match(source, /else if \(chatParam\) \{[\s\S]*setActiveConversationId\(chatParam\);[\s\S]*setShowSettings\(false\);/);
+});
+
+test('realtime messaging does not log stream credentials or every incoming event', () => {
+  assert.doesNotMatch(realtimeSource, /console\.log/);
+  assert.doesNotMatch(source, /Sender Firebase ReadReceipt Received|Sender UI Updated/);
 });
