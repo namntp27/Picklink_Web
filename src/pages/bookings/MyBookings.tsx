@@ -23,6 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { MyActivityTabs } from '../../components/layout/MyActivityTabs';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -203,6 +204,9 @@ export const MyBookings = () => {
   return (
     <div className="min-h-dvh overflow-x-clip bg-background text-on-surface" data-bookings-ui>
       <section className="px-4 pt-[88px] sm:px-6 sm:pt-[92px] lg:px-8" data-bookings-summary>
+        <div className="mx-auto max-w-[1180px]">
+          <MyActivityTabs />
+        </div>
         <div className="mx-auto grid max-w-[1180px] gap-2 sm:grid-cols-3">
           {[
             { label: 'Đã thanh toán', value: paidCount, icon: CreditCard },

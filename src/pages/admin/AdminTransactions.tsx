@@ -19,6 +19,7 @@ import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
 import type { Tone } from './types';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -59,6 +60,8 @@ const formatDate = (value?: string | null) => value ? dateTime.format(new Date(v
 
 export const AdminTransactions = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [priceDraft, setPriceDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -120,7 +123,12 @@ export const AdminTransactions = () => {
       notify('Đơn giá phải lớn hơn 0.', 'error');
       return;
     }
-    if (!window.confirm(`Cập nhật phí lên sàn thành ${currency.format(price)}?`)) return;
+    if (!(await confirm({
+      title: `Cập nhật phí lên sàn thành ${currency.format(price)}?`,
+      message: 'Mức phí mới áp dụng cho các lượt gia hạn kể từ bây giờ.',
+      confirmLabel: 'Cập nhật phí',
+      tone: 'default',
+    }))) return;
 
     setSavingSettings(true);
     try {
@@ -136,7 +144,12 @@ export const AdminTransactions = () => {
 
   const confirmPayment = async (payment: ListingFeePayment) => {
     if (!token) return;
-    if (!window.confirm(`Xác nhận đã nhận ${currency.format(payment.amount)} phí lên sàn?`)) return;
+    if (!(await confirm({
+      title: `Xác nhận đã nhận đủ ${currency.format(payment.amount)}?`,
+      message: 'Khoản phí lên sàn sẽ được ghi nhận là đã thanh toán.',
+      confirmLabel: 'Đã nhận đủ',
+      tone: 'success',
+    }))) return;
     setBusyId(payment.venueListingPaymentId);
     try {
       await confirmListingFeePayment(token, payment.venueListingPaymentId);
@@ -151,9 +164,15 @@ export const AdminTransactions = () => {
 
   const rejectPayment = async (payment: ListingFeePayment) => {
     if (!token) return;
-    const reason = window.prompt('Lý do từ chối biên lai phí lên sàn?')?.trim();
+    const reason = (await prompt({
+      title: 'Từ chối biên lai phí lên sàn này?',
+      message: 'Chủ sân sẽ nhận được thông báo và cần chuyển khoản lại.',
+      label: 'Lý do từ chối',
+      required: true,
+      confirmLabel: 'Từ chối biên lai',
+      tone: 'danger',
+    }))?.trim();
     if (!reason) return;
-    if (!window.confirm('Từ chối biên lai phí lên sàn này?')) return;
     setBusyId(payment.venueListingPaymentId);
     try {
       await rejectListingFeePayment(token, payment.venueListingPaymentId, reason);

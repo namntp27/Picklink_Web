@@ -35,6 +35,7 @@ import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerTimelineGrid } from './components/OwnerTimelineGrid';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const toLocalDate = (date = new Date()) => {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -107,6 +108,7 @@ const checkInStatusLabel: Record<string, string> = {
 
 export const OwnerDashboard = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [date, setDate] = useState(toLocalDate);
   const [venueFilter, setVenueFilter] = useState('all');
   const [courtId, setCourtId] = useState('');
@@ -221,7 +223,12 @@ export const OwnerDashboard = () => {
     if (!token) return;
     const message = status === 'Confirmed'
       ? `Xác nhận booking #${item.bookingId}?` : `Hủy booking #${item.bookingId}?`;
-    if (!window.confirm(message)) return;
+    if (!(await confirm({
+      title: message,
+      message: status === 'Confirmed' ? 'Người chơi sẽ nhận thông báo booking đã được xác nhận.' : 'Slot sẽ được trả về trạng thái trống và người chơi nhận được thông báo.',
+      confirmLabel: status === 'Confirmed' ? 'Xác nhận booking' : 'Hủy booking',
+      tone: status === 'Confirmed' ? 'success' : 'danger',
+    }))) return;
     try {
       await updateOwnerBookingStatus(token, item.bookingId, status);
       setSelectedSlot(null);
@@ -233,7 +240,12 @@ export const OwnerDashboard = () => {
 
   const unlock = async (item: OwnerScheduleItem) => {
     if (!token) return;
-    if (!window.confirm(`Mở khóa lịch “${item.title || `#${item.bookingId}`}” và trả slot về trạng thái trống?`)) return;
+    if (!(await confirm({
+      title: `Mở khóa lịch “${item.title || `#${item.bookingId}`}”?`,
+      message: 'Slot sẽ trở lại trạng thái trống và người chơi có thể đặt.',
+      confirmLabel: 'Mở khóa lịch',
+      tone: 'default',
+    }))) return;
     try {
       await deleteOwnerScheduleEntry(token, item.bookingId);
       setSelectedSlot(null);

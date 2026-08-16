@@ -54,8 +54,16 @@ test('court schedule keeps a hold error visible while refreshing availability', 
 test("court schedule confirms a player's conflicting schedule before holding slots", () => {
   assert.match(scheduleSource, /const createHold = async \(allowScheduleConflicts = false\)/);
   assert.match(scheduleSource, /requiresScheduleConflictConfirmation\?: boolean/);
-  assert.match(scheduleSource, /window\.confirm\(/);
+  // The clash is raised in an in-app dialog, not a native confirm the browser is free to suppress.
+  assert.match(scheduleSource, /setScheduleConflicts\(body\.conflicts\)/);
+  assert.match(scheduleSource, /<ScheduleConflictDialog/);
+  assert.doesNotMatch(scheduleSource, /window\.confirm\(/);
   assert.match(scheduleSource, /await createHold\(true\)/);
   assert.match(scheduleSource, /allowScheduleConflicts,/);
   assert.match(bookingSource, /allowScheduleConflicts\?: boolean/);
+});
+
+test('court schedule says why nothing was held when the player declines the clash', () => {
+  // Declining used to return silently, so the booking button looked broken.
+  assert.match(scheduleSource, /onCancel=\{\(\) => \{\r?\n\s*setScheduleConflicts\(\[\]\);\r?\n\s*setActionError\(/);
 });

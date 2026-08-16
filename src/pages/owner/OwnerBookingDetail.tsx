@@ -23,6 +23,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateTime = (value?: string | null) => value
@@ -47,6 +48,7 @@ type TimelineEvent = { label: string; detail: string; actor?: string | null; at:
 export const OwnerBookingDetail = () => {
   const { id } = useParams();
   const { token } = useAuth();
+  const confirm = useConfirm();
   const bookingId = Number(id);
   const [isBusy, setIsBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -93,7 +95,12 @@ export const OwnerBookingDetail = () => {
     if (!token || !booking) return;
     const message = status === 'Confirmed'
       ? `Xác nhận booking ${booking.bookingCode}?` : `Từ chối/hủy booking ${booking.bookingCode}?`;
-    if (!window.confirm(message)) return;
+    if (!(await confirm({
+      title: message,
+      message: status === 'Confirmed' ? 'Người chơi sẽ nhận thông báo booking đã được xác nhận.' : 'Slot sẽ được trả về trạng thái trống và người chơi nhận được thông báo.',
+      confirmLabel: status === 'Confirmed' ? 'Xác nhận booking' : 'Hủy booking',
+      tone: status === 'Confirmed' ? 'success' : 'danger',
+    }))) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
       await updateOwnerBookingStatus(token, booking.bookingId, status);

@@ -46,6 +46,7 @@ import { MapContainer, TileLayer, Marker, Popup as LeafletPopup } from 'react-le
 import { divIcon, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const emptyVenues: MatchPreferredVenue[] = [];
 
@@ -117,6 +118,7 @@ export const QueueDetail = () => {
   const queueId = Number(id);
   const navigate = useNavigate();
   const { token } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
 
   const [friends, setFriends] = useState<CommunityFriend[]>([]);
@@ -253,7 +255,11 @@ export const QueueDetail = () => {
   const handleReviewRequest = async (playerId: number, approve: boolean) => {
     if (!token || !queueId) return;
     const playerName = queue?.queuePlayers.find((player) => player.playerId === playerId)?.playerName ?? 'người chơi này';
-    if (!window.confirm(`${approve ? 'Chấp nhận' : 'Từ chối'} yêu cầu tham gia của ${playerName}?`)) return;
+    if (!(await confirm({
+      title: `${approve ? 'Chấp nhận' : 'Từ chối'} yêu cầu tham gia của ${playerName}?`,
+      confirmLabel: approve ? 'Chấp nhận' : 'Từ chối',
+      tone: approve ? 'success' : 'danger',
+    }))) return;
 
     setIsActionBusy(true);
     try {
@@ -275,7 +281,10 @@ export const QueueDetail = () => {
     const msg = isHost
       ? 'Bạn là chủ hàng chờ, hủy hàng chờ sẽ giải tán cả nhóm. Bạn có chắc chắn?'
       : 'Bạn có chắc chắn muốn rời khỏi hàng chờ ghép trận này?';
-    if (!window.confirm(msg)) return;
+    if (!(await confirm({
+      title: msg,
+      tone: 'danger',
+    }))) return;
 
     setIsActionBusy(true);
     try {

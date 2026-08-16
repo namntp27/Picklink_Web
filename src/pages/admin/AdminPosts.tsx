@@ -14,6 +14,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
@@ -39,6 +40,8 @@ const formatDateTime = (value: string) =>
 
 export const AdminPosts = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -75,12 +78,17 @@ export const AdminPosts = () => {
 
   const moderate = async (post: AdminPost, isHidden: boolean) => {
     if (!token) return;
-    const moderationNote = window.prompt(
-      isHidden ? 'Lý do ẩn bài viết:' : 'Ghi chú kiểm duyệt (không bắt buộc):',
-      post.moderationNote ?? '',
-    )?.trim();
-    if (moderationNote === undefined) return;
-    if (!window.confirm(`Xác nhận ${isHidden ? 'ẩn' : 'hiện lại'} bài viết này?`)) return;
+    const typedNote = await prompt({
+      title: `${isHidden ? 'Ẩn' : 'Hiện lại'} bài viết này?`,
+      message: isHidden ? 'Bài viết sẽ không còn xuất hiện trong bảng tin.' : 'Bài viết sẽ xuất hiện lại trong bảng tin.',
+      label: isHidden ? 'Lý do ẩn bài viết' : 'Ghi chú kiểm duyệt (không bắt buộc)',
+      defaultValue: post.moderationNote ?? '',
+      required: isHidden,
+      confirmLabel: isHidden ? 'Ẩn bài viết' : 'Hiện lại',
+      tone: isHidden ? 'danger' : 'success',
+    });
+    if (typedNote === null) return;
+    const moderationNote = typedNote.trim();
 
     setBusyId(post.postId);
     try {
@@ -102,7 +110,12 @@ export const AdminPosts = () => {
 
   const remove = async (post: AdminPost) => {
     if (!token) return;
-    if (!window.confirm(`Xóa vĩnh viễn bài viết #${post.postId}? Hành động này không thể hoàn tác.`)) return;
+    if (!(await confirm({
+      title: `Xóa vĩnh viễn bài viết #${post.postId}?`,
+      message: 'Hành động này không thể hoàn tác. Toàn bộ bình luận và lượt thích cũng bị xóa theo.',
+      confirmLabel: 'Xóa vĩnh viễn',
+      tone: 'danger',
+    }))) return;
 
     setBusyId(post.postId);
     try {

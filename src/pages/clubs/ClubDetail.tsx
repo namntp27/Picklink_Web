@@ -38,6 +38,7 @@ import {
 } from '../../api/community';
 import { PlayerHoverCard } from '../matches/components/PlayerHoverCard';
 import { PostCard, toDisplayPost, type DisplayPost } from '../community/Posts';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 type DetailTab = 'members' | 'posts';
 
@@ -72,6 +73,7 @@ export const ClubDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { token } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
   const [activeTab, setActiveTab] = useState<DetailTab>('posts');
 
@@ -126,10 +128,17 @@ export const ClubDetail = () => {
     if (!club) return;
     if (club.myStatus === 'Banned') return;
 
-    if (club.myStatus === 'Accepted'
-      && !window.confirm(`Rời câu lạc bộ “${club.groupName}”?`)) return;
-    if (club.myStatus === 'Pending'
-      && !window.confirm(`Hủy yêu cầu tham gia câu lạc bộ “${club.groupName}”?`)) return;
+    if (club.myStatus === 'Accepted' && !(await confirm({
+      title: `Rời câu lạc bộ “${club.groupName}”?`,
+      message: 'Bạn sẽ không còn xem được bài viết và hoạt động riêng của câu lạc bộ.',
+      confirmLabel: 'Rời câu lạc bộ',
+      tone: 'danger',
+    }))) return;
+    if (club.myStatus === 'Pending' && !(await confirm({
+      title: `Hủy yêu cầu tham gia “${club.groupName}”?`,
+      confirmLabel: 'Hủy yêu cầu',
+      tone: 'danger',
+    }))) return;
 
     setActionLoading(true);
     try {

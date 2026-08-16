@@ -8,6 +8,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { reconcileSelectedPayerIds } from '../../utils/matchPaymentSelection';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
+import { useToast } from '../../components/ui/ToastRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -27,6 +29,8 @@ export const MatchCheckout = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const notify = useToast();
   const bookingId = Number(params.get('bookingId'));
   const matchId = Number(params.get('matchId'));
   const [match, setMatch] = useState<MatchDetailResponse | null>(null);
@@ -48,7 +52,7 @@ export const MatchCheckout = () => {
     if (!(reason instanceof ApiError) || reason.body?.errorCode !== ApiErrorCodes.phoneNumberRequired) return false;
     if (phoneRedirecting.current) return true;
     phoneRedirecting.current = true;
-    window.alert(reason.message);
+    notify(reason.message, 'error');
     navigate('/profile');
     return true;
   };
@@ -222,7 +226,12 @@ export const MatchCheckout = () => {
       setError('Vui lòng chọn thành viên và ảnh biên lai trước khi gửi.');
       return;
     }
-    if (!window.confirm(`Gửi biên lai thanh toán cho ${selectedPayerIds.length} thành viên đã chọn?`)) return;
+    if (!(await confirm({
+      title: `Gửi biên lai cho ${selectedPayerIds.length} thành viên đã chọn?`,
+      message: 'Chủ sân sẽ đối chiếu biên lai với giao dịch nhận được rồi xác nhận.',
+      confirmLabel: 'Gửi biên lai',
+      tone: 'success',
+    }))) return;
 
     setIsSubmitting(true);
     setUploadProgress(0);

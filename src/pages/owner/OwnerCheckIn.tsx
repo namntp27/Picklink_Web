@@ -28,6 +28,7 @@ import type { StaffBooking } from '../../api/staff';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const money = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -78,6 +79,7 @@ const emptyVenues: OwnerVenue[] = [];
 
 export const OwnerCheckIn = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [date, setDate] = useState(localToday);
   const [bookingType, setBookingType] = useState<'all' | 'Court' | 'Match'>('all');
   const [venueId, setVenueId] = useState(0);
@@ -530,8 +532,14 @@ export const OwnerCheckIn = () => {
                               <button
                                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-extrabold text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                 disabled={Boolean(busyKey) || !selected.canMarkNoShow || participant.paymentStatus !== 'Paid'}
-                                onClick={() => window.confirm('Đánh dấu ' + participant.playerName + ' vắng mặt?')
-                                  && void runParticipantAction('participant-' + participant.playerId, markOwnerMatchParticipantNoShow, participant.playerId, 'Đã đánh dấu người chơi vắng mặt.')}
+                                onClick={async () => {
+                                  if (await confirm({
+                                    title: `Đánh dấu ${participant.playerName} vắng mặt?`,
+                                    message: 'Người chơi sẽ bị ghi nhận không đến sân trong trận này.',
+                                    confirmLabel: 'Đánh dấu vắng mặt',
+                                    tone: 'danger',
+                                  })) void runParticipantAction('participant-' + participant.playerId, markOwnerMatchParticipantNoShow, participant.playerId, 'Đã đánh dấu người chơi vắng mặt.');
+                                }}
                                 type="button"
                               >
                                 <UserX className="h-3.5 w-3.5" /> Vắng mặt
@@ -551,8 +559,14 @@ export const OwnerCheckIn = () => {
                       <button
                         className="mb-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#9cad71] bg-[#f4fbdc] px-4 text-[12px] font-extrabold text-[#315516] disabled:opacity-40"
                         disabled={Boolean(busyKey)}
-                        onClick={() => window.confirm('Xác nhận đã nhận đủ tiền tại sân?')
-                          && void runBookingAction('payment', confirmOwnerAtCourtPayment, 'Đã xác nhận thanh toán tại sân.')}
+                        onClick={async () => {
+                          if (await confirm({
+                            title: 'Xác nhận đã nhận đủ tiền tại sân?',
+                            message: 'Booking sẽ được ghi nhận là đã thanh toán.',
+                            confirmLabel: 'Đã nhận đủ',
+                            tone: 'success',
+                          })) void runBookingAction('payment', confirmOwnerAtCourtPayment, 'Đã xác nhận thanh toán tại sân.');
+                        }}
                         type="button"
                       >
                         <Banknote className="h-4 w-4" /> Xác nhận đã nhận tiền
@@ -562,10 +576,16 @@ export const OwnerCheckIn = () => {
                       <button
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-[12px] font-extrabold text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                         disabled={Boolean(busyKey) || (selected.checkInGroups.length > 0 && !selectedGroup) || !currentCanNoShow || currentStatus !== 'Ready'}
-                        onClick={() => window.confirm('Xác nhận khách không đến sân?')
-                          && (selectedGroup
-                            ? void runGroupAction('no-show', markOwnerBookingGroupNoShow, 'Đã đánh dấu khách vắng mặt.')
-                            : void runBookingAction('no-show', markOwnerBookingNoShow, 'Đã đánh dấu khách vắng mặt.'))}
+                        onClick={async () => {
+                          if (!(await confirm({
+                            title: 'Xác nhận khách không đến sân?',
+                            message: 'Booking sẽ bị ghi nhận vắng mặt và không thể check-in lại.',
+                            confirmLabel: 'Đánh dấu vắng mặt',
+                            tone: 'danger',
+                          }))) return;
+                          if (selectedGroup) void runGroupAction('no-show', markOwnerBookingGroupNoShow, 'Đã đánh dấu khách vắng mặt.');
+                          else void runBookingAction('no-show', markOwnerBookingNoShow, 'Đã đánh dấu khách vắng mặt.');
+                        }}
                         type="button"
                       >
                         <UserX className="h-4 w-4" /> Đánh dấu vắng mặt

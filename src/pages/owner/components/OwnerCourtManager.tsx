@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Save, Trash2 } from 'lucide-react';
 import { ApiError } from '../../../api/client';
+import { useConfirm } from '../../../components/ui/ConfirmDialogRegion';
 import {
   createOwnerCourt,
   deleteOwnerCourt,
@@ -33,6 +34,7 @@ const CourtRow = ({ court, token, onChanged, onError, onOptimistic }: { court: O
     availabilityStatus: court.availabilityStatus,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const confirm = useConfirm();
 
   const save = async () => {
     setIsSaving(true);
@@ -45,7 +47,12 @@ const CourtRow = ({ court, token, onChanged, onError, onOptimistic }: { court: O
   };
 
   const remove = async () => {
-    if (!window.confirm(`Ẩn sân con số ${court.courtNumber} khỏi danh sách? Dữ liệu đặt sân cũ vẫn được giữ lại.`)) return;
+    if (!(await confirm({
+      title: `Ẩn sân con số ${court.courtNumber}?`,
+      message: 'Sân sẽ không còn nhận đặt mới. Dữ liệu đặt sân cũ vẫn được giữ lại.',
+      confirmLabel: 'Ẩn sân con',
+      tone: 'danger',
+    }))) return;
     onError('');
     // Ẩn sân khỏi danh sách ngay lập tức; nếu server lỗi thì onChanged() sẽ lấy lại trạng thái thật.
     onOptimistic((current) => ({ ...current!, courts: current!.courts.filter((item) => item.courtId !== court.courtId) }));

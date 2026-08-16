@@ -18,9 +18,12 @@ import { useScheduleRealtime, type ScheduleRealtimeEvent } from '../../hooks/use
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
 import { CourtTimelineGrid } from './components/CourtTimelineGrid';
 import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { holdingCheckoutPath } from '../../utils/bookingCheckout';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
+import { useToast } from '../../components/ui/ToastRegion';
 
 const maxBookingSlots = 496;
 const localDate = () => {
@@ -38,7 +41,6 @@ const maximumMonthDurationFrom = (startDate: string) => {
 const validScheduleDate = (value: string | null) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localDate() && value <= maxScheduleDate() ? value : localDate();
 const time = (value: string) => value.slice(11, 16);
-const datePart = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const slotKey = (courtId: number, startTime: string) => courtId + ':' + startTime;
 const slotIdentity = bookingSlotIdentity;
 const minuteOfDay = (value: string) => {
@@ -78,6 +80,8 @@ export const CourtScheduleDetail = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const notify = useToast();
   const prefersReducedMotion = useReducedMotion();
   const [date, setDate] = useState(() => validScheduleDate(searchParams.get('date')));
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, CourtSlotSelection[]>>({});
@@ -87,6 +91,7 @@ export const CourtScheduleDetail = () => {
   const [isApplyingMonth, setIsApplyingMonth] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [scheduleConflicts, setScheduleConflicts] = useState<BookingScheduleConflict[]>([]);
 
   const motionProps = prefersReducedMotion
     ? {}
@@ -346,7 +351,7 @@ export const CourtScheduleDetail = () => {
       navigate('/checkout?bookingId=' + booking.bookingId + '&date=' + encodeURIComponent(selectedDates[0] ?? date), { state: { booking } });
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.body?.errorCode === ApiErrorCodes.phoneNumberRequired) {
-        window.alert(requestError.message);
+        notify(requestError.message, 'error');
         navigate('/profile');
         return;
       }
@@ -355,14 +360,8 @@ export const CourtScheduleDetail = () => {
         conflicts?: BookingScheduleConflict[];
       } | undefined : undefined;
       if (!allowScheduleConflicts && body?.requiresScheduleConflictConfirmation && body.conflicts?.length) {
-        const details = body.conflicts.map((conflict) =>
-          `${conflict.playerName} đã có lịch trùng với slot được chọn.\n`
-          + `Lịch đã có: ${conflict.conflictingSlot.venueName} · Sân ${conflict.conflictingSlot.courtNumber} · ${datePart(conflict.conflictingSlot.startTime)} · ${time(conflict.conflictingSlot.startTime)}–${time(conflict.conflictingSlot.endTime)}`
-          + `\nSlot đang chọn: ${conflict.selectedSlot.venueName} · Sân ${conflict.selectedSlot.courtNumber} · ${datePart(conflict.selectedSlot.startTime)} · ${time(conflict.selectedSlot.startTime)}–${time(conflict.selectedSlot.endTime)}`,
-        );
-        if (window.confirm(`${details.join('\n\n')}\n\nBạn có muốn tiếp tục tạo booking trùng lịch không?`)) {
-          await createHold(true);
-        }
+        // Hand the decision to the dialog; it calls back into createHold(true) if the player agrees.
+        setScheduleConflicts(body.conflicts);
         return;
       }
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể giữ slot. Vui lòng tải lại lịch.');
@@ -561,6 +560,21 @@ export const CourtScheduleDetail = () => {
           </Button>
         </div>
       </main>
+
+      {scheduleConflicts.length > 0 && (
+        <ScheduleConflictDialog
+          conflicts={scheduleConflicts}
+          isBusy={isHolding}
+          onCancel={() => {
+            setScheduleConflicts([]);
+            setActionError('Chưa giữ chỗ: khung giờ bạn chọn trùng với lịch đã có. Hãy chọn giờ khác hoặc xác nhận đặt trùng.');
+          }}
+          onConfirm={async () => {
+            setScheduleConflicts([]);
+            await createHold(true);
+          }}
+        />
+      )}
     </div>
   );
 };

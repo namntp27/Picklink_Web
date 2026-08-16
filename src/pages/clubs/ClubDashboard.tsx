@@ -61,6 +61,7 @@ import {
   type GroupImage,
 } from '../../api/community';
 import { uploadToCloudinary } from '../../api/cloudinary';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 type DashboardTab = 'overview' | 'members' | 'posts' | 'chat' | 'settings';
 type MemberRole = 'Chủ nhiệm' | 'Quản trị viên' | 'Kiểm duyệt viên' | 'Thành viên';
@@ -162,6 +163,7 @@ const renderAvatar = (avatar: string, sizeClass = "h-10 w-10") => {
 export const ClubDashboard = () => {
   const { id } = useParams();
   const { token, user } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
@@ -310,7 +312,12 @@ export const ClubDashboard = () => {
 
   const handleRemoveIntroImage = async (imageId: number) => {
     if (!token || !isNumericGroupId) return;
-    if (!window.confirm('Bạn có chắc chắn muốn xóa ảnh giới thiệu này?')) return;
+    if (!(await confirm({
+      title: 'Xóa ảnh giới thiệu này?',
+      message: 'Ảnh sẽ bị gỡ khỏi trang câu lạc bộ và không khôi phục được.',
+      confirmLabel: 'Xóa ảnh',
+      tone: 'danger',
+    }))) return;
     try {
       await removeGroupImage(token, groupId, imageId);
       setGroupInfo((prev) => {
@@ -611,7 +618,11 @@ export const ClubDashboard = () => {
 
   const approveRequest = async (request: JoinRequest) => {
     if (!token || !isNumericGroupId) return;
-    if (!window.confirm(`Duyệt ${request.name} vào câu lạc bộ?`)) return;
+    if (!(await confirm({
+      title: `Duyệt ${request.name} vào câu lạc bộ?`,
+      confirmLabel: 'Duyệt thành viên',
+      tone: 'success',
+    }))) return;
     try {
       await approveMember(token, groupId, request.id);
       await loadMembers();
@@ -622,7 +633,11 @@ export const ClubDashboard = () => {
 
   const rejectRequest = async (requestId: number) => {
     if (!token || !isNumericGroupId) return;
-    if (!window.confirm('Từ chối yêu cầu tham gia câu lạc bộ này?')) return;
+    if (!(await confirm({
+      title: 'Từ chối yêu cầu tham gia này?',
+      confirmLabel: 'Từ chối',
+      tone: 'danger',
+    }))) return;
     try {
       await declineMember(token, groupId, requestId);
       await loadMembers();
@@ -642,7 +657,11 @@ export const ClubDashboard = () => {
   const updateMemberRole = async (memberId: number, role: MemberRole) => {
     if (!token || !isNumericGroupId) return;
     const targetMember = members.find((member) => member.id === memberId);
-    if (!window.confirm(`Đổi vai trò của ${targetMember?.name ?? 'thành viên này'} thành ${role}?`)) return;
+    if (!(await confirm({
+      title: `Đổi vai trò của ${targetMember?.name ?? 'thành viên này'} thành ${role}?`,
+      confirmLabel: 'Đổi vai trò',
+      tone: 'default',
+    }))) return;
 
 
     const backendRole = uiRoleToBackendRole[role];
@@ -684,7 +703,12 @@ export const ClubDashboard = () => {
 
   const approvePost = async (postId: number) => {
     if (!token) return;
-    if (!window.confirm('Duyệt bài viết này để hiển thị trong câu lạc bộ?')) return;
+    if (!(await confirm({
+      title: 'Duyệt bài viết này?',
+      message: 'Bài viết sẽ hiển thị cho toàn bộ thành viên câu lạc bộ.',
+      confirmLabel: 'Duyệt bài',
+      tone: 'success',
+    }))) return;
     try {
       await approveGroupPost(token, postId);
       await loadGroupPosts();

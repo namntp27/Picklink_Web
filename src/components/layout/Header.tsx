@@ -6,12 +6,11 @@ import {
 } from 'motion/react';
 import {
   Bell,
-  CalendarClock,
+  CalendarDays,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageCircle,
-  Ticket,
   UserRound,
   X,
 } from 'lucide-react';
@@ -31,9 +30,9 @@ const navItems = [
   { path: '/posts', label: 'Bài đăng' },
 ];
 
+// Bookings, tickets and matches now hang off the schedule screen's own tab strip.
 const utilityItems = [
-  { path: '/my-bookings', label: 'Lịch sử đặt sân', icon: CalendarClock },
-  { path: '/my-tickets', label: 'Vé của tôi', icon: Ticket },
+  { path: '/my-schedule', label: 'Lịch chơi', icon: CalendarDays },
   { path: '/messages', label: 'Tin nhắn', icon: MessageCircle },
   { path: '/notifications', label: 'Thông báo', icon: Bell },
 ];

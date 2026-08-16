@@ -27,10 +27,12 @@ import {
 import { getMyQueues, cancelQueue, resumeQueue, type QueueStatusResponse } from '../../api/matchmaking';
 import { useAuth } from '../../auth/AuthContext';
 import { formatQueueSlots } from '../../utils/queueSlotFormatter';
+import { MyActivityTabs } from '../../components/layout/MyActivityTabs';
 import { PaginationControls } from '../../components/PaginationControls';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 type FilterStatus = 'all' | MatchStatus | 'ActiveQueues';
 
@@ -106,6 +108,7 @@ const emptyPagination = { page: 1, pageSize: PAGE_SIZE, totalCount: 0, totalPage
 
 export const MyMatches = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
@@ -243,7 +246,10 @@ export const MyMatches = () => {
     const msg = isHost
       ? 'Bạn là chủ hàng chờ, hủy hàng chờ sẽ giải tán cả nhóm. Bạn có chắc chắn?'
       : 'Bạn có chắc chắn muốn rời khỏi hàng chờ ghép trận này?';
-    if (!window.confirm(msg)) return;
+    if (!(await confirm({
+      title: msg,
+      tone: 'danger',
+    }))) return;
 
     try {
       await cancelQueue(token, queue.matchmakingQueueId ?? undefined);
@@ -277,6 +283,7 @@ export const MyMatches = () => {
       />
 
       <main className="community-container space-y-4">
+        <MyActivityTabs />
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[12px] font-bold text-red-700" role="alert">
             {error}

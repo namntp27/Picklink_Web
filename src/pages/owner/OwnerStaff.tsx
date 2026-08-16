@@ -17,6 +17,7 @@ import {
 import { OwnerShell } from './components/OwnerShell';
 import { PaginationControls } from '../../components/PaginationControls';
 import { groupOwnerStaffAssignments, type OwnerStaffRow } from './ownerStaffGrouping';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const permissions: Array<{ value: StaffPermission; label: string }> = [
   { value: 'ViewBookings', label: 'Xem booking' },
@@ -45,6 +46,7 @@ const emptyHistoryPagination = { page: 1, pageSize: 10, totalCount: 0, totalPage
 
 export const OwnerStaff = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [email, setEmail] = useState('');
   const [accountMode, setAccountMode] = useState<'create' | 'assign'>('create');
   const [username, setUsername] = useState('');
@@ -108,7 +110,10 @@ export const OwnerStaff = () => {
     event.preventDefault();
     if (!token || selectedVenueIds.length === 0) return;
     const actionLabel = accountMode === 'create' ? 'tạo tài khoản Staff mới' : 'gán tài khoản Staff hiện có';
-    if (!window.confirm(`Xác nhận ${actionLabel} với các quyền đã chọn?`)) return;
+    if (!(await confirm({
+      title: `Xác nhận ${actionLabel} với các quyền đã chọn?`,
+      tone: 'default',
+    }))) return;
 
     setIsBusy(true); setError(''); setSuccess('');
     try {
@@ -136,7 +141,12 @@ export const OwnerStaff = () => {
       ? `Thu hồi quyền Staff của ${assignment.username}?`
       : next.isActive === true ? `Cấp lại quyền Staff cho ${assignment.username}?`
         : `Cập nhật quyền vận hành của ${assignment.username}?`;
-    if (!window.confirm(message)) return;
+    if (!(await confirm({
+      title: message,
+      message: next.isActive === false ? 'Nhân viên sẽ không còn thao tác được trên hệ thống.' : 'Thay đổi có hiệu lực ngay khi nhân viên tải lại trang.',
+      confirmLabel: next.isActive === false ? 'Thu hồi quyền' : 'Lưu thay đổi',
+      tone: next.isActive === false ? 'danger' : 'default',
+    }))) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
       await updateOwnerStaff(token, assignment.staffId, {
@@ -205,7 +215,10 @@ export const OwnerStaff = () => {
       setError('Nhân viên đang hoạt động cần có ít nhất một quyền.');
       return;
     }
-    if (!window.confirm(`Lưu thay đổi tài khoản và quyền của ${assignment.username}?`)) return;
+    if (!(await confirm({
+      title: `Lưu thay đổi tài khoản và quyền của ${assignment.username}?`,
+      tone: 'default',
+    }))) return;
 
 
     setIsBusy(true); setError(''); setSuccess('');

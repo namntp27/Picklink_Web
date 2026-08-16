@@ -19,5 +19,5 @@ test('frontend room lifecycle exposes leave without obsolete cancel or reopen co
   assert.ok(!detail.includes('reopenMatch(token, matchId)'));
   assert.ok(detail.includes("isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status)"));
   assert.ok(detail.includes('leaveMatch(token, matchId)'));
-  assert.ok(detail.includes("window.confirm('Bạn có chắc chắn muốn rời phòng ghép trận này?')"));
+  assert.ok(detail.includes("await confirm({ title: 'Rời phòng ghép trận này?'"));
 });

@@ -13,6 +13,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerVenueReviewsDialog } from './components/OwnerVenueReviewsDialog';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const approvalLabel: Record<OwnerVenue['approvalStatus'], string> = {
@@ -26,6 +27,7 @@ const emptyVenues: OwnerVenue[] = [];
 
 export const OwnerCourts = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [actionError, setActionError] = useState('');
   const [busyVenueId, setBusyVenueId] = useState<number | null>(null);
   const [reviewVenue, setReviewVenue] = useState<OwnerVenue | null>(null);
@@ -60,7 +62,13 @@ export const OwnerCourts = () => {
   };
 
   const removeVenue = async (venue: OwnerVenue) => {
-    if (!token || !window.confirm(`Xóa cụm sân “${venue.venueName}”?`)) return;
+    if (!token) return;
+    if (!(await confirm({
+      title: `Xóa cụm sân “${venue.venueName}”?`,
+      message: 'Cụm sân sẽ bị gỡ khỏi hệ thống. Hành động này không thể hoàn tác.',
+      confirmLabel: 'Xóa cụm sân',
+      tone: 'danger',
+    }))) return;
     await runVenueAction(venue.venueId, () => deleteOwnerVenue(token, venue.venueId));
   };
 
@@ -92,7 +100,7 @@ export const OwnerCourts = () => {
                   <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold hover:bg-surface-container-low" onClick={() => setReviewVenue(venue)} type="button"><MessageSquareText className="h-4 w-4" /> Xem đánh giá</button>
                   <Link className="inline-flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-[13px] font-bold text-primary hover:bg-primary/5" to={`/owner/courts/${venue.venueId}`}><ArrowRight className="h-4 w-4" /> Quản lý sân</Link>
                   <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-bold disabled:opacity-50" disabled={disabled} onClick={() => token && void runVenueAction(venue.venueId, () => setOwnerVenueOpenStatus(token, venue.venueId, !venue.isOpen))} type="button"><Power className="h-4 w-4" /> {venue.isOpen ? 'Đóng sân' : 'Mở sân'}</button>
-                  {venue.approvalStatus !== 'Pending' && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={disabled} onClick={() => token && window.confirm('Gửi hồ sơ cụm sân cho Admin duyệt?') && void runVenueAction(venue.venueId, () => submitOwnerVenue(token, venue.venueId))} type="button"><Send className="h-4 w-4" /> Gửi duyệt</button>}
+                  {venue.approvalStatus !== 'Pending' && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={disabled} onClick={async () => { if (token && await confirm({ title: 'Gửi hồ sơ cụm sân cho Admin duyệt?', message: 'Hồ sơ chuyển sang chờ duyệt và bạn không sửa được cho tới khi có kết quả.', confirmLabel: 'Gửi duyệt', tone: 'default' })) void runVenueAction(venue.venueId, () => submitOwnerVenue(token, venue.venueId)); }} type="button"><Send className="h-4 w-4" /> Gửi duyệt</button>}
                   <button className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50" disabled={disabled} onClick={() => void removeVenue(venue)} title="Xóa cụm sân" type="button"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>

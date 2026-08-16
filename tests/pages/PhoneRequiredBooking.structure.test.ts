@@ -16,7 +16,8 @@ test('booking and checkout send players without a phone number to profile', () =
   assert.match(client, /phoneNumberRequired: 'PHONE_NUMBER_REQUIRED'/);
   pages.forEach((page) => {
     assert.match(page, /ApiErrorCodes\.phoneNumberRequired/);
-    assert.match(page, /window\.alert/);
+    // The reason is surfaced as a toast, not a native alert, before the redirect takes the screen away.
+    assert.match(page, /notify\((reason|requestError)\.message, 'error'\)/);
     assert.match(page, /navigate\('\/profile'\)/);
   });
 });

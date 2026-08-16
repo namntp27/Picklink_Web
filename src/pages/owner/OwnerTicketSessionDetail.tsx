@@ -38,6 +38,7 @@ import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const dateTime = new Intl.DateTimeFormat('vi-VN', {
@@ -104,6 +105,7 @@ export const OwnerTicketSessionDetail = () => {
   const { id } = useParams();
   const ticketSessionId = Number(id);
   const { token } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
   const [busy, setBusy] = useState('');
   const [actionError, setActionError] = useState('');
@@ -221,7 +223,12 @@ export const OwnerTicketSessionDetail = () => {
 
   const publish = async () => {
     if (!token) return;
-    if (!window.confirm('Đăng bán buổi chơi này để người chơi có thể mua vé?')) return;
+    if (!(await confirm({
+      title: 'Đăng bán buổi chơi này?',
+      message: 'Buổi chơi sẽ hiển thị công khai và người chơi có thể mua vé ngay.',
+      confirmLabel: 'Đăng bán',
+      tone: 'success',
+    }))) return;
     await perform('publish', () => publishOwnerTicketSession(token, ticketSessionId), 'Đã đăng bán vé.');
   };
   const cancel = async () => {
@@ -367,7 +374,13 @@ export const OwnerTicketSessionDetail = () => {
                               <button
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-[11px] font-bold disabled:opacity-50"
                                 disabled={Boolean(busy) || !canCheckIn}
-                                onClick={() => window.confirm(`Xác nhận ${ticket.playerName} đã vào sân?`) && void checkInTicket(ticket.ticketCode)}
+                                onClick={async () => {
+                                  if (await confirm({
+                                    title: `Xác nhận ${ticket.playerName} đã vào sân?`,
+                                    confirmLabel: 'Đã vào sân',
+                                    tone: 'success',
+                                  })) void checkInTicket(ticket.ticketCode);
+                                }}
                                 type="button"
                               >
                                 <UserCheck className="h-4 w-4" />

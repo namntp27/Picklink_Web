@@ -34,6 +34,7 @@ import {
 } from '../../api/notifications';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const pageSize = 10;
 
@@ -127,6 +128,7 @@ const getErrorMessage = (error: unknown, fallback: string) =>
 export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' | 'owner' }) => {
   const shouldReduceMotion = useReducedMotion();
   const { token } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [page, setPage] = useState(1);
@@ -199,7 +201,11 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
 
   const removeNotification = async (notificationId: number) => {
     if (!token) return;
-    if (!window.confirm('Xóa thông báo này?')) return;
+    if (!(await confirm({
+      title: 'Xóa thông báo này?',
+      confirmLabel: 'Xóa',
+      tone: 'danger',
+    }))) return;
     try {
       await deleteNotification(token, notificationId);
       await loadNotifications();
@@ -210,7 +216,12 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
 
   const clearReadNotifications = async () => {
     if (!token || !hasReadNotifications) return;
-    if (!window.confirm('Xóa tất cả thông báo đã đọc?')) return;
+    if (!(await confirm({
+      title: 'Xóa tất cả thông báo đã đọc?',
+      message: 'Chỉ thông báo đã đọc bị xóa. Thông báo chưa đọc vẫn được giữ lại.',
+      confirmLabel: 'Xóa đã đọc',
+      tone: 'danger',
+    }))) return;
     try {
       await deleteReadNotifications(token);
       await loadNotifications();

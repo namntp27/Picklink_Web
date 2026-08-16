@@ -2,6 +2,7 @@ import { prefetchApiData } from '../api/client';
 import * as communityApi from '../api/community';
 import * as notificationApi from '../api/notifications';
 import { primeApiQueryCache } from '../hooks/useApiQuery';
+import { monthGridDays } from '../utils/bookingDateRange';
 
 type RouteLoader = () => Promise<unknown>;
 type DataLoader = (accessToken?: string, search?: string) => Promise<unknown>;
@@ -19,6 +20,7 @@ const commonRouteLoaders = new Map<string, RouteLoader>([
   ['/posts/friends', () => import('../pages/community/Friends')],
   ['/posts/clubs', () => import('../pages/community/PostCollections')],
   ['/my-matches', () => import('../pages/matches/MyMatches')],
+  ['/my-schedule', () => import('../pages/schedule/MySchedule')],
   ['/my-bookings', () => import('../pages/bookings/MyBookings')],
   ['/my-tickets', () => import('../pages/tickets/MyTickets')],
   ['/messages', () => import('../pages/messages/Messages')],
@@ -67,6 +69,12 @@ const commonDataLoaders = new Map<string, DataLoader>([
     import('../api/matches').then((api) => prefetch(() => api.getMyMatches(token, { page: 1, pageSize: 15 }))),
     import('../api/matchmaking').then((api) => prefetch(() => api.getMyQueues(token))),
   ]) : Promise.resolve()],
+  ['/my-schedule', (token) => {
+    if (!token) return Promise.resolve();
+    const grid = monthGridDays(`${localDate().slice(0, 7)}-01`);
+    return import('../api/playerSchedule')
+      .then((api) => prefetch(() => api.getMySchedule(token, grid[0].key, grid[grid.length - 1].key)));
+  }],
   ['/my-bookings', (token) => token ? import('../api/booking')
     .then((api) => prefetch(() => api.getMyBookingHistory(token, { page: 1, pageSize: 10 }))) : Promise.resolve()],
   ['/my-tickets', (token) => token ? import('../api/ticketing')

@@ -28,6 +28,7 @@ import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
 import type { Tone } from './types';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 
@@ -76,6 +77,8 @@ const locationLabel = (user: AdminUserSummary) =>
 
 export const AdminUsers = () => {
   const { token, user: currentUser } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -120,13 +123,26 @@ export const AdminUsers = () => {
       return;
     }
 
-    const reason = target.isLocked
-      ? ''
-      : window.prompt(`Lý do khóa tài khoản ${target.name}?`, '')?.trim();
-    if (!target.isLocked && reason === undefined) return;
-
-    const actionLabel = target.isLocked ? 'mở khóa' : 'khóa';
-    if (!window.confirm(`Xác nhận ${actionLabel} tài khoản ${target.name}?`)) return;
+    let reason = '';
+    if (target.isLocked) {
+      if (!(await confirm({
+        title: `Mở khóa tài khoản ${target.name}?`,
+        message: 'Người dùng sẽ đăng nhập và sử dụng hệ thống bình thường trở lại.',
+        confirmLabel: 'Mở khóa',
+        tone: 'success',
+      }))) return;
+    } else {
+      const typed = await prompt({
+        title: `Khóa tài khoản ${target.name}?`,
+        message: 'Người dùng sẽ không đăng nhập được cho tới khi được mở khóa.',
+        label: 'Lý do khóa',
+        required: true,
+        confirmLabel: 'Khóa tài khoản',
+        tone: 'danger',
+      });
+      if (typed === null) return;
+      reason = typed.trim();
+    }
 
     setBusyUserId(target.userId);
     try {

@@ -14,6 +14,7 @@ import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
 import type { Tone } from './types';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
@@ -56,6 +57,8 @@ const stars = (score: number) => '★'.repeat(score).padEnd(5, '☆');
 
 export const AdminReviews = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -96,14 +99,18 @@ export const AdminReviews = () => {
 
   const moderate = async (review: AdminReview, isHidden: boolean, nextStatus: 'Visible' | 'Hidden' | 'Flagged') => {
     if (!token) return;
-    const moderationNote = window.prompt(
-      isHidden ? 'Lý do ẩn đánh giá:' : 'Ghi chú kiểm duyệt:',
-      review.moderationNote ?? '',
-    )?.trim();
-    if (moderationNote === undefined) return;
     const actionLabel = nextStatus === 'Hidden' ? 'ẩn'
       : nextStatus === 'Flagged' ? 'gắn cờ' : 'hiện lại';
-    if (!window.confirm(`Xác nhận ${actionLabel} đánh giá này?`)) return;
+    const typedNote = await prompt({
+      title: `Xác nhận ${actionLabel} đánh giá này?`,
+      label: isHidden ? 'Lý do ẩn đánh giá' : 'Ghi chú kiểm duyệt',
+      defaultValue: review.moderationNote ?? '',
+      required: isHidden,
+      confirmLabel: 'Xác nhận',
+      tone: isHidden ? 'danger' : 'default',
+    });
+    if (typedNote === null) return;
+    const moderationNote = typedNote.trim();
 
 
     setBusyId(review.ratingId);

@@ -15,6 +15,7 @@ import {
   type SessionTicketStatus,
 } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
+import { MyActivityTabs } from '../../components/layout/MyActivityTabs';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -126,6 +127,7 @@ export const MyTickets = () => {
   return (
     <div className="min-h-dvh bg-white pb-14 pt-[88px] text-on-background" data-my-tickets-page>
       <main className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
+        <MyActivityTabs />
         <header className="grid gap-5 border-b border-outline-variant pb-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <div>
             <span className="inline-flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-primary"><Ticket aria-hidden="true" className="h-5 w-5" /> Vé của tôi</span>

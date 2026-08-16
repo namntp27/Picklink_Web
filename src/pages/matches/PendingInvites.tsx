@@ -30,6 +30,7 @@ import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { CommunityEmptyState, CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -87,6 +88,7 @@ const PAGE_SIZE = 15;
 const emptyQueues: QueueStatusResponse[] = [];
 export const PendingInvites = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [queueVenues, setQueueVenues] = useState<Record<number, MatchPreferredVenue[]>>({});
   const [mappedQueue, setMappedQueue] = useState<QueueStatusResponse | null>(null);
@@ -145,7 +147,12 @@ export const PendingInvites = () => {
 
   const handleLeaveQueue = async () => {
     if (!token) return;
-    if (!window.confirm('Bạn có chắc chắn muốn rời hàng chờ ghép trận này?')) return;
+    if (!(await confirm({
+      title: 'Rời hàng chờ ghép trận này?',
+      message: 'Bạn sẽ không được ghép vào trận nào từ hàng chờ này nữa.',
+      confirmLabel: 'Rời hàng chờ',
+      tone: 'danger',
+    }))) return;
     try {
       await cancelQueue(token);
       void loadQueues();

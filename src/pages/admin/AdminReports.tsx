@@ -15,6 +15,7 @@ import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
 import type { Tone } from './types';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
@@ -60,6 +61,8 @@ const formatDateTime = (value: string) =>
 
 export const AdminReports = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -98,15 +101,18 @@ export const AdminReports = () => {
 
   const review = async (report: AdminReport, nextStatus: Exclude<AdminReportStatus, 'Open'>) => {
     if (!token) return;
-    const resolutionNote = window.prompt(
-      nextStatus === 'Resolved' ? 'Ghi chú xử lý báo cáo:' : 'Lý do bỏ qua/chuyển trạng thái:',
-      report.resolutionNote ?? '',
-    )?.trim();
-    if (resolutionNote === undefined) return;
     const actionLabel = nextStatus === 'Resolved'
       ? 'đánh dấu báo cáo đã xử lý'
       : nextStatus === 'Dismissed' ? 'bỏ qua báo cáo' : 'nhận xử lý báo cáo';
-    if (!window.confirm(`Xác nhận ${actionLabel} này?`)) return;
+    const typedNote = await prompt({
+      title: `Xác nhận ${actionLabel} này?`,
+      label: nextStatus === 'Resolved' ? 'Ghi chú xử lý báo cáo' : 'Lý do bỏ qua / chuyển trạng thái',
+      defaultValue: report.resolutionNote ?? '',
+      confirmLabel: 'Xác nhận',
+      tone: nextStatus === 'Dismissed' ? 'danger' : 'default',
+    });
+    if (typedNote === null) return;
+    const resolutionNote = typedNote.trim();
 
 
     setBusyId(report.communityReportId);

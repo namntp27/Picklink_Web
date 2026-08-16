@@ -9,6 +9,7 @@ import {
   withdrawMatchSlotReplacement,
   type MatchBookingCheckInGroup,
 } from '../../api/matches';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 type Props = {
   token?: string | null;
@@ -29,10 +30,18 @@ const requestStatusLabel: Record<string, string> = {
 };
 
 export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, isBusy, run }: Props) => {
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const reportableGroups = groups.filter((group) => group.canReportUnavailable);
-  const reportUnavailable = () => {
+  const reportUnavailable = async () => {
     if (!token) return;
-    const reason = window.prompt('Lý do bạn bận buổi này (có thể để trống):', '');
+    const reason = await prompt({
+      title: 'Báo bận buổi này?',
+      message: 'Nhóm sẽ mở tuyển người chơi thay cho slot của bạn.',
+      label: 'Lý do bạn bận (có thể để trống)',
+      confirmLabel: 'Báo bận',
+      tone: 'default',
+    });
     if (reason === null) return;
     void run(async () => {
       for (const group of reportableGroups) {
@@ -75,7 +84,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
                 <button
                   className="rounded-md bg-white/10 px-2 py-1 text-[10px] font-bold text-white hover:bg-white/20"
                   disabled={isBusy}
-                  onClick={() => window.confirm('Hủy báo bận và dừng tuyển người thay thế cho buổi này?') && void run(() => withdrawMatchSlotAbsence(token, matchId, absence.matchSlotAbsenceId))}
+                  onClick={async () => { if (await confirm({ title: 'Hủy báo bận cho buổi này?', message: 'Nhóm sẽ dừng tuyển người chơi thay và slot trở lại của bạn.', confirmLabel: 'Hủy báo bận', tone: 'default' })) void run(() => withdrawMatchSlotAbsence(token, matchId, absence.matchSlotAbsenceId)); }}
                   type="button"
                 >
                   Hủy báo bận
@@ -90,7 +99,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
                   <button
                     className="flex shrink-0 items-center gap-1 rounded-md bg-rose-400/20 px-2 py-1 text-[9px] font-extrabold text-rose-100 hover:bg-rose-400/35"
                     disabled={isBusy}
-                    onClick={() => window.confirm(`Đưa ${approvedRequest.playerName} khỏi nhóm thay thế và mở tuyển lại slot này?`) && void run(() => removeMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId, approvedRequest.matchSlotReplacementRequestId))}
+                    onClick={async () => { if (await confirm({ title: `Đưa ${approvedRequest.playerName} khỏi nhóm thay thế?`, message: 'Slot này sẽ được mở tuyển lại.', confirmLabel: 'Đưa khỏi nhóm', tone: 'danger' })) void run(() => removeMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId, approvedRequest.matchSlotReplacementRequestId)); }}
                     type="button"
                   >
                     <UserMinus className="h-3 w-3" /> Đưa khỏi nhóm
@@ -117,7 +126,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
                   <button
                     className="text-[10px] font-extrabold text-amber-200 hover:text-white"
                     disabled={isBusy}
-                    onClick={() => window.confirm('Rút đơn đăng ký thay thế cho buổi này?') && void run(() => withdrawMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId))}
+                    onClick={async () => (await confirm({ title: 'Rút đơn đăng ký thay thế?', confirmLabel: 'Rút đơn', tone: 'danger' })) && void run(() => withdrawMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId))}
                     type="button"
                   >
                     Rút đơn
@@ -127,7 +136,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
                   <button
                     className="flex items-center gap-1 text-[10px] font-extrabold text-amber-200 hover:text-white"
                     disabled={isBusy}
-                    onClick={() => window.confirm('Rời nhóm thay thế và mở tuyển lại slot này?') && void run(() => withdrawMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId))}
+                    onClick={async () => (await confirm({ title: 'Rời nhóm thay thế?', message: 'Slot này sẽ được mở tuyển lại.', confirmLabel: 'Rời nhóm', tone: 'danger' })) && void run(() => withdrawMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId))}
                     type="button"
                   >
                     <LogOut className="h-3 w-3" /> Rời nhóm
@@ -147,7 +156,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
                         aria-label={`Từ chối ${request.playerName}`}
                         className="rounded-md bg-rose-400/20 p-1.5 text-rose-100 hover:bg-rose-400/35"
                         disabled={isBusy || !token}
-                        onClick={() => token && window.confirm(`Từ chối ${request.playerName} chơi thay slot này?`) && void run(() => rejectMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId, request.matchSlotReplacementRequestId))}
+                        onClick={async () => token && (await confirm({ title: `Từ chối ${request.playerName} chơi thay slot này?`, confirmLabel: 'Từ chối', tone: 'danger' })) && void run(() => rejectMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId, request.matchSlotReplacementRequestId))}
                         type="button"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -156,7 +165,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
                         aria-label={`Duyệt ${request.playerName}`}
                         className="rounded-md bg-emerald-400/25 p-1.5 text-emerald-100 hover:bg-emerald-400/40"
                         disabled={isBusy || !token}
-                        onClick={() => token && window.confirm(`Duyệt ${request.playerName} vào nhóm thay thế cho slot này?`) && void run(() => acceptMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId, request.matchSlotReplacementRequestId))}
+                        onClick={async () => token && (await confirm({ title: `Duyệt ${request.playerName} vào nhóm thay thế?`, confirmLabel: 'Duyệt', tone: 'success' })) && void run(() => acceptMatchSlotReplacement(token, matchId, absence.matchSlotAbsenceId, request.matchSlotReplacementRequestId))}
                         type="button"
                       >
                         <Check className="h-3.5 w-3.5" />

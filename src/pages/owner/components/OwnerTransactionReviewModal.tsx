@@ -8,6 +8,7 @@ import {
   rejectOperatorPayment,
 } from '../../../api/payment';
 import { useAuth } from '../../../auth/AuthContext';
+import { useConfirm } from '../../../components/ui/ConfirmDialogRegion';
 import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
 import { OwnerBookingSlotSummary } from './OwnerBookingSlotSummary';
@@ -64,6 +65,7 @@ export const OwnerTransactionReviewModal = ({
   onUpdated,
 }: OwnerTransactionReviewModalProps) => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [payment, setPayment] = useState<BankTransfer | null>(initialPayment ?? null);
   const [rejectReason, setRejectReason] = useState('');
   const [isLoading, setIsLoading] = useState(!initialPayment);
@@ -95,7 +97,12 @@ export const OwnerTransactionReviewModal = ({
 
   const approve = async () => {
     if (!token || !payment) return;
-    if (!window.confirm(`Xác nhận đã nhận đủ ${currency.format(payment.amount)} từ ${payment.playerName}?`)) return;
+    if (!(await confirm({
+      title: `Xác nhận đã nhận đủ ${currency.format(payment.amount)}?`,
+      message: `Người chuyển: ${payment.playerName}. Sau khi xác nhận, booking được ghi nhận là đã thanh toán.`,
+      confirmLabel: 'Đã nhận đủ',
+      tone: 'success',
+    }))) return;
     setIsBusy(true);
     setError('');
     try {
@@ -111,7 +118,12 @@ export const OwnerTransactionReviewModal = ({
 
   const reject = async () => {
     if (!token || !payment || rejectReason.trim().length < 3) return;
-    if (!window.confirm(`Từ chối biên lai thanh toán của ${payment.playerName}?`)) return;
+    if (!(await confirm({
+      title: `Từ chối biên lai của ${payment.playerName}?`,
+      message: 'Người chơi sẽ nhận được thông báo kèm lý do và phải chuyển khoản lại.',
+      confirmLabel: 'Từ chối biên lai',
+      tone: 'danger',
+    }))) return;
     setIsBusy(true);
     setError('');
     try {

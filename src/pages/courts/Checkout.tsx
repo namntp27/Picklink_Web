@@ -25,6 +25,8 @@ import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { Button } from '../../components/ui/Button';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { MatchCheckout } from '../matches/MatchCheckout';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
+import { useToast } from '../../components/ui/ToastRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const dateText = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date(value));
@@ -81,6 +83,8 @@ const CourtCheckout = () => {
   const navigate = useNavigate();
   const bookingId = Number(params.get('bookingId'));
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const notify = useToast();
   const navigationBooking = (location.state as { booking?: BookingHolding } | null)?.booking;
   const initialBooking = navigationBooking?.bookingId === bookingId ? navigationBooking : null;
   const [booking, setBooking] = useState<BookingHolding | null>(initialBooking);
@@ -100,7 +104,7 @@ const CourtCheckout = () => {
     if (!(reason instanceof ApiError) || reason.body?.errorCode !== ApiErrorCodes.phoneNumberRequired) return false;
     if (phoneRedirecting.current) return true;
     phoneRedirecting.current = true;
-    window.alert(reason.message);
+    notify(reason.message, 'error');
     navigate('/profile');
     return true;
   };
@@ -239,7 +243,12 @@ const CourtCheckout = () => {
     if (remainingSeconds <= 0) { setError('Thời gian giữ chỗ đã hết. Vui lòng chọn lại khung giờ.'); return; }
     if (!transfer?.qrImageUrl) { setError('Sân chưa cấu hình tài khoản nhận chuyển khoản.'); return; }
     if (!receipt) { setError('Vui lòng chọn ảnh biên lai trước khi xác nhận đã chuyển khoản.'); return; }
-    if (!window.confirm(`Gửi biên lai và xác nhận đã chuyển ${currency.format(booking.totalAmount)}?`)) return;
+    if (!(await confirm({
+      title: `Gửi biên lai và xác nhận đã chuyển ${currency.format(booking.totalAmount)}?`,
+      message: 'Chủ sân sẽ đối chiếu biên lai với giao dịch nhận được rồi xác nhận.',
+      confirmLabel: 'Gửi biên lai',
+      tone: 'success',
+    }))) return;
 
     setIsSubmitting(true);
     setUploadProgress(0);
@@ -306,7 +315,12 @@ const CourtCheckout = () => {
       navigate(schedulePath);
       return;
     }
-    if (!window.confirm('Hủy giữ chỗ hiện tại và quay lại chọn lịch sân?')) return;
+    if (!(await confirm({
+      title: 'Hủy giữ chỗ và quay lại chọn lịch?',
+      message: 'Slot đang giữ sẽ được trả về cho người khác đặt.',
+      confirmLabel: 'Hủy giữ chỗ',
+      tone: 'danger',
+    }))) return;
 
     setIsReturning(true);
     setError('');

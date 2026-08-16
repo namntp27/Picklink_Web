@@ -74,12 +74,14 @@ import {
   type Conversation,
   type ConversationFilter,
 } from './messageModels';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const groupRoleRank = (role?: string | null) =>
   ({ Owner: 3, Admin: 2, Moderator: 1, Member: 0 } as Record<string, number>)[role || ''] ?? 0;
 
 export const Messages = () => {
   const { token, user } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
   const { setShowFooter } = useOutletContext<{ setShowFooter: (val: boolean) => void }>() || {};
 
@@ -574,7 +576,11 @@ export const Messages = () => {
 
   const handleApproveMember = async (memberUserId: number) => {
     if (!token || !activeConversation?.groupId) return;
-    if (!window.confirm('Duyệt người này vào nhóm?')) return;
+    if (!(await confirm({
+      title: 'Duyệt người này vào nhóm?',
+      confirmLabel: 'Duyệt',
+      tone: 'success',
+    }))) return;
     try {
       await approveMember(token, activeConversation.groupId, memberUserId);
       loadSettingsMembers();

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { cn } from '../../utils/cn';
 
 type ModalDialogProps = {
   'aria-label'?: string;
@@ -8,6 +9,7 @@ type ModalDialogProps = {
   className?: string;
   closeOnBackdrop?: boolean;
   onRequestClose: () => void;
+  /** Set `maxWidth` here, not as a class: the viewport cap below is inline and would override it. */
   style?: CSSProperties;
 };
 
@@ -41,7 +43,11 @@ export const ModalDialog = ({
   return (
     <dialog
       {...accessibleName}
-      className={`fixed inset-0 m-auto border-0 p-0 text-on-surface backdrop:bg-black/60 backdrop:backdrop-blur-sm ${className}`}
+      // Merged, not concatenated: a caller's width or backdrop class has to beat the default here.
+      className={cn(
+        'fixed inset-0 m-auto border-0 p-0 text-on-surface backdrop:bg-black/60 backdrop:backdrop-blur-sm',
+        className,
+      )}
       onCancel={(event) => {
         event.preventDefault();
         requestClose();

@@ -43,6 +43,7 @@ import {
 } from '../../api/ticketing';
 import { PaginationControls } from '../../components/PaginationControls';
 import './staff.css';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const time = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -135,6 +136,7 @@ const emptyPagination = { page: 1, pageSize: 10, totalCount: 0, totalPages: 1 };
 
 export const StaffDashboard = () => {
   const { token, user, logout } = useAuth();
+  const confirm = useConfirm();
   const shouldReduceMotion = useReducedMotion();
   const [bookingsPage, setBookingsPage] = useState(1);
   const [selected, setSelected] = useState<StaffBooking | null>(null);
@@ -860,12 +862,20 @@ export const StaffDashboard = () => {
                                     <button
                                       className="staff-button-danger"
                                       disabled={isBusy || !hasPermission('MarkNoShow') || selected.bookingStatus !== 'Confirmed' || !selected.canMarkNoShow || participant.paymentStatus !== 'Paid'}
-                                      onClick={() => window.confirm(`Xác nhận ${participant.playerName} vắng mặt?`)
-                                        && void runParticipantAction(
-                                          markStaffMatchParticipantNoShow,
-                                          participant.playerId,
-                                          `Đã đánh dấu ${participant.playerName} vắng mặt.`,
-                                        )}
+                                      onClick={async () => {
+                                        if (await confirm({
+                                          title: `Xác nhận ${participant.playerName} vắng mặt?`,
+                                          message: 'Người chơi sẽ bị ghi nhận không đến sân trong trận này.',
+                                          confirmLabel: 'Đánh dấu vắng mặt',
+                                          tone: 'danger',
+                                        })) {
+                                          void runParticipantAction(
+                                            markStaffMatchParticipantNoShow,
+                                            participant.playerId,
+                                            `Đã đánh dấu ${participant.playerName} vắng mặt.`,
+                                          );
+                                        }
+                                      }}
                                       type="button"
                                     >
                                       <UserX aria-hidden="true" className="h-3.5 w-3.5" />
@@ -928,10 +938,16 @@ export const StaffDashboard = () => {
                           <button
                             className="staff-button-danger"
                             disabled={isBusy || !hasPermission('MarkNoShow') || selected.bookingStatus !== 'Confirmed' || missingCheckInGroup || !currentCanMarkNoShow || currentCheckInStatus !== 'Ready'}
-                            onClick={() => window.confirm('Xác nhận người chơi không đến sân?')
-                              && (selectedCheckInGroup
-                                ? void runCheckInGroupAction(markStaffCheckInGroupNoShow, 'Đã đánh dấu vắng mặt.')
-                                : void runAction(markStaffBookingNoShow, 'Đã đánh dấu vắng mặt.'))}
+                            onClick={async () => {
+                              if (!(await confirm({
+                                title: 'Xác nhận người chơi không đến sân?',
+                                message: 'Booking sẽ bị ghi nhận vắng mặt và không thể check-in lại.',
+                                confirmLabel: 'Đánh dấu vắng mặt',
+                                tone: 'danger',
+                              }))) return;
+                              if (selectedCheckInGroup) void runCheckInGroupAction(markStaffCheckInGroupNoShow, 'Đã đánh dấu vắng mặt.');
+                              else void runAction(markStaffBookingNoShow, 'Đã đánh dấu vắng mặt.');
+                            }}
                             type="button"
                           >
                             <UserX aria-hidden="true" className="h-4 w-4" />
@@ -1233,8 +1249,13 @@ export const StaffDashboard = () => {
                                 <button
                                   className="staff-button mt-3 w-full"
                                   disabled={isBusy || !canCheckInSelectedTicket || !isPaid || isCheckedIn}
-                                  onClick={() => window.confirm('Xác nhận ' + participant.playerName + ' đã vào sân?')
-                                    && void runTicketCheckIn(participant.ticketCode)}
+                                  onClick={async () => {
+                                    if (await confirm({
+                                      title: `Xác nhận ${participant.playerName} đã vào sân?`,
+                                      confirmLabel: 'Đã vào sân',
+                                      tone: 'success',
+                                    })) void runTicketCheckIn(participant.ticketCode);
+                                  }}
                                   type="button"
                                 >
                                   {isCheckedIn

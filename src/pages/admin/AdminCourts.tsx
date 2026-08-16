@@ -32,6 +32,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 10;
 const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
@@ -299,6 +300,7 @@ const VenueDetailDialog = ({
 
 export const AdminCourts = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -363,7 +365,12 @@ export const AdminCourts = () => {
 
   const approve = async () => {
     if (!token || !selected) return;
-    if (!window.confirm(`Duyệt cụm sân “${selected.venueName}” và cho phép hiển thị để đặt sân?`)) return;
+    if (!(await confirm({
+      title: `Duyệt cụm sân “${selected.venueName}”?`,
+      message: 'Cụm sân sẽ hiển thị công khai và người chơi có thể đặt ngay.',
+      confirmLabel: 'Duyệt cụm sân',
+      tone: 'success',
+    }))) return;
     setBusy(true);
     try {
       const updated = await approveAdminVenue(selected.venueId, token);
@@ -379,7 +386,12 @@ export const AdminCourts = () => {
 
   const reject = async (reason: string) => {
     if (!token || !selected || reason.length < 3) return;
-    if (!window.confirm(`Từ chối hồ sơ cụm sân “${selected.venueName}”?`)) return;
+    if (!(await confirm({
+      title: `Từ chối hồ sơ “${selected.venueName}”?`,
+      message: 'Chủ sân sẽ nhận được thông báo và cần nộp lại hồ sơ.',
+      confirmLabel: 'Từ chối hồ sơ',
+      tone: 'danger',
+    }))) return;
     setBusy(true);
     try {
       const updated = await rejectAdminVenue(selected.venueId, reason, token);

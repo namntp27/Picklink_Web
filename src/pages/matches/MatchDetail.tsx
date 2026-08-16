@@ -61,8 +61,11 @@ import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
 import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
 import { ModalDialog } from '../../components/ui/ModalDialog';
+import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
 import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { holdingCheckoutPath } from '../../utils/bookingCheckout';
+import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
+import { useToast } from '../../components/ui/ToastRegion';
 
 const MatchVenueMapDialog = lazy(async () => {
   const module = await import('./components/MatchVenueMapDialog');
@@ -260,6 +263,8 @@ export const MatchDetail = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const notify = useToast();
   const {
     data: match,
     error: matchLoadError,
@@ -295,6 +300,7 @@ export const MatchDetail = () => {
   const isCreatingBookingRef = useRef(false);
   const [error, setError] = useState('');
   const [bookingSubmitError, setBookingSubmitError] = useState('');
+  const [scheduleConflicts, setScheduleConflicts] = useState<ScheduleConflict[]>([]);
   const [additionalBookingRounds, setAdditionalBookingRounds] = useState<MatchBookingCheckIn[]>([]);
   const [nextBookingRoundsPage, setNextBookingRoundsPage] = useState(2);
   const [loadedBookingRoundsTotalPages, setLoadedBookingRoundsTotalPages] = useState(1);
@@ -727,7 +733,7 @@ export const MatchDetail = () => {
       navigate(`/checkout?bookingId=${createdMatch.bookingId}&date=${encodeURIComponent(checkoutDate)}&matchId=${matchId}`);
     } catch (reason) {
       if (reason instanceof ApiError && reason.body?.errorCode === ApiErrorCodes.phoneNumberRequired) {
-        window.alert(reason.message);
+        notify(reason.message, 'error');
         navigate('/profile');
         return;
       }
@@ -736,16 +742,8 @@ export const MatchDetail = () => {
         conflicts?: ScheduleConflict[];
       } | undefined : undefined;
       if (!allowScheduleConflicts && body?.requiresScheduleConflictConfirmation && body.conflicts?.length) {
-        const details = body.conflicts.map((conflict) =>
-          `${conflict.playerName} đã có lịch trùng với slot được chọn.\n`
-          + `Lịch đã có: ${conflict.conflictingSlot.venueName} · Sân ${conflict.conflictingSlot.courtNumber} · ${datePart(conflict.conflictingSlot.startTime)} · ${timePart(conflict.conflictingSlot.startTime)}–${timePart(conflict.conflictingSlot.endTime)}`
-          + `\nSlot đang chọn: ${conflict.selectedSlot.venueName} · Sân ${conflict.selectedSlot.courtNumber} · ${datePart(conflict.selectedSlot.startTime)} · ${timePart(conflict.selectedSlot.startTime)}–${timePart(conflict.selectedSlot.endTime)}`,
-        );
-        if (window.confirm(`${details.join('\n\n')}\n\nBạn có muốn tiếp tục tạo booking trùng lịch không?`)) {
-          await createBooking(true);
-        } else {
-          setBookingSubmitError('Booking chưa được tạo vì lịch đã chọn đang trùng với lịch của thành viên.');
-        }
+        // Hand the decision to the dialog; it calls back into createBooking(true) if the host agrees.
+        setScheduleConflicts(body.conflicts);
         return;
       }
       setBookingSubmitError(reason instanceof Error ? reason.message : 'Không thể tạo booking.');
@@ -984,8 +982,8 @@ export const MatchDetail = () => {
                   <div className="flex items-center justify-between gap-2 rounded-md bg-white p-2" key={participant.participantId}>
                     <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-[#64736a]">Level {participant.skillLevel.toFixed(1)}</p></div>
                     <div className="flex shrink-0 gap-1">
-                      <button className="grid h-11 w-11 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={() => token && window.confirm(`Từ chối yêu cầu tham gia của ${participant.playerName}?`) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
-                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-11 w-11 !min-h-11 !p-0" disabled={isBusy} onClick={() => token && window.confirm(`Chấp nhận ${participant.playerName} vào phòng?`) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
+                      <button className="grid h-11 w-11 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={async () => token && (await confirm({ title: `Từ chối yêu cầu tham gia của ${participant.playerName}?`, confirmLabel: 'Từ chối', tone: 'danger' })) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
+                      <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-11 w-11 !min-h-11 !p-0" disabled={isBusy} onClick={async () => token && (await confirm({ title: `Chấp nhận ${participant.playerName} vào phòng?`, confirmLabel: 'Chấp nhận', tone: 'success' })) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                 ))}
@@ -1058,7 +1056,7 @@ export const MatchDetail = () => {
                       </span>
                     )}
                     {match.isHost && !participant.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
-                      <button className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50" disabled={isBusy} onClick={() => token && window.confirm(`Loại ${participant.playerName} khỏi phòng?`) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
+                      <button className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50" disabled={isBusy} onClick={async () => token && (await confirm({ title: `Loại ${participant.playerName} khỏi phòng?`, message: 'Người chơi sẽ bị gỡ khỏi phòng và nhận được thông báo.', confirmLabel: 'Loại khỏi phòng', tone: 'danger' })) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </article>
                 );
@@ -1292,10 +1290,10 @@ export const MatchDetail = () => {
                 <div className="mt-4 border-y border-[#cfe0c8] py-4">
                   <p className="text-center text-[13px] font-extrabold text-[#0b2228]">Bạn được mời tham gia trận này</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button className="community-button-secondary" disabled={isBusy} onClick={() => token && window.confirm('Từ chối lời mời tham gia phòng này?') && void run(() => declineMatchInvitation(token, matchId))} type="button">
+                    <button className="community-button-secondary" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Từ chối lời mời tham gia phòng này?', confirmLabel: 'Từ chối lời mời', tone: 'danger' })) && void run(() => declineMatchInvitation(token, matchId))} type="button">
                       <X className="h-4 w-4" /> Từ chối
                     </button>
-                    <button className="community-button" disabled={isBusy} onClick={() => token && window.confirm('Chấp nhận lời mời và tham gia phòng này?') && void run(() => acceptMatchInvitation(token, matchId), () => navigate('/my-matches'))} type="button">
+                    <button className="community-button" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Tham gia phòng ghép trận này?', message: 'Bạn sẽ trở thành thành viên và nhận thông báo của phòng.', confirmLabel: 'Tham gia', tone: 'success' })) && void run(() => acceptMatchInvitation(token, matchId), () => navigate('/my-matches'))} type="button">
                       <Check className="h-4 w-4" /> Chấp nhận
                     </button>
                   </div>
@@ -1306,10 +1304,10 @@ export const MatchDetail = () => {
               )}
               {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng hoặc thành viên trong phòng duyệt</div>}
               {isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
-                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={() => token && window.confirm('Bạn có chắc chắn muốn rời phòng ghép trận này?') && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
+                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Rời phòng ghép trận này?', message: 'Slot của bạn sẽ được mở lại cho người khác.', confirmLabel: 'Rời phòng', tone: 'danger' })) && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
               )}
               {match.isHost && match.status === 'Recruiting' && isFull && (
-                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && window.confirm('Xác nhận chốt danh sách và chuyển phòng sang sẵn sàng đặt sân?') && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
+                <button className="community-button mt-4 w-full" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Chốt danh sách và chuyển sang sẵn sàng đặt sân?', message: 'Phòng sẽ dừng nhận thành viên mới và có thể tiến hành đặt sân.', confirmLabel: 'Chốt danh sách', tone: 'default' })) && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
               )}
             </section>
           )}
@@ -1437,6 +1435,22 @@ export const MatchDetail = () => {
           onClose={() => setSelectedProfilePlayer(null)}
           playerId={selectedProfilePlayer.playerId}
           roleLabel={selectedProfilePlayer.isHost ? 'Chủ phòng' : 'Thành viên'}
+        />
+      )}
+
+      {scheduleConflicts.length > 0 && (
+        <ScheduleConflictDialog
+          conflicts={scheduleConflicts}
+          isBusy={isBusy}
+          onCancel={() => {
+            setScheduleConflicts([]);
+            setBookingSubmitError('Booking chưa được tạo vì lịch đã chọn đang trùng với lịch của thành viên.');
+          }}
+          onConfirm={async () => {
+            setScheduleConflicts([]);
+            await createBooking(true);
+          }}
+          subject="participants"
         />
       )}
     </CommunityPage>

@@ -20,6 +20,7 @@ export const MainLayout = () => {
   );
   const isProductWorkspace = (
     isCommunityWorkspace
+    || pathname === '/my-schedule'
     || pathname === '/my-bookings'
     || pathname.startsWith('/my-tickets')
     || pathname.startsWith('/ticket-sessions')

@@ -35,6 +35,7 @@ const QueueDetail = lazyPage(() => import('@/pages/matches/QueueDetail'), 'Queue
 const Messages = lazyPage(() => import('@/pages/messages/Messages'), 'Messages');
 const Notifications = lazyPage(() => import('@/pages/notifications/Notifications'), 'Notifications');
 const Profile = lazyPage(() => import('@/pages/profile/Profile'), 'Profile');
+const MySchedule = lazyPage(() => import('@/pages/schedule/MySchedule'), 'MySchedule');
 const CreateReview = lazyPage(() => import('@/pages/reviews/CreateReview'), 'CreateReview');
 const TicketSessions = lazyPage(() => import('@/pages/tickets/TicketSessions'), 'TicketSessions');
 const TicketSessionDetail = lazyPage(() => import('@/pages/tickets/TicketSessionDetail'), 'TicketSessionDetail');
@@ -90,6 +91,7 @@ export const PlayerApp = () => (
           <Route path="opponents/queue/:id" element={<QueueDetail />} />
           <Route path="matches/:id" element={<MatchDetail />} />
           <Route path="my-matches" element={<MyMatches />} />
+          <Route path="my-schedule" element={<MySchedule />} />
           <Route path="my-bookings" element={<MyBookings />} />
           <Route path="my-tickets" element={<MyTickets />} />
           <Route path="my-tickets/:id" element={<MyTicketDetail />} />

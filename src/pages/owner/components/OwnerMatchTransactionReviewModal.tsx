@@ -13,6 +13,7 @@ import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { usePaymentRealtime } from '../../../hooks/usePaymentRealtime';
 import { preloadReceiptImage } from '../../../utils/receiptImage';
 import { OwnerBookingSlotSummary, mergeAdjacentBookingSlots } from './OwnerBookingSlotSummary';
+import { useConfirm } from '../../../components/ui/ConfirmDialogRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -56,6 +57,7 @@ export const OwnerMatchTransactionReviewModal = ({
   onUpdated,
 }: OwnerMatchTransactionReviewModalProps) => {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [payments, setPayments] = useState<BankTransfer[]>(initialPayments ?? []);
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -115,7 +117,12 @@ export const OwnerMatchTransactionReviewModal = ({
 
   const approve = async (payment: BankTransfer) => {
     if (!token) return;
-    if (!window.confirm(`Chấp nhận thanh toán của ${payment.playerName}?`)) return;
+    if (!(await confirm({
+      title: `Xác nhận đã nhận tiền của ${payment.playerName}?`,
+      message: 'Phần đóng góp của người chơi này sẽ được ghi nhận là đã thanh toán.',
+      confirmLabel: 'Đã nhận đủ',
+      tone: 'success',
+    }))) return;
     setBusyId(payment.paymentId);
     setError('');
     try {
@@ -134,7 +141,12 @@ export const OwnerMatchTransactionReviewModal = ({
   const reject = async (payment: BankTransfer) => {
     const reason = rejectReasons[payment.paymentId]?.trim() ?? '';
     if (!token || reason.length < 3) return;
-    if (!window.confirm(`Từ chối thanh toán của ${payment.playerName}?`)) return;
+    if (!(await confirm({
+      title: `Từ chối thanh toán của ${payment.playerName}?`,
+      message: 'Người chơi sẽ nhận được thông báo và cần chuyển khoản lại.',
+      confirmLabel: 'Từ chối',
+      tone: 'danger',
+    }))) return;
     setBusyId(payment.paymentId);
     setError('');
     try {

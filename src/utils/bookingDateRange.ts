@@ -17,7 +17,7 @@ const parseDateKey = (value: string) => {
     : null;
 };
 
-const toDateKey = (date: Date) => [
+export const toDateKey = (date: Date) => [
   date.getFullYear(),
   String(date.getMonth() + 1).padStart(2, '0'),
   String(date.getDate()).padStart(2, '0'),
@@ -43,6 +43,24 @@ export const datesForMonthDuration = (startDateKey: string, months: number) => {
     dates.push(toDateKey(date));
   }
   return dates;
+};
+
+/**
+ * The 42 cells of a Monday-first month grid for `monthKey` (`YYYY-MM-01`).
+ *
+ * Always six weeks, so the grid keeps one height across months, and so the schedule page and its
+ * route prefetch derive the exact same date range — a mismatch would make the prefetch a cache miss.
+ */
+export const monthGridDays = (monthKey: string) => {
+  const source = parseDateKey(monthKey) ?? new Date();
+  const year = source.getFullYear();
+  const monthIndex = source.getMonth();
+  const leading = (new Date(year, monthIndex, 1).getDay() + 6) % 7;
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(year, monthIndex, 1 - leading + index);
+    return { key: toDateKey(date), date, inMonth: date.getMonth() === monthIndex };
+  });
 };
 
 export const formatDateKey = (dateKey: string) => {

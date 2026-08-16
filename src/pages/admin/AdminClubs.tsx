@@ -13,6 +13,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
@@ -38,6 +39,8 @@ const formatDateTime = (value: string) =>
 
 export const AdminClubs = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -74,11 +77,25 @@ export const AdminClubs = () => {
 
   const moderate = async (club: AdminClub, isSuspended: boolean) => {
     if (!token) return;
-    const suspensionReason = isSuspended
-      ? window.prompt('Lý do tạm khóa câu lạc bộ:', club.suspensionReason ?? '')?.trim()
-      : '';
-    if (isSuspended && suspensionReason === undefined) return;
-    if (!window.confirm(`Xác nhận ${isSuspended ? 'tạm khóa' : 'mở lại'} câu lạc bộ này?`)) return;
+    let suspensionReason = '';
+    if (isSuspended) {
+      const typed = await prompt({
+        title: 'Tạm khóa câu lạc bộ này?',
+        message: 'Thành viên sẽ không truy cập được câu lạc bộ cho tới khi mở lại.',
+        label: 'Lý do tạm khóa',
+        defaultValue: club.suspensionReason ?? '',
+        required: true,
+        confirmLabel: 'Tạm khóa',
+        tone: 'danger',
+      });
+      if (typed === null) return;
+      suspensionReason = typed.trim();
+    } else if (!(await confirm({
+      title: 'Mở lại câu lạc bộ này?',
+      message: 'Câu lạc bộ sẽ hoạt động trở lại bình thường.',
+      confirmLabel: 'Mở lại',
+      tone: 'success',
+    }))) return;
 
     setBusyId(club.groupId);
     try {

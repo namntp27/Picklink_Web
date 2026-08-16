@@ -14,6 +14,7 @@ import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 import { StatusBadge } from './components/StatusBadge';
 import type { Tone } from './types';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -65,6 +66,8 @@ const formatDateTime = (value: string) =>
 
 export const AdminBookings = () => {
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -99,12 +102,16 @@ export const AdminBookings = () => {
 
   const cancelBooking = async (booking: AdminBookingSummary) => {
     if (!token) return;
-    const reason = window.prompt(
-      `Lý do hủy booking ${booking.bookingCode || `#${booking.bookingId}`} (dùng cho tranh chấp/hoàn tiền):`,
-      '',
-    )?.trim();
+    const reason = (await prompt({
+      title: `Hủy booking ${booking.bookingCode || `#${booking.bookingId}`}?`,
+      message: 'Booking sẽ chuyển sang trạng thái đã hủy và người chơi nhận được thông báo.',
+      label: 'Lý do hủy',
+      placeholder: 'Dùng cho tranh chấp và hoàn tiền về sau...',
+      required: true,
+      confirmLabel: 'Hủy booking',
+      tone: 'danger',
+    }))?.trim();
     if (!reason) return;
-    if (!window.confirm(`Xác nhận hủy booking ${booking.bookingCode || `#${booking.bookingId}`}?`)) return;
 
     setBusyId(booking.bookingId);
     try {
