@@ -27,3 +27,16 @@ export const createBookingReview = (token: string, bookingId: number, input: Cre
     method: 'POST',
     body: JSON.stringify(input),
   }, token);
+
+// A rating belongs to the venue, so revising one is addressed by venue rather than by booking.
+export const getVenueReview = (token: string, venueId: number) =>
+  apiRequest<BookingReview>(`/api/player-reviews/venue/${venueId}`, {}, token);
+
+export const updateVenueReview = (token: string, venueId: number, input: CreateBookingReviewInput) =>
+  apiRequest<BookingReview>(`/api/player-reviews/venue/${venueId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  }, token);
+
+export const getMatchVenueReviews = (token: string, matchId: number) =>
+  apiRequest<BookingReview[]>(`/api/matches/${matchId}/venue-reviews`, {}, token);

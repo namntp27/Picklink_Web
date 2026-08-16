@@ -306,7 +306,18 @@ export const MatchDetail = () => {
   const [loadedBookingRoundsTotalPages, setLoadedBookingRoundsTotalPages] = useState(1);
   const [isLoadingMoreBookingRounds, setIsLoadingMoreBookingRounds] = useState(false);
   const [bookingRoundsError, setBookingRoundsError] = useState('');
-  const canBookAnotherRound = match?.status === 'ReadyToBook' || match?.status === 'Booked';
+  // The server owns the rule: the previous round must be played out and reviewed
+  // (every team-mate plus the venue) before this player may book the next one.
+  const canBookAnotherRound = Boolean(match?.canBookNextRound);
+  const nextRoundBlockReason = match?.nextRoundBlockReason ?? '';
+  // A round opens for review the moment it ends, well before the auto-complete sweep.
+  const hasEndedRound = Boolean(match?.bookingCheckIns.some((booking) =>
+    booking.bookingStatus === 'Completed' || new Date(booking.endTime).getTime() <= bookingClock));
+  // Reviews submitted in the modal are what unlock the next round, so refresh the gate on close.
+  const closePostMatchReviews = () => {
+    setShowPostMatchReviews(false);
+    void loadMatch();
+  };
 
   useEffect(() => {
     if (!match) return;
@@ -1065,9 +1076,32 @@ export const MatchDetail = () => {
           </section>
           </div>
 
-          {isApprovedMember && match.status === 'Booked' && (
+          {isApprovedMember && (canBookAnotherRound
+            ? match.status === 'Booked' || match.status === 'Completed'
+            : Boolean(nextRoundBlockReason)) && (
             <section aria-live="polite" className="match-booking-notice" role="status">
-              <strong>{bookingHasEnded ? 'Lượt booking gần nhất đã hết giờ.' : 'Booking đã thanh toán thành công.'}</strong> Bạn có thể chọn slot bên dưới để tạo booking tiếp theo ngay.
+              {canBookAnotherRound ? (
+                <>
+                  <strong>
+                    {match.status === 'Completed'
+                      ? 'Trận đã hoàn thành.'
+                      : bookingHasEnded ? 'Lượt booking gần nhất đã hết giờ.' : 'Booking đã thanh toán thành công.'}
+                  </strong> Bạn có thể chọn slot bên dưới để tạo booking tiếp theo ngay.
+                </>
+              ) : (
+                <>
+                  <strong>Chưa thể đặt lượt tiếp theo.</strong> {nextRoundBlockReason}
+                  {hasEndedRound && token && (
+                    <button
+                      className="community-button-secondary mt-2 w-full py-2 !text-[12px]"
+                      onClick={() => setShowPostMatchReviews(true)}
+                      type="button"
+                    >
+                      <Star className="h-4 w-4" /> Đánh giá ngay
+                    </button>
+                  )}
+                </>
+              )}
             </section>
           )}
 
@@ -1365,7 +1399,7 @@ export const MatchDetail = () => {
               )}
             </div>
           )}
-          {token && isApprovedMember && match.status === 'Completed' && (
+          {token && isApprovedMember && hasEndedRound && (
             <button
               className="community-button-secondary mt-2 w-full py-3"
               onClick={() => setShowPostMatchReviews(true)}
@@ -1379,9 +1413,9 @@ export const MatchDetail = () => {
       </main>
 
       {showPostMatchReviews && token && (
-        <ModalDialog aria-labelledby="post-match-review-title" className="w-[calc(100%-2rem)] max-w-5xl overflow-y-auto rounded-2xl bg-white p-2 shadow-2xl sm:p-3" onRequestClose={() => setShowPostMatchReviews(false)}>
+        <ModalDialog aria-labelledby="post-match-review-title" className="w-[calc(100%-2rem)] max-w-5xl overflow-y-auto rounded-2xl bg-white p-2 shadow-2xl sm:p-3" onRequestClose={closePostMatchReviews}>
           <div className="flex justify-end px-2 pt-1">
-            <button aria-label="Đóng đánh giá" className="rounded-lg p-2 text-[#526158] hover:bg-[#eef8e6]" onClick={() => setShowPostMatchReviews(false)} type="button">
+            <button aria-label="Đóng đánh giá" className="rounded-lg p-2 text-[#526158] hover:bg-[#eef8e6]" onClick={closePostMatchReviews} type="button">
               <X className="h-5 w-5" />
             </button>
           </div>

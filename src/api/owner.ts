@@ -86,18 +86,30 @@ export type OwnerScheduleItem = {
   endTime: string;
   status: string;
   customerName?: string | null;
+  customerPhone?: string | null;
   customerUserId?: number | null;
   amount: number;
   paymentStatus?: string | null;
   checkInStatus?: string | null;
   canCancel: boolean;
+  requiresRefund?: boolean;
+  refundPending?: boolean;
   isOwnerBlock: boolean;
   isOwnerEntry: boolean;
   entryType?: OwnerScheduleDisplayEntryType | null;
   title?: string | null;
 };
 
-export type OwnerScheduleEntryType = 'Blocked' | 'Maintenance' | 'Event';
+// "Maintenance" is only kept for rows written before it merged into "Blocked".
+export type OwnerScheduleEntryType = 'Blocked' | 'Maintenance' | 'Event' | 'WalkIn' | 'WalkInUnpaid';
+export type OwnerWalkInPaymentMethod = 'Cash' | 'BankTransfer' | 'Unpaid';
+
+export type OwnerPlayerSearchResult = {
+  playerId: number;
+  userId: number;
+  playerName: string;
+  phoneNumber?: string | null;
+};
 export type OwnerScheduleDisplayEntryType = OwnerScheduleEntryType | 'TicketSession';
 
 export type OwnerScheduleSlot = {
@@ -315,10 +327,24 @@ export const getOwnerSchedule = async (token: string, date: string, view: 'day' 
   };
 };
 
-export const createOwnerScheduleEntry = (token: string, input: { courtId: number; startTime: string; endTime: string; entryType: OwnerScheduleEntryType; title?: string }) => apiRequest<OwnerScheduleItem>('/api/owner/schedule/entries', {
+export const createOwnerScheduleEntry = (token: string, input: {
+  courtId: number;
+  startTime: string;
+  endTime: string;
+  entryType: OwnerScheduleEntryType;
+  title?: string;
+  customerPlayerId?: number;
+  customerName?: string;
+  customerPhone?: string;
+  amount?: number;
+  paymentMethod?: OwnerWalkInPaymentMethod;
+}) => apiRequest<OwnerScheduleItem>('/api/owner/schedule/entries', {
   method: 'POST',
   body: JSON.stringify(input),
 }, token);
+
+export const searchOwnerPlayers = (token: string, query: string) =>
+  apiRequest<OwnerPlayerSearchResult[]>(`/api/owner/players/search?query=${encodeURIComponent(query)}`, {}, token);
 
 export const deleteOwnerScheduleEntry = (token: string, bookingId: number) => apiRequest<void>(`/api/owner/schedule/entries/${bookingId}`, { method: 'DELETE' }, token);
 
@@ -329,10 +355,16 @@ export const createOwnerScheduleBlock = (token: string, input: { courtId: number
 
 export const deleteOwnerScheduleBlock = (token: string, bookingId: number) => apiRequest<void>(`/api/owner/schedule/blocks/${bookingId}`, { method: 'DELETE' }, token);
 
-export const updateOwnerBookingStatus = (token: string, bookingId: number, status: 'Confirmed' | 'Cancelled') => apiRequest<{ bookingId: number; status: string }>(`/api/owner/bookings/${bookingId}/status`, {
+export const updateOwnerBookingStatus = (token: string, bookingId: number, status: 'Confirmed' | 'Cancelled', reason?: string) => apiRequest<{ bookingId: number; status: string }>(`/api/owner/bookings/${bookingId}/status`, {
   method: 'PATCH',
-  body: JSON.stringify({ status }),
+  body: JSON.stringify({ status, reason }),
 }, token);
+
+export const markOwnerBookingRefunded = (token: string, bookingId: number, reference?: string) =>
+  apiRequest<void>(`/api/owner/bookings/${bookingId}/refund`, {
+    method: 'POST',
+    body: JSON.stringify({ reference }),
+  }, token);
 
 export const getOwnerStaff = (token: string) => apiRequest<OwnerStaffAssignment[]>('/api/owner/staff', {}, token);
 

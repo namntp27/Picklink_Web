@@ -193,6 +193,8 @@ export type MatchDetailResponse = MatchSummary & {
   myTransferContent?: string | null;
   myPaymentRejectionReason?: string | null;
   participants: MatchParticipant[];
+  canBookNextRound?: boolean;
+  nextRoundBlockReason?: string | null;
 };
 
 export type MatchMessage = {
@@ -500,5 +502,14 @@ export const reviewPlayer = (
   input: { score: number; comment?: string },
 ) => apiRequest<MatchPlayerReview>(`/api/matches/${matchId}/reviews/${playerId}`, {
   method: 'POST',
+  body: JSON.stringify(input),
+}, token);
+export const updatePlayerReview = (
+  token: string,
+  matchId: number,
+  playerId: number,
+  input: { score: number; comment?: string },
+) => apiRequest<MatchPlayerReview>(`/api/matches/${matchId}/reviews/${playerId}`, {
+  method: 'PUT',
   body: JSON.stringify(input),
 }, token);

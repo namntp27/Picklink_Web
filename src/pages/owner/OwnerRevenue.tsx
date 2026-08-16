@@ -19,6 +19,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { OwnerShell } from './components/OwnerShell';
+import { PaginationControls } from '../../components/PaginationControls';
 import type { BookingDetail } from '../../data/bookings';
 import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
 import { getOwnerRevenueReport } from '../../api/owner';
@@ -30,6 +31,8 @@ import { ownerBookingToDetail } from './ownerBookingAdapter';
 
 type RevenuePeriod = 'today' | 'week' | 'month';
 type TransactionStatus = 'all' | 'paid' | 'pending' | 'failed' | 'refunded';
+
+const historyPageSize = 10;
 
 type PaymentTransaction = {
   id: string;
@@ -169,6 +172,7 @@ export const OwnerRevenue = () => {
   const [activePeriod, setActivePeriod] = useState<RevenuePeriod>('month');
   const [activeStatus, setActiveStatus] = useState<TransactionStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
   const periodDates = useMemo(() => getDateRange(activePeriod), [activePeriod]);
   const from = periodDates[0];
   const to = periodDates[periodDates.length - 1];
@@ -218,6 +222,21 @@ export const OwnerRevenue = () => {
       return matchesStatus && matchesKeyword;
     });
   }, [activeStatus, periodTransactions, searchTerm]);
+
+  // Clamped rather than reset in an effect so a realtime reload that shrinks the list lands on
+  // the last page instead of flashing an empty table.
+  const historyTotalPages = Math.max(1, Math.ceil(filteredTransactions.length / historyPageSize));
+  const currentHistoryPage = Math.min(historyPage, historyTotalPages);
+  const historyPagination = {
+    page: currentHistoryPage,
+    pageSize: historyPageSize,
+    totalCount: filteredTransactions.length,
+    totalPages: historyTotalPages,
+  };
+  const pagedTransactions = filteredTransactions.slice(
+    (currentHistoryPage - 1) * historyPageSize,
+    currentHistoryPage * historyPageSize,
+  );
 
   const paidTransactions = periodTransactions.filter((transaction) => transaction.status === 'paid');
   const pendingTransactions = periodTransactions.filter((transaction) => transaction.status === 'pending');
@@ -314,7 +333,7 @@ export const OwnerRevenue = () => {
                       : 'border-outline-variant bg-white text-on-surface hover:bg-surface-container-low'
                   }`}
                   key={option.value}
-                  onClick={() => setActivePeriod(option.value)}
+                  onClick={() => { setActivePeriod(option.value); setHistoryPage(1); }}
                   type="button"
                 >
                   <span className="text-[14px] font-bold">{option.label}</span>
@@ -429,7 +448,7 @@ export const OwnerRevenue = () => {
                       <input
                         aria-label="Tìm giao dịch"
                         className="h-11 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-9 pr-3 text-[14px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onChange={(event) => { setSearchTerm(event.target.value); setHistoryPage(1); }}
                         placeholder="Tìm mã đơn, khách, sân..."
                         type="text"
                         value={searchTerm}
@@ -448,7 +467,7 @@ export const OwnerRevenue = () => {
                               : 'border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
                           }`}
                           key={option.value}
-                          onClick={() => setActiveStatus(option.value)}
+                          onClick={() => { setActiveStatus(option.value); setHistoryPage(1); }}
                           type="button"
                         >
                           {option.label}
@@ -471,7 +490,7 @@ export const OwnerRevenue = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant">
-                        {filteredTransactions.map((transaction) => {
+                        {pagedTransactions.map((transaction) => {
                           const StatusIcon = getStatusIcon(transaction.status);
 
                           return (
@@ -527,6 +546,13 @@ export const OwnerRevenue = () => {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* PaginationControls hides itself on a single page, so the framing must too. */}
+                  {filteredTransactions.length > historyPageSize && (
+                    <div className="border-t border-outline-variant p-4">
+                      <PaginationControls onPageChange={setHistoryPage} page={historyPagination} />
+                    </div>
+                  )}
                 </section>
               </div>
 

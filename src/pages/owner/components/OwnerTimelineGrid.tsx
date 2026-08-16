@@ -15,7 +15,8 @@ const statusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Holding: 'Đang giữ',
   Booked: 'Đã đặt',
   Blocked: 'Khoá',
-  Maintenance: 'Bảo trì',
+  // Maintenance is merged into Blocked; the key only survives for older payloads.
+  Maintenance: 'Khoá',
   Event: 'Sự kiện',
   TicketSession: 'Xé vé',
   Closed: 'Khoá',
@@ -71,7 +72,7 @@ export const OwnerTimelineGrid = ({
             {item.label}
           </span>
         ))}
-        <span className="text-[#e2ff57]">Click ô trống để khoá, bảo trì hoặc tạo sự kiện</span>
+        <span className="text-[#e2ff57]">Click ô trống để khoá, đặt tại sân hoặc tạo sự kiện</span>
       </div>
 
       <p className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">

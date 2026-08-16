@@ -17,7 +17,7 @@ import {
   UserRound,
   XCircle,
 } from 'lucide-react';
-import { getOwnerBooking, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
+import { getOwnerBooking, markOwnerBookingRefunded, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -51,6 +51,8 @@ export const OwnerBookingDetail = () => {
   const confirm = useConfirm();
   const bookingId = Number(id);
   const [isBusy, setIsBusy] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [refundReference, setRefundReference] = useState('');
   const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -97,17 +99,41 @@ export const OwnerBookingDetail = () => {
       ? `Xác nhận booking ${booking.bookingCode}?` : `Từ chối/hủy booking ${booking.bookingCode}?`;
     if (!(await confirm({
       title: message,
-      message: status === 'Confirmed' ? 'Người chơi sẽ nhận thông báo booking đã được xác nhận.' : 'Slot sẽ được trả về trạng thái trống và người chơi nhận được thông báo.',
+      message: status === 'Confirmed'
+        ? 'Người chơi sẽ nhận thông báo booking đã được xác nhận.'
+        : booking.paymentStatus === 'Paid'
+          ? 'Khoản đã thanh toán sẽ chuyển sang chờ hoàn tiền và người chơi nhận được thông báo kèm lý do.'
+          : 'Slot sẽ được trả về trạng thái trống và người chơi nhận được thông báo kèm lý do.',
       confirmLabel: status === 'Confirmed' ? 'Xác nhận booking' : 'Hủy booking',
       tone: status === 'Confirmed' ? 'success' : 'danger',
     }))) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
-      await updateOwnerBookingStatus(token, booking.bookingId, status);
+      await updateOwnerBookingStatus(token, booking.bookingId, status, cancelReason.trim() || undefined);
       setSuccess(status === 'Confirmed' ? 'Đã xác nhận booking.' : 'Đã hủy booking.');
+      setCancelReason('');
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể cập nhật booking.');
+    } finally { setIsBusy(false); }
+  };
+
+  const markRefunded = async () => {
+    if (!token || !booking) return;
+    if (!(await confirm({
+      title: `Đánh dấu đã hoàn tiền booking ${booking.bookingCode}?`,
+      message: 'Chỉ đánh dấu sau khi đã thực sự chuyển tiền lại cho người chơi.',
+      confirmLabel: 'Đã hoàn tiền',
+      tone: 'success',
+    }))) return;
+    setIsBusy(true); setError(''); setSuccess('');
+    try {
+      await markOwnerBookingRefunded(token, booking.bookingId, refundReference.trim() || undefined);
+      setSuccess('Đã ghi nhận hoàn tiền.');
+      setRefundReference('');
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể đánh dấu hoàn tiền.');
     } finally { setIsBusy(false); }
   };
 
@@ -119,14 +145,30 @@ export const OwnerBookingDetail = () => {
   const courts = Array.from(new Set(bookingSlots.map((slot) => `Sân ${slot.courtNumber}`))).join(', ');
   const playTime = bookingSlots.map((slot) => `Sân ${slot.courtNumber}: ${time(slot.startTime)} - ${time(slot.endTime)}`).join(' · ');
   const playerLocation = [booking.playerCommune, booking.playerCity].filter(Boolean).join(', ') || 'Chưa cập nhật';
-  const canCancel = booking.paymentStatus !== 'Paid' && booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired';
+  // Đơn đã thanh toán hủy được, khoản đã thu chuyển sang chờ hoàn tiền.
+  const canCancel = booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired';
+  const isRefundPending = booking.paymentStatus === 'RefundPending';
 
   return (
     <OwnerShell activeId="bookings">
       <section className="owner-page-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div><Link className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" to="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Link><h1 className="mt-3 font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
-        <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{canCancel && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Cancelled')} type="button">Từ chối / Hủy</button>}</div>
-        {booking.paymentStatus === 'Paid' && booking.bookingStatus !== 'Cancelled' && booking.bookingStatus !== 'Expired' && <p className="text-[12px] font-bold text-red-600">Booking đã thanh toán chỉ có thể hủy khi có quy trình hoàn tiền.</p>}
+        <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{canCancel && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy || !cancelReason.trim()} onClick={() => void updateStatus('Cancelled')} title={cancelReason.trim() ? undefined : 'Nhập lý do hủy trước'} type="button">Từ chối / Hủy</button>}</div>
+        {canCancel && (
+          <label className="w-full text-[12px] font-bold text-on-surface-variant lg:max-w-md">
+            Lý do hủy {booking.paymentStatus === 'Paid' && <span className="text-amber-700">· đơn đã thanh toán, hủy xong phải hoàn tiền</span>}
+            <textarea className="mt-1 h-14 w-full resize-none rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-normal text-on-surface" maxLength={500} onChange={(event) => setCancelReason(event.target.value)} placeholder="Bắt buộc khi hủy, sẽ gửi cho người chơi" value={cancelReason} />
+          </label>
+        )}
+        {isRefundPending && (
+          <div className="w-full rounded-lg border border-amber-300 bg-amber-50 p-3 lg:max-w-md">
+            <p className="text-[13px] font-bold text-amber-900">Booking đã hủy, còn nợ khách khoản đã thanh toán.</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input aria-label="Tham chiếu chuyển khoản hoàn tiền" className="min-w-[160px] flex-1 rounded-lg border border-outline-variant px-3 py-2 text-[13px]" maxLength={200} onChange={(event) => setRefundReference(event.target.value)} placeholder="Mã giao dịch hoàn tiền (không bắt buộc)" value={refundReference} />
+              <button className="rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void markRefunded()} type="button">Đã hoàn tiền</button>
+            </div>
+          </div>
+        )}
       </section>
 
       {(error || success) && <div className={`rounded-lg border px-4 py-3 text-[13px] font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{error || success}</div>}
