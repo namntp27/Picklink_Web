@@ -45,6 +45,23 @@ test('listAdminUsers sends admin filters and bearer token', async () => {
   assert.equal((calls[0].init?.headers as Headers).get('Authorization'), 'Bearer access-token');
 });
 
+test('createAdminVenueOwner calls the protected owner-account endpoint', async () => {
+  await adminUsers.createAdminVenueOwner('access-token', {
+    username: 'Owner Test',
+    email: 'owner@example.com',
+    phoneNumber: '0901234567',
+    password: 'Password1!',
+  });
+
+  assert.equal(calls[0].url, '/api/admin/users/owners');
+  assert.equal(calls[0].init?.method, 'POST');
+  assert.equal(calls[0].init?.body, JSON.stringify({
+    username: 'Owner Test',
+    email: 'owner@example.com',
+    phoneNumber: '0901234567',
+    password: 'Password1!',
+  }));
+});
 test('lock and unlock user call real admin endpoints', async () => {
   await adminUsers.lockAdminUser(12, 'spam reports', 'access-token');
   await adminUsers.unlockAdminUser(12, 'access-token');

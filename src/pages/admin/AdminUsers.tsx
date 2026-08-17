@@ -8,10 +8,13 @@ import {
   Search,
   ShieldCheck,
   Unlock,
+  UserPlus,
   UserRound,
   Users,
+  X,
 } from 'lucide-react';
 import {
+  createAdminVenueOwner,
   listAdminUsers,
   lockAdminUser,
   unlockAdminUser,
@@ -22,6 +25,7 @@ import {
 import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
+import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
@@ -86,6 +90,10 @@ export const AdminUsers = () => {
   const [lockedOnly, setLockedOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [busyUserId, setBusyUserId] = useState<number | null>(null);
+  const [createOwnerOpen, setCreateOwnerOpen] = useState(false);
+  const [ownerDraft, setOwnerDraft] = useState({ username: '', email: '', phoneNumber: '', password: '' });
+  const [creatingOwner, setCreatingOwner] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -102,7 +110,7 @@ export const AdminUsers = () => {
     refresh: loadUsers,
     setData,
   } = useApiQuery(
-    ['admin-users', token, debouncedSearch, role, lockedOnly, page],
+    ['admin-users', token, debouncedSearch, role, lockedOnly, page, reloadKey],
     () => {
       const params: AdminUserListParams = {
         search: debouncedSearch,
@@ -167,6 +175,28 @@ export const AdminUsers = () => {
     }
   };
 
+  const createVenueOwner = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) return;
+
+    setCreatingOwner(true);
+    try {
+      await createAdminVenueOwner(token, ownerDraft);
+      setCreateOwnerOpen(false);
+      setOwnerDraft({ username: '', email: '', phoneNumber: '', password: '' });
+      setSearch('');
+      setDebouncedSearch('');
+      setRole('VenueOwner');
+      setLockedOnly(false);
+      setPage(1);
+      setReloadKey((value) => value + 1);
+      notify('Đã tạo tài khoản Chủ sân.', 'success');
+    } catch (requestError) {
+      notify(requestError instanceof ApiError ? requestError.message : 'Không thể tạo tài khoản Chủ sân.', 'error');
+    } finally {
+      setCreatingOwner(false);
+    }
+  };
   const lockedOnPage = useMemo(
     () => data.items.filter((item) => item.isLocked).length,
     [data.items],
@@ -184,14 +214,19 @@ export const AdminUsers = () => {
             Xem dữ liệu người dùng thật, lọc theo vai trò và khóa hoặc mở khóa tài khoản khi cần xử lý vận hành.
           </p>
         </div>
-        <div className="grid min-w-64 grid-cols-2 overflow-hidden rounded-xl border border-outline-variant bg-white">
-          <div className="p-3">
-            <p className="text-2xl font-bold text-primary">{data.totalCount}</p>
-            <p className="text-xs text-on-surface-variant">tài khoản phù hợp</p>
-          </div>
-          <div className="border-l border-outline-variant p-3">
-            <p className="text-2xl font-bold text-error">{lockedOnPage}</p>
-            <p className="text-xs text-on-surface-variant">đang khóa trên trang</p>
+        <div className="flex flex-col gap-3 md:items-end">
+          <button className={primaryButton} onClick={() => setCreateOwnerOpen(true)} type="button">
+            <UserPlus className="h-4 w-4" />Tạo Chủ sân
+          </button>
+          <div className="grid min-w-64 grid-cols-2 overflow-hidden rounded-xl border border-outline-variant bg-white">
+            <div className="p-3">
+              <p className="text-2xl font-bold text-primary">{data.totalCount}</p>
+              <p className="text-xs text-on-surface-variant">tài khoản phù hợp</p>
+            </div>
+            <div className="border-l border-outline-variant p-3">
+              <p className="text-2xl font-bold text-error">{lockedOnPage}</p>
+              <p className="text-xs text-on-surface-variant">đang khóa trên trang</p>
+            </div>
           </div>
         </div>
       </section>
@@ -347,6 +382,51 @@ export const AdminUsers = () => {
           <Ban className="mt-0.5 h-5 w-5 shrink-0" />
           <p className="font-semibold">Đang lọc tài khoản bị khóa. Tắt bộ lọc để xem toàn bộ người dùng.</p>
         </div>
+      )}
+      {createOwnerOpen && (
+        <ModalDialog
+          aria-labelledby="create-owner-title"
+          canClose={!creatingOwner}
+          className="w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white shadow-2xl"
+          closeOnBackdrop={!creatingOwner}
+          onRequestClose={() => setCreateOwnerOpen(false)}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-outline-variant p-5">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Tài khoản mới</p>
+              <h2 className="mt-1 text-xl font-bold" id="create-owner-title">Tạo tài khoản Chủ sân</h2>
+            </div>
+            <button aria-label="Đóng" className="rounded-lg p-2 hover:bg-surface-container-low" disabled={creatingOwner} onClick={() => setCreateOwnerOpen(false)} type="button">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <form className="space-y-4 p-5" onSubmit={createVenueOwner}>
+            <label className="block">
+              <span className="text-sm font-bold">Tên người dùng *</span>
+              <input autoComplete="name" className={`mt-2 ${inputClass}`} disabled={creatingOwner} maxLength={100} minLength={3} onChange={(event) => setOwnerDraft({ ...ownerDraft, username: event.target.value })} required value={ownerDraft.username} />
+            </label>
+            <label className="block">
+              <span className="text-sm font-bold">Email *</span>
+              <input autoComplete="email" className={`mt-2 ${inputClass}`} disabled={creatingOwner} maxLength={255} onChange={(event) => setOwnerDraft({ ...ownerDraft, email: event.target.value })} required type="email" value={ownerDraft.email} />
+            </label>
+            <label className="block">
+              <span className="text-sm font-bold">Số điện thoại *</span>
+              <input autoComplete="tel" className={`mt-2 ${inputClass}`} disabled={creatingOwner} maxLength={30} onChange={(event) => setOwnerDraft({ ...ownerDraft, phoneNumber: event.target.value })} required type="tel" value={ownerDraft.phoneNumber} />
+            </label>
+            <label className="block">
+              <span className="text-sm font-bold">Mật khẩu *</span>
+              <input autoComplete="new-password" className={`mt-2 ${inputClass}`} disabled={creatingOwner} minLength={8} onChange={(event) => setOwnerDraft({ ...ownerDraft, password: event.target.value })} required type="password" value={ownerDraft.password} />
+              <span className="mt-1 block text-xs text-on-surface-variant">Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</span>
+            </label>
+            <div className="flex justify-end gap-3 pt-1">
+              <button className={outlineButton} disabled={creatingOwner} onClick={() => setCreateOwnerOpen(false)} type="button">Hủy</button>
+              <button className={primaryButton} disabled={creatingOwner} type="submit">
+                {creatingOwner ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                Tạo tài khoản
+              </button>
+            </div>
+          </form>
+        </ModalDialog>
       )}
     </AdminShell>
   );

@@ -50,6 +50,19 @@ export const listAdminUsers = (
   );
 };
 
+export type AdminCreateVenueOwnerInput = {
+  username: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+};
+
+export const createAdminVenueOwner = (accessToken: string, input: AdminCreateVenueOwnerInput) =>
+  apiRequest<AdminUserSummary>(
+    '/api/admin/users/owners',
+    { method: 'POST', body: JSON.stringify(input) },
+    accessToken,
+  );
 export const lockAdminUser = (
   userId: number,
   reason: string,
