@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
-const backLinkSource = readFileSync(new URL('../../../src/pages/owner/components/OwnerBackLink.tsx', import.meta.url), 'utf8');
+const backLinkSource = readFileSync(new URL('../../../src/components/navigation/HistoryBackLink.tsx', import.meta.url), 'utf8');
 const ownerPages = [
   'OwnerBookingDetail.tsx',
   'OwnerVenueDetail.tsx',
@@ -12,7 +12,7 @@ const ownerPages = [
 ];
 
 test('owner back links preserve the page that opened the detail', () => {
-  assert.ok(backLinkSource.includes("location.key === 'default'"));
+  assert.ok(backLinkSource.includes("key !== 'default'"));
   assert.ok(backLinkSource.includes('navigate(-1)'));
   assert.ok(backLinkSource.includes('to={fallback}'));
   for (const page of ownerPages) {

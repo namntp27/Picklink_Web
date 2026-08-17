@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, Globe2, Image as ImageIcon, Loader2, MessageCircle, Send, ThumbsUp, UserRound, Users, X } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import { getMyProfile } from '../../api/profile';
 import { deleteUploadedMedia, uploadToCloudinary } from '../../api/cloudinary';
 import { createGlobalPost, createGroupPost, getGroups, type CommunityGroup } from '../../api/community';
@@ -112,7 +113,7 @@ export const CreatePost = () => {
       <CommunityHero
         actions={(
           <>
-            <Link className="community-button-secondary" to={isClubPost ? `/clubs/${requestedGroupId}` : '/posts'}><X aria-hidden="true" className="h-4 w-4" />Hủy</Link>
+            <HistoryBackLink className="community-button-secondary" fallback={isClubPost ? `/clubs/${requestedGroupId}` : '/posts'}><X aria-hidden="true" className="h-4 w-4" />Hủy</HistoryBackLink>
             <button className="community-button" disabled={!canPublish || submitting} form="create-community-post" type="submit">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send aria-hidden="true" className="h-4 w-4" />}
               Đăng bài

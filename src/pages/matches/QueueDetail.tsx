@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import {
   CalendarRange,
   Clock,
@@ -554,12 +555,9 @@ export const QueueDetail = () => {
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-[13px] font-bold text-red-700 shadow-sm">
             {error || 'Không tìm thấy lời mời ghép trận này.'}
           </div>
-          <Link
-            to="/my-matches"
-            className="community-button-secondary inline-flex items-center gap-1.5"
-          >
+          <HistoryBackLink className="community-button-secondary inline-flex items-center gap-1.5" fallback="/my-matches">
             <ChevronLeft className="h-4 w-4" /> Quay lại phòng của tôi
-          </Link>
+          </HistoryBackLink>
         </div>
       </CommunityPage>
     );
@@ -580,12 +578,9 @@ export const QueueDetail = () => {
       >
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-3">
-            <Link
-              to="/my-matches"
-              className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#e2ff57] hover:underline"
-            >
+            <HistoryBackLink className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#e2ff57] hover:underline" fallback="/my-matches">
               <ChevronLeft className="h-4 w-4" /> Quay lại phòng của tôi
-            </Link>
+            </HistoryBackLink>
             <h1 className="text-[20px] sm:text-[23px] font-black leading-tight">
               Chi tiết lời mời ghép trận
             </h1>

@@ -14,10 +14,11 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { buySessionTicket, getTicketSession, type TicketSession } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import { Button } from '../../components/ui/Button';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -113,9 +114,9 @@ export const TicketSessionDetail = () => {
           <XCircle aria-hidden="true" className="mx-auto h-11 w-11 text-error" />
           <h1 className="mt-4 text-[18px] font-bold">Không thể mở buổi xé vé</h1>
           <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{error || 'Buổi chơi không tồn tại hoặc đã ngừng công khai.'}</p>
-          <Link className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container" to="/ticket-sessions">
+          <HistoryBackLink className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container" fallback="/ticket-sessions">
             Xem các buổi khác
-          </Link>
+          </HistoryBackLink>
         </section>
       </div>
     );
@@ -131,9 +132,9 @@ export const TicketSessionDetail = () => {
   return (
     <div className="min-h-dvh bg-white pb-14 pt-[84px] text-on-background" data-ticket-session-detail>
       <main className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
-        <Link className="inline-flex min-h-11 items-center gap-2 rounded-lg text-[13px] font-bold text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" to="/ticket-sessions">
+        <HistoryBackLink className="inline-flex min-h-11 items-center gap-2 rounded-lg text-[13px] font-bold text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" fallback="/ticket-sessions">
           <ArrowLeft aria-hidden="true" className="h-4 w-4" /> Tất cả buổi xé vé
-        </Link>
+        </HistoryBackLink>
 
         {error && (
           <div className="mt-3 flex items-start gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-[14px] font-semibold text-error" role="alert">

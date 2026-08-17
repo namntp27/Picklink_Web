@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clipboard, Clock, Loader2, MapPin, ReceiptText, ShieldCheck, Upload, Users } from 'lucide-react';
 import { getMatchDetail, type MatchDetailResponse } from '../../api/matches';
 import { previewBatchPayment, requestPaymentSponsorship, respondPaymentSponsorship, submitBatchBankTransfer, type BatchPaymentPreview } from '../../api/payment';
@@ -10,6 +10,7 @@ import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { reconcileSelectedPayerIds } from '../../utils/matchPaymentSelection';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 import { useToast } from '../../components/ui/ToastRegion';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -259,7 +260,7 @@ export const MatchCheckout = () => {
       <main className="mx-auto w-full max-w-[1180px]">
         <header className="grid gap-4 rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <Link className="inline-flex items-center gap-2 rounded-xl border border-[#dbe8d3] px-3 py-2 text-[13px] font-bold text-[#477313] hover:bg-[#eef8e6]" to={`/matches/${matchId}`}><ArrowLeft className="h-4 w-4" /> Quay lại phòng ghép trận</Link>
+            <HistoryBackLink className="inline-flex items-center gap-2 rounded-xl border border-[#dbe8d3] px-3 py-2 text-[13px] font-bold text-[#477313] hover:bg-[#eef8e6]" fallback={`/matches/${matchId}`}><ArrowLeft className="h-4 w-4" /> Quay lại phòng ghép trận</HistoryBackLink>
             <h1 className="mt-3 text-[clamp(1.55rem,2.7vw,2.25rem)] font-extrabold tracking-[-0.035em]">Thanh toán booking ghép trận</h1>
             <p className="mt-1 text-[13px] font-semibold text-[#66766d]">Booking #{bookingId} · {match.title}</p>
           </div>

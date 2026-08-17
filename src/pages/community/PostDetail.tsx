@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import {
   CheckCircle2,
   Hash,
@@ -520,7 +521,7 @@ export const PostDetail = () => {
         <div className="text-center py-20">
           <h2 className="text-[20px] font-extrabold text-[#0b2228]">Bài viết không tồn tại</h2>
           <p className="text-[14px] text-[#718077] mt-2">Bài viết bạn tìm kiếm có thể đã bị xóa hoặc không hợp lệ.</p>
-          <Link className="community-button mt-4 inline-flex" to="/posts">Quay lại bảng tin</Link>
+          <HistoryBackLink className="community-button mt-4 inline-flex" fallback="/posts">Quay lại bảng tin</HistoryBackLink>
         </div>
       </CommunityPage>
     );

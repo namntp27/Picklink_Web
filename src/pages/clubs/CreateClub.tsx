@@ -19,10 +19,12 @@ import { useAuth } from '../../auth/AuthContext';
 import { createGroup } from '../../api/community';
 import { uploadToCloudinary } from '../../api/cloudinary';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+import { useHistoryBack } from '../../components/navigation/HistoryBackLink';
 import './club-pages.css';
 
 export const CreateClub = () => {
   const navigate = useNavigate();
+  const { goBack } = useHistoryBack('/clubs');
   const { token } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const [descriptionCount, setDescriptionCount] = useState(0);
@@ -111,7 +113,7 @@ export const CreateClub = () => {
         <div className="relative mx-auto max-w-[1060px]">
           <button
             className="picklink-glow-control inline-flex h-9 items-center gap-2 rounded-lg border border-white/18 bg-white/8 px-3 text-[12px] font-bold text-white/86 hover:bg-white/14"
-            onClick={() => navigate('/clubs')}
+            onClick={goBack}
             type="button"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -282,7 +284,7 @@ export const CreateClub = () => {
             </div>
 
             <div className="mt-6 flex flex-col-reverse gap-2 border-t border-[#e0e9dc] pt-4 sm:flex-row sm:justify-end">
-              <button className="picklink-glow-control inline-flex h-10 items-center justify-center rounded-xl border border-[#cbdac6] bg-white px-4 text-[13px] font-bold text-[#53645b] hover:bg-[#edf5e9]" disabled={submitting} onClick={() => navigate('/clubs')} type="button">
+              <button className="picklink-glow-control inline-flex h-10 items-center justify-center rounded-xl border border-[#cbdac6] bg-white px-4 text-[13px] font-bold text-[#53645b] hover:bg-[#edf5e9]" disabled={submitting} onClick={goBack} type="button">
                 Hủy
               </button>
               <button className="picklink-glow-control inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-5 text-[13px] font-bold text-[#102414] shadow-[0_10px_24px_rgba(152,217,81,0.2)] hover:bg-[#d6f64d] disabled:cursor-not-allowed disabled:opacity-60" disabled={submitting} type="submit">

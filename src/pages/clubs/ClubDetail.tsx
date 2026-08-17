@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import {
   Activity,
   ArrowLeft,
@@ -180,10 +181,10 @@ export const ClubDetail = () => {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4 text-[#0b2228]" data-club-ui>
         <main className="w-full max-w-xl rounded-2xl border border-[#d8e4d4] bg-white p-6 text-center shadow-[0_12px_30px_rgba(8,29,36,0.06)]">
-          <Link className="mb-6 inline-flex items-center gap-2 text-[12px] font-bold text-[#477313]" to="/clubs">
+          <HistoryBackLink className="mb-6 inline-flex items-center gap-2 text-[12px] font-bold text-[#477313]" fallback="/clubs">
             <ArrowLeft className="h-4 w-4" />
             Quay lại CLB
-          </Link>
+          </HistoryBackLink>
           <ShieldCheck className="mx-auto h-10 w-10 text-[#477313]" />
           <h1 className="mt-3 text-[24px] font-bold">{club.groupName}</h1>
           <p className="mt-2 text-[14px] text-[#64736a]">CLB riêng tư. Bạn cần gửi yêu cầu và được duyệt để xem chi tiết.</p>
@@ -314,9 +315,9 @@ export const ClubDetail = () => {
       <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4]" data-club-ui>
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-[18px] font-bold text-[#0b2228]">{error || 'Không tìm thấy câu lạc bộ.'}</p>
-          <Link className="rounded-lg bg-primary px-6 py-3 text-[15px] font-bold text-white" to="/clubs">
+          <HistoryBackLink className="rounded-lg bg-primary px-6 py-3 text-[15px] font-bold text-white" fallback="/clubs">
             Quay lại danh sách CLB
-          </Link>
+          </HistoryBackLink>
         </div>
       </div>
     );
@@ -333,13 +334,10 @@ export const ClubDetail = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-[#081d24] via-[#081d24]/62 to-[#081d24]/12" />
 
         <div className="relative z-10 mx-auto flex min-h-[368px] max-w-[1180px] flex-col justify-end px-4 pb-16 sm:px-6 lg:px-8">
-          <Link
-            className="mb-6 inline-flex h-9 w-fit items-center gap-2 rounded-lg border border-white/22 bg-white/8 px-3 text-[12px] font-bold text-white backdrop-blur hover:bg-white/14"
-            to="/clubs"
-          >
+          <HistoryBackLink className="mb-6 inline-flex h-9 w-fit items-center gap-2 rounded-lg border border-white/22 bg-white/8 px-3 text-[12px] font-bold text-white backdrop-blur hover:bg-white/14" fallback="/clubs">
             <ArrowLeft className="h-4 w-4" />
             Quay lại CLB
-          </Link>
+          </HistoryBackLink>
 
           <div className="max-w-4xl text-white">
             <div className="mb-3 flex flex-wrap items-center gap-2">

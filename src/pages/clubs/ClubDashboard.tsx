@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../../components/ui/ToastRegion';
 import { Link, useParams, useOutletContext } from 'react-router-dom';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import {
   CheckCircle2,
   ChevronRight,
@@ -1686,7 +1687,7 @@ export const ClubDashboard = () => {
       <div className="grid min-h-dvh place-items-center bg-[#f8fbf4] p-6 text-center">
         <div>
           <p className="font-bold text-error" role="alert">Không thể tải câu lạc bộ này.</p>
-          <Link className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 font-bold text-white" to="/clubs">Về danh sách CLB</Link>
+          <HistoryBackLink className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 font-bold text-white" fallback="/clubs">Về danh sách CLB</HistoryBackLink>
         </div>
       </div>
     );

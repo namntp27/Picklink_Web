@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import { useAuth } from '../../auth/AuthContext';
 import { getMyProfile, type PlayerProfile } from '../../api/profile';
 import {
@@ -78,10 +79,10 @@ export const CommunityHero = ({
     <div className="community-hero__inner">
       <div className="min-w-0">
         {backLink && (
-          <Link className="community-back-link" to={backLink.to}>
+          <HistoryBackLink className="community-back-link" fallback={backLink.to}>
             <span aria-hidden="true">←</span>
             {backLink.label}
-          </Link>
+          </HistoryBackLink>
         )}
         <p className="community-kicker">
           <Icon aria-hidden="true" className="h-4 w-4" />

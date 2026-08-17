@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import {
   buySessionTicket,
   cancelPlayerTicket,
@@ -307,7 +308,7 @@ export const MyTicketDetail = () => {
           <XCircle aria-hidden="true" className="mx-auto h-11 w-11 text-error" />
           <h1 className="mt-4 text-[18px] font-bold">Không thể mở vé</h1>
           <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">{error || 'Vé không tồn tại hoặc không thuộc tài khoản của bạn.'}</p>
-          <Link className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container" to="/my-tickets">Về lịch sử vé</Link>
+          <HistoryBackLink className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary-container px-4 text-[14px] font-bold text-on-primary-container" fallback="/my-tickets">Về lịch sử vé</HistoryBackLink>
         </section>
       </div>
     );
@@ -332,9 +333,9 @@ export const MyTicketDetail = () => {
   return (
     <div className="min-h-dvh bg-white pb-14 pt-[84px] text-on-background" data-my-ticket-detail>
       <main className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
-        <Link className="inline-flex min-h-11 items-center gap-2 rounded-lg text-[13px] font-bold text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" to="/my-tickets">
+        <HistoryBackLink className="inline-flex min-h-11 items-center gap-2 rounded-lg text-[13px] font-bold text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" fallback="/my-tickets">
           <ArrowLeft aria-hidden="true" className="h-4 w-4" /> Lịch sử vé
-        </Link>
+        </HistoryBackLink>
 
         {error && (
           <div className="mt-3 flex items-start gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-[14px] font-semibold text-error" role="alert">

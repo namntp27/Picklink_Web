@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Loader2, Star } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { getBookingHolding, type BookingHolding } from '../../api/booking';
 import { ApiError } from '../../api/client';
 import { createBookingReview, type BookingReview } from '../../api/reviews';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 
 const quickTags = ['Sân sạch', 'Ánh sáng tốt', 'Dễ tìm', 'Check-in nhanh', 'Giá hợp lý', 'Có chỗ gửi xe'];
 
@@ -59,7 +60,7 @@ export const CreateReview = () => {
   const alreadyReviewed = booking?.hasReviewed === true || review !== null;
 
   return <div className="min-h-dvh bg-[#f8fbf4] pt-[72px] text-[#0b2228]">
-    <section className="bg-[#081d24] text-white"><div className="mx-auto max-w-[980px] px-4 py-9"><Link className="inline-flex items-center gap-2 text-[14px] font-bold text-white/80" to={booking ? `/bookings/${booking.bookingId}` : '/my-bookings'}><ArrowLeft className="h-4 w-4" /> Quay lại booking</Link><h1 className="mt-5 text-[26px] font-bold md:text-[28px]">Đánh giá sân</h1><p className="mt-2 text-white/80">Mỗi Player chỉ được đánh giá một lần cho một booking đủ điều kiện.</p></div></section>
+    <section className="bg-[#081d24] text-white"><div className="mx-auto max-w-[980px] px-4 py-9"><HistoryBackLink className="inline-flex items-center gap-2 text-[14px] font-bold text-white/80" fallback={booking ? `/bookings/${booking.bookingId}` : '/my-bookings'}><ArrowLeft className="h-4 w-4" /> Quay lại booking</HistoryBackLink><h1 className="mt-5 text-[26px] font-bold md:text-[28px]">Đánh giá sân</h1><p className="mt-2 text-white/80">Mỗi Player chỉ được đánh giá một lần cho một booking đủ điều kiện.</p></div></section>
 
     <main className="mx-auto max-w-[980px] px-4 py-8">
       <section className="rounded-2xl border border-[#d8e4d4] bg-white p-6 shadow-sm">

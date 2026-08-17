@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   CalendarDays,
@@ -19,6 +19,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
+import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const playDate = (value: string) => new Intl.DateTimeFormat('vi-VN', {
@@ -125,9 +126,9 @@ export const BookingDetail = () => {
           <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">
             {error || 'Booking không tồn tại hoặc không thuộc tài khoản của bạn.'}
           </p>
-          <Link className={`mt-5 ${primaryLinkButton}`} to="/my-bookings">
+          <HistoryBackLink className={`mt-5 ${primaryLinkButton}`} fallback="/my-bookings">
             Về booking của tôi
-          </Link>
+          </HistoryBackLink>
         </div>
       </div>
     );
@@ -145,9 +146,9 @@ export const BookingDetail = () => {
           </div>
 
           <div className="relative mx-auto max-w-[1180px]">
-            <Link className="inline-flex min-h-9 items-center gap-2 rounded-lg px-1 text-[13px] font-bold text-white/84 transition-[background-color,color,transform] duration-200 hover:-translate-y-px hover:bg-white/8 hover:text-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57]/75 active:translate-y-px" to="/my-bookings">
+            <HistoryBackLink className="inline-flex min-h-9 items-center gap-2 rounded-lg px-1 text-[13px] font-bold text-white/84 transition-[background-color,color,transform] duration-200 hover:-translate-y-px hover:bg-white/8 hover:text-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57]/75 active:translate-y-px" fallback="/my-bookings">
               <ArrowLeft className="h-4 w-4" /> Booking của tôi
-            </Link>
+            </HistoryBackLink>
           </div>
         </section>
 
