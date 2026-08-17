@@ -443,6 +443,7 @@ export const MatchDetail = () => {
   const canEditPendingBooking = match?.status === 'BookingPending'
     && approved.length === match.requiredPlayerCount
     && approved.every((participant) => participant.paymentStatus === 'Pending');
+  const canRemoveParticipants = Boolean(match?.canRemoveParticipants);
   const slotKey = (slot: AvailabilitySlot) => String(slot.courtId) + ":" + timePart(slot.startTime);
   const selectedSlotsForDate = selectedSlotsByDate[bookingDate] ?? [];
   const selectedSlotKeys = selectedSlotsForDate.map((slot) => String(slot.courtId) + ':' + timePart(slot.startTime));
@@ -1066,7 +1067,7 @@ export const MatchDetail = () => {
                         {paymentStatusLabels[participant.paymentStatus] ?? participant.paymentStatus}
                       </span>
                     )}
-                    {match.isHost && !participant.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
+                    {match.isHost && !participant.isHost && canRemoveParticipants && (
                       <button className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50" disabled={isBusy} onClick={async () => token && (await confirm({ title: `Loại ${participant.playerName} khỏi phòng?`, message: 'Người chơi sẽ bị gỡ khỏi phòng và nhận được thông báo.', confirmLabel: 'Loại khỏi phòng', tone: 'danger' })) && void run(() => removeParticipant(token, matchId, participant.participantId))} title="Loại thành viên" type="button"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </article>
@@ -1310,8 +1311,7 @@ export const MatchDetail = () => {
               <p className="mt-2 text-[11px] text-white/70">Đăng ký đúng ngày và khung giờ bạn có thể tham gia.</p>
             </section>
           )}
-          {!(isApprovedMember && displayedBookingRounds.length > 0) && (
-            <section className="community-panel match-side-panel">
+          <section className="community-panel match-side-panel">
               <h3 className="text-[18px] font-bold">Thao tác</h3>
               {match.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
                 <div className="mt-4 space-y-2">
@@ -1337,14 +1337,13 @@ export const MatchDetail = () => {
                 <button className="community-button mt-4 w-full" disabled={isBusy} onClick={() => token && void run(() => joinMatch(token, matchId))} type="button"><UserCheck className="h-4 w-4" /> Yêu cầu tham gia</button>
               )}
               {!match.isHost && match.myParticipantStatus === 'Pending' && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-[13px] font-bold text-amber-800">Đang chờ chủ phòng hoặc thành viên trong phòng duyệt</div>}
-              {isApprovedMember && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
-                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Rời phòng ghép trận này?', message: 'Slot của bạn sẽ được mở lại cho người khác.', confirmLabel: 'Rời phòng', tone: 'danger' })) && void run(() => leaveMatch(token, matchId))} type="button"><XCircle className="h-4 w-4" /> Rút yêu cầu / rời phòng</button>
+              {isApprovedMember && (
+                <button className="community-button-secondary mt-3 w-full" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Rời phòng ghép trận này?', message: match.isHost ? 'Quyền chủ phòng sẽ chuyển cho thành viên vào phòng sớm nhất. Nếu không còn thành viên, phòng sẽ bị hủy.' : 'Bạn sẽ rời khỏi phòng, kể cả khi booking đang còn hiệu lực.', confirmLabel: 'Rời phòng', tone: 'danger' })) && void run(() => leaveMatch(token, matchId), () => navigate('/matches'))} type="button"><XCircle className="h-4 w-4" /> Rời phòng</button>
               )}
               {match.isHost && match.status === 'Recruiting' && isFull && (
                 <button className="community-button mt-4 w-full" disabled={isBusy} onClick={async () => token && (await confirm({ title: 'Chốt danh sách và chuyển sang sẵn sàng đặt sân?', message: 'Phòng sẽ dừng nhận thành viên mới và có thể tiến hành đặt sân.', confirmLabel: 'Chốt danh sách', tone: 'default' })) && void run(() => markMatchReadyToBook(token, matchId))} type="button"><ShieldCheck className="h-4 w-4" /> Chuyển sang sẵn sàng đặt sân</button>
               )}
             </section>
-          )}
 
           {match.status === 'BookingPending' && isApprovedMember && (
             <section className="community-panel match-payment-card">

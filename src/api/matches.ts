@@ -193,6 +193,7 @@ export type MatchDetailResponse = MatchSummary & {
   myTransferContent?: string | null;
   myPaymentRejectionReason?: string | null;
   participants: MatchParticipant[];
+  canRemoveParticipants?: boolean;
   canBookNextRound?: boolean;
   nextRoundBlockReason?: string | null;
 };
