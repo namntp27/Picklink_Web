@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowLeft,
@@ -23,6 +23,7 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerBackLink } from './components/OwnerBackLink';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -138,7 +139,7 @@ export const OwnerBookingDetail = () => {
   };
 
   if (isLoading) return <OwnerShell activeId="bookings"><div className="owner-panel p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết booking...</div></OwnerShell>;
-  if (!booking) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700"><AlertCircle className="mx-auto h-7 w-7" /><p className="mt-3 font-bold">{error || 'Không tìm thấy booking.'}</p><Link className="mt-4 inline-flex font-bold underline" to="/owner/bookings">Quay lại danh sách</Link></div></OwnerShell>;
+  if (!booking) return <OwnerShell activeId="bookings"><div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700"><AlertCircle className="mx-auto h-7 w-7" /><p className="mt-3 font-bold">{error || 'Không tìm thấy booking.'}</p><OwnerBackLink className="mt-4 inline-flex font-bold underline" fallback="/owner/bookings">Quay lại danh sách</OwnerBackLink></div></OwnerShell>;
 
   const serviceFee = Math.max(0, booking.totalAmount - booking.courtAmount);
   const bookingSlots = booking.slots.length ? booking.slots : [{ bookingSlotId: booking.bookingId, courtId: booking.courtId, courtNumber: booking.courtNumber, startTime: booking.startTime, endTime: booking.endTime, courtAmount: booking.courtAmount }];
@@ -152,7 +153,7 @@ export const OwnerBookingDetail = () => {
   return (
     <OwnerShell activeId="bookings">
       <section className="owner-page-header flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><Link className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" to="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</Link><h1 className="mt-3 font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
+        <div><OwnerBackLink className="inline-flex items-center gap-2 text-[13px] font-bold text-primary hover:underline" fallback="/owner/bookings"><ArrowLeft className="h-4 w-4" /> Quay lại danh sách</OwnerBackLink><h1 className="mt-3 font-bold">Chi tiết booking của Player</h1><p className="mt-2 text-[14px] text-on-surface-variant">Thông tin được lấy trực tiếp từ booking thuộc cụm sân của bạn.</p></div>
         <div className="flex flex-wrap gap-2">{booking.bookingStatus === 'Holding' && <button className="rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void updateStatus('Confirmed')} type="button">Xác nhận booking</button>}{canCancel && <button className="rounded-lg border border-red-200 px-4 py-2.5 text-[13px] font-bold text-red-600 disabled:opacity-50" disabled={isBusy || !cancelReason.trim()} onClick={() => void updateStatus('Cancelled')} title={cancelReason.trim() ? undefined : 'Nhập lý do hủy trước'} type="button">Từ chối / Hủy</button>}</div>
         {canCancel && (
           <label className="w-full text-[12px] font-bold text-on-surface-variant lg:max-w-md">

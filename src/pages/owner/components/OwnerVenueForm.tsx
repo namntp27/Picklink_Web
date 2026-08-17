@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { OwnerVenueInput } from '../../../api/owner';
 import { OpenStreetMapLocationPicker } from '../../../components/location/OpenStreetMapLocationPicker';
+import { OwnerBackLink } from './OwnerBackLink';
 
 type VenueFormDraft = {
   venueName: string;
@@ -142,7 +142,7 @@ export const OwnerVenueForm = ({
       </div>
 
       <div className="flex justify-end gap-3 border-t border-outline-variant pt-5">
-        <Link className="rounded-lg border border-outline-variant px-5 py-2.5 text-[14px] font-bold hover:bg-surface-container-low" to="/owner/courts">Hủy</Link>
+        <OwnerBackLink className="rounded-lg border border-outline-variant px-5 py-2.5 text-[14px] font-bold hover:bg-surface-container-low" fallback="/owner/courts">Hủy</OwnerBackLink>
         <button className="rounded-lg bg-primary px-5 py-2.5 text-[14px] font-bold text-white disabled:opacity-60" disabled={isSaving} type="submit">
           {isSaving ? 'Đang lưu...' : isCreate ? 'Tạo cụm sân' : 'Lưu thay đổi'}
         </button>

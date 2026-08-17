@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerBackLink } from './components/OwnerBackLink';
 import { OwnerCourtManager } from './components/OwnerCourtManager';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
@@ -93,7 +94,7 @@ export const OwnerVenueDetail = () => {
   return (
     <OwnerShell activeId="courts">
       <div className="owner-page-header flex flex-wrap items-center justify-between gap-3">
-        <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/courts"><ArrowLeft className="h-4 w-4" /> Danh sách cụm sân</Link>
+        <OwnerBackLink className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" fallback="/owner/courts"><ArrowLeft className="h-4 w-4" /> Danh sách cụm sân</OwnerBackLink>
         {venue && <div className="flex gap-2"><Link className="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-white px-4 py-2 text-[13px] font-bold" to={`/owner/courts/${venueId}/edit`}><Edit3 className="h-4 w-4" /> Sửa thông tin</Link>{venue.approvalStatus !== 'Pending' && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => token && void run(() => submitOwnerVenue(token, venueId))} type="button"><Send className="h-4 w-4" /> Gửi Admin duyệt</button>}</div>}
       </div>
 

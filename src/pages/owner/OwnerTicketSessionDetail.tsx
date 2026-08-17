@@ -15,7 +15,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { getOwnerVenues, type OwnerVenue } from '../../api/owner';
 import {
@@ -37,6 +37,7 @@ import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerBackLink } from './components/OwnerBackLink';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
@@ -260,14 +261,14 @@ export const OwnerTicketSessionDetail = () => {
           <XCircle className="mx-auto h-10 w-10 text-red-600" />
           <h1 className="mx-auto mt-3">Không thể mở buổi xé vé</h1>
           <p className="mt-2 text-[13px] text-on-surface-variant">{error || 'Buổi chơi không tồn tại hoặc không thuộc quyền quản lý.'}</p>
-          <Link className="mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold" to="/owner/ticket-sessions">Quay lại danh sách</Link>
+          <OwnerBackLink className="mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold" fallback="/owner/ticket-sessions">Quay lại danh sách</OwnerBackLink>
         </section>
       )}
       {!loading && session && details && (
         <>
           <section className="owner-page-header">
             <div>
-              <Link className="owner-kicker" to="/owner/ticket-sessions"><ArrowLeft className="h-4 w-4" /> Danh sách xé vé</Link>
+              <OwnerBackLink className="owner-kicker" fallback="/owner/ticket-sessions"><ArrowLeft className="h-4 w-4" /> Danh sách xé vé</OwnerBackLink>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <h1>{session.title}</h1>
                 <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${badgeClass(session.status)}`}>{statusLabels[session.status]}</span>

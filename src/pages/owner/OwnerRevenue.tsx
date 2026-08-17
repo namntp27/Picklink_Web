@@ -22,23 +22,26 @@ import { OwnerShell } from './components/OwnerShell';
 import { PaginationControls } from '../../components/PaginationControls';
 import type { BookingDetail } from '../../data/bookings';
 import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
-import { getOwnerRevenueReport } from '../../api/owner';
+import { getOwnerRevenueReport, type OwnerRevenueReport } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { ownerBookingToDetail } from './ownerBookingAdapter';
 
-type RevenuePeriod = 'today' | 'week' | 'month';
+type RevenuePeriod = 'today' | 'week' | 'month' | 'custom';
+type PresetRevenuePeriod = Exclude<RevenuePeriod, 'custom'>;
 type TransactionStatus = 'all' | 'paid' | 'pending' | 'failed' | 'refunded';
 
 const historyPageSize = 10;
+const maxRevenueRangeDays = 367;
 
 type PaymentTransaction = {
   id: string;
   booking: BookingDetail;
   status: Exclude<TransactionStatus, 'all'>;
   paidAt: string;
+  refundAmount: number;
 };
 
 const reportDate = new Date();
@@ -137,7 +140,7 @@ const getWeekStart = (date: Date) => {
   return weekStart;
 };
 
-const getDateRange = (period: RevenuePeriod) => {
+const getDateRange = (period: PresetRevenuePeriod) => {
   if (period === 'today') {
     return [toDateValue(reportDate)];
   }
@@ -159,6 +162,18 @@ const getDateRange = (period: RevenuePeriod) => {
   return Array.from({ length: dayCount }, (_, index) => `${year}-${String(month + 1).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`);
 };
 
+const getCustomDateRange = (from: string, to: string) => {
+  const start = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  const dayCount = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+
+  return Array.from({ length: dayCount }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return toDateValue(date);
+  });
+};
+
 const formatShortDate = (date: string) =>
   new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
@@ -170,35 +185,78 @@ const formatPercent = (value: number) => `${Math.round(value)}%`;
 export const OwnerRevenue = () => {
   const { token } = useAuth();
   const [activePeriod, setActivePeriod] = useState<RevenuePeriod>('month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [customRangeError, setCustomRangeError] = useState('');
   const [activeStatus, setActiveStatus] = useState<TransactionStatus>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
-  const periodDates = useMemo(() => getDateRange(activePeriod), [activePeriod]);
+  const showTransactions = (status: Exclude<TransactionStatus, 'all'>) => {
+    setActiveStatus(status);
+    setSearchTerm('');
+    setHistoryPage(1);
+    document.getElementById('owner-revenue-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const applyCustomRange = () => {
+    if (!customFrom || !customTo) {
+      setCustomRangeError('Chọn đủ ngày bắt đầu và kết thúc.');
+      return;
+    }
+
+    const start = new Date(customFrom + 'T00:00:00');
+    const end = new Date(customTo + 'T00:00:00');
+    const dayCount = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    if (dayCount < 1) {
+      setCustomRangeError('Ngày kết thúc phải từ ngày bắt đầu trở đi.');
+      return;
+    }
+    if (dayCount > maxRevenueRangeDays) {
+      setCustomRangeError('Chỉ chọn tối đa ' + maxRevenueRangeDays + ' ngày.');
+      return;
+    }
+
+    setCustomRange({ from: customFrom, to: customTo });
+    setCustomRangeError('');
+    setActivePeriod('custom');
+    setHistoryPage(1);
+  };
+  const periodDates = useMemo(
+    () => activePeriod === 'custom' && customRange
+      ? getCustomDateRange(customRange.from, customRange.to)
+      : getDateRange(activePeriod === 'custom' ? 'month' : activePeriod),
+    [activePeriod, customRange],
+  );
   const from = periodDates[0];
   const to = periodDates[periodDates.length - 1];
 
-  const { data: ownerBookings, refresh: loadRevenue } = useApiQuery<BookingDetail[]>(
+  const { data: revenueReport, refresh: loadRevenue } = useApiQuery<OwnerRevenueReport>(
     ['owner-revenue', from, to],
-    async () => {
-      const report = await getOwnerRevenueReport(token!, from!, to!);
-      return report.bookings.map(ownerBookingToDetail);
-    },
+    () => getOwnerRevenueReport(token!, from!, to!),
     { enabled: Boolean(token && from && to) },
   );
-
   const reloadRevenue = () => { void loadRevenue(); };
   useScheduleRealtime(reloadRevenue);
   usePaymentRealtime(reloadRevenue);
 
   const transactions = useMemo<PaymentTransaction[]>(
     () =>
-      (ownerBookings ?? []).map((booking) => ({
-        id: `pay-${booking.id}`,
-        booking,
-        status: getTransactionStatus(booking),
-        paidAt: booking.paymentStatus === 'paid' ? booking.createdAt : booking.holdExpiresAt,
-      })),
-    [ownerBookings],
+      (revenueReport?.bookings ?? []).map((record) => {
+        const booking = ownerBookingToDetail(record);
+        const refundAmount = record.refundAmount ?? (
+          record.paymentStatus === 'RefundPending' || record.paymentStatus === 'Refunded'
+            ? record.totalAmount
+            : 0
+        );
+        return {
+          id: 'pay-' + booking.id,
+          booking,
+          status: getTransactionStatus(booking),
+          paidAt: booking.paymentStatus === 'paid' ? booking.createdAt : booking.holdExpiresAt,
+          refundAmount,
+        };
+      }),
+    [revenueReport],
   );
 
   const periodTransactions = useMemo(
@@ -209,18 +267,22 @@ export const OwnerRevenue = () => {
   const filteredTransactions = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
-    return periodTransactions.filter((transaction) => {
-      const { booking } = transaction;
-      const matchesStatus = activeStatus === 'all' || transaction.status === activeStatus;
-      const matchesKeyword =
-        !keyword ||
-        booking.code.toLowerCase().includes(keyword) ||
-        booking.customerName.toLowerCase().includes(keyword) ||
-        booking.courtName.toLowerCase().includes(keyword) ||
-        booking.paymentMethod.toLowerCase().includes(keyword);
+    return periodTransactions
+      .filter((transaction) => {
+        const { booking } = transaction;
+        const matchesStatus = activeStatus === 'all' || (activeStatus === 'refunded'
+          ? transaction.refundAmount > 0
+          : transaction.status === activeStatus);
+        const matchesKeyword =
+          !keyword ||
+          booking.code.toLowerCase().includes(keyword) ||
+          booking.customerName.toLowerCase().includes(keyword) ||
+          booking.courtName.toLowerCase().includes(keyword) ||
+          booking.paymentMethod.toLowerCase().includes(keyword);
 
-      return matchesStatus && matchesKeyword;
-    });
+        return matchesStatus && matchesKeyword;
+      })
+      .sort((first, second) => Date.parse(second.paidAt) - Date.parse(first.paidAt));
   }, [activeStatus, periodTransactions, searchTerm]);
 
   // Clamped rather than reset in an effect so a realtime reload that shrinks the list lands on
@@ -240,17 +302,19 @@ export const OwnerRevenue = () => {
 
   const paidTransactions = periodTransactions.filter((transaction) => transaction.status === 'paid');
   const pendingTransactions = periodTransactions.filter((transaction) => transaction.status === 'pending');
-  const refundedTransactions = periodTransactions.filter((transaction) => transaction.status === 'refunded');
+  const refundedTransactions = periodTransactions.filter((transaction) => transaction.refundAmount > 0);
   const failedTransactions = periodTransactions.filter((transaction) => transaction.status === 'failed');
   const grossRevenue = paidTransactions.reduce((total, transaction) => total + transaction.booking.totalAmount, 0);
   const pendingAmount = pendingTransactions.reduce((total, transaction) => total + transaction.booking.totalAmount, 0);
-  const refundedAmount = refundedTransactions.reduce((total, transaction) => total + transaction.booking.totalAmount, 0);
+  const refundedAmount = revenueReport?.refundedAmount ?? 0;
   const serviceFees = paidTransactions.reduce((total, transaction) => total + transaction.booking.serviceFee, 0);
   const netRevenue = grossRevenue - serviceFees;
   const successRate = periodTransactions.length > 0 ? (paidTransactions.length / periodTransactions.length) * 100 : 0;
   const averageOrderValue = paidTransactions.length > 0 ? grossRevenue / paidTransactions.length : 0;
 
-  const chartDates = activePeriod === 'month' ? periodDates.filter((date) => periodTransactions.some((transaction) => transaction.booking.date === date)) : periodDates;
+  const chartDates = activePeriod === 'month'
+    ? periodDates.filter((date) => periodTransactions.some((transaction) => transaction.booking.date === date))
+    : periodDates;
   const dailyRevenue = chartDates.map((date) => {
     const dayTransactions = periodTransactions.filter((transaction) => transaction.booking.date === date);
     const revenue = dayTransactions
@@ -344,34 +408,63 @@ export const OwnerRevenue = () => {
               ))}
             </section>
 
+            <form
+              className={'mt-3 flex flex-col gap-3 rounded-lg border p-4 lg:flex-row lg:items-end ' + (activePeriod === 'custom' ? 'border-primary bg-primary/5' : 'border-outline-variant bg-white')}
+              onSubmit={(event) => { event.preventDefault(); applyCustomRange(); }}
+            >
+              <div className="min-w-[180px]">
+                <p className="flex items-center gap-2 text-[14px] font-bold"><CalendarDays className="h-4 w-4 text-primary" /> Tùy chọn khoảng ngày</p>
+                <p className="mt-1 text-[12px] text-on-surface-variant">Tối đa 367 ngày.</p>
+              </div>
+              <label className="flex flex-1 flex-col gap-1 text-[12px] font-bold text-on-surface-variant">
+                Từ ngày
+                <input aria-label="Từ ngày doanh thu" className="h-10 rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-medium text-on-surface" max={customTo || undefined} onChange={(event) => setCustomFrom(event.target.value)} type="date" value={customFrom} />
+              </label>
+              <label className="flex flex-1 flex-col gap-1 text-[12px] font-bold text-on-surface-variant">
+                Đến ngày
+                <input aria-label="Đến ngày doanh thu" className="h-10 rounded-lg border border-outline-variant bg-white px-3 text-[14px] font-medium text-on-surface" min={customFrom || undefined} onChange={(event) => setCustomTo(event.target.value)} type="date" value={customTo} />
+              </label>
+              <button className="h-10 rounded-lg bg-primary px-5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={!customFrom || !customTo} type="submit">Áp dụng</button>
+              {customRangeError && <p className="text-[12px] font-medium text-error" role="alert">{customRangeError}</p>}
+            </form>
+
             <section className="owner-stat-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
                   label: 'Doanh thu đã nhận',
                   value: formatBookingCurrency(grossRevenue),
                   icon: Banknote,
+                  onClick: () => showTransactions('paid'),
                   helper: `${paidTransactions.length} giao dịch thành công`,
                 },
                 {
                   label: 'Chờ thanh toán',
                   value: formatBookingCurrency(pendingAmount),
                   icon: Clock,
+                  onClick: () => showTransactions('pending'),
                   helper: `${pendingTransactions.length} đơn cần thu`,
                 },
                 {
                   label: 'Doanh thu ròng',
                   value: formatBookingCurrency(netRevenue),
                   icon: TrendingUp,
+                  onClick: () => showTransactions('paid'),
                   helper: `Đã trừ ${formatBookingCurrency(serviceFees)} phí`,
                 },
                 {
                   label: 'Tỷ lệ thành công',
                   value: formatPercent(successRate),
                   icon: CheckCircle2,
+                  onClick: () => showTransactions('paid'),
                   helper: `${failedTransactions.length} lỗi, ${refundedTransactions.length} hoàn/hủy`,
                 },
               ].map((stat) => (
-                <div className="owner-stat-card" key={stat.label}>
+                <button
+                  className="owner-stat-card w-full cursor-pointer text-left transition-colors hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  key={stat.label}
+                  onClick={stat.onClick}
+                  type="button"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[13px] font-bold text-on-surface-variant">{stat.label}</p>
@@ -382,7 +475,7 @@ export const OwnerRevenue = () => {
                     </div>
                   </div>
                   <p className="mt-3 text-[12px] font-medium text-on-surface-variant">{stat.helper}</p>
-                </div>
+                </button>
               ))}
             </section>
 
@@ -403,8 +496,8 @@ export const OwnerRevenue = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 h-[280px] overflow-x-auto">
-                    <div className="flex h-full min-w-[640px] items-end gap-3 border-b border-outline-variant px-2">
+                  <div className="mt-6 h-[280px] overflow-x-scroll pb-3">
+                    <div className="flex h-full min-w-full w-max items-end gap-3 border-b border-outline-variant px-2">
                       {dailyRevenue.length > 0 ? (
                         dailyRevenue.map((item) => {
                           const barHeight = item.revenue > 0 ? Math.max(14, Math.round((item.revenue / maxDailyRevenue) * 100)) : 4;
@@ -434,7 +527,7 @@ export const OwnerRevenue = () => {
                   </div>
                 </section>
 
-                <section className="owner-panel">
+                <section className="owner-panel scroll-mt-24" id="owner-revenue-history">
                   <div className="flex flex-col gap-4 border-b border-outline-variant p-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h2 className="flex items-center gap-2 text-[20px] font-bold">
@@ -492,6 +585,7 @@ export const OwnerRevenue = () => {
                       <tbody className="divide-y divide-outline-variant">
                         {pagedTransactions.map((transaction) => {
                           const StatusIcon = getStatusIcon(transaction.status);
+                          const displayAmount = transaction.status === 'refunded' ? transaction.refundAmount : transaction.booking.totalAmount;
 
                           return (
                             <tr className="hover:bg-[#FAFBF8]" key={transaction.id}>
@@ -518,8 +612,10 @@ export const OwnerRevenue = () => {
                               </td>
                               <td className="px-5 py-4 text-[14px] font-bold">{transaction.booking.paymentMethod}</td>
                               <td className="px-5 py-4">
-                                <p className="text-[15px] font-bold">{formatBookingCurrency(transaction.booking.totalAmount)}</p>
-                                <p className="mt-1 text-[12px] text-on-surface-variant">Phí {formatBookingCurrency(transaction.booking.serviceFee)}</p>
+                                <p className="text-[15px] font-bold">{formatBookingCurrency(displayAmount)}</p>
+                                <p className="mt-1 text-[12px] text-on-surface-variant">
+                                  {transaction.status === 'refunded' ? 'Khoản đang chờ/đã hoàn' : 'Phí ' + formatBookingCurrency(transaction.booking.serviceFee)}
+                                </p>
                               </td>
                               <td className="px-5 py-4">
                                 <div className="flex justify-end gap-2">
@@ -563,15 +659,23 @@ export const OwnerRevenue = () => {
                     Tổng hợp kỳ này
                   </h2>
                   <div className="mt-5 space-y-4">
-                    <div className="rounded-lg bg-surface-container-low p-4">
+                    <button
+                      className="w-full rounded-lg bg-surface-container-low p-4 text-left transition-colors hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      onClick={() => showTransactions('paid')}
+                      type="button"
+                    >
                       <p className="text-[12px] font-bold uppercase text-on-surface-variant">Doanh thu ròng</p>
                       <p className="mt-1 text-[28px] font-bold text-primary">{formatBookingCurrency(netRevenue)}</p>
-                    </div>
+                    </button>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-outline-variant p-3">
+                      <button
+                        className="rounded-lg border border-outline-variant p-3 text-left transition-colors hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        onClick={() => showTransactions('refunded')}
+                        type="button"
+                      >
                         <p className="text-[12px] font-bold text-on-surface-variant">Hoàn / hủy</p>
                         <p className="mt-1 text-[16px] font-bold">{formatBookingCurrency(refundedAmount)}</p>
-                      </div>
+                      </button>
                       <div className="rounded-lg border border-outline-variant p-3">
                         <p className="text-[12px] font-bold text-on-surface-variant">Phí nền tảng</p>
                         <p className="mt-1 text-[16px] font-bold">{formatBookingCurrency(serviceFees)}</p>

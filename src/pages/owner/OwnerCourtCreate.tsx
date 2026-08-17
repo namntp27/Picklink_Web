@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { ArrowLeft, Building2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { createOwnerVenue, type OwnerVenueInput } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
 import { OwnerShell } from './components/OwnerShell';
+import { OwnerBackLink } from './components/OwnerBackLink';
 import { OwnerVenueForm } from './components/OwnerVenueForm';
 
 export const OwnerCourtCreate = () => {
@@ -29,9 +30,9 @@ export const OwnerCourtCreate = () => {
 
   return (
     <OwnerShell activeId="courts" innerClassName="max-w-4xl">
-      <Link className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" to="/owner/courts">
+      <OwnerBackLink className="inline-flex items-center gap-2 text-[14px] font-bold text-primary hover:underline" fallback="/owner/courts">
         <ArrowLeft className="h-4 w-4" /> Quay lại danh sách sân
-      </Link>
+      </OwnerBackLink>
       <section className="owner-panel p-5 md:p-6">
         <div className="mb-5 flex items-center gap-3">
           <span className="rounded-lg bg-primary/10 p-2.5 text-primary"><Building2 className="h-5 w-5" /></span>

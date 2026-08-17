@@ -191,6 +191,7 @@ export type OwnerBookingRecord = {
   paymentMethod?: string | null;
   paymentId?: number | null;
   totalAmount: number;
+  refundAmount: number;
   courtAmount: number;
   hourlyPrice: number;
   venueId: number;
@@ -232,6 +233,7 @@ export type OwnerRevenueReport = {
   grossRevenue: number;
   paidBookings: number;
   pendingAmount: number;
+  refundedAmount: number;
   cancelledBookings: number;
   averageBookingValue: number;
   daily: Array<{ date: string; revenue: number; bookingCount: number }>;

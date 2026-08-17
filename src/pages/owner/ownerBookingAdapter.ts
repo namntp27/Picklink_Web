@@ -1,6 +1,17 @@
 import type { OwnerBookingRecord } from '../../api/owner';
 import type { BookingDetail, BookingCheckInStatus, BookingPaymentStatus, BookingStatus } from '../../data/bookings';
 
+const paymentMethodLabel: Record<string, string> = {
+  AtCourt: 'Thanh toán tại sân',
+  BankTransfer: 'Chuyển khoản ngân hàng',
+  Cash: 'Tiền mặt',
+  GroupOnline: 'Thanh toán theo nhóm',
+  Unpaid: 'Chưa thanh toán',
+  VietQR: 'Chuyển khoản VietQR',
+  Wallet: 'Ví điện tử',
+};
+
+const formatPaymentMethod = (method?: string | null) => method ? paymentMethodLabel[method] ?? method : 'Chưa chọn';
 export const ownerBookingToDetail = (record: OwnerBookingRecord): BookingDetail => {
   const bookingStatus: BookingStatus = record.bookingStatus === 'Confirmed'
     ? 'confirmed'
@@ -34,7 +45,7 @@ export const ownerBookingToDetail = (record: OwnerBookingRecord): BookingDetail 
     totalAmount: record.totalAmount,
     customerName: record.playerName,
     customerPhone: 'Chưa cập nhật',
-    paymentMethod: record.paymentMethod === 'AtCourt' ? 'Thanh toán tại sân' : record.paymentMethod || 'Chưa chọn',
+    paymentMethod: formatPaymentMethod(record.paymentMethod),
     paymentStatus,
     bookingStatus,
     checkInStatus: checkInMap[record.checkInStatus] ?? 'not_open',
