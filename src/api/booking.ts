@@ -94,6 +94,7 @@ export type BankTransfer = {
   verifiedAt?: string | null;
   rejectionReason?: string | null;
   holdExpiresAt?: string | null;
+  hasSePayApiToken?: boolean;
   venueId: number;
   venueName: string;
   courtNumber: number;

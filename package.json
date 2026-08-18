@@ -21,7 +21,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "lint": "tsc --noEmit",
-    "deploy:player": "vercel link --yes --project player-rho-five && vercel deploy --prod",
+    "deploy:player": "npm run build:player && node -e \"require('node:fs').writeFileSync('dist/player/vercel.json', JSON.stringify({rewrites:[{source:'/(.*)',destination:'/index.html'}]}))\" && vercel link --yes --project player --cwd dist/player && vercel deploy --prod --cwd dist/player",
     "deploy:owner": "npm run build:owner && node -e \"require('node:fs').writeFileSync('dist/owner/vercel.json', JSON.stringify({rewrites:[{source:'/(.*)',destination:'/index.html'}]}))\" && vercel link --yes --project picklink-owner --cwd dist/owner && vercel deploy --prod --cwd dist/owner",
     "deploy:admin": "npm run build:admin && node -e \"require('node:fs').writeFileSync('dist/admin/vercel.json', JSON.stringify({rewrites:[{source:'/(.*)',destination:'/index.html'}]}))\" && vercel link --yes --project picklink-admin --cwd dist/admin && vercel deploy --prod --cwd dist/admin",
     "deploy:all": "npm run deploy:player && npm run deploy:owner && npm run deploy:admin"

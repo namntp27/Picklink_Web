@@ -73,6 +73,7 @@ export type SessionTicket = {
   receiptImageUrl?: string | null;
   rejectionReason?: string | null;
   paidAt?: string | null;
+  hasSePayApiToken?: boolean;
   sePayTransactions: SePayTransaction[];
   session?: TicketSession | null;
 };

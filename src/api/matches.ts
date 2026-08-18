@@ -192,6 +192,7 @@ export type MatchDetailResponse = MatchSummary & {
   myQrImageUrl?: string | null;
   myTransferContent?: string | null;
   myPaymentRejectionReason?: string | null;
+  hasSePayApiToken?: boolean;
   participants: MatchParticipant[];
   canRemoveParticipants?: boolean;
   canBookNextRound?: boolean;

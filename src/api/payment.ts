@@ -29,6 +29,7 @@ export type BatchPaymentPreview = {
   transferContent: string;
   qrImageUrl: string;
   claimExpiresAt: string;
+  hasSePayApiToken?: boolean;
 };
 
 export type BatchPaymentResponse = {

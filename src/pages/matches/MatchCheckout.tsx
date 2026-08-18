@@ -11,6 +11,8 @@ import { reconcileSelectedPayerIds } from '../../utils/matchPaymentSelection';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 import { useToast } from '../../components/ui/ToastRegion';
 import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
+import { SePayAutoPollingToggle } from '../../components/payment/SePayAutoPollingToggle';
+import { useSePayPollingEngine } from '../../hooks/useSePayPollingEngine';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -46,6 +48,7 @@ export const MatchCheckout = () => {
   const [now, setNow] = useState(Date.now());
   const [paymentDeadlineAt, setPaymentDeadlineAt] = useState(0);
   const [isPaymentReviewPaused, setIsPaymentReviewPaused] = useState(false);
+  const [isAutoSepay, setIsAutoSepay] = useState(true);
   const [error, setError] = useState('');
   const phoneRedirecting = useRef(false);
 
@@ -174,6 +177,20 @@ export const MatchCheckout = () => {
     if (event.bookingId === bookingId && !isSubmitting) void loadMatch();
   });
 
+  const hasSePayConfigured = Boolean(preview?.hasSePayApiToken ?? match?.hasSePayApiToken);
+  const isAutoActive = isAutoSepay && hasSePayConfigured;
+
+  const {
+    countdown: sepayCountdown,
+    isChecking: isSepayChecking,
+    triggerNow: checkSepayNow,
+  } = useSePayPollingEngine({
+    intervalSeconds: 5,
+    enabled: isAutoActive,
+    isActive: Boolean(match && !isSubmitting && (hasPendingPayments || hasReceiptAwaitingReview)),
+    onTrigger: () => loadMatch(true),
+  });
+
   // Mirrors the polling already used on the other checkout screens: while a teammate's
   // payment is still outstanding, actively re-check every few seconds instead of waiting
   // solely on the realtime push (the backend opportunistically reconciles with SePay on
@@ -181,7 +198,7 @@ export const MatchCheckout = () => {
   useVisiblePolling(
     () => loadMatch(true),
     7_500,
-    Boolean(match && !isSubmitting && (hasPendingPayments || hasReceiptAwaitingReview)),
+    Boolean(match && !isSubmitting && (hasPendingPayments || hasReceiptAwaitingReview) && !isAutoActive),
   );
 
   const copyContent = async () => {
@@ -369,35 +386,50 @@ export const MatchCheckout = () => {
             )}
 
             {!paymentExpired && preview && (
-              <div className="mt-5 border-t border-dashed border-[#dbe8d3] pt-5">
-                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center hover:border-primary">
-                  <Upload className="mx-auto h-6 w-6 text-[#477313]" />
-                  <span className="mt-2 block text-[13px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span>
-                  <span className="mt-1 block text-[12px] text-[#66766d]">JPG, PNG hoặc WEBP · tối đa 12 MB</span>
-                  <input accept="image/jpeg,image/png,image/webp" className="hidden" disabled={isSubmitting} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
-                </label>
+              <div className="mt-5 border-t border-dashed border-[#dbe8d3] pt-5 space-y-4">
+                <SePayAutoPollingToggle
+                  countdownSeconds={sepayCountdown}
+                  enabled={isAutoSepay}
+                  hasSePayConfigured={hasSePayConfigured}
+                  intervalSeconds={5}
+                  isChecking={isSepayChecking}
+                  onManualCheck={() => void checkSepayNow()}
+                  onToggle={setIsAutoSepay}
+                  transferContent={preview.transferContent}
+                />
 
-                {uploadProgress !== null && isSubmitting && (
-                  <div className="mt-3 rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
-                    <div className="flex items-center justify-between text-[12px] font-bold text-[#477313]">
-                      <span>Đang tải ảnh biên lai lên Cloud...</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#dbe8d3]">
-                      <div
-                        className="h-full bg-[#477313] transition-all duration-200"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
+                {!isAutoActive && (
+                  <>
+                    <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center hover:border-primary">
+                      <Upload className="mx-auto h-6 w-6 text-[#477313]" />
+                      <span className="mt-2 block text-[13px] font-bold">{receipt ? receipt.name : 'Tải ảnh biên lai chuyển khoản'}</span>
+                      <span className="mt-1 block text-[12px] text-[#66766d]">JPG, PNG hoặc WEBP · tối đa 12 MB</span>
+                      <input accept="image/jpeg,image/png,image/webp" className="hidden" disabled={isSubmitting} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                    </label>
+
+                    {uploadProgress !== null && isSubmitting && (
+                      <div className="rounded-xl border border-[#dbe8d3] bg-[#f8fbf4] p-3">
+                        <div className="flex items-center justify-between text-[12px] font-bold text-[#477313]">
+                          <span>Đang tải ảnh biên lai lên Cloud...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#dbe8d3]">
+                          <div
+                            className="h-full bg-[#477313] transition-all duration-200"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {receiptPreview && <img alt="Xem trước biên lai" className="mx-auto max-h-56 rounded-xl border border-[#dbe8d3] object-contain" src={receiptPreview} />}
+
+                    <button aria-busy={isSubmitting} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d] disabled:cursor-not-allowed disabled:opacity-60" disabled={!receipt || isSubmitting} onClick={() => void submit()} type="button">
+                      <ShieldCheck className="h-5 w-5" />
+                      {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : `Gửi biên lai cho ${selectedPayerIds.length} người`}
+                    </button>
+                  </>
                 )}
-
-                {receiptPreview && <img alt="Xem trước biên lai" className="mx-auto mt-4 max-h-56 rounded-xl border border-[#dbe8d3] object-contain" src={receiptPreview} />}
-
-                <button aria-busy={isSubmitting} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d] disabled:cursor-not-allowed disabled:opacity-60" disabled={!receipt || isSubmitting} onClick={() => void submit()} type="button">
-                  <ShieldCheck className="h-5 w-5" />
-                  {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : `Gửi thanh toán cho ${selectedPayerIds.length} người`}
-                </button>
               </div>
             )}
           </section>

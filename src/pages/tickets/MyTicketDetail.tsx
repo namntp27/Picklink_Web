@@ -38,6 +38,8 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
+import { SePayAutoPollingToggle } from '../../components/payment/SePayAutoPollingToggle';
+import { useSePayPollingEngine } from '../../hooks/useSePayPollingEngine';
 
 const currency = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -201,6 +203,21 @@ export const MyTicketDetail = () => {
     return () => window.clearInterval(timer);
   }, [isPending, ticket?.holdExpiresAt]);
 
+  const [isAutoSepay, setIsAutoSepay] = useState(true);
+  const hasSePayConfigured = Boolean(ticket?.hasSePayApiToken);
+  const isAutoActive = isAutoSepay && hasSePayConfigured;
+
+  const {
+    countdown: sepayCountdown,
+    isChecking: isSepayChecking,
+    triggerNow: checkSepayNow,
+  } = useSePayPollingEngine({
+    intervalSeconds: 5,
+    enabled: isAutoActive,
+    isActive: Boolean(ticket && ticket.status === 'PendingPayment'),
+    onTrigger: load,
+  });
+
   usePaymentRealtime((event) => {
     if (ticket && event.paymentId === ticket.paymentId) void load();
   });
@@ -214,7 +231,7 @@ export const MyTicketDetail = () => {
   useVisiblePolling(
     load,
     7_500,
-    Boolean(ticket && ticket.status === 'PendingPayment'),
+    Boolean(ticket && ticket.status === 'PendingPayment' && !isAutoActive),
   );
 
   const holdDeadline = useMemo(() => ticket?.holdRemainingSeconds != null
@@ -400,35 +417,49 @@ export const MyTicketDetail = () => {
                     ))}
                   </dl>
                 </div>
-                <p className="mt-4 flex items-start gap-2 rounded-xl bg-surface-container-low p-3 text-[12px] leading-5 text-on-surface-variant"><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />Giữ nguyên số tiền và nội dung chuyển khoản. SePay sẽ tự động cập nhật vé khi ngân hàng ghi nhận giao dịch.</p>
-                {ticket.rejectionReason && <p className="mt-4 rounded-xl border border-error/20 bg-error-container p-3 text-[13px] font-bold text-error">Biên lai trước bị từ chối: {ticket.rejectionReason}</p>}
-                {uploadProgress !== null && busyAction === 'receipt' && (
-                  <div className="mt-3 rounded-xl border border-outline-variant bg-surface-container-low p-3">
-                    <div className="flex items-center justify-between text-[12px] font-bold text-primary">
-                      <span>Đang tải ảnh biên lai lên Cloud...</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-outline-variant">
-                      <div
-                        className="h-full bg-primary transition-all duration-200"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                <div className="mt-4 space-y-4">
+                  <SePayAutoPollingToggle
+                    countdownSeconds={sepayCountdown}
+                    enabled={isAutoSepay}
+                    hasSePayConfigured={hasSePayConfigured}
+                    intervalSeconds={5}
+                    isChecking={isSepayChecking}
+                    onManualCheck={() => void checkSepayNow()}
+                    onToggle={setIsAutoSepay}
+                    transferContent={ticket.transferContent}
+                  />
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                  <label className="block min-w-0">
-                    <span className="text-[13px] font-bold">Ảnh biên lai chuyển khoản</span>
-                    <span className="mt-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 text-[13px] font-semibold text-on-surface-variant">
-                      <Upload className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="truncate">{receipt?.name ?? 'Chọn ảnh JPG, PNG hoặc WEBP'}</span>
-                      <input accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busyAction === 'receipt'} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
-                    </span>
-                  </label>
-                  <Button aria-busy={busyAction === 'receipt'} disabled={!receipt || Boolean(busyAction)} onClick={() => void submitReceipt()} type="button">
-                    {busyAction === 'receipt' ? (uploadProgress !== null ? `Đang tải ${uploadProgress}%` : <Loader2 className="h-4 w-4 animate-spin" />) : <Upload className="h-4 w-4" />} Gửi biên lai
-                  </Button>
+                  {ticket.rejectionReason && <p className="rounded-xl border border-error/20 bg-error-container p-3 text-[13px] font-bold text-error">Biên lai trước bị từ chối: {ticket.rejectionReason}</p>}
+                  {uploadProgress !== null && busyAction === 'receipt' && (
+                    <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3">
+                      <div className="flex items-center justify-between text-[12px] font-bold text-primary">
+                        <span>Đang tải ảnh biên lai lên Cloud...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-outline-variant">
+                        <div
+                          className="h-full bg-primary transition-all duration-200"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {!isAutoActive && (
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                      <label className="block min-w-0">
+                        <span className="text-[13px] font-bold">Ảnh biên lai chuyển khoản</span>
+                        <span className="mt-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 text-[13px] font-semibold text-on-surface-variant">
+                          <Upload className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="truncate">{receipt?.name ?? 'Chọn ảnh JPG, PNG hoặc WEBP'}</span>
+                          <input accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busyAction === 'receipt'} onChange={(event) => setReceipt(event.target.files?.[0] ?? null)} type="file" />
+                        </span>
+                      </label>
+                      <Button aria-busy={busyAction === 'receipt'} disabled={!receipt || Boolean(busyAction)} onClick={() => void submitReceipt()} type="button">
+                        {busyAction === 'receipt' ? (uploadProgress !== null ? `Đang tải ${uploadProgress}%` : <Loader2 className="h-4 w-4 animate-spin" />) : <Upload className="h-4 w-4" />} Gửi biên lai
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </section>
             )}
