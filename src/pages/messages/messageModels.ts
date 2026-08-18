@@ -99,6 +99,7 @@ export const kindLabels: Record<ConversationKind, string> = {
 export const getLevelLabel = (conversation: Conversation) => {
   if (conversation.kind === 'club') return conversation.level;
   if (conversation.kind === 'match') return 'Phòng ' + conversation.level;
+  if (conversation.level === 'Chủ sân') return 'Chủ sân';
   return conversation.level ? 'Trình độ ' + conversation.level : 'Chưa cập nhật trình độ';
 };
 
@@ -123,20 +124,27 @@ export const groupToConversation = (group: CommunityGroup): Conversation => ({
 export const directToConversation = (direct: DirectConversation): Conversation => {
   const isRoom = direct.conversationType === 'LobbyChat' || direct.conversationType === 'QueueLobbyChat';
   const matchId = direct.matchId ?? undefined;
+  const isOwner = direct.otherUserType === 'VenueOwner' || direct.otherSkillLevel === 'Chủ sân' || Boolean(direct.otherVenueName);
   return {
     id: matchId ? 'match-' + matchId : (isRoom ? 'room-conv-' : 'direct-conv-') + direct.conversationId,
     name: direct.otherUsername,
     avatar: direct.otherUsername.split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase(),
     avatarUrl: direct.otherProfileImageUrl,
-    level: isRoom ? 'Ghép trận' : direct.otherSkillLevel,
+    level: isRoom ? 'Ghép trận' : isOwner ? 'Chủ sân' : direct.otherSkillLevel,
     kind: isRoom ? 'match' : 'direct',
     lastMessage: direct.lastMessage || 'Chưa có tin nhắn',
     lastTime: formatMessageTime(direct.lastMessageAt),
     unreadMessageCount: direct.unreadMessageCount,
-    contextTitle: isRoom ? direct.otherUsername : 'Trò chuyện cá nhân',
+    contextTitle: isRoom
+      ? direct.otherUsername
+      : isOwner
+        ? (direct.otherVenueName ? `Chủ sân · ${direct.otherVenueName}` : 'Chủ sân')
+        : 'Trò chuyện cá nhân',
     contextMeta: isRoom
       ? direct.accessRole === 'Replacement' ? 'Bạn đang tham gia với vai trò người thay thế' : 'Trao đổi trong phòng trận'
-      : direct.otherSkillLevel ? 'Trình độ ' + direct.otherSkillLevel : 'Chưa cập nhật trình độ',
+      : isOwner
+        ? (direct.otherVenueName ? `Đại diện cụm sân ${direct.otherVenueName}` : 'Chủ cụm sân đối tác')
+        : direct.otherSkillLevel ? 'Trình độ ' + direct.otherSkillLevel : 'Chưa cập nhật trình độ',
     conversationId: direct.conversationId,
     otherUserId: direct.otherUserId,
     matchId,

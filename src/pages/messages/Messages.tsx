@@ -240,7 +240,38 @@ export const Messages = () => {
     load();
     return () => { cancelled = true; };
   }, [token, chatWithUserId, searchParams, setSearchParams, notify]);
-  // Conversation list is loaded on mount (lines 200-236) and updated dynamically via real-time Firebase events.
+
+  useVisiblePolling(async () => {
+    if (!token) return;
+    try {
+      const directData = await getDirectConversations(token);
+      const mappedConversations = (Array.isArray(directData) ? directData : []).map(directToConversation);
+      setDirectConversations(mappedConversations.filter((item) => item.kind === 'direct'));
+      setMatchConversations((current) => {
+        const freshMatches = mappedConversations.filter((item) => item.kind === 'match');
+        if (freshMatches.length === 0) return current;
+        return freshMatches;
+      });
+    } catch {
+      // Ignore background refresh errors
+    }
+  }, 5_000, Boolean(token));
+
+  useVisiblePolling(async () => {
+    if (!token || !activeConversation?.conversationId || activeConversation.kind !== 'direct') return;
+    try {
+      const msgs = await getDirectMessages(token, activeConversation.conversationId, undefined, 20);
+      if (Array.isArray(msgs)) {
+        const chatMessages = msgs.map(toChatMessage);
+        setMessagesByConversation((prev) => ({
+          ...prev,
+          [activeConversation.id]: chatMessages,
+        }));
+      }
+    } catch {
+      // Ignore background refresh errors
+    }
+  }, 4_000, Boolean(token && activeConversation?.conversationId && activeConversation.kind === 'direct'));
 
   useEffect(() => {
     if (!activeConversationId) return;

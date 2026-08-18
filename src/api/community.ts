@@ -291,6 +291,8 @@ export type DirectConversation = {
   matchId?: number | null;
   accessRole?: 'Member' | 'Replacement' | string;
   accessExpiresAt?: string | null;
+  otherUserType?: string | null;
+  otherVenueName?: string | null;
 };
 
 export const startDirectConversation = (token: string, targetUserId: number) =>
