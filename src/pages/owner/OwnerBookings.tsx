@@ -52,6 +52,8 @@ type OwnerBookingListItem = BookingDetail & {
   matchType?: string | null;
   requiredPlayerCount?: number | null;
   acceptedPlayerCount?: number | null;
+  refundAmount?: number;
+  hasRefundPending?: boolean;
   matchPlayers: Array<{
     playerId: number;
     playerName: string;
@@ -96,7 +98,15 @@ const formatPlayDate = (value: string) =>
     year: 'numeric',
   }).format(new Date(`${value}T00:00:00`));
 
-const getBookingStatusLabel = (booking: BookingDetail) => {
+const getBookingStatusLabel = (booking: OwnerBookingListItem) => {
+  const needsRefund = booking.hasRefundPending
+    || (booking.refundAmount && booking.refundAmount > 0)
+    || booking.matchPlayers?.some((p) => p.paymentStatus === 'RefundPending');
+
+  if (needsRefund) {
+    return 'Đã hủy · Cần hoàn tiền';
+  }
+
   if (booking.bookingStatus === 'cancelled') {
     return 'Đã hủy';
   }
@@ -112,7 +122,15 @@ const getBookingStatusLabel = (booking: BookingDetail) => {
   return 'Đang giữ tạm';
 };
 
-const getBookingStatusClassName = (booking: BookingDetail) => {
+const getBookingStatusClassName = (booking: OwnerBookingListItem) => {
+  const needsRefund = booking.hasRefundPending
+    || (booking.refundAmount && booking.refundAmount > 0)
+    || booking.matchPlayers?.some((p) => p.paymentStatus === 'RefundPending');
+
+  if (needsRefund) {
+    return 'bg-amber-100 text-amber-900 border border-amber-300 font-bold';
+  }
+
   if (booking.bookingStatus === 'cancelled' || booking.paymentStatus === 'failed') {
     return 'bg-[#ffdad6] text-[#ba1a1a]';
   }
@@ -302,6 +320,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
             requiredPlayerCount: record.requiredPlayerCount,
             acceptedPlayerCount: record.acceptedPlayerCount,
             matchPlayers: record.matchPlayers ?? [],
+            refundAmount: record.refundAmount,
+            hasRefundPending: record.refundAmount > 0
+              || record.paymentStatus === 'RefundPending'
+              || (record.matchPlayers ?? []).some((p) => p.paymentStatus === 'RefundPending'),
           };
         }),
       };

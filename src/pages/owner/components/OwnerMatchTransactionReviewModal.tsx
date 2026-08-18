@@ -26,6 +26,8 @@ const statusLabels: Record<string, string> = {
   Paid: 'Đã thanh toán',
   Expired: 'Đã hết hạn',
   Cancelled: 'Đã hủy',
+  RefundPending: 'Chờ hoàn tiền',
+  Refunded: 'Đã hoàn tiền',
 };
 
 const statusClasses: Record<string, string> = {
@@ -34,6 +36,8 @@ const statusClasses: Record<string, string> = {
   Paid: 'bg-emerald-100 text-emerald-700',
   Expired: 'bg-red-100 text-red-700',
   Cancelled: 'bg-red-100 text-red-700',
+  RefundPending: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+  Refunded: 'bg-slate-100 text-slate-700',
 };
 
 export { mergeAdjacentBookingSlots } from './OwnerBookingSlotSummary';
