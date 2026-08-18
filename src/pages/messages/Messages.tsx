@@ -135,6 +135,10 @@ export const Messages = () => {
   );
 
   const [activeConversationId, setActiveConversationId] = useState<string>('');
+  const activeConversation = useMemo(
+    () => allConversations.find((conversation) => conversation.id === activeConversationId) ?? null,
+    [allConversations, activeConversationId],
+  );
   const [filter, setFilter] = useState<ConversationFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [draftMessage, setDraftMessage] = useState('');
@@ -297,8 +301,6 @@ export const Messages = () => {
     });
   }, [filter, searchTerm, allConversations]);
 
-  const activeConversation =
-    allConversations.find((conversation) => conversation.id === activeConversationId) ?? null;
   const activeMessages = messagesByConversation[activeConversation?.id] ?? [];
   const pinnedMessages = useMemo(
     () => pinnedMessagesByConversation[activeConversation?.id] ?? [],
