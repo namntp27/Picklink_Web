@@ -54,13 +54,14 @@ export const OwnerMessages = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const chatWithUserId = searchParams.get('chatWithUserId');
   const bookingId = Number(searchParams.get('bookingId')) || null;
+  const initialDraft = searchParams.get('draft') || searchParams.get('title');
   const [conversations, setConversations] = useState<DirectConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [isMobileListOpen, setIsMobileListOpen] = useState(() => !chatWithUserId);
   const [messagesByConversation, setMessagesByConversation] = useState<Record<number, ChatMessage[]>>({});
   const [booking, setBooking] = useState<OwnerBookingRecord | null>(null);
   const [search, setSearch] = useState('');
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(() => initialDraft || '');
   const [isLoading, setIsLoading] = useState(true);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -71,6 +72,12 @@ export const OwnerMessages = () => {
   useEffect(() => {
     if (chatWithUserId) setIsMobileListOpen(false);
   }, [chatWithUserId]);
+
+  useEffect(() => {
+    if (initialDraft) {
+      setDraft(initialDraft);
+    }
+  }, [initialDraft]);
 
   const filteredConversations = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase('vi-VN');

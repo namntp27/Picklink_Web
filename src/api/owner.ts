@@ -180,6 +180,7 @@ export type OwnerBookingRecord = {
   acceptedPlayerCount?: number | null;
   matchPlayers?: Array<{
     playerId: number;
+    userId?: number;
     playerName: string;
     isHost: boolean;
     paymentStatus: string;

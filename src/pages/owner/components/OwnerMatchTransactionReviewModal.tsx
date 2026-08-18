@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock, Loader2, MapPin, ReceiptText, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Loader2, MapPin, MessageCircle, ReceiptText, XCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { BankTransfer } from '../../../api/booking';
 import { ApiError } from '../../../api/client';
 import type { BookingDetail } from '../../../data/bookings';
@@ -61,6 +62,7 @@ export const OwnerMatchTransactionReviewModal = ({
   onUpdated,
 }: OwnerMatchTransactionReviewModalProps) => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const [payments, setPayments] = useState<BankTransfer[]>(initialPayments ?? []);
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
@@ -231,12 +233,64 @@ export const OwnerMatchTransactionReviewModal = ({
                         </p>
                       )}
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClasses[payment.paymentStatus] ?? 'bg-slate-100 text-slate-700'}`}>
-                      {statusLabels[payment.paymentStatus] ?? payment.paymentStatus}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClasses[payment.paymentStatus] ?? 'bg-slate-100 text-slate-700'}`}>
+                        {statusLabels[payment.paymentStatus] ?? payment.paymentStatus}
+                      </span>
+                      {payment.paymentStatus === 'RefundPending' && (
+                        <button
+                          aria-label={`Nhắn tin hoàn tiền cho ${payment.playerName}`}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 active:scale-95"
+                          onClick={() => {
+                            const draftText = `Chat hoàn tiền - Match #${bookingCode} (Khoản #${payment.transferCode || payment.paymentId})`;
+                            const targetUserId = payment.payerUserId;
+                            if (targetUserId) {
+                              navigate(`/owner/messages?chatWithUserId=${targetUserId}&bookingId=${bookingId}&draft=${encodeURIComponent(draftText)}`);
+                            } else {
+                              navigate(`/owner/messages?bookingId=${bookingId}&draft=${encodeURIComponent(draftText)}`);
+                            }
+                          }}
+                          title={`Mở chat hoàn tiền với ${payment.playerName}`}
+                          type="button"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 text-amber-700" />
+                          <span>Nhắn tin</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="p-4">
+                    {payment.paymentStatus === 'RefundPending' && (
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <MessageCircle className="h-5 w-5 shrink-0 text-amber-700" />
+                          <div>
+                            <p className="text-[13px] font-bold text-amber-950">Khoản tiền đang chờ hoàn trả</p>
+                            <p className="text-[12px] text-amber-800">
+                              Người chơi đã chuyển <strong>{currency.format(payment.amount)}</strong>. Hãy liên hệ với người chơi để xác nhận thông tin và chuyển lại tiền.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[12px] font-bold text-white shadow transition hover:bg-amber-700 active:scale-95"
+                          onClick={() => {
+                            const draftText = `Chat hoàn tiền - Match #${bookingCode} (Khoản #${payment.transferCode || payment.paymentId})`;
+                            const targetUserId = payment.payerUserId;
+                            if (targetUserId) {
+                              navigate(`/owner/messages?chatWithUserId=${targetUserId}&bookingId=${bookingId}&draft=${encodeURIComponent(draftText)}`);
+                            } else {
+                              navigate(`/owner/messages?bookingId=${bookingId}&draft=${encodeURIComponent(draftText)}`);
+                            }
+                          }}
+                          type="button"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          <span>Chat với {payment.playerName}</span>
+                        </button>
+                      </div>
+                    )}
+
                     {payment.receiptImageUrl ? (
                       <a href={payment.receiptImageUrl} rel="noreferrer" target="_blank">
                         <img

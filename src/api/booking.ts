@@ -80,8 +80,10 @@ export type BankTransfer = {
   bookingId: number;
   bookingCode: string;
   bookingStatus: string;
-  paymentStatus: 'Pending' | 'WaitingForConfirmation' | 'Paid' | 'Expired' | 'Cancelled';
+  paymentStatus: 'Pending' | 'WaitingForConfirmation' | 'Paid' | 'Expired' | 'Cancelled' | 'RefundPending' | 'Refunded';
   amount: number;
+  payerId?: number | null;
+  payerUserId?: number | null;
   transferCode?: string | null;
   transferContent?: string | null;
   bankCode?: string | null;
