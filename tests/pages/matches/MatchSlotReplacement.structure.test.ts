@@ -18,12 +18,17 @@ test('multi-day match rooms support reporting one busy slot and recruiting one r
   assert.ok(panel.includes('groups.flatMap'));
   assert.ok(panel.includes('reportableGroups'));
   assert.ok(panel.includes('absence.replacementRequests ?? []'));
+  assert.ok(panel.includes("import { PlayerHoverCard } from './components/PlayerHoverCard';"));
+  assert.ok(panel.includes("<PlayerHoverCard playerId={request.playerId} playerName={request.playerName}>"));
+  assert.ok(panel.includes("request.avatarUrl ? ("));
+  assert.ok(panel.includes("request.playerName.trim().charAt(0).toUpperCase()"));
 });
 
-test('approved room members manage replacement membership before the slot starts', () => {
+test('only the player who recruited a replacement manages its candidates', () => {
   assert.match(api, /replacement-requests\/\$\{replacementRequestId\}`/);
-  assert.ok(detail.includes('canReview={isApprovedMember}'));
-  assert.ok(panel.includes('canReview && pendingRequests.length > 0'));
+  assert.ok(detail.includes('currentPlayerId={match.myPlayerId}'));
+  assert.ok(panel.includes('const canManageReplacement = absence.unavailablePlayerId === currentPlayerId;'));
+  assert.ok(panel.includes('canManageReplacement && pendingRequests.length > 0'));
   assert.ok(panel.includes('Đang chờ thành viên phòng duyệt'));
   assert.ok(panel.includes('Rời nhóm'));
   assert.ok(panel.includes('Đưa khỏi nhóm'));

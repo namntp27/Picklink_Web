@@ -10,12 +10,13 @@ import {
   type MatchBookingCheckInGroup,
 } from '../../api/matches';
 import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
+import { PlayerHoverCard } from './components/PlayerHoverCard';
 
 type Props = {
   token?: string | null;
   matchId: number;
+  currentPlayerId?: number | null;
   groups: MatchBookingCheckInGroup[];
-  canReview: boolean;
   isBusy: boolean;
   run: (action: () => Promise<unknown>) => Promise<void>;
 };
@@ -29,7 +30,7 @@ const requestStatusLabel: Record<string, string> = {
   Removed: 'Đã bị đưa khỏi nhóm thay thế',
 };
 
-export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, isBusy, run }: Props) => {
+export const MatchSlotReplacementPanel = ({ token, matchId, currentPlayerId, groups, isBusy, run }: Props) => {
   const confirm = useConfirm();
   const prompt = usePrompt();
   const reportableGroups = groups.filter((group) => group.canReportUnavailable);
@@ -71,6 +72,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
         const approvedRequest = replacementRequests.find((request) => request.status === 'Approved');
         const pendingRequests = replacementRequests.filter((request) => request.status === 'Pending');
         const canChangeApproved = new Date(group.startTime).getTime() > Date.now();
+        const canManageReplacement = absence.unavailablePlayerId === currentPlayerId;
         return (
           <div className="rounded-lg border border-[#e2ff57]/25 bg-[#e2ff57]/10 p-2.5" key={absence.matchSlotAbsenceId}>
             <div className="flex items-start justify-between gap-2">
@@ -95,7 +97,7 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
             {approvedRequest && (
               <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-emerald-300/15 px-2 py-1.5 text-[10px] font-bold text-emerald-100">
                 <span><Check className="mr-1 inline h-3 w-3" /> {approvedRequest.playerName} sẽ chơi thay · Trình {approvedRequest.skillLevel}</span>
-                {canReview && canChangeApproved && token && (
+                {canManageReplacement && canChangeApproved && token && (
                   <button
                     className="flex shrink-0 items-center gap-1 rounded-md bg-rose-400/20 px-2 py-1 text-[9px] font-extrabold text-rose-100 hover:bg-rose-400/35"
                     disabled={isBusy}
@@ -145,12 +147,28 @@ export const MatchSlotReplacementPanel = ({ token, matchId, groups, canReview, i
               </div>
             )}
 
-            {canReview && pendingRequests.length > 0 && (
+            {canManageReplacement && pendingRequests.length > 0 && (
               <div className="mt-2 space-y-1.5">
                 <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-white/60">Ứng viên thay thế</p>
                 {pendingRequests.map((request) => (
                   <div className="flex items-center justify-between gap-2 rounded-md bg-white/10 px-2 py-1.5" key={request.matchSlotReplacementRequestId}>
-                    <span className="text-[10px] font-bold text-white">{request.playerName} · Trình {request.skillLevel}</span>
+                    <PlayerHoverCard playerId={request.playerId} playerName={request.playerName}>
+                      {request.avatarUrl ? (
+                        <img
+                          alt=""
+                          className="h-7 w-7 rounded-full object-cover"
+                          src={request.avatarUrl}
+                        />
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e2ff57] text-[10px] font-black text-[#092129]"
+                        >
+                          {request.playerName.trim().charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </PlayerHoverCard>
+                    <span className="min-w-0 flex-1 truncate text-[10px] font-bold text-white">{request.playerName} · Trình {request.skillLevel}</span>
                     <div className="flex gap-1">
                       <button
                         aria-label={`Từ chối ${request.playerName}`}

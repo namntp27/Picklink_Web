@@ -15,7 +15,13 @@ import {
   MessageSquare,
   Plus,
 } from 'lucide-react';
-import { searchMatchVenues, type MatchFormat, type MatchPreferredVenue } from '../../api/matches';
+import {
+  getOpenMatches,
+  searchMatchVenues,
+  type MatchFormat,
+  type MatchPreferredVenue,
+  type MatchSummary,
+} from '../../api/matches';
 import {
   cancelQueue,
   getPublicQueues,
@@ -86,6 +92,7 @@ const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 
 
 const PAGE_SIZE = 15;
 const emptyQueues: QueueStatusResponse[] = [];
+const emptyMatches: MatchSummary[] = [];
 export const PendingInvites = () => {
   const { token } = useAuth();
   const confirm = useConfirm();
@@ -108,6 +115,16 @@ export const PendingInvites = () => {
     { errorMessage: 'Không thể tải danh sách lời mời thủ công.' },
   );
 
+  const {
+    data: replacementPage,
+    error: replacementsError,
+    loading: replacementsLoading,
+    refresh: loadReplacements,
+  } = useApiQuery(
+    ['public-replacement-slots', token],
+    () => getOpenMatches(token ?? undefined, { source: 'replacement', page: 1, pageSize: 50 }),
+    { errorMessage: 'Không thể tải danh sách cần người thay thế.' },
+  );
   useEffect(() => {
     let disposed = false;
     void (async () => {
@@ -170,10 +187,12 @@ export const PendingInvites = () => {
     navigate(`/opponents/queue/${queueId}`);
   };
 
-  const error = actionError || queuesError;
+  const replacementMatches = replacementPage?.items ?? emptyMatches;
+  const error = actionError || queuesError || replacementsError;
 
   useMatchRealtime(() => {
     void loadQueues();
+    void loadReplacements();
   });
   
   const filteredQueues = useMemo(() => {
@@ -198,6 +217,17 @@ export const PendingInvites = () => {
     });
   }, [queues, filters.date, filters.format, filters.province, filters.skill, filters.ward]);
 
+  const filteredReplacementMatches = useMemo(() => replacementMatches.filter((match) => {
+    if (match.replacementSlotCount < 1) return false;
+    if (filters.format !== 'all' && match.matchType !== filters.format) return false;
+    if (filters.skill !== 'all') {
+      const skill = Number(filters.skill);
+      if (skill < match.minSkillLevel || skill > match.maxSkillLevel) return false;
+    }
+    if (filters.province && match.province !== filters.province) return false;
+    if (filters.ward && match.ward !== filters.ward) return false;
+    return !filters.date || (match.availableDateFrom <= filters.date && match.availableDateTo >= filters.date);
+  }), [replacementMatches, filters.date, filters.format, filters.province, filters.skill, filters.ward]);
   const pagination = useMemo(() => ({
     page,
     pageSize: PAGE_SIZE,
@@ -215,11 +245,12 @@ export const PendingInvites = () => {
   }, [page, pagination.totalPages]);
 
   const remainingSlots = useMemo(() => {
-    return filteredQueues.reduce((sum, q) => {
+    const queueSlots = filteredQueues.reduce((sum, q) => {
       const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
       return sum + Math.max(0, maxCap - q.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected').length);
     }, 0);
-  }, [filteredQueues]);
+    return queueSlots + filteredReplacementMatches.reduce((sum, match) => sum + match.replacementSlotCount, 0);
+  }, [filteredQueues, filteredReplacementMatches]);
 
   const update = (key: keyof Filters, value: string) => {
     setFilters((current) => ({ ...current, [key]: value }) as Filters);
@@ -241,17 +272,17 @@ export const PendingInvites = () => {
             </Link>
           </>
         )}
-        description="Lọc các lời mời thủ công công khai theo khu vực, thời gian và trình độ."
+        description="Lọc lời mời công khai và vị trí cần người thay thế theo khu vực, thời gian và trình độ."
         icon={Users}
-        label="Lời mời thủ công"
+        label="Lời mời đang mở"
         stats={(
           <div className="grid grid-cols-2 gap-5">
             <div>
               <p className="font-mono text-[23px] font-extrabold text-[#e2ff57]">
-                {filteredQueues.length}
+                {filteredQueues.length + filteredReplacementMatches.length}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">
-                lời mời thủ công
+                lời mời đang mở
               </p>
             </div>
             <div>
@@ -322,12 +353,32 @@ export const PendingInvites = () => {
           </div>
         )}
 
-        <section aria-busy={queuesLoading} className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {queuesLoading && queues.length === 0 && Array.from({ length: 6 }, (_, index) => (
+        <section aria-busy={queuesLoading || replacementsLoading} className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(queuesLoading || replacementsLoading) && queues.length === 0 && replacementMatches.length === 0 && Array.from({ length: 6 }, (_, index) => (
             <article aria-hidden="true" className="community-card animate-pulse p-3 motion-reduce:animate-none" key={index}>
               <div className="h-5 w-28 rounded bg-[#e8efe5]" />
               <div className="mt-3 h-4 w-3/4 rounded bg-[#edf2ea]" />
               <div className="mt-3 h-28 rounded-lg bg-[#f2f5f0]" />
+            </article>
+          ))}
+          {filteredReplacementMatches.map((match) => (
+            <article className="community-card h-full p-3 flex flex-col justify-between" key={`replacement-${match.matchId}`}>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Cần người thay thế</span>
+                  <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px]">{match.matchType}</span>
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-extrabold leading-5 text-[#0b2228]">{match.title}</h2>
+                  <p className="mt-1 text-[11px] leading-4 text-[#526158]">Đã đặt sân {match.venueName ? `tại ${match.venueName}` : ''} · còn {match.replacementSlotCount} vị trí thay thế.</p>
+                </div>
+                <div className="rounded-lg border border-[#d8e4d4] bg-[#fbfcfa] px-2.5 py-2 text-[11px] font-semibold text-[#526158]">
+                  <MapPin aria-hidden="true" className="mr-1 inline h-3 w-3 text-[#477313]" />{match.ward || 'Tự do'}, {match.province || 'Toàn quốc'}
+                </div>
+              </div>
+              <Link className="community-button mt-3 !min-h-8 !text-[11px] flex items-center justify-center gap-1" to={`/matches/${match.matchId}`}>
+                <UserPlus aria-hidden="true" className="h-3.5 w-3.5" /> Xem và đăng ký chơi thay
+              </Link>
             </article>
           ))}
           {paginatedQueues.map((q) => {
@@ -501,7 +552,7 @@ export const PendingInvites = () => {
                 );
           })}
 
-          {!queuesLoading && filteredQueues.length === 0 && (
+          {!queuesLoading && !replacementsLoading && filteredQueues.length === 0 && filteredReplacementMatches.length === 0 && (
             <div className="sm:col-span-2 lg:col-span-3">
               <CommunityEmptyState
                 action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}

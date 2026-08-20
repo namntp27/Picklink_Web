@@ -1247,9 +1247,9 @@ export const MatchDetail = () => {
                             </div>
                           ))}
                           <MatchSlotReplacementPanel
+                            currentPlayerId={match.myPlayerId}
                             groups={mergedGroup.groups}
                             isBusy={isBusy}
-                            canReview={isApprovedMember}
                             matchId={matchId}
                             run={run}
                             token={token}

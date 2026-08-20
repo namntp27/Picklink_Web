@@ -246,7 +246,7 @@ export type MatchPlayerReview = {
 
 export type MatchSearchFilters = PaginationParams & {
   owner?: 'mine' | 'other';
-  source?: 'community' | 'manual';
+  source?: 'community' | 'manual' | 'replacement';
   matchType?: MatchFormat;
   skillLevel?: number;
   from?: string;
