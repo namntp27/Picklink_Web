@@ -85,9 +85,15 @@ export const CourtTimelineGrid = ({
         ))}
       </div>
 
-      <p className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">
-        <span className="font-black text-[#f97316]">Lưu ý:</span> Bạn có thể chọn các slot rời nhau; dùng mục số tháng áp dụng để sao chép lịch đang chọn.
-      </p>
+      <div className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">
+        <p>
+          Hỗ trợ từ chủ sân:{' '}
+          {availability.phoneNumber
+            ? <a className="font-black text-[#276b3f] underline" href={`tel:${availability.phoneNumber}`}>{availability.phoneNumber}</a>
+            : <span className="font-bold">Chưa cập nhật số điện thoại</span>}
+        </p>
+        <p className="mt-1"><span className="font-black text-[#f97316]">Lưu ý:</span> Bạn có thể chọn các slot rời nhau; dùng mục số tháng áp dụng để sao chép lịch đang chọn.</p>
+      </div>
       <div className="overflow-x-auto">
         <div className="min-w-[1080px]">
           <div

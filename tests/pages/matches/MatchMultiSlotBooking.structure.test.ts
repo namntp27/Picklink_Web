@@ -31,3 +31,13 @@ test('match booking submits independent slots through the public booking contrac
   assert.ok(controllerSource.includes('[HttpPost("{matchId:int}/booking")]'));
   assert.ok(controllerSource.includes('_matchService.CreateMatchBooking(matchId, request, cancellationToken)'));
 });
+
+test('match booking explains an invalid monthly apply instead of silently disabling it', () => {
+  assert.ok(detailSource.includes('disabled={isBusy} onClick={() => void applyCurrentSlotsForMonths()}'));
+  assert.ok(!detailSource.includes('disabled={isBusy || maximumMonthDuration < 1 || !selectedSlotsForDate.length}'));
+});
+
+test('match venue changes discard stale availability responses', () => {
+  assert.ok(detailSource.includes('const availabilityRequestId = ++availabilityRequestRef.current;'));
+  assert.ok(detailSource.includes('if (availabilityRequestId !== availabilityRequestRef.current) return;'));
+});

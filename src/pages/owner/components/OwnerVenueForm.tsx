@@ -86,9 +86,10 @@ export const OwnerVenueForm = ({
           <span className="mb-1.5 block text-[13px] font-bold">Giờ đóng cửa</span>
           <input className={fieldClassName} onChange={(event) => update('closeTime', event.target.value)} required type="time" value={draft.closeTime} />
         </label>
-        <label>
-          <span className="mb-1.5 block text-[13px] font-bold">Số điện thoại</span>
-          <input className={fieldClassName} onChange={(event) => update('phoneNumber', event.target.value)} type="tel" value={draft.phoneNumber} />
+        <label className="md:col-span-2">
+          <span className="mb-1.5 block text-[13px] font-bold">Số điện thoại hỗ trợ player</span>
+          <input autoComplete="tel" className={fieldClassName} inputMode="tel" maxLength={30} onChange={(event) => update('phoneNumber', event.target.value)} placeholder="Ví dụ: 0901234567" type="tel" value={draft.phoneNumber} />
+          <span className="mt-1 block text-[12px] text-on-surface-variant">Số này sẽ hiển thị trên lịch sân để player liên hệ khi cần hỗ trợ.</span>
         </label>
         <label>
           <span className="mb-1.5 block text-[13px] font-bold">Giá cơ bản / giờ</span>

@@ -22,6 +22,12 @@ test('court timeline grid matches the venue timetable states from the reference'
   assert.doesNotMatch(gridSource, /href="#court-pricing"/);
 });
 
+test('court timeline shows the owner support phone above the booking note', () => {
+  assert.match(gridSource, /Hỗ trợ từ chủ sân/);
+  assert.match(gridSource, /href=\{`tel:\$\{availability\.phoneNumber\}`\}/);
+  assert.ok(gridSource.indexOf('Hỗ trợ từ chủ sân') < gridSource.indexOf('Lưu ý:'));
+});
+
 test('court schedule bottom bar follows the Home page palette', () => {
   for (const token of ['#081d24', '#0f2e32', '#143f34', '#e2ff57', '#f8fbf4']) {
     assert.match(scheduleSource, new RegExp(token));

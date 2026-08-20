@@ -277,6 +277,7 @@ export const MatchDetail = () => {
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
   const [bookingDate, setBookingDate] = useState('');
   const [availability, setAvailability] = useState<CourtAvailability | null>(null);
+  const availabilityRequestRef = useRef(0);
   const [slotOptions, setSlotOptions] = useState<MatchSlotOption[]>([]);
   const [selectedSlotsByDate, setSelectedSlotsByDate] = useState<Record<string, MatchBookingSlotSelection[]>>({});
   const [bookingMonths, setBookingMonths] = useState(1);
@@ -362,14 +363,19 @@ export const MatchDetail = () => {
   }, [match?.endTime, match?.status, match?.bookingCheckIns]);
 
   const loadAvailability = async () => {
+    const availabilityRequestId = ++availabilityRequestRef.current;
     if (!selectedVenueId || !bookingDate || !canBookAnotherRound) {
       setAvailability(null);
       return;
     }
+
+    setAvailability(null);
     try {
       const result = await getCourtAvailability(selectedVenueId, bookingDate, token);
+      if (availabilityRequestId !== availabilityRequestRef.current) return;
       setAvailability(result);
     } catch (reason) {
+      if (availabilityRequestId !== availabilityRequestRef.current) return;
       setError(reason instanceof Error ? reason.message : 'Không thể tải lịch sân.');
     }
   };
@@ -525,7 +531,7 @@ export const MatchDetail = () => {
   };
   const changeBookingDate = (nextDate: string) => {
     setBookingDate(nextDate);
-    setBookingMonths((current) => Math.min(current, maximumMonthDurationFrom(nextDate)));
+    setBookingMonths((current) => Math.max(1, Math.min(current, maximumMonthDurationFrom(nextDate))));
     setBookingSubmitError('');
   };
 
@@ -1137,7 +1143,7 @@ export const MatchDetail = () => {
                         value={bookingMonths}
                       />
                     </label>
-                    <button className="min-h-11 w-full rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] sm:w-auto font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy || maximumMonthDuration < 1 || !selectedSlotsForDate.length} onClick={() => void applyCurrentSlotsForMonths()} type="button">Áp dụng {bookingMonths} tháng</button>
+                    <button className="min-h-11 w-full rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] sm:w-auto font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy} onClick={() => void applyCurrentSlotsForMonths()} type="button">Áp dụng {bookingMonths} tháng</button>
                   </div>
                   <p className="mt-2 text-[12px] font-medium text-[#718077]">Sao chép các slot đang chọn từ {formatDateKey(bookingDate)} đến {formatDateKey(bookingRangeEnd)}, bao gồm ngày kết thúc.</p>
                   {monthUnavailableSlots.length > 0 && <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950"><p className="flex items-center gap-2 text-[12px] font-extrabold"><AlertCircle className="h-4 w-4" /> Slot không còn trống ({monthUnavailableSlots.length})</p><div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-y-auto">{monthUnavailableSlots.map((slot) => <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold" key={slotIdentity(slot.courtId, slot.startTime, slot.endTime)}>Sân {slot.courtNumber} · {dateLabel(slot.date)} · {timePart(slot.startTime)}-{timePart(slot.endTime)}</span>)}</div></div>}

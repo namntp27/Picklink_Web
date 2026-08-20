@@ -16,6 +16,11 @@ test('court schedule applies the selected daily slots through a rolling number o
   assert.match(bookingSource, /date\?: string/);
 });
 
+test('court schedule explains an invalid monthly apply instead of silently disabling it', () => {
+  assert.match(scheduleSource, /disabled=\{isApplyingMonth\}/);
+  assert.doesNotMatch(scheduleSource, /disabled=\{isApplyingMonth \|\| maximumMonthDuration/);
+});
+
 test('court schedule validates selections only against the availability for the displayed date', () => {
   // The date is part of the query key, so a response can only ever be applied to the day it was
   // requested for; `availabilityDate` derives from that rather than being tracked separately.

@@ -49,6 +49,7 @@ export type CourtAvailability = {
   venueId: number;
   venueName: string;
   address: string;
+  phoneNumber?: string | null;
   openTime: string;
   closeTime: string;
   date: string;

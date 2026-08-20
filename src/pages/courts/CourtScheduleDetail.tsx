@@ -374,7 +374,7 @@ export const CourtScheduleDetail = () => {
   const changeDate = (nextDate: string) => {
     const nextValidDate = validScheduleDate(nextDate);
     setDate(nextValidDate);
-    setBookingMonths((current) => Math.min(current, maximumMonthDurationFrom(nextValidDate)));
+    setBookingMonths((current) => Math.max(1, Math.min(current, maximumMonthDurationFrom(nextValidDate))));
     setSearchParams({ date: nextValidDate }, { replace: true });
   };
 
@@ -474,7 +474,7 @@ export const CourtScheduleDetail = () => {
                     <Button
                       aria-busy={isApplyingMonth}
                       className="h-11 w-full rounded-xl bg-[#0b2228] px-3 text-[12px] sm:w-auto font-bold text-white hover:bg-[#173a41]"
-                      disabled={isApplyingMonth || maximumMonthDuration < 1 || !selectedSlotsForDate.length}
+                      disabled={isApplyingMonth}
                       onClick={() => void applyCurrentSlotsForMonths()}
                       type="button"
                     >

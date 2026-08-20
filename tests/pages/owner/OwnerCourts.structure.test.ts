@@ -35,3 +35,12 @@ test('each owner venue exposes a read-only player review dialog', () => {
   assert.match(dialog, /Chỉ xem/);
   assert.doesNotMatch(dialog, /<textarea|contentEditable|moderateOwner|updateOwnerVenueReview|deleteOwnerVenueReview/);
 });
+
+test('owner venue form collects the player support phone', () => {
+  const form = read('src/pages/owner/components/OwnerVenueForm.tsx');
+
+  assert.match(form, /Số điện thoại hỗ trợ player/);
+  assert.match(form, /type="tel" value=\{draft\.phoneNumber\}/);
+  assert.match(form, /phoneNumber: draft\.phoneNumber\.trim\(\) \|\| undefined/);
+  assert.match(form, /Số này sẽ hiển thị trên lịch sân/);
+});
