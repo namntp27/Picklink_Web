@@ -829,6 +829,7 @@ export const Opponents = () => {
                 <input
                   type="time"
                   className={inputClass}
+                  lang="en-GB"
                   min={dateFrom === today() ? currentTime() : undefined}
                   value={availabilitySlots[0].timeFrom}
                   onChange={(e) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeFrom', e.target.value)}
@@ -839,6 +840,7 @@ export const Opponents = () => {
                 <input
                   type="time"
                   className={inputClass}
+                  lang="en-GB"
                   value={availabilitySlots[0].timeTo}
                   onChange={(e) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeTo', e.target.value)}
                 />

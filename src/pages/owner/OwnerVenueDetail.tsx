@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, Banknote, Building2, Camera, Check, Edit3, MapPin, Send, Star, Trash2, Upload } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Building2, Camera, Check, Edit3, MapPin, Send, Star, Trash2, Upload } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
-import { uploadToCloudinary } from '../../api/cloudinary';
-import { previewOwnerListingFee, submitOwnerListingFeePayment, type OwnerListingFeePreview } from '../../api/listingFees';
 import {
   deleteOwnerVenueImage,
   getOwnerVenue,
@@ -21,15 +19,6 @@ import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const statusLabel: Record<OwnerVenue['approvalStatus'], string> = { Draft: 'Bản nháp', Pending: 'Chờ Admin duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' };
-const listingStatusLabel: Record<string, string> = {
-  Unpaid: 'Chưa thanh toán phí lên sàn',
-  PendingReview: 'Biên lai đang chờ Admin duyệt',
-  Paid: 'Đã thanh toán phí lên sàn',
-  Confirmed: 'Đã xác nhận',
-  Rejected: 'Biên lai bị từ chối',
-  Expired: 'Đã hết hạn phí lên sàn',
-};
-
 export const OwnerVenueDetail = () => {
   const { token } = useAuth();
   const confirm = useConfirm();
@@ -47,20 +36,9 @@ export const OwnerVenueDetail = () => {
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [caption, setCaption] = useState('');
-  const [listingMonths, setListingMonths] = useState(1);
-  const [listingReceipt, setListingReceipt] = useState<File | null>(null);
-  const [listingPreview, setListingPreview] = useState<OwnerListingFeePreview | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [actionError, setActionError] = useState('');
   const error = actionError || loadError;
-
-  useEffect(() => {
-    if (!token || !venue || !Number.isInteger(venueId)) return;
-    void previewOwnerListingFee(token, venueId, listingMonths)
-      .then(setListingPreview)
-      .catch(() => setListingPreview(null));
-  }, [listingMonths, token, venue, venueId]);
 
   const run = async (action: () => Promise<unknown>) => {
     setIsBusy(true);
@@ -75,20 +53,6 @@ export const OwnerVenueDetail = () => {
     await run(() => uploadOwnerVenueImage(token, venueId, imageFile, caption));
     setImageFile(null);
     setCaption('');
-  };
-
-  const submitListingFee = async () => {
-    if (!token || !listingReceipt) return;
-    setUploadProgress(0);
-    try {
-      await uploadToCloudinary(token, listingReceipt, setUploadProgress, 'picklink_receipts');
-      await run(() => submitOwnerListingFeePayment(token, venueId, listingMonths, listingReceipt));
-      setListingReceipt(null);
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Không thể tải biên lai lên Cloud.');
-    } finally {
-      setUploadProgress(null);
-    }
   };
 
   return (
@@ -110,86 +74,6 @@ export const OwnerVenueDetail = () => {
         </section>
 
         <OwnerCourtManager onChanged={refresh} onError={setActionError} onOptimistic={setVenueData} token={token!} venue={venue} />
-
-        <section className="owner-panel p-5">
-          <div className="mb-4 flex items-center gap-3">
-            <Banknote className="h-6 w-6 text-primary" />
-            <div>
-              <h2 className="text-[21px] font-bold">Phí lên sàn Picklink</h2>
-              <p className="text-[13px] text-on-surface-variant">Sân chỉ hiển thị cho người chơi khi đã được duyệt và phí lên sàn còn hạn.</p>
-            </div>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-outline-variant bg-surface-container-low p-4">
-              <p className="text-[12px] font-bold uppercase text-on-surface-variant">Trạng thái</p>
-              <p className="mt-2 text-[18px] font-black text-primary">{listingStatusLabel[venue.listingStatus] ?? venue.listingStatus}</p>
-              <p className="mt-2 text-[13px] text-on-surface-variant">
-                Hạn hiển thị: {venue.listingExpiresAt ? new Date(venue.listingExpiresAt).toLocaleDateString('vi-VN') : 'Chưa có'}
-              </p>
-              {venue.latestListingPayment?.rejectionReason && (
-                <p className="mt-3 rounded-lg bg-red-50 p-3 text-[13px] font-bold text-red-700">
-                  Lý do từ chối: {venue.latestListingPayment.rejectionReason}
-                </p>
-              )}
-            </div>
-            <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
-              <div className="grid gap-3 md:grid-cols-[140px_1fr]">
-                <label>
-                  <span className="mb-1.5 block text-[12px] font-bold">Số tháng</span>
-                  <input
-                    className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-[13px] font-bold outline-none focus:border-primary"
-                    max={24}
-                    min={1}
-                    onChange={(event) => setListingMonths(Math.max(1, Math.min(24, Number(event.target.value) || 1)))}
-                    type="number"
-                    value={listingMonths}
-                  />
-                </label>
-                <div>
-                  <p className="text-[12px] font-bold uppercase text-on-surface-variant">Số tiền tạm tính</p>
-                  <p className="mt-1 text-[22px] font-black text-primary">{currency.format(listingPreview?.amount ?? 0)}</p>
-                  <p className="text-[12px] text-on-surface-variant">
-                    {(listingPreview?.activeCourtCount ?? venue.courts.filter((court) => court.availabilityStatus !== 'Inactive').length)} sân con × {currency.format(listingPreview?.pricePerCourtPerMonth ?? 0)} × {listingMonths} tháng
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                <label>
-                  <span className="mb-1.5 block text-[12px] font-bold">Biên lai thanh toán phí lên sàn</span>
-                  <input
-                    accept="image/jpeg,image/png,image/webp"
-                    className="block w-full text-[13px] file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:font-bold file:text-white"
-                    onChange={(event) => setListingReceipt(event.target.files?.[0] ?? null)}
-                    type="file"
-                  />
-                </label>
-                <button
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50"
-                  disabled={!listingReceipt || isBusy || !listingPreview}
-                  onClick={() => void submitListingFee()}
-                  type="button"
-                >
-                  <Upload className="h-4 w-4" /> {isBusy && uploadProgress !== null ? `Đang tải ${uploadProgress}%...` : 'Gửi biên lai'}
-                </button>
-              </div>
-              {uploadProgress !== null && isBusy && (
-                <div className="mt-3 rounded-xl border border-primary/20 bg-white p-3">
-                  <div className="flex items-center justify-between text-[12px] font-bold text-primary">
-                    <span>Đang tải ảnh biên lai lên Cloud...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full bg-primary transition-all duration-200"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              {listingReceipt && <p className="mt-2 text-[12px] font-bold text-primary">Đã chọn: {listingReceipt.name}</p>}
-            </div>
-          </div>
-        </section>
 
         <section className="owner-panel p-5">
           <div className="mb-4 flex items-center gap-3"><Camera className="h-6 w-6 text-primary" /><div><h2 className="text-[21px] font-bold">Hình ảnh cụm sân</h2><p className="text-[13px] text-on-surface-variant">Tối đa 10 ảnh, mỗi ảnh không quá 5MB. Chấp nhận JPG, PNG và WEBP.</p></div></div>
