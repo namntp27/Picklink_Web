@@ -41,6 +41,7 @@ import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useMatchRealtime } from '../../hooks/useMatchRealtime';
+import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 import { CommunityPage } from '../community/CommunityUI';
 import { getCourtAvailability, type CourtAvailability } from '../../api/booking';
 import { MapContainer, TileLayer, Marker, Popup as LeafletPopup } from 'react-leaflet';
@@ -184,6 +185,10 @@ export const QueueDetail = () => {
 
   useMatchRealtime((event) => {
     if (queue?.matchId === event.matchId) void loadQueue();
+  });
+
+  useNotificationRealtime(token, (event) => {
+    if (event.action === 'Created' && queue && !queue.isPublic) void loadQueue();
   });
 
   useEffect(() => {
@@ -566,6 +571,7 @@ export const QueueDetail = () => {
   // Create one slot card for each configured player.
   const totalSlots = queue.playerCount ?? (queue.matchType === '1vs1' ? 2 : 4);
   const slotsList = Array.from({ length: totalSlots }, (_, i) => approvedPlayers[i] || null);
+  const canEnterMatch = queue.isPublic || approvedPlayers.length >= totalSlots;
 
   return (
     <CommunityPage>
@@ -592,7 +598,7 @@ export const QueueDetail = () => {
           </div>
 
           <div className="flex flex-wrap gap-2.5 shrink-0">
-            {isMember && queue.matchId && (
+            {isMember && queue.matchId && canEnterMatch && (
               <Link
                 to={`/matches/${queue.matchId}`}
                 className="community-button flex items-center justify-center gap-1.5 !bg-[#e2ff57] !text-[#0b2228] hover:!bg-[#d4f046]"

@@ -3,6 +3,7 @@ import { AppFrame } from '@/apps/AppFrame';
 import { lazyPage } from '@/apps/lazyPage';
 import { ProtectedRoute, PublicOnlyRoute } from '@/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { MatchFoundAlert } from '@/components/matches/MatchFoundAlert';
 import { prefetchPlayerRoute } from '@/navigation/playerRoutePrefetch';
 
 const ForgotPassword = lazyPage(() => import('@/pages/auth/ForgotPassword'), 'ForgotPassword');
@@ -71,6 +72,7 @@ const getPlayerMotionScope = (pathname: string) => {
 
 export const PlayerApp = () => (
   <AppFrame getMotionScope={getPlayerMotionScope} prefetchRoute={prefetchPlayerRoute}>
+    <MatchFoundAlert />
     <Routes>
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />

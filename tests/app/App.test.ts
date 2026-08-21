@@ -7,6 +7,8 @@ const playerApp = read('apps/player/src/PlayerApp.tsx');
 const ownerApp = read('apps/owner/src/OwnerApp.tsx');
 const adminApp = read('apps/admin/src/AdminApp.tsx');
 const appFrame = read('src/apps/AppFrame.tsx');
+const matchFoundAlert = read('src/components/matches/MatchFoundAlert.tsx');
+const queueDetail = read('src/pages/matches/QueueDetail.tsx');
 
 test('all web apps lazy-load route pages through the shared app frame', () => {
   for (const source of [playerApp, ownerApp, adminApp]) {
@@ -32,4 +34,15 @@ test('route-level source dependencies stay inside each web app boundary', () => 
   assert.match(playerApp, /path="\/register"/);
   assert.doesNotMatch(ownerApp, /path="\/register"/);
   assert.doesNotMatch(adminApp, /path="\/register"/);
+});
+
+test('player app shows a realtime alert when automatic matchmaking finds a room', () => {
+  assert.match(playerApp, /<MatchFoundAlert \/>/);
+  assert.match(matchFoundAlert, /useNotificationRealtime/);
+  assert.match(matchFoundAlert, /event\.action !== 'Created'/);
+  assert.match(matchFoundAlert, /Đã tìm thấy trận đấu!/);
+  assert.match(matchFoundAlert, /opponents/);
+  assert.match(queueDetail, /approvedPlayers\.length >= totalSlots/);
+  assert.match(queueDetail, /useNotificationRealtime/);
+  assert.match(matchFoundAlert, /navigate\(destination\)/);
 });
