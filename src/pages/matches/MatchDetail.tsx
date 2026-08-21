@@ -62,7 +62,7 @@ import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
-import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, lastBookableDate, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { holdingCheckoutPath } from '../../utils/bookingCheckout';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 import { useToast } from '../../components/ui/ToastRegion';
@@ -247,7 +247,7 @@ const todayDateKey = () => {
   const today = new Date();
   return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
 };
-const maxMatchBookingDate = () => addCalendarMonths(todayDateKey(), maximumAdvanceBookingMonths);
+const maxMatchBookingDate = () => lastBookableDate(todayDateKey());
 const maximumMonthDurationFrom = (startDate: string) => {
   for (let months = maximumAdvanceBookingMonths; months >= 1; months -= 1) {
     if (addCalendarMonths(startDate, months) <= maxMatchBookingDate()) return months;
@@ -543,7 +543,7 @@ export const MatchDetail = () => {
     }
     const targetDates = datesForMonthDuration(bookingDate, bookingMonths);
     if (!targetDates.length || bookingRangeEnd > maxMatchBookingDate()) {
-      setError(`Khoảng đặt sân phải kết thúc trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`);
+      setError('Khoảng đặt sân phải kết thúc trước khi hết tháng kế tiếp.');
       return;
     }
 
@@ -1129,6 +1129,32 @@ export const MatchDetail = () => {
                   <span className="mb-1 block text-[13px] font-bold">Ngày đang xem</span>
                   <input className={inputClass} max={maxMatchBookingDate()} min={todayDateKey()} onChange={(event) => changeBookingDate(event.target.value)} type="date" value={bookingDate} />
                 </label>
+                <div className="md:col-span-2">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[13px] font-bold text-[#0b2228]">Slot khả dụng ngày {bookingDate} ({slotMinutes} phút/slot)</span>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                      <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-[#477313]">Trống</span>
+                      <span className="rounded-full border border-[#0b2228] bg-[#0b2228] px-2 py-1 text-white">Đã chọn</span>
+                      <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-1 text-amber-900">Bạn đang giữ</span>
+                      <span className="rounded-full border border-[#d8e4d4] bg-white px-2 py-1 text-[#8a968f]">Không khả dụng</span>
+                    </div>
+                  </div>
+                  {ownedHoldingBookings.map((holding) => {
+                    const checkoutPath = holdingCheckoutPath(holding.slot, holding.date);
+                    const holdingContext = holding.matchId === matchId
+                      ? 'của phòng này'
+                      : holding.matchId
+                        ? `thuộc phòng #${holding.matchId}, không phải phòng #${matchId}`
+                        : 'thuộc một booking sân khác của bạn';
+                    return (
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-950" key={holding.bookingId} role="status">
+                        <span>{holding.slotCount} slot màu vàng đang được bạn giữ tạm {holdingContext}.</span>
+                        {checkoutPath && <button className="rounded-lg bg-amber-900 px-3 py-1.5 text-white hover:bg-amber-800" onClick={() => navigate(checkoutPath)} type="button">Tiếp tục thanh toán</button>}
+                      </div>
+                    );
+                  })}
+                  {availability && <CourtTimelineGrid availability={availability} disabledSlotKeys={unavailableSlotKeysForDate} onSelectSlot={selectSlot} selectedSlotKeys={selectedSlotKeys} />}
+                </div>
                 <div className="md:col-span-2 rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="w-full min-w-0 flex-1 sm:min-w-[160px]">
@@ -1162,32 +1188,6 @@ export const MatchDetail = () => {
                       </div>
                     </div>
                   )}
-                </div>
-                <div className="md:col-span-2">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[13px] font-bold text-[#0b2228]">Slot khả dụng ngày {bookingDate} ({slotMinutes} phút/slot)</span>
-                    <div className="flex flex-wrap gap-2 text-[11px] font-bold">
-                      <span className="rounded-full border border-[#b9dca8] bg-[#eef8e6] px-2 py-1 text-[#477313]">Trống</span>
-                      <span className="rounded-full border border-[#0b2228] bg-[#0b2228] px-2 py-1 text-white">Đã chọn</span>
-                      <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-1 text-amber-900">Bạn đang giữ</span>
-                      <span className="rounded-full border border-[#d8e4d4] bg-white px-2 py-1 text-[#8a968f]">Không khả dụng</span>
-                    </div>
-                  </div>
-                  {ownedHoldingBookings.map((holding) => {
-                    const checkoutPath = holdingCheckoutPath(holding.slot, holding.date);
-                    const holdingContext = holding.matchId === matchId
-                      ? 'của phòng này'
-                      : holding.matchId
-                        ? `thuộc phòng #${holding.matchId}, không phải phòng #${matchId}`
-                        : 'thuộc một booking sân khác của bạn';
-                    return (
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-950" key={holding.bookingId} role="status">
-                        <span>{holding.slotCount} slot màu vàng đang được bạn giữ tạm {holdingContext}.</span>
-                        {checkoutPath && <button className="rounded-lg bg-amber-900 px-3 py-1.5 text-white hover:bg-amber-800" onClick={() => navigate(checkoutPath)} type="button">Tiếp tục thanh toán</button>}
-                      </div>
-                    );
-                  })}
-                  {availability && <CourtTimelineGrid availability={availability} disabledSlotKeys={unavailableSlotKeysForDate} onSelectSlot={selectSlot} selectedSlotKeys={selectedSlotKeys} />}
                 </div>
               </div>
               {selectedSlots.length > 0 && (

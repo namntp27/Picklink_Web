@@ -20,7 +20,7 @@ import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchVenueMapDialog } from './components/MatchVenueMapDialog';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
 import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../utils/playerLocation';
-import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { lastBookableDate } from '../../utils/bookingDateRange';
 
 type AvailabilitySlotInput = { id: number; timeFrom: string; timeTo: string };
 
@@ -60,7 +60,12 @@ const lastOneOffDate = (startDate: string) => {
   date.setUTCDate(date.getUTCDate() + 30);
   return date.toISOString().slice(0, 10);
 };
-const maxAdvanceBookingDate = () => addCalendarMonths(today(), maximumAdvanceBookingMonths);
+const maxAdvanceBookingDate = () => lastBookableDate(today());
+const maxAvailableDateTo = (startDate: string) => {
+  const thirtyDayLimit = lastOneOffDate(startDate);
+  const bookingLimit = maxAdvanceBookingDate();
+  return thirtyDayLimit < bookingLimit ? thirtyDayLimit : bookingLimit;
+};
 
 const isAbortError = (reason: unknown) => reason instanceof Error && reason.name === 'AbortError';
 const locationErrorMessage = (error: GeolocationPositionError) => {
@@ -504,11 +509,15 @@ export const Opponents = () => {
         return;
       }
       if (dateFrom > maxAdvanceBookingDate()) {
-        setError(`Ngày bắt đầu không được quá ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`);
+        setError('Ngày bắt đầu phải nằm trong tháng hiện tại hoặc tháng kế tiếp.');
         return;
       }
       if (dateTo < dateFrom) {
         setError('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
+        return;
+      }
+      if (dateTo > maxAdvanceBookingDate()) {
+        setError('Ngày kết thúc phải nằm trong tháng hiện tại hoặc tháng kế tiếp.');
         return;
       }
       if (dateTo > lastOneOffDate(dateFrom)) {
@@ -804,7 +813,7 @@ export const Opponents = () => {
                     const nextDateFrom = event.target.value;
                     setDateFrom(nextDateFrom);
                     if (nextDateFrom > dateTo) setDateTo(nextDateFrom);
-                    else if (dateTo > lastOneOffDate(nextDateFrom)) setDateTo(lastOneOffDate(nextDateFrom));
+                    else if (dateTo > maxAvailableDateTo(nextDateFrom)) setDateTo(maxAvailableDateTo(nextDateFrom));
                   }}
                   type="date"
                   value={dateFrom}
@@ -814,7 +823,7 @@ export const Opponents = () => {
                 <span className="mb-1 block text-[11px] font-bold text-[#718077]">Đến ngày</span>
                 <input
                   className={inputClass}
-                  max={lastOneOffDate(dateFrom)}
+                  max={maxAvailableDateTo(dateFrom)}
                   min={dateFrom}
                   onChange={(event) => setDateTo(event.target.value)}
                   type="date"

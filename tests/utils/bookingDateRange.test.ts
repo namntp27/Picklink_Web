@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, monthGridDays } from '../../src/utils/bookingDateRange';
+import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, lastBookableDate, monthGridDays } from '../../src/utils/bookingDateRange';
 
 test('one month is a rolling period through the same day next month', () => {
   const dates = datesForMonthDuration('2026-07-21', 1);
@@ -14,6 +14,11 @@ test('one month is a rolling period through the same day next month', () => {
 test('month addition clamps to the last valid day of the target month', () => {
   assert.equal(addCalendarMonths('2027-01-31', 1), '2027-02-28');
   assert.equal(addCalendarMonths('2028-01-31', 1), '2028-02-29');
+});
+
+test('booking is allowed through the end of next calendar month', () => {
+  assert.equal(lastBookableDate('2026-08-21'), '2026-09-30');
+  assert.equal(lastBookableDate('2026-12-31'), '2027-01-31');
 });
 
 test('month grid starts on Monday and covers the whole month in six weeks', () => {

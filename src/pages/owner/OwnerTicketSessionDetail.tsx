@@ -35,7 +35,7 @@ import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
-import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { lastBookableDate } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerBackLink } from './components/OwnerBackLink';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
@@ -69,7 +69,7 @@ const localDateKey = () => {
   const value = new Date();
   return [value.getFullYear(), String(value.getMonth() + 1).padStart(2, '0'), String(value.getDate()).padStart(2, '0')].join('-');
 };
-const maxTicketSessionDate = () => addCalendarMonths(localDateKey(), maximumAdvanceBookingMonths);
+const maxTicketSessionDate = () => lastBookableDate(localDateKey());
 
 type EditState = {
   venueId: string;
@@ -204,7 +204,7 @@ export const OwnerTicketSessionDetail = () => {
             : start <= new Date()
               ? 'Khung giờ chơi phải ở trong tương lai.'
               : edit.date > maxTicketSessionDate()
-                ? `Chỉ được tạo buổi xé vé trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`
+                ? 'Chỉ được tạo buổi xé vé trong tháng hiện tại hoặc tháng kế tiếp.'
                 : minSkillLevel > maxSkillLevel
                   ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
                   : !Number.isInteger(maxPlayers) || maxPlayers < Math.max(1, activeMinimum) || maxPlayers > 100

@@ -20,7 +20,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
 import { CourtTimelineGrid } from './components/CourtTimelineGrid';
-import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { addCalendarMonths, bookingSlotIdentity, datesForMonthDuration, formatDateKey, lastBookableDate, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
 import { holdingCheckoutPath } from '../../utils/bookingCheckout';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
@@ -31,8 +31,8 @@ const localDate = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 };
-const maxScheduleDate = () => addCalendarMonths(localDate(), maximumAdvanceBookingMonths);
-const maxBookingDate = () => addCalendarMonths(localDate(), maximumAdvanceBookingMonths);
+const maxScheduleDate = () => lastBookableDate(localDate());
+const maxBookingDate = () => lastBookableDate(localDate());
 const maximumMonthDurationFrom = (startDate: string) => {
   for (let months = maximumAdvanceBookingMonths; months >= 1; months -= 1) {
     if (addCalendarMonths(startDate, months) <= maxBookingDate()) return months;
@@ -253,7 +253,7 @@ export const CourtScheduleDetail = () => {
     }
     const targetDates = datesForMonthDuration(date, bookingMonths);
     if (!targetDates.length || bookingRangeEnd > maxBookingDate()) {
-      setError(`Khoảng đặt sân phải kết thúc trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`);
+      setError('Khoảng đặt sân phải kết thúc trước khi hết tháng kế tiếp.');
       return;
     }
 

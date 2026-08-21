@@ -68,9 +68,9 @@ test('court timeline grid aligns time labels over the lime markers', () => {
   assert.match(gridSource, /timeTickMarker absolute bottom-0 left-0/);
 });
 
-test('court schedule limits player booking dates to one month from today', () => {
+test('court schedule limits player booking dates to the end of next month', () => {
   assert.match(scheduleSource, /maxScheduleDate/);
-  assert.match(scheduleSource, /addCalendarMonths\(localDate\(\), maximumAdvanceBookingMonths\)/);
+  assert.match(scheduleSource, /lastBookableDate\(localDate\(\)\)/);
   assert.match(scheduleSource, /value <= maxScheduleDate\(\)/);
   assert.match(scheduleSource, /max=\{maxScheduleDate\(\)\}/);
 });

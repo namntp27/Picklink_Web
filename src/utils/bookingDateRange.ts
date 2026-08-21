@@ -32,6 +32,12 @@ export const addCalendarMonths = (dateKey: string, months: number) => {
   return toDateKey(targetMonth);
 };
 
+export const lastBookableDate = (todayDateKey: string) => {
+  const today = parseDateKey(todayDateKey);
+  if (!today) return '';
+  return toDateKey(new Date(today.getFullYear(), today.getMonth() + maximumAdvanceBookingMonths + 1, 0));
+};
+
 export const datesForMonthDuration = (startDateKey: string, months: number) => {
   const start = parseDateKey(startDateKey);
   const endDateKey = addCalendarMonths(startDateKey, months);

@@ -17,7 +17,7 @@ import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
-import { addCalendarMonths, maximumAdvanceBookingMonths } from '../../utils/bookingDateRange';
+import { lastBookableDate } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -47,7 +47,7 @@ const today = () => {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
 };
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
-const maxTicketSessionDate = () => addCalendarMonths(today(), maximumAdvanceBookingMonths);
+const maxTicketSessionDate = () => lastBookableDate(today());
 
 const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
   token: string;
@@ -110,7 +110,7 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
             : start <= new Date()
               ? 'Khung giờ chơi phải ở trong tương lai.'
               : date > maxTicketSessionDate()
-                ? `Chỉ được tạo buổi xé vé trong vòng ${maximumAdvanceBookingMonths} tháng kể từ hôm nay.`
+                ? 'Chỉ được tạo buổi xé vé trong tháng hiện tại hoặc tháng kế tiếp.'
                 : minSkill > maxSkill
                   ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
                   : !Number.isInteger(players) || players < 1 || players > 100

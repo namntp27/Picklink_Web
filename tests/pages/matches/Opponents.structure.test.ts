@@ -31,7 +31,8 @@ test('opponents create form enforces playable one-off dates and 30-minute slots'
   assert.match(source, /replayType: 'None'/);
   assert.match(source, /dateFrom < today\(\)/);
   assert.match(source, /dateTo > lastOneOffDate\(dateFrom\)/);
-  assert.match(source, /max=\{lastOneOffDate\(dateFrom\)\}/);
+  assert.match(source, /dateTo > maxAdvanceBookingDate\(\)/);
+  assert.match(source, /max=\{maxAvailableDateTo\(dateFrom\)\}/);
   assert.match(
     source,
     /min=\{dateFrom === today\(\) \? currentTime\(\) : undefined\}/,

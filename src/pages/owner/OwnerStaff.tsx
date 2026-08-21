@@ -20,9 +20,6 @@ import { groupOwnerStaffAssignments, type OwnerStaffRow } from './ownerStaffGrou
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const permissions: Array<{ value: StaffPermission; label: string }> = [
-  { value: 'ViewBookings', label: 'Xem booking' },
-  { value: 'VerifyBooking', label: 'Xác minh mã' },
-  { value: 'ConfirmPayment', label: 'Xác nhận thanh toán' },
   { value: 'CheckIn', label: 'Check-in' },
   { value: 'MarkNoShow', label: 'Đánh dấu no-show' },
 ];
