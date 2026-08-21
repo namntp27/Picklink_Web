@@ -57,5 +57,7 @@ test('expired partial match payments explain the refund state', () => {
   assert.ok(source.includes("participant.paymentStatus === 'RefundPending'"));
   assert.ok(source.includes('hasRefundPending'));
   assert.ok(source.includes('Booking đã hủy vì thiếu thanh toán'));
-  assert.ok(source.includes('đánh dấu chờ hoàn tiền'));
+  assert.ok(source.includes('đánh dấu chờ owner hoàn tiền'));
+  assert.ok(source.includes('Mọi thành viên vẫn được giữ trong phòng'));
+  assert.ok(!source.includes('Thành viên chưa thanh toán đã bị đưa khỏi phòng'));
 });

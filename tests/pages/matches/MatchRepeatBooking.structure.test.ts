@@ -14,7 +14,8 @@ test('a booked match can submit another booking from the frontend', () => {
   const cancelBookingStart = apiSource.indexOf('export const cancelPendingMatchBooking');
   const createBookingSource = apiSource.slice(createBookingStart, cancelBookingStart);
 
-  assert.ok(detailSource.includes('const canBookAnotherRound = Boolean(match?.canBookNextRound || canIgnoreLegacyReviewBlock);'));
+  assert.ok(detailSource.includes('const canBookAnotherRound = Boolean(match?.canBookNextRound'));
+  assert.ok(detailSource.includes('latestRoundHasEnded && match?.acceptedPlayerCount === match?.requiredPlayerCount'));
   assert.ok(detailSource.includes("{isApprovedMember && canBookAnotherRound && ("));
   assert.ok(detailSource.includes('Booking đã thanh toán thành công.'));
   assert.ok(detailSource.includes('const createdMatch = await createMatchBooking'));
@@ -37,8 +38,8 @@ test('a booked match can submit another booking from the frontend', () => {
 });
 
 test('a completed match reopens for another booking without losing its reviews', () => {
-  assert.match(matchOpenServiceSource, /match\.Status is not \("ReadyToBook" or "Booked" or "Completed"\)/);
-  assert.match(matchServiceSource, /match\.Status is "ReadyToBook" or "Booked" or "Completed"/);
+  assert.match(matchOpenServiceSource, /operationalStatus is not \("ReadyToBook" or "Booked" or "Completed"\)/);
+  assert.match(matchServiceSource, /operationalStatus is "ReadyToBook" or "Booked" or "Completed"/);
   assert.match(detailSource, /const hasEndedRound = Boolean\(match\?\.bookingCheckIns\.some/);
   assert.ok(detailSource.includes("{token && isApprovedMember && hasEndedRound && ("));
   assert.ok(detailSource.includes('Trận đã hoàn thành.'));
@@ -56,8 +57,9 @@ test('the next round stays locked only until the booked round is played out', ()
 
   // Rating is encouraged but never blocks the next booking.
   assert.doesNotMatch(gateSource, /MatchPlayerReviews|RatingHistories/);
-  assert.match(detailSource, /isReviewOnlyNextRoundBlockReason/);
-  assert.match(detailSource, /const canIgnoreLegacyReviewBlock = hasEndedRound/);
+  assert.match(detailSource, /const latestRound = match\?\.bookingCheckIns\.at\(-1\)/);
+  assert.match(detailSource, /latestRoundHasEnded && match\?\.acceptedPlayerCount === match\?\.requiredPlayerCount/);
+  assert.doesNotMatch(detailSource, /isReviewOnlyNextRoundBlockReason|canIgnoreLegacyReviewBlock/);
   assert.doesNotMatch(detailSource, /Đánh giá ngay/);
   assert.ok(detailSource.includes('match?.operationalStatus, canBookAnotherRound, token'));
 

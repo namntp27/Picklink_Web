@@ -341,7 +341,7 @@ export const MatchCheckout = () => {
         )}
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           <section className="rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]">
-            {paymentExpired ? <div className="grid min-h-80 place-items-center text-center"><AlertCircle className="h-14 w-14 text-error" /><div><h2 className="mt-4 text-xl font-extrabold">{hasRefundPending ? 'Booking đã hủy vì thiếu thanh toán' : 'Thời gian thanh toán đã hết'}</h2><p className="mt-2 text-[#66766d]">{hasRefundPending ? 'Các khoản đã chuyển được đánh dấu chờ hoàn tiền. Thành viên chưa thanh toán đã bị đưa khỏi phòng.' : 'Quay lại phòng ghép trận để tạo booking mới.'}</p></div></div> : (
+            {paymentExpired ? <div className="grid min-h-80 place-items-center text-center"><AlertCircle className="h-14 w-14 text-error" /><div><h2 className="mt-4 text-xl font-extrabold">{hasRefundPending ? 'Booking đã hủy vì thiếu thanh toán' : 'Thời gian thanh toán đã hết'}</h2><p className="mt-2 text-[#66766d]">{hasRefundPending ? 'Các khoản đã chuyển được đánh dấu chờ owner hoàn tiền. Mọi thành viên vẫn được giữ trong phòng để nhóm có thể đặt lại.' : 'Quay lại phòng ghép trận để tạo booking mới.'}</p></div></div> : (
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <div>
                   <div className="flex items-center gap-2"><Users className="h-5 w-5 text-[#477313]" /><h2 className="text-lg font-extrabold">Chọn phần cần thanh toán</h2></div>

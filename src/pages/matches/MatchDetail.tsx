@@ -118,8 +118,6 @@ const matchBookingRoundTotalLabel = (booking: MatchBookingCheckIn, match: MatchD
     : 'Đang cập nhật';
 };
 const approvedStatus = (status: string) => status === 'Approved' || status === 'Accepted';
-export const isReviewOnlyNextRoundBlockReason = (reason?: string | null) =>
-  /đánh giá|danh gia|\breview\b|\brating\b/i.test(reason ?? '');
 const timePart = (value: string) => value.slice(11, 16);
 export const matchBookingSlotLabel = (startTime: string, endTime: string) =>
   `${datePart(startTime)} · ${timePart(startTime)}–${timePart(endTime)}`;
@@ -327,12 +325,11 @@ export const MatchDetail = () => {
   // A round opens for review the moment it ends, well before the auto-complete sweep.
   const hasEndedRound = Boolean(match?.bookingCheckIns.some((booking) =>
     booking.bookingStatus === 'Completed' || new Date(booking.endTime).getTime() <= bookingClock));
-  // Current servers never gate booking on reviews. Keep a compatibility fallback so a stale
-  // review-only response cannot hide slot selection during a rolling frontend/backend update.
-  const canIgnoreLegacyReviewBlock = hasEndedRound
-    && (match?.operationalStatus === 'Booked' || match?.operationalStatus === 'Completed')
-    && isReviewOnlyNextRoundBlockReason(nextRoundBlockReason);
-  const canBookAnotherRound = Boolean(match?.canBookNextRound || canIgnoreLegacyReviewBlock);
+  const latestRound = match?.bookingCheckIns.at(-1);
+  const latestRoundHasEnded = Boolean(latestRound
+    && (latestRound.bookingStatus === 'Completed' || new Date(latestRound.endTime).getTime() <= bookingClock));
+  const canBookAnotherRound = Boolean(match?.canBookNextRound
+    || (latestRoundHasEnded && match?.acceptedPlayerCount === match?.requiredPlayerCount));
   // Refresh the elapsed-round state if the dialog stayed open across the round end time.
   const closePostMatchReviews = () => {
     setShowPostMatchReviews(false);
