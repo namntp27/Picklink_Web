@@ -1,12 +1,13 @@
 export const reconcileSelectedPayerIds = (
   selectedPayerIds: number[],
   pendingPayerIds: Set<number>,
-  currentPlayerId?: number | null,
+  requiredPayerIds: Set<number>,
 ) => {
-  const retained = selectedPayerIds.filter((playerId) => pendingPayerIds.has(playerId));
-  const next = currentPlayerId && pendingPayerIds.has(currentPlayerId)
-    ? [currentPlayerId, ...retained.filter((playerId) => playerId !== currentPlayerId)]
-    : retained;
+  const required = [...requiredPayerIds].filter((playerId) => pendingPayerIds.has(playerId));
+  const next = [
+    ...required,
+    ...selectedPayerIds.filter((playerId) => pendingPayerIds.has(playerId) && !requiredPayerIds.has(playerId)),
+  ];
 
   return next.length === selectedPayerIds.length
     && next.every((playerId, index) => playerId === selectedPayerIds[index])

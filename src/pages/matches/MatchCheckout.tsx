@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clipboard, Clock, Loader2, MapPin, ReceiptText, ShieldCheck, Upload, Users } from 'lucide-react';
 import { getMatchDetail, type MatchDetailResponse } from '../../api/matches';
-import { previewBatchPayment, requestPaymentSponsorship, respondPaymentSponsorship, submitBatchBankTransfer, type BatchPaymentPreview } from '../../api/payment';
+import { cancelPaymentSponsorship, previewBatchPayment, requestPaymentSponsorship, respondPaymentSponsorship, submitBatchBankTransfer, type BatchPaymentPreview } from '../../api/payment';
 import { ApiError, ApiErrorCodes } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
+import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { reconcileSelectedPayerIds } from '../../utils/matchPaymentSelection';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
@@ -98,13 +99,24 @@ export const MatchCheckout = () => {
       return !participant.paymentSponsorshipRequestedByPlayerId && (!claimedBy || claimedBy === match.myPlayerId);
     return participant.allowPaymentByOthers && claimedBy === match?.myPlayerId;
   }).map((participant) => participant.playerId)), [match?.myPlayerId, now, paymentTargets]);
+  const requiredPayerIds = useMemo(() => {
+    const required = new Set<number>();
+    if (match?.myPlayerId && selectablePayerIds.has(match.myPlayerId)) required.add(match.myPlayerId);
+    paymentTargets.forEach((participant) => {
+      if (participant.allowPaymentByOthers
+        && participant.paymentClaimedByPlayerId === match?.myPlayerId
+        && selectablePayerIds.has(participant.playerId)) required.add(participant.playerId);
+    });
+    return required;
+  }, [match?.myPlayerId, paymentTargets, selectablePayerIds]);
   const myPayment = paymentTargets.find((participant) => participant.playerId === match?.myPlayerId);
   const incomingSponsorshipRequester = paymentTargets.find((participant) =>
     participant.playerId === myPayment?.paymentSponsorshipRequestedByPlayerId);
   const rejectedPayment = paymentTargets.find((participant) => participant.paymentStatus === 'Pending' && participant.paymentRejectionReason);
   const myPaymentApproved = match?.myPaymentStatus === 'Paid';
   const selectedKey = useMemo(() => [...selectedPayerIds].sort((left, right) => left - right).join(','), [selectedPayerIds]);
-  const hasInvalidSelection = selectedPayerIds.some((playerId) => !selectablePayerIds.has(playerId));
+  const hasInvalidSelection = selectedPayerIds.some((playerId) => !selectablePayerIds.has(playerId))
+    || [...requiredPayerIds].some((playerId) => !selectedPayerIds.includes(playerId));
   const hasPendingPayments = pendingPayerIds.size > 0;
   const hasReceiptAwaitingReview = paymentTargets.some((participant) => participant.paymentStatus === 'WaitingForConfirmation');
   const isAwaitingReceiptReview = !hasPendingPayments && hasReceiptAwaitingReview;
@@ -123,9 +135,9 @@ export const MatchCheckout = () => {
     setSelectedPayerIds((current) => reconcileSelectedPayerIds(
       current,
       selectablePayerIds,
-      selectablePayerIds.has(match.myPlayerId) ? match.myPlayerId : null,
+      requiredPayerIds,
     ));
-  }, [match, selectablePayerIds]);
+  }, [match, requiredPayerIds, selectablePayerIds]);
 
   useEffect(() => {
     if (!deadline || paymentExpired || !hasPendingPayments || isPaymentReviewPaused) return;
@@ -174,6 +186,12 @@ export const MatchCheckout = () => {
 
   usePaymentRealtime((event) => {
     if (event.bookingId === bookingId && !isSubmitting) void loadMatch();
+  });
+
+  useMatchRealtime((event) => {
+    if (event.matchId !== matchId || event.action !== 'BookingCancelled') return;
+    notify('Booking đã bị hủy. Bạn đã được đưa về danh sách trận.', 'info');
+    navigate('/matches', { replace: true });
   });
 
   const hasSePayConfigured = Boolean(preview?.hasSePayApiToken ?? match?.hasSePayApiToken);
@@ -232,6 +250,29 @@ export const MatchCheckout = () => {
       await loadMatch();
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : 'Không thể phản hồi yêu cầu trả hộ.');
+      if (reason instanceof ApiError && reason.status === 409) await loadMatch();
+    } finally {
+      setSponsorshipActionPlayerId(null);
+    }
+  };
+
+  const cancelSponsorship = async (targetPlayerId: number) => {
+    if (!token) return;
+    const targetName = paymentTargets.find((participant) => participant.playerId === targetPlayerId)?.playerName ?? 'thành viên này';
+    if (!(await confirm({
+      title: `Hủy trả hộ cho ${targetName}?`,
+      message: `${targetName} sẽ nhận lại quyền tự thanh toán phần của mình. Mã QR hiện tại của bạn sẽ được tạo lại.`,
+      confirmLabel: 'Hủy trả hộ',
+      tone: 'danger',
+    }))) return;
+
+    setSponsorshipActionPlayerId(targetPlayerId);
+    setError('');
+    try {
+      await cancelPaymentSponsorship(token, bookingId, targetPlayerId);
+      await loadMatch();
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : 'Không thể hủy trả hộ.');
       if (reason instanceof ApiError && reason.status === 409) await loadMatch();
     } finally {
       setSponsorshipActionPlayerId(null);
@@ -325,7 +366,7 @@ export const MatchCheckout = () => {
                       const requestPendingByMe = participant.paymentSponsorshipRequestedByPlayerId === match.myPlayerId;
                       const requestPending = Boolean(participant.paymentSponsorshipRequestedByPlayerId);
                       const canSelect = selectablePayerIds.has(participant.playerId);
-                      const isAutoSelected = canSelect && isCurrentPayer;
+                      const isAutoSelected = canSelect && requiredPayerIds.has(participant.playerId);
                       const isSelected = selectedPayerIds.includes(participant.playerId);
                       const canRequestSponsorship = !isCurrentPayer
                         && participant.paymentStatus === 'Pending'
@@ -365,6 +406,9 @@ export const MatchCheckout = () => {
                           </label>
                           {!isCurrentPayer && participant.paymentStatus === 'Pending' && !acceptedSponsorId && (
                             <button className="shrink-0 rounded-lg border border-[#b9cbb0] bg-white px-3 py-2 text-[11px] font-black text-[#477313] disabled:cursor-not-allowed disabled:opacity-60" disabled={!canRequestSponsorship || requestPendingByMe || sponsorshipActionPlayerId !== null || isSubmitting} onClick={() => void requestSponsorship(participant.playerId)} type="button">{sponsorshipActionPlayerId === participant.playerId ? 'Đang gửi...' : requestPendingByMe ? 'Đã gửi yêu cầu' : requestPending ? 'Đang có yêu cầu' : 'Yêu cầu trả hộ'}</button>
+                          )}
+                          {!isCurrentPayer && participant.paymentStatus === 'Pending' && acceptedSponsorId === match.myPlayerId && (
+                            <button className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-black text-red-700 disabled:cursor-not-allowed disabled:opacity-60" disabled={sponsorshipActionPlayerId !== null || isSubmitting} onClick={() => void cancelSponsorship(participant.playerId)} type="button">{sponsorshipActionPlayerId === participant.playerId ? 'Đang hủy...' : 'Hủy trả hộ'}</button>
                           )}
                         </div>
                       );

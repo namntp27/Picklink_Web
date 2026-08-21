@@ -28,6 +28,13 @@ test('court timeline shows the owner support phone above the booking note', () =
   assert.ok(gridSource.indexOf('Hỗ trợ từ chủ sân') < gridSource.indexOf('Lưu ý:'));
 });
 
+test('court timeline opens a child-court price list beside owner support', () => {
+  assert.match(gridSource, /Bảng giá/);
+  assert.match(gridSource, /aria-expanded=\{showPrices\}/);
+  assert.match(gridSource, /availability\.courts\.map/);
+  assert.match(gridSource, /currency\.format\(court\.hourlyPrice\)/);
+});
+
 test('court schedule bottom bar follows the Home page palette', () => {
   for (const token of ['#081d24', '#0f2e32', '#143f34', '#e2ff57', '#f8fbf4']) {
     assert.match(scheduleSource, new RegExp(token));

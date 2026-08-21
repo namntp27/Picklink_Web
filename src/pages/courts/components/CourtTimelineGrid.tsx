@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { AvailabilitySlot, CourtAvailability } from '../../../api/booking';
 
 type CourtTimelineGridProps = {
@@ -59,12 +60,19 @@ const legendItems = [
   { label: 'Sự kiện', className: 'bg-[#c86fd5]', marker: '!' },
 ];
 
+const currency = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+});
+
 export const CourtTimelineGrid = ({
   availability,
   selectedSlotKeys,
   onSelectSlot,
   disabledSlotKeys = [],
 }: CourtTimelineGridProps) => {
+  const [showPrices, setShowPrices] = useState(false);
   const ticks = buildTimelineTicks(availability.openTime, availability.closeTime, availability.slotMinutes);
   const slotStarts = ticks.slice(0, -1);
   const gridTemplateColumns = `72px repeat(${slotStarts.length}, minmax(38px, 1fr))`;
@@ -86,12 +94,38 @@ export const CourtTimelineGrid = ({
       </div>
 
       <div className="border-b border-[#dbe8d3] bg-[#eef8e6] px-4 py-2 text-center text-[13px] font-semibold text-[#53645a]">
-        <p>
-          Hỗ trợ từ chủ sân:{' '}
-          {availability.phoneNumber
-            ? <a className="font-black text-[#276b3f] underline" href={`tel:${availability.phoneNumber}`}>{availability.phoneNumber}</a>
-            : <span className="font-bold">Chưa cập nhật số điện thoại</span>}
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <p>
+            Hỗ trợ từ chủ sân:{' '}
+            {availability.phoneNumber
+              ? <a className="font-black text-[#276b3f] underline" href={`tel:${availability.phoneNumber}`}>{availability.phoneNumber}</a>
+              : <span className="font-bold">Chưa cập nhật số điện thoại</span>}
+          </p>
+          <button
+            aria-expanded={showPrices}
+            className="rounded-lg border border-[#b9dca8] bg-white px-3 py-1 text-[12px] font-black text-[#276b3f] transition hover:bg-[#e2ff57]"
+            onClick={() => setShowPrices((current) => !current)}
+            type="button"
+          >
+            Bảng giá
+          </button>
+        </div>
+        {showPrices && (
+          <div className="mx-auto mt-2 max-h-56 max-w-3xl overflow-y-auto rounded-xl border border-[#cfe0c8] bg-white p-3 text-left shadow-sm">
+            <p className="mb-2 text-[12px] font-black text-[#0b2228]">Giá thuê các sân con</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {availability.courts.map((court) => (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-[#f7faf5] px-3 py-2" key={court.courtId}>
+                  <div className="min-w-0">
+                    <p className="font-black text-[#0b2228]">Sân {court.courtNumber}</p>
+                    <p className="truncate text-[11px] text-[#718077]">{court.courtType}{court.surfaceType ? ` · ${court.surfaceType}` : ''} · {court.isIndoor ? 'Trong nhà' : 'Ngoài trời'}</p>
+                  </div>
+                  <p className="shrink-0 font-black text-[#276b3f]">{currency.format(court.hourlyPrice)}<span className="text-[10px] font-bold text-[#718077]">/giờ</span></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="mt-1"><span className="font-black text-[#f97316]">Lưu ý:</span> Bạn có thể chọn các slot rời nhau; dùng mục số tháng áp dụng để sao chép lịch đang chọn.</p>
       </div>
       <div className="overflow-x-auto">

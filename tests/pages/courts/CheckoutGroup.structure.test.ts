@@ -75,6 +75,19 @@ test('checkout renders an owner-rejected receipt as a red alert', () => {
   assert.match(checkoutSource, /text-red-700" role="alert"/);
 });
 
+test('accepted sponsorship is mandatory until the sponsor cancels it', () => {
+  assert.match(matchCheckoutSource, /requiredPayerIds\.has\(participant\.playerId\)/);
+  assert.match(matchCheckoutSource, /disabled=\{!canSelect \|\| isAutoSelected \|\| isSubmitting\}/);
+  assert.match(matchCheckoutSource, /cancelPaymentSponsorship/);
+  assert.match(matchCheckoutSource, /Hủy trả hộ/);
+});
+
+test('match checkout redirects every player when the booking is cancelled in realtime', () => {
+  assert.match(matchCheckoutSource, /useMatchRealtime/);
+  assert.match(matchCheckoutSource, /event\.matchId !== matchId \|\| event\.action !== 'BookingCancelled'/);
+  assert.match(matchCheckoutSource, /navigate\('\/matches', \{ replace: true \}\)/);
+});
+
 test('every bank-transfer checkout keeps SePay enabled and requires a receipt', () => {
   for (const source of [checkoutSource, matchCheckoutSource, ticketCheckoutSource]) {
     assert.match(source, /SePayAutoPollingToggle/);

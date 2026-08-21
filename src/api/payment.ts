@@ -124,6 +124,16 @@ export const respondPaymentSponsorship = (
   token,
 );
 
+export const cancelPaymentSponsorship = (
+  token: string,
+  bookingId: number,
+  targetPlayerId: number,
+) => apiRequest<{ paymentId: number; requestedByPlayerId: number; targetPlayerId: number; status: string }>(
+  `/api/payments/bookings/${bookingId}/sponsorship-requests/${targetPlayerId}`,
+  { method: 'DELETE' },
+  token,
+);
+
 export const submitBatchBankTransfer = async (
   token: string,
   bookingId: number,
