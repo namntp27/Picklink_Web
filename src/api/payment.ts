@@ -176,6 +176,12 @@ export const getOperatorBookingPayments = (token: string, bookingId: number) =>
 export const approveOperatorPayment = (token: string, paymentId: number) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}/approve`, { method: 'POST' }, token);
 
+export const markOperatorMatchRefundSent = (token: string, paymentId: number) =>
+  apiRequest<BankTransfer[]>('/api/payments/operator/' + paymentId + '/refund-sent', { method: 'POST' }, token);
+
+export const confirmMatchRefundReceived = (token: string, paymentId: number) =>
+  apiRequest<BankTransfer[]>('/api/payments/' + paymentId + '/refund/confirm', { method: 'POST' }, token);
+
 export const rejectOperatorPayment = (token: string, paymentId: number, reason: string) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}/reject`, {
     method: 'POST',

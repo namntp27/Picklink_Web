@@ -35,6 +35,7 @@ import {
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
+import { confirmMatchRefundReceived } from '../../api/payment';
 
 const pageSize = 10;
 
@@ -125,6 +126,11 @@ const formatNotificationTime = (value: string) => {
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
+const refundPaymentIdFromNotification = (notification: NotificationItem) => {
+  const match = /^\/notifications\?confirmRefundPaymentId=(\d+)$/.exec(notification.linkTo ?? '');
+  return match ? Number(match[1]) : null;
+};
+
 export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' | 'owner' }) => {
   const shouldReduceMotion = useReducedMotion();
   const { token } = useAuth();
@@ -133,6 +139,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
+  const [busyRefundPaymentId, setBusyRefundPaymentId] = useState<number | null>(null);
 
   const { data, error: loadError, loading: isLoading, refresh: loadNotifications } = useApiQuery(
     ['notifications', token, page, activeFilter],
@@ -227,6 +234,28 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
       await loadNotifications();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể xóa thông báo đã đọc.'), 'error');
+    }
+  };
+
+  const confirmRefundReceived = async (paymentId: number, notificationId: number) => {
+    if (!token) return;
+    if (!(await confirm({
+      title: 'Bạn đã nhận được tiền hoàn?',
+      message: 'Chỉ xác nhận khi khoản tiền hoàn đã thực sự vào tài khoản của bạn.',
+      confirmLabel: 'Đã nhận được tiền',
+      tone: 'success',
+    }))) return;
+
+    setBusyRefundPaymentId(paymentId);
+    try {
+      await confirmMatchRefundReceived(token, paymentId);
+      await deleteNotification(token, notificationId).catch(() => undefined);
+      notify('Đã xác nhận nhận tiền hoàn.', 'success');
+      await loadNotifications();
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể xác nhận nhận tiền hoàn.'), 'error');
+    } finally {
+      setBusyRefundPaymentId(null);
     }
   };
 
@@ -327,6 +356,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
                 {notifications.map((notification) => {
                   const config = notificationTypeConfig[notification.type] ?? notificationTypeConfig.system;
                   const NotificationIcon = config.icon;
+                  const refundPaymentId = workspace === 'player' ? refundPaymentIdFromNotification(notification) : null;
 
                   return (
                     <motion.article
@@ -367,7 +397,16 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
                             </div>
 
                             <div className="flex shrink-0 items-center gap-1">
-                              {notification.linkTo && notification.linkLabel && (
+                              {refundPaymentId ? (
+                                <button
+                                  className="picklink-glow-control inline-flex h-8 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34] disabled:opacity-50"
+                                  disabled={busyRefundPaymentId === refundPaymentId}
+                                  onClick={() => void confirmRefundReceived(refundPaymentId, notification.notificationId)}
+                                  type="button"
+                                >
+                                  {busyRefundPaymentId === refundPaymentId ? 'Đang xác nhận...' : 'Đã nhận được tiền'}
+                                </button>
+                              ) : notification.linkTo && notification.linkLabel && (
                                 <Link
                                   className="picklink-glow-control inline-flex h-8 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34]"
                                   onClick={() => void markAsRead(notification.notificationId)}

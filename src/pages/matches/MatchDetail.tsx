@@ -75,11 +75,6 @@ const MatchVenueMapDialog = lazy(async () => {
 const statusLabels: Record<MatchDetailResponse['status'], string> = {
   Recruiting: 'Đang tìm người',
   ReadyToBook: 'Sẵn sàng đặt sân',
-  BookingPending: 'Đã tạo booking, chờ thanh toán',
-  Booked: 'Đã đặt sân',
-  Completed: 'Đã hoàn thành',
-  Cancelled: 'Đã hủy',
-  Expired: 'Đã hết hạn',
 };
 const paymentStatusLabels: Record<string, string> = {
   Pending: 'Chờ thanh toán',
@@ -347,7 +342,7 @@ export const MatchDetail = () => {
   useEffect(() => {
     const now = Date.now();
     const refreshTimes = [
-      match?.status === 'Booked' && match.endTime ? new Date(match.endTime).getTime() + 1_000 : 0,
+      match?.operationalStatus === 'Booked' && match.endTime ? new Date(match.endTime).getTime() + 1_000 : 0,
       ...(match?.bookingCheckIns ?? []).flatMap((booking) => booking.checkInGroups.flatMap((group) => [
         new Date(group.startTime).getTime() - 30 * 60 * 1_000 + 1_000,
         new Date(group.endTime).getTime() + 1_000,
@@ -360,7 +355,7 @@ export const MatchDetail = () => {
       void loadMatch();
     }, Math.max(1_000, nextRefresh - now));
     return () => window.clearTimeout(timeout);
-  }, [match?.endTime, match?.status, match?.bookingCheckIns]);
+  }, [match?.endTime, match?.operationalStatus, match?.bookingCheckIns]);
 
   const loadAvailability = async () => {
     const availabilityRequestId = ++availabilityRequestRef.current;
@@ -406,11 +401,11 @@ export const MatchDetail = () => {
 
   useEffect(() => {
     void loadAvailability();
-  }, [selectedVenueId, bookingDate, match?.status, token]);
+  }, [selectedVenueId, bookingDate, match?.operationalStatus, token]);
 
   useEffect(() => {
     void loadSlotOptions();
-  }, [selectedVenueId, bookingDate, match?.status, token]);
+  }, [selectedVenueId, bookingDate, match?.operationalStatus, token]);
 
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
@@ -446,7 +441,7 @@ export const MatchDetail = () => {
   const invited = match?.participants.filter((participant) => participant.status === 'Invited') ?? [];
   const isApprovedMember = Boolean(match?.isHost || match?.myParticipantStatus && approvedStatus(match.myParticipantStatus));
   const isFull = Boolean(match && approved.length === match.requiredPlayerCount);
-  const canEditPendingBooking = match?.status === 'BookingPending'
+  const canEditPendingBooking = match?.operationalStatus === 'BookingPending'
     && approved.length === match.requiredPlayerCount
     && approved.every((participant) => participant.paymentStatus === 'Pending');
   const canRemoveParticipants = Boolean(match?.canRemoveParticipants);
@@ -806,7 +801,7 @@ export const MatchDetail = () => {
   }
 
   const inputClass = 'community-control';
-  const bookingHasEnded = match.status === 'Booked'
+  const bookingHasEnded = match.operationalStatus === 'Booked'
     && Boolean(match.endTime)
     && new Date(match.endTime!).getTime() <= bookingClock;
   const playableSlotLabels = match.availabilitySlots.length > 0
@@ -1084,13 +1079,13 @@ export const MatchDetail = () => {
           </div>
 
           {isApprovedMember && (canBookAnotherRound
-            ? match.status === 'Booked' || match.status === 'Completed'
+            ? match.operationalStatus === 'Booked' || match.operationalStatus === 'Completed'
             : Boolean(nextRoundBlockReason)) && (
             <section aria-live="polite" className="match-booking-notice" role="status">
               {canBookAnotherRound ? (
                 <>
                   <strong>
-                    {match.status === 'Completed'
+                    {match.operationalStatus === 'Completed'
                       ? 'Trận đã hoàn thành.'
                       : bookingHasEnded ? 'Lượt booking gần nhất đã hết giờ.' : 'Booking đã thanh toán thành công.'}
                   </strong> Bạn có thể chọn slot bên dưới để tạo booking tiếp theo ngay.
@@ -1351,7 +1346,7 @@ export const MatchDetail = () => {
               )}
             </section>
 
-          {match.status === 'BookingPending' && isApprovedMember && (
+          {match.operationalStatus === 'BookingPending' && isApprovedMember && (
             <section className="community-panel match-payment-card">
               <p className="match-eyebrow">thanh toán</p>
               <h3 className="flex items-center gap-2 text-[18px] font-bold"><CreditCard className="h-5 w-5 text-[#477313]" /> Thanh toán booking</h3>

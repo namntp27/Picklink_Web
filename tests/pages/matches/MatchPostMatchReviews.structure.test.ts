@@ -8,8 +8,8 @@ const apiSource = readFileSync(new URL('../../../src/api/matches.ts', import.met
 const reviewsApiSource = readFileSync(new URL('../../../src/api/reviews.ts', import.meta.url), 'utf8');
 
 test('completed match offers one review button below chat and opens the review modal', () => {
-  assert.match(detailSource, /match\.status === 'Completed'/);
-  assert.doesNotMatch(detailSource, /match\.status === 'Completed' && \(\s*<MatchPostMatchReviewPanel/);
+  assert.match(detailSource, /match\.operationalStatus === 'Completed'/);
+  assert.doesNotMatch(detailSource, /match\.operationalStatus === 'Completed' && \(\s*<MatchPostMatchReviewPanel/);
   assert.match(detailSource, /Chat phòng[\s\S]*Đánh giá người chơi và sân/);
   assert.match(detailSource, /onClick=\{\(\) => setShowPostMatchReviews\(true\)\}/);
   assert.match(detailSource, /<ModalDialog aria-labelledby="post-match-review-title"/);

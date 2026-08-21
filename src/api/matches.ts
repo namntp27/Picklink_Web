@@ -3,7 +3,9 @@ import { apiRequest, type PaginatedResponse, type PaginationParams } from './cli
 export type MatchFormat = '1vs1' | '2vs2';
 export type MatchStatus =
   | 'Recruiting'
-  | 'ReadyToBook'
+  | 'ReadyToBook';
+export type MatchOperationalStatus =
+  | MatchStatus
   | 'BookingPending'
   | 'Booked'
   | 'Completed'
@@ -44,6 +46,7 @@ export type MatchSummary = {
   minSkillLevel: number;
   maxSkillLevel: number;
   status: MatchStatus;
+  operationalStatus: MatchOperationalStatus;
   title: string;
   note?: string | null;
   province: string;

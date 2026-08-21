@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock, Loader2, MapPin, MessageCircle, ReceiptText, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Loader2, MapPin, MessageCircle, Phone, ReceiptText, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { BankTransfer } from '../../../api/booking';
 import { ApiError } from '../../../api/client';
@@ -7,6 +7,7 @@ import type { BookingDetail } from '../../../data/bookings';
 import {
   approveOperatorPayment,
   getOperatorBookingPayments,
+  markOperatorMatchRefundSent,
   rejectOperatorPayment,
 } from '../../../api/payment';
 import { useAuth } from '../../../auth/AuthContext';
@@ -169,6 +170,34 @@ export const OwnerMatchTransactionReviewModal = ({
     }
   };
 
+  const markRefundSent = async (groupPayments: BankTransfer[]) => {
+    if (!token) return;
+    const refundPayments = groupPayments.filter((item) => item.paymentStatus === 'RefundPending');
+    if (refundPayments.length === 0) return;
+    const refundTotal = refundPayments.reduce((total, item) => total + item.amount, 0);
+    if (!(await confirm({
+      title: 'Xác nhận đã chuyển tiền hoàn?',
+      message: 'Chỉ tiếp tục sau khi bạn đã chuyển ' + currency.format(refundTotal)
+        + '. Người thực sự thanh toán sẽ nhận thông báo để xác nhận tiền đã vào tài khoản.',
+      confirmLabel: 'Đã chuyển tiền',
+      tone: 'success',
+    }))) return;
+
+    const representative = refundPayments[0];
+    setBusyId(representative.paymentId);
+    setError('');
+    try {
+      const updatedPayments = await markOperatorMatchRefundSent(token, representative.paymentId);
+      const updates = new Map(updatedPayments.map((item) => [item.paymentId, item]));
+      setPayments((current) => current.map((item) => updates.get(item.paymentId) ?? item));
+      void onUpdated();
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi yêu cầu xác nhận hoàn tiền.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <ModalDialog
       aria-labelledby="match-payment-title"
@@ -219,6 +248,10 @@ export const OwnerMatchTransactionReviewModal = ({
               const isBusy = busyId === payment.paymentId;
               const rejectReason = rejectReasons[payment.paymentId] ?? '';
               const playerNames = group.payments.map((item) => item.playerName).join(', ');
+              const refundPayments = group.payments.filter((item) => item.paymentStatus === 'RefundPending');
+              const refundSent = refundPayments.length > 0 && refundPayments.every((item) =>
+                item.history.some((entry) => entry.action === 'OwnerMarkedRefundSent'));
+              const refundBusy = refundPayments.some((item) => item.paymentId === busyId);
               return (
                 <article className="overflow-hidden rounded-xl border border-outline-variant" key={payment.paymentGroupId ?? payment.paymentId}>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant p-4">
@@ -227,15 +260,31 @@ export const OwnerMatchTransactionReviewModal = ({
                       <p className="mt-1 text-[12px] text-on-surface-variant">
                         Tổng thanh toán: {currency.format(group.groupTotalAmount)}
                       </p>
-                      {isBatch && (
-                        <p className="mt-2 text-[12px] leading-5 text-on-surface-variant">
-                          <strong>Các phần được thanh toán:</strong> {playerNames}
-                        </p>
-                      )}
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {group.payments.map((item) => (
+                          <div className="rounded-lg bg-surface-container-low px-3 py-2" key={item.paymentId}>
+                            {isBatch && <p className="text-[12px] font-bold">{item.playerName}</p>}
+                            <div className="mt-1 flex items-center gap-1.5 text-[12px] text-on-surface-variant">
+                              <Phone className="h-3.5 w-3.5 shrink-0 text-primary" />
+                              {item.playerPhoneNumber ? (
+                                <a
+                                  aria-label={'Gọi ' + item.playerName}
+                                  className="font-bold text-primary hover:underline"
+                                  href={'tel:' + item.playerPhoneNumber.replaceAll(' ', '')}
+                                >
+                                  {item.playerPhoneNumber}
+                                </a>
+                              ) : (
+                                <span>Chưa cập nhật SĐT</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClasses[payment.paymentStatus] ?? 'bg-slate-100 text-slate-700'}`}>
-                        {statusLabels[payment.paymentStatus] ?? payment.paymentStatus}
+                        {refundSent ? 'Chờ người chơi xác nhận' : (statusLabels[payment.paymentStatus] ?? payment.paymentStatus)}
                       </span>
                       {payment.paymentStatus === 'RefundPending' && (
                         <button
@@ -257,6 +306,21 @@ export const OwnerMatchTransactionReviewModal = ({
                           <span>Nhắn tin</span>
                         </button>
                       )}
+                      {refundPayments.length > 0 && (refundSent ? (
+                        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
+                          Đã báo hoàn tiền
+                        </span>
+                      ) : (
+                        <button
+                          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-white disabled:opacity-50"
+                          disabled={refundBusy}
+                          onClick={() => void markRefundSent(group.payments)}
+                          type="button"
+                        >
+                          {refundBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ReceiptText className="h-3.5 w-3.5" />}
+                          Hoàn tiền
+                        </button>
+                      ))}
                     </div>
                   </div>
 

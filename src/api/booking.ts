@@ -104,6 +104,7 @@ export type BankTransfer = {
   startTime: string;
   endTime: string;
   playerName: string;
+  playerPhoneNumber?: string | null;
   slots?: Array<{
     courtId: number;
     courtNumber: number;

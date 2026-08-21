@@ -3,16 +3,13 @@ import { Link } from 'react-router-dom';
 import {
   Building2,
   CalendarRange,
-  CheckCircle2,
   Clock,
-  CreditCard,
   Eye,
   MapPin,
   PlusCircle,
   Trophy,
   UserPlus,
   Users,
-  XCircle,
   Play,
   LogOut,
   MessageSquare,
@@ -45,11 +42,6 @@ const statusConfig: Record<MatchStatus, {
 }> = {
   Recruiting: { label: 'Đang tìm người', className: 'bg-[#edf5e9] text-[#477313]', icon: Users },
   ReadyToBook: { label: 'Sẵn sàng đặt sân', className: 'bg-blue-50 text-blue-700', icon: CalendarRange },
-  BookingPending: { label: 'Chờ thanh toán', className: 'bg-amber-50 text-amber-800', icon: CreditCard },
-  Booked: { label: 'Đã đặt sân', className: 'bg-emerald-50 text-emerald-700', icon: CheckCircle2 },
-  Completed: { label: 'Đã hoàn thành', className: 'bg-slate-100 text-slate-700', icon: Trophy },
-  Cancelled: { label: 'Đã hủy', className: 'bg-red-50 text-red-700', icon: XCircle },
-  Expired: { label: 'Đã hết hạn', className: 'bg-slate-100 text-slate-600', icon: Clock },
 };
 
 const filters: Array<{ label: string; value: FilterStatus }> = [
@@ -57,10 +49,6 @@ const filters: Array<{ label: string; value: FilterStatus }> = [
   { label: 'Lời mời tự động', value: 'ActiveQueues' },
   { label: 'Đang tìm người', value: 'Recruiting' },
   { label: 'Sẵn sàng đặt sân', value: 'ReadyToBook' },
-  { label: 'Chờ thanh toán', value: 'BookingPending' },
-  { label: 'Đã đặt sân', value: 'Booked' },
-  { label: 'Đã kết thúc', value: 'Completed' },
-  { label: 'Đã hủy / hết hạn', value: 'Cancelled' },
 ];
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
@@ -182,9 +170,6 @@ export const MyMatches = () => {
 
   const visible = useMemo(() => {
     if (activeFilter === 'all') return matches.filter((match) => !linkedManualMatchIds.has(match.matchId));
-    if (activeFilter === 'Cancelled') {
-      return matches.filter((match) => match.status === 'Cancelled' || match.status === 'Expired');
-    }
     return matches.filter((match) => match.status === activeFilter);
   }, [activeFilter, linkedManualMatchIds, matches]);
 
@@ -226,7 +211,7 @@ export const MyMatches = () => {
   const attentionCount = matches.filter(
     (match) => match.myParticipantStatus === 'Invited'
       || match.status === 'ReadyToBook'
-      || match.status === 'BookingPending',
+      || match.operationalStatus === 'BookingPending',
   ).length;
 
   const handleResumeQueue = async (queueId: number) => {

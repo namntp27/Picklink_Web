@@ -23,9 +23,10 @@ test('match checkout anchors its countdown to the remaining seconds returned by 
   assert.doesNotMatch(source, /`\$\{value\}Z`/);
 });
 
-test('match checkout auto-selects the current player unless their payment belongs to an accepted sponsor', () => {
-  assert.ok(source.includes('selectablePayerIds.has(match.myPlayerId) ? match.myPlayerId : null'));
-  assert.ok(source.includes('const isAutoSelected = canSelect && isCurrentPayer;'));
+test('match checkout auto-selects every payment the current player is required to submit', () => {
+  assert.ok(source.includes('if (match?.myPlayerId && selectablePayerIds.has(match.myPlayerId)) required.add(match.myPlayerId);'));
+  assert.ok(source.includes('reconcileSelectedPayerIds('));
+  assert.ok(source.includes('const isAutoSelected = canSelect && requiredPayerIds.has(participant.playerId);'));
   assert.ok(source.includes('disabled={!canSelect || isAutoSelected || isSubmitting}'));
   assert.ok(source.includes('Bạn · Tự động'));
   assert.ok(source.includes('Phần của bạn được chọn tự động.'));

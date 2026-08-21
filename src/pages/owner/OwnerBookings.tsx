@@ -54,6 +54,7 @@ type OwnerBookingListItem = BookingDetail & {
   acceptedPlayerCount?: number | null;
   refundAmount?: number;
   hasRefundPending?: boolean;
+  hasRefunded?: boolean;
   matchPlayers: Array<{
     playerId: number;
     playerName: string;
@@ -100,11 +101,14 @@ const formatPlayDate = (value: string) =>
 
 const getBookingStatusLabel = (booking: OwnerBookingListItem) => {
   const needsRefund = booking.hasRefundPending
-    || (booking.refundAmount && booking.refundAmount > 0)
     || booking.matchPlayers?.some((p) => p.paymentStatus === 'RefundPending');
 
   if (needsRefund) {
-    return 'Đã hủy · Cần hoàn tiền';
+    return 'Đã hủy · Chờ hoàn tiền';
+  }
+
+  if (booking.hasRefunded || booking.matchPlayers?.some((p) => p.paymentStatus === 'Refunded')) {
+    return 'Đã hủy · Đã hoàn tiền';
   }
 
   if (booking.bookingStatus === 'cancelled') {
@@ -124,11 +128,14 @@ const getBookingStatusLabel = (booking: OwnerBookingListItem) => {
 
 const getBookingStatusClassName = (booking: OwnerBookingListItem) => {
   const needsRefund = booking.hasRefundPending
-    || (booking.refundAmount && booking.refundAmount > 0)
     || booking.matchPlayers?.some((p) => p.paymentStatus === 'RefundPending');
 
   if (needsRefund) {
     return 'bg-amber-100 text-amber-900 border border-amber-300 font-bold';
+  }
+
+  if (booking.hasRefunded || booking.matchPlayers?.some((p) => p.paymentStatus === 'Refunded')) {
+    return 'bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold';
   }
 
   if (booking.bookingStatus === 'cancelled' || booking.paymentStatus === 'failed') {
@@ -149,7 +156,7 @@ const normalizeBookingStatus = (status: string): BookingStatus =>
   status === 'Confirmed' ? 'confirmed' : status === 'Cancelled' || status === 'Expired' ? 'cancelled' : 'holding';
 
 const normalizeBankTransferStatus = (status: string): BankTransfer['paymentStatus'] => {
-  if (status === 'WaitingForConfirmation' || status === 'Paid' || status === 'Expired' || status === 'Cancelled') return status;
+  if (status === 'WaitingForConfirmation' || status === 'Paid' || status === 'Expired' || status === 'Cancelled' || status === 'RefundPending' || status === 'Refunded') return status;
   return 'Pending';
 };
 
@@ -321,9 +328,10 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
             acceptedPlayerCount: record.acceptedPlayerCount,
             matchPlayers: record.matchPlayers ?? [],
             refundAmount: record.refundAmount,
-            hasRefundPending: record.refundAmount > 0
-              || record.paymentStatus === 'RefundPending'
+            hasRefundPending: record.paymentStatus === 'RefundPending'
               || (record.matchPlayers ?? []).some((p) => p.paymentStatus === 'RefundPending'),
+            hasRefunded: record.paymentStatus === 'Refunded'
+              || (record.matchPlayers ?? []).some((p) => p.paymentStatus === 'Refunded'),
           };
         }),
       };
@@ -335,6 +343,17 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const pagination = data?.pagination ?? emptyPagination;
   const error = actionError || loadError;
   const setError = setActionError;
+
+  const openMatchTransaction = (booking: OwnerBookingListItem) => {
+    setError('');
+    const prefetched = prefetchMatchPayments(Number(booking.id));
+    setMatchTransactionTarget({
+      bookingId: Number(booking.id),
+      bookingCode: booking.code,
+      booking,
+      prefetched,
+    });
+  };
 
   const setBookings = useCallback((
     updater: (current: OwnerBookingListItem[]) => OwnerBookingListItem[],
@@ -635,19 +654,22 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
+                            {isMatchBooking && booking.hasRefundPending && (
+                              <button
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 text-[11px] font-bold text-amber-900 hover:bg-amber-100"
+                                onClick={() => openMatchTransaction(booking)}
+                                type="button"
+                              >
+                                <Banknote className="h-3.5 w-3.5" />
+                                Xử lý hoàn tiền
+                              </button>
+                            )}
                             <button
                               aria-label={`Xem ${booking.code}`}
                               className="grid h-8 w-8 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
                               onClick={() => {
                                 if (isMatchBooking) {
-                                  setError('');
-                                  const prefetched = prefetchMatchPayments(Number(booking.id));
-                                  setMatchTransactionTarget({
-                                    bookingId: Number(booking.id),
-                                    bookingCode: booking.code,
-                                    booking,
-                                    prefetched,
-                                  });
+                                  openMatchTransaction(booking);
                                   return;
                                 }
                                 if (!booking.paymentId) {
