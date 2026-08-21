@@ -26,6 +26,8 @@ export type CommunityGroup = {
   postCount: number;
   messageCount: number;
   unreadMessageCount: number;
+  lastMessageAt?: string | null;
+  lastMessage?: string | null;
   rules: string | null;
   overallRating: number;
   ratingCount: number;

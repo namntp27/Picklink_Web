@@ -68,6 +68,7 @@ import {
   groupToConversation,
   matchToConversation,
   kindLabels,
+  sortConversationsByLatestMessage,
   toChatMessage,
   toMatchChatMessage,
   type ChatMessage,
@@ -126,11 +127,11 @@ export const Messages = () => {
 
   // All conversations = match rooms + direct + clubs
   const allConversations = useMemo(
-    () => [
+    () => sortConversationsByLatestMessage([
       ...matchConversations,
       ...directConversations,
       ...clubConversations
-    ],
+    ]),
     [matchConversations, directConversations, clubConversations],
   );
 
@@ -409,6 +410,7 @@ export const Messages = () => {
           ...conv,
           lastMessage: text || (mediaUrl ? '[Hình ảnh]' : 'Tin nhắn mới'),
           lastTime: formatMessageTime(sentAt),
+          lastMessageAt: sentAt,
         };
       };
       setDirectConversations((current) => current.map(updateLastMessage));

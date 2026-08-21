@@ -13,6 +13,7 @@ export type Conversation = {
   kind: ConversationKind;
   lastMessage: string;
   lastTime: string;
+  lastMessageAt: string | null;
   unreadMessageCount: number;
   contextTitle: string;
   contextMeta: string;
@@ -103,6 +104,16 @@ export const getLevelLabel = (conversation: Conversation) => {
   return conversation.level ? 'Trình độ ' + conversation.level : 'Chưa cập nhật trình độ';
 };
 
+const getLastMessageTimestamp = (conversation: Conversation) => {
+  const timestamp = Date.parse(conversation.lastMessageAt ?? '');
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
+export const sortConversationsByLatestMessage = (conversations: Conversation[]) =>
+  [...conversations].sort(
+    (left, right) => getLastMessageTimestamp(right) - getLastMessageTimestamp(left),
+  );
+
 export const groupToConversation = (group: CommunityGroup): Conversation => ({
   id: 'club-group-' + group.groupId,
   name: group.groupName,
@@ -110,10 +121,11 @@ export const groupToConversation = (group: CommunityGroup): Conversation => ({
   avatarUrl: group.coverImageUrl,
   level: 'Câu lạc bộ',
   kind: 'club',
-  lastMessage: group.messageCount > 0
+  lastMessage: group.lastMessage || (group.messageCount > 0
     ? group.messageCount + ' tin nhắn trong nhóm'
-    : 'Chưa có tin nhắn',
-  lastTime: '',
+    : 'Chưa có tin nhắn'),
+  lastTime: group.lastMessageAt ? formatMessageTime(group.lastMessageAt) : '',
+  lastMessageAt: group.lastMessageAt ?? null,
   unreadMessageCount: group.unreadMessageCount,
   contextTitle: group.groupName,
   contextMeta: group.memberCount + ' thành viên',
@@ -134,6 +146,7 @@ export const directToConversation = (direct: DirectConversation): Conversation =
     kind: isRoom ? 'match' : 'direct',
     lastMessage: direct.lastMessage || 'Chưa có tin nhắn',
     lastTime: formatMessageTime(direct.lastMessageAt),
+    lastMessageAt: direct.lastMessageAt,
     unreadMessageCount: direct.unreadMessageCount,
     contextTitle: isRoom
       ? direct.otherUsername
@@ -160,6 +173,7 @@ export const matchToConversation = (match: MatchDetailResponse): Conversation =>
   kind: 'match',
   lastMessage: 'Trao đổi với các thành viên trong phòng',
   lastTime: '',
+  lastMessageAt: null,
   unreadMessageCount: 0,
   contextTitle: match.title,
   contextMeta: `${match.acceptedPlayerCount}/${match.requiredPlayerCount} người chơi · ${match.province}, ${match.ward}`,
