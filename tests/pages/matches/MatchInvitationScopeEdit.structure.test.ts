@@ -6,6 +6,7 @@ const detailSource = readFileSync(new URL('../../../src/pages/matches/MatchDetai
 const apiSource = readFileSync(new URL('../../../src/api/matches.ts', import.meta.url), 'utf8');
 const controllerSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/Controllers/Matches/MatchController.Open.cs', import.meta.url), 'utf8');
 const dtoSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/DTOs/MatchRequest.cs', import.meta.url), 'utf8');
+const serviceSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBackend/Services/Matches/Implementations/MatchService.cs', import.meta.url), 'utf8');
 
 test('host invitation editor submits the full public update contract', () => {
   const updateStart = apiSource.indexOf('export const updateMatchInvitation');
@@ -34,4 +35,16 @@ test('host invitation editor submits the full public update contract', () => {
   assert.ok(updateSource.includes('availabilitySlots: input.availabilitySlots.map'));
   assert.ok(controllerSource.includes('[HttpPut("{matchId:int}")]'));
   assert.ok(controllerSource.includes('_matchService.UpdateOpenMatchInvitation(matchId, request, cancellationToken)'));
+});
+
+test('invitation editor rejects dates and time windows that have already passed', () => {
+  assert.ok(detailSource.includes('validateInvitationScheduleAgainstNow(invitationDraft)'));
+  assert.ok(detailSource.includes('draft.availableDateFrom < today'));
+  assert.ok(detailSource.includes('invitationTimeEndMinutes(slot.timeStart, slot.timeEnd) <= currentMinutes'));
+  assert.ok(detailSource.includes('{invitationValidationError &&'));
+
+  assert.ok(serviceSource.includes('var localNow = VietnamTime.Now;'));
+  assert.ok(serviceSource.includes('request.AvailableDateFrom < today'));
+  assert.ok(serviceSource.includes('TimeRangeEndMinutes(slot.Start, slot.End) <= currentMinutes'));
+  assert.ok(serviceSource.includes('Khung giờ được chọn cho hôm nay đã trôi qua.'));
 });

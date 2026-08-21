@@ -14,7 +14,7 @@ test('a booked match can submit another booking from the frontend', () => {
   const cancelBookingStart = apiSource.indexOf('export const cancelPendingMatchBooking');
   const createBookingSource = apiSource.slice(createBookingStart, cancelBookingStart);
 
-  assert.ok(detailSource.includes('const canBookAnotherRound = Boolean(match?.canBookNextRound);'));
+  assert.ok(detailSource.includes('const canBookAnotherRound = Boolean(match?.canBookNextRound || canIgnoreLegacyReviewBlock);'));
   assert.ok(detailSource.includes("{isApprovedMember && canBookAnotherRound && ("));
   assert.ok(detailSource.includes('Booking đã thanh toán thành công.'));
   assert.ok(detailSource.includes('const createdMatch = await createMatchBooking'));
@@ -56,6 +56,10 @@ test('the next round stays locked only until the booked round is played out', ()
 
   // Rating is encouraged but never blocks the next booking.
   assert.doesNotMatch(gateSource, /MatchPlayerReviews|RatingHistories/);
+  assert.match(detailSource, /isReviewOnlyNextRoundBlockReason/);
+  assert.match(detailSource, /const canIgnoreLegacyReviewBlock = hasEndedRound/);
+  assert.doesNotMatch(detailSource, /Đánh giá ngay/);
+  assert.ok(detailSource.includes('match?.operationalStatus, canBookAnotherRound, token'));
 
   assert.ok(detailSource.includes("const nextRoundBlockReason = match?.nextRoundBlockReason ?? '';"));
   assert.ok(detailSource.includes('<strong>Chưa thể đặt lượt tiếp theo.</strong> {nextRoundBlockReason}'));

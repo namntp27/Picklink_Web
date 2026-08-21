@@ -26,7 +26,7 @@ const navItems = [
   { path: '/book-court', label: 'Tìm sân' },
   { path: '/ticket-sessions', label: 'Xé vé' },
   { path: '/clubs', label: 'Câu lạc bộ' },
-  { path: '/opponents', label: 'Tìm đối thủ' },
+  { path: '/opponents', label: 'Ghép trận' },
   { path: '/posts', label: 'Bài đăng' },
 ];
 

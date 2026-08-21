@@ -188,6 +188,9 @@ export const MatchPostMatchReviewPanel = ({ match, token }: Props) => {
         <span className="match-soft-badge tabular-nums">1–5 sao</span>
       </div>
 
+      <p className="mt-3 rounded-xl bg-[#eef8e6] px-3 py-2 text-[12px] font-bold leading-5 text-[#477313]">
+        Đánh giá hoàn toàn không bắt buộc; bạn có thể bỏ qua hoặc chỉ đánh giá mục mình muốn.
+      </p>
       {error && <div className="match-alert mt-4" role="alert">{error}</div>}
       {!hasCheckedIn && !loading && (
         <p className="mt-4 rounded-xl bg-[#fff8e6] px-3 py-2 text-[12px] font-bold leading-5 text-[#7a5600]" role="status">
@@ -208,7 +211,7 @@ export const MatchPostMatchReviewPanel = ({ match, token }: Props) => {
                 const draft = playerDraft(player.playerId);
                 const key = `player-${player.playerId}`;
                 const isEditing = Boolean(editingKeys[key]);
-                const showForm = hasCheckedIn && (!existing || isEditing);
+                const showForm = hasCheckedIn && isEditing;
                 return (
                   <article className="rounded-xl bg-[#f3f8ef] p-3" key={player.playerId}>
                     <div className="flex items-center gap-2.5">
@@ -219,9 +222,11 @@ export const MatchPostMatchReviewPanel = ({ match, token }: Props) => {
                       </div>
                       <div className="min-w-0 flex-1"><p className="truncate text-[13px] font-extrabold">{player.playerName}</p><p className="text-[10px] text-[#718077]">Level {player.skillLevel.toFixed(1)}</p></div>
                     </div>
-                    <div className="mt-2">
-                      <RatingStars disabled={!showForm} onChange={(score) => updatePlayerDraft(player.playerId, { score })} score={showForm ? draft.score : existing?.score ?? draft.score} />
-                    </div>
+                    {(existing || showForm) && (
+                      <div className="mt-2">
+                        <RatingStars disabled={!showForm} onChange={(score) => updatePlayerDraft(player.playerId, { score })} score={showForm ? draft.score : existing!.score} />
+                      </div>
+                    )}
                     {existing && !isEditing && (
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                         <p className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Đã đánh giá</p>
@@ -231,6 +236,11 @@ export const MatchPostMatchReviewPanel = ({ match, token }: Props) => {
                           </button>
                         )}
                       </div>
+                    )}
+                    {!existing && hasCheckedIn && !showForm && (
+                      <button className="community-button-secondary mt-2 w-full !min-h-9 !px-3 !py-2 !text-[11px]" onClick={() => setEditing(key, true)} type="button">
+                        <Star className="h-4 w-4" /> Đánh giá người chơi này
+                      </button>
                     )}
                     {showForm && (
                       <>
@@ -261,14 +271,21 @@ export const MatchPostMatchReviewPanel = ({ match, token }: Props) => {
                 const draft = venueDraft(venue.venueId);
                 const key = `venue-${venue.venueId}`;
                 const isEditing = Boolean(editingKeys[key]);
-                const showForm = hasCheckedIn && (!existing || isEditing);
+                const showForm = hasCheckedIn && isEditing;
                 return (
                   <article className="rounded-xl bg-[#f7f9f4] p-3" key={venue.venueId}>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div><p className="text-[13px] font-extrabold">{venue.venueName}</p><p className="mt-0.5 text-[10px] tabular-nums text-[#718077]">Lượt gần nhất: {new Date(venue.endTime).toLocaleString('vi-VN')}</p></div>
                       {existing && !isEditing && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Đã đánh giá</span>}
                     </div>
-                    <div className="mt-2"><RatingStars disabled={!showForm} onChange={(score) => updateVenueDraft(venue.venueId, { score })} score={showForm ? draft.score : existing?.score ?? draft.score} /></div>
+                    {(existing || showForm) && (
+                      <div className="mt-2"><RatingStars disabled={!showForm} onChange={(score) => updateVenueDraft(venue.venueId, { score })} score={showForm ? draft.score : existing!.score} /></div>
+                    )}
+                    {!existing && hasCheckedIn && !showForm && (
+                      <button className="community-button-secondary mt-2 w-full !min-h-9 !px-3 !py-2 !text-[11px]" onClick={() => setEditing(key, true)} type="button">
+                        <Star className="h-4 w-4" /> Đánh giá sân này
+                      </button>
+                    )}
                     {existing && !endedBookings.some((booking) => booking.bookingId === existing.bookingId) && (
                       <p className="mt-1 text-[10px] font-semibold text-[#718077]">Bạn đã đánh giá sân này từ một lần đặt trước.</p>
                     )}

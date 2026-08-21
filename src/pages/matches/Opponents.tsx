@@ -632,7 +632,7 @@ export const Opponents = () => {
                 }`}
             >
               <Repeat className="h-3.5 w-3.5" />
-              Ghép tự động
+              Ghép trận nhanh
             </button>
             <button
               type="button"

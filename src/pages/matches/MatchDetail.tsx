@@ -118,6 +118,8 @@ const matchBookingRoundTotalLabel = (booking: MatchBookingCheckIn, match: MatchD
     : 'Đang cập nhật';
 };
 const approvedStatus = (status: string) => status === 'Approved' || status === 'Accepted';
+export const isReviewOnlyNextRoundBlockReason = (reason?: string | null) =>
+  /đánh giá|danh gia|\breview\b|\brating\b/i.test(reason ?? '');
 const timePart = (value: string) => value.slice(11, 16);
 export const matchBookingSlotLabel = (startTime: string, endTime: string) =>
   `${datePart(startTime)} · ${timePart(startTime)}–${timePart(endTime)}`;
@@ -238,9 +240,27 @@ type ScheduleConflict = {
 };
 const maxMatchBookingSlots = 496;
 const matchBookingRoundsPageSize = 3;
-const todayDateKey = () => {
-  const today = new Date();
+const todayDateKey = (today = new Date()) => {
   return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+};
+const invitationTimeEndMinutes = (timeStart: string, timeEnd: string) => {
+  const [startHour, startMinute] = timeStart.split(':').map(Number);
+  const [endHour, endMinute] = timeEnd.split(':').map(Number);
+  const startMinutes = startHour * 60 + startMinute;
+  const endMinutes = endHour * 60 + endMinute;
+  return endMinutes === 0 && startMinutes > 0 ? 24 * 60 : endMinutes;
+};
+export const validateInvitationScheduleAgainstNow = (draft: InvitationDraft, now = new Date()) => {
+  const today = todayDateKey(now);
+  if (draft.availableDateFrom < today) return 'Ngày bắt đầu không được ở trong quá khứ.';
+  if (draft.availableDateTo < draft.availableDateFrom) return 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.';
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const hasExpiredSlot = draft.availableDateFrom === today
+    && draft.availabilitySlots.some((slot) => invitationTimeEndMinutes(slot.timeStart, slot.timeEnd) <= currentMinutes);
+  return hasExpiredSlot
+    ? 'Khung giờ được chọn cho hôm nay đã trôi qua. Vui lòng chọn khung giờ trong tương lai.'
+    : '';
 };
 const maxMatchBookingDate = () => lastBookableDate(todayDateKey());
 const maximumMonthDurationFrom = (startDate: string) => {
@@ -290,6 +310,7 @@ export const MatchDetail = () => {
   const [invitationVenues, setInvitationVenues] = useState<MatchPreferredVenue[]>([]);
   const [isSearchingInvitationVenues, setIsSearchingInvitationVenues] = useState(false);
   const [openInvitationTimePicker, setOpenInvitationTimePicker] = useState<{ slotIndex: number; field: 'start' | 'end' } | null>(null);
+  const [invitationValidationError, setInvitationValidationError] = useState('');
   const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<MatchParticipant | null>(null);
   const [bookingClock, setBookingClock] = useState(() => Date.now());
   const [isBusy, setIsBusy] = useState(false);
@@ -302,14 +323,17 @@ export const MatchDetail = () => {
   const [loadedBookingRoundsTotalPages, setLoadedBookingRoundsTotalPages] = useState(1);
   const [isLoadingMoreBookingRounds, setIsLoadingMoreBookingRounds] = useState(false);
   const [bookingRoundsError, setBookingRoundsError] = useState('');
-  // The server owns the rule: the previous round must be played out and reviewed
-  // (every team-mate plus the venue) before this player may book the next one.
-  const canBookAnotherRound = Boolean(match?.canBookNextRound);
   const nextRoundBlockReason = match?.nextRoundBlockReason ?? '';
   // A round opens for review the moment it ends, well before the auto-complete sweep.
   const hasEndedRound = Boolean(match?.bookingCheckIns.some((booking) =>
     booking.bookingStatus === 'Completed' || new Date(booking.endTime).getTime() <= bookingClock));
-  // Reviews submitted in the modal are what unlock the next round, so refresh the gate on close.
+  // Current servers never gate booking on reviews. Keep a compatibility fallback so a stale
+  // review-only response cannot hide slot selection during a rolling frontend/backend update.
+  const canIgnoreLegacyReviewBlock = hasEndedRound
+    && (match?.operationalStatus === 'Booked' || match?.operationalStatus === 'Completed')
+    && isReviewOnlyNextRoundBlockReason(nextRoundBlockReason);
+  const canBookAnotherRound = Boolean(match?.canBookNextRound || canIgnoreLegacyReviewBlock);
+  // Refresh the elapsed-round state if the dialog stayed open across the round end time.
   const closePostMatchReviews = () => {
     setShowPostMatchReviews(false);
     void loadMatch();
@@ -401,11 +425,11 @@ export const MatchDetail = () => {
 
   useEffect(() => {
     void loadAvailability();
-  }, [selectedVenueId, bookingDate, match?.operationalStatus, token]);
+  }, [selectedVenueId, bookingDate, match?.operationalStatus, canBookAnotherRound, token]);
 
   useEffect(() => {
     void loadSlotOptions();
-  }, [selectedVenueId, bookingDate, match?.operationalStatus, token]);
+  }, [selectedVenueId, bookingDate, match?.operationalStatus, canBookAnotherRound, token]);
 
 
   const notificationTouchesSelection = (notification: ScheduleRealtimeEvent) => {
@@ -680,6 +704,7 @@ export const MatchDetail = () => {
       availabilitySlots: slots, minSkillLevel: match.minSkillLevel, maxSkillLevel: match.maxSkillLevel, matchType: match.matchType,
     });
     setInvitationVenues(match.preferredVenues);
+    setInvitationValidationError('');
     setShowInvitationEditor(true);
   };
 
@@ -904,6 +929,12 @@ export const MatchDetail = () => {
               </div>
             <form className="mt-4 space-y-4" onSubmit={(event) => {
               event.preventDefault();
+              const validationError = validateInvitationScheduleAgainstNow(invitationDraft);
+              if (validationError) {
+                setInvitationValidationError(validationError);
+                return;
+              }
+              setInvitationValidationError('');
               if (!token) return;
               void run(async () => {
                 await updateMatchInvitation(token, matchId, invitationDraft);
@@ -976,6 +1007,7 @@ export const MatchDetail = () => {
               <label className="block text-[11px] font-bold text-[#526158]">Nội dung lời mời
                 <textarea className="community-input mt-1 min-h-20 w-full" disabled={isBusy} maxLength={1000} onChange={(event) => setInvitationDraft((current) => ({ ...current, note: event.target.value }))} value={invitationDraft.note} />
               </label>
+              {invitationValidationError && <div className="match-alert" role="alert">{invitationValidationError}</div>}
               <div className="flex justify-end gap-2"><button className="community-button-secondary" disabled={isBusy} onClick={() => setShowInvitationEditor(false)} type="button">Hủy</button><button className="community-button" disabled={isBusy} type="submit"><Check className="h-4 w-4" /> Lưu phạm vi lời mời</button></div>
             </form>
             </ModalDialog>
@@ -1093,15 +1125,6 @@ export const MatchDetail = () => {
               ) : (
                 <>
                   <strong>Chưa thể đặt lượt tiếp theo.</strong> {nextRoundBlockReason}
-                  {hasEndedRound && token && (
-                    <button
-                      className="community-button-secondary mt-2 w-full py-2 !text-[12px]"
-                      onClick={() => setShowPostMatchReviews(true)}
-                      type="button"
-                    >
-                      <Star className="h-4 w-4" /> Đánh giá ngay
-                    </button>
-                  )}
                 </>
               )}
             </section>

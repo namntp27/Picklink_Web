@@ -30,7 +30,7 @@ test('post-match panel loads and submits player and venue reviews', () => {
   assert.match(panelSource, /Người chơi cùng trận/);
 });
 
-test('every member and venue is rated once, editable afterwards, and only by who checked in', () => {
+test('player and venue reviews are optional, remain editable, and only checked-in players may submit', () => {
   // One card per venue, not per booking round.
   assert.match(panelSource, /const byVenue = new Map<number, \{ venueId: number/);
   assert.match(panelSource, /playedVenues\.map\(\(venue\) =>/);
@@ -47,7 +47,11 @@ test('every member and venue is rated once, editable afterwards, and only by who
 
   // Check-in is a per-player scan, so absent members see a notice instead of the forms.
   assert.match(panelSource, /participant\.checkInStatus === 'Present'/);
-  assert.match(panelSource, /const showForm = hasCheckedIn && \(!existing \|\| isEditing\)/);
+  assert.match(panelSource, /const showForm = hasCheckedIn && isEditing/g);
+  assert.doesNotMatch(panelSource, /hasCheckedIn && \(!existing \|\| isEditing\)/);
+  assert.match(panelSource, /!existing && hasCheckedIn && !showForm/g);
+  assert.match(panelSource, /onClick=\{\(\) => setEditing\(key, true\)\}/g);
+  assert.match(panelSource, /hoàn toàn không bắt buộc/);
   assert.match(panelSource, /Bạn chưa check-in tại sân cho trận này nên chưa thể đánh giá\./);
 });
 
