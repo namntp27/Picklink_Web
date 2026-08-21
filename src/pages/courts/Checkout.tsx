@@ -98,7 +98,6 @@ const CourtCheckout = () => {
   const [isReturning, setIsReturning] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showSlotDetails, setShowSlotDetails] = useState(false);
-  const [isAutoSepay, setIsAutoSepay] = useState(true);
   const [error, setError] = useState('');
   const phoneRedirecting = useRef(false);
   const shouldReduceMotion = useReducedMotion();
@@ -205,7 +204,7 @@ const CourtCheckout = () => {
 
   const transfer = booking?.bankTransfer;
   const hasSePayConfigured = Boolean(transfer?.hasSePayApiToken);
-  const isAutoActive = isAutoSepay && hasSePayConfigured;
+  const isAutoActive = hasSePayConfigured;
 
   const {
     countdown: sepayCountdown,
@@ -464,16 +463,14 @@ const CourtCheckout = () => {
 
                   <SePayAutoPollingToggle
                     countdownSeconds={sepayCountdown}
-                    enabled={isAutoSepay}
                     hasSePayConfigured={hasSePayConfigured}
                     intervalSeconds={5}
                     isChecking={isSepayChecking}
                     onManualCheck={() => void checkSepayNow()}
-                    onToggle={setIsAutoSepay}
                     transferContent={transfer.transferContent}
                   />
 
-                  {!isAutoActive && (
+                  {(
                     <>
                       <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center transition-[border-color,background-color,transform] duration-200 hover:-translate-y-px hover:border-primary-container hover:bg-[#eef8e6]">
                         <Upload className="mx-auto h-6 w-6 text-[#477313]" />

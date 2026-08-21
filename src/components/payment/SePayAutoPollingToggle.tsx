@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, RefreshCw, ShieldAlert, Zap } from 'lucide-react';
 
 export interface SePayAutoPollingToggleProps {
-  enabled: boolean;
-  onToggle: (enabled: boolean) => void;
   hasSePayConfigured?: boolean;
   isChecking?: boolean;
   countdownSeconds: number;
@@ -14,8 +11,6 @@ export interface SePayAutoPollingToggleProps {
 }
 
 export const SePayAutoPollingToggle = ({
-  enabled,
-  onToggle,
   hasSePayConfigured = true,
   isChecking = false,
   countdownSeconds,
@@ -25,7 +20,7 @@ export const SePayAutoPollingToggle = ({
   className = '',
 }: SePayAutoPollingToggleProps) => {
   const isConfigured = Boolean(hasSePayConfigured);
-  const isAutoActive = enabled && isConfigured;
+  const isAutoActive = isConfigured;
   const progressPercent = Math.max(0, Math.min(100, (countdownSeconds / intervalSeconds) * 100));
 
   return (
@@ -84,32 +79,6 @@ export const SePayAutoPollingToggle = ({
             </p>
           </div>
         </div>
-
-        {/* Toggle Switch */}
-        <button
-          aria-checked={isAutoActive}
-          aria-disabled={!isConfigured}
-          aria-label="Bật/Tắt tự động kiểm tra SePay"
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary/70 ${
-            !isConfigured
-              ? 'cursor-not-allowed bg-neutral-200 opacity-60'
-              : isAutoActive
-              ? 'bg-[#477313]'
-              : 'bg-neutral-300 hover:bg-neutral-400'
-          }`}
-          disabled={!isConfigured}
-          onClick={() => {
-            if (isConfigured) onToggle(!enabled);
-          }}
-          role="switch"
-          type="button"
-        >
-          <span
-            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-              isAutoActive ? 'translate-x-5' : 'translate-x-0'
-            }`}
-          />
-        </button>
       </div>
 
       {/* State A: Owner not configured SePay token */}
@@ -117,8 +86,7 @@ export const SePayAutoPollingToggle = ({
         <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-white/80 p-3 text-[12px] leading-5 text-amber-900">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <div>
-            <strong className="font-bold">Công tắc SePay bị khóa:</strong> Chủ sân này chưa thiết lập API Token từ SePay.
-            Vui lòng chuyển khoản theo thông tin bên dưới và <strong className="underline">tải ảnh biên lai</strong> để chủ sân xác nhận.
+            <strong className="font-bold">Cần liên kết SePay:</strong> Chủ sân chưa thiết lập API Token SePay. Vui lòng liên hệ chủ sân để hoàn tất cấu hình trước khi thanh toán.
           </div>
         </div>
       )}
@@ -169,7 +137,7 @@ export const SePayAutoPollingToggle = ({
           <p className="flex items-center gap-1.5 text-[11px] text-[#66766d]">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#477313]" />
             <span>
-              Khi chuyển đúng nội dung {transferContent ? <code className="font-bold text-[#0b2228]">{transferContent}</code> : 'mã thanh toán'}, SePay sẽ tự động ghi nhận mà không cần tải ảnh.
+              Sau khi gửi ảnh biên lai và chuyển đúng nội dung {transferContent ? <code className="font-bold text-[#0b2228]">{transferContent}</code> : 'mã thanh toán'}, SePay sẽ tự động đối soát giao dịch.
             </span>
           </p>
         </div>

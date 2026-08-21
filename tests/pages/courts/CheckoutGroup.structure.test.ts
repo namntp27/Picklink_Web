@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const checkoutSource = readFileSync(new URL('../../../src/pages/courts/Checkout.tsx', import.meta.url), 'utf8');
+const matchCheckoutSource = readFileSync(new URL('../../../src/pages/matches/MatchCheckout.tsx', import.meta.url), 'utf8');
+const ticketCheckoutSource = readFileSync(new URL('../../../src/pages/tickets/MyTicketDetail.tsx', import.meta.url), 'utf8');
 
 test('court checkout is not mistaken for match checkout when matchId is absent', () => {
   assert.match(checkoutSource, /matchId !== null/);
@@ -71,4 +73,12 @@ test('checkout renders an owner-rejected receipt as a red alert', () => {
   assert.match(checkoutSource, /transfer\?\.rejectionReason && status === 'Pending'/);
   assert.match(checkoutSource, /border-red-300 bg-red-50/);
   assert.match(checkoutSource, /text-red-700" role="alert"/);
+});
+
+test('every bank-transfer checkout keeps SePay enabled and requires a receipt', () => {
+  for (const source of [checkoutSource, matchCheckoutSource, ticketCheckoutSource]) {
+    assert.match(source, /SePayAutoPollingToggle/);
+    assert.doesNotMatch(source, /isAutoSepay/);
+    assert.doesNotMatch(source, /!isAutoActive && \(/);
+  }
 });

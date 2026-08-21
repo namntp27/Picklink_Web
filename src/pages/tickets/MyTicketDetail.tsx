@@ -203,9 +203,8 @@ export const MyTicketDetail = () => {
     return () => window.clearInterval(timer);
   }, [isPending, ticket?.holdExpiresAt]);
 
-  const [isAutoSepay, setIsAutoSepay] = useState(true);
   const hasSePayConfigured = Boolean(ticket?.hasSePayApiToken);
-  const isAutoActive = isAutoSepay && hasSePayConfigured;
+  const isAutoActive = hasSePayConfigured;
 
   const {
     countdown: sepayCountdown,
@@ -420,12 +419,10 @@ export const MyTicketDetail = () => {
                 <div className="mt-4 space-y-4">
                   <SePayAutoPollingToggle
                     countdownSeconds={sepayCountdown}
-                    enabled={isAutoSepay}
                     hasSePayConfigured={hasSePayConfigured}
                     intervalSeconds={5}
                     isChecking={isSepayChecking}
                     onManualCheck={() => void checkSepayNow()}
-                    onToggle={setIsAutoSepay}
                     transferContent={ticket.transferContent}
                   />
 
@@ -445,7 +442,7 @@ export const MyTicketDetail = () => {
                     </div>
                   )}
 
-                  {!isAutoActive && (
+                  {(
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                       <label className="block min-w-0">
                         <span className="text-[13px] font-bold">Ảnh biên lai chuyển khoản</span>

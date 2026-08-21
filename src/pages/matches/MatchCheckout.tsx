@@ -48,7 +48,6 @@ export const MatchCheckout = () => {
   const [now, setNow] = useState(Date.now());
   const [paymentDeadlineAt, setPaymentDeadlineAt] = useState(0);
   const [isPaymentReviewPaused, setIsPaymentReviewPaused] = useState(false);
-  const [isAutoSepay, setIsAutoSepay] = useState(true);
   const [error, setError] = useState('');
   const phoneRedirecting = useRef(false);
 
@@ -178,7 +177,7 @@ export const MatchCheckout = () => {
   });
 
   const hasSePayConfigured = Boolean(preview?.hasSePayApiToken ?? match?.hasSePayApiToken);
-  const isAutoActive = isAutoSepay && hasSePayConfigured;
+  const isAutoActive = hasSePayConfigured;
 
   const {
     countdown: sepayCountdown,
@@ -389,16 +388,14 @@ export const MatchCheckout = () => {
               <div className="mt-5 border-t border-dashed border-[#dbe8d3] pt-5 space-y-4">
                 <SePayAutoPollingToggle
                   countdownSeconds={sepayCountdown}
-                  enabled={isAutoSepay}
                   hasSePayConfigured={hasSePayConfigured}
                   intervalSeconds={5}
                   isChecking={isSepayChecking}
                   onManualCheck={() => void checkSepayNow()}
-                  onToggle={setIsAutoSepay}
                   transferContent={preview.transferContent}
                 />
 
-                {!isAutoActive && (
+                {(
                   <>
                     <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center hover:border-primary">
                       <Upload className="mx-auto h-6 w-6 text-[#477313]" />
