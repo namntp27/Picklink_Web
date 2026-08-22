@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { CircleGauge, LogOut } from 'lucide-react';
+import { Bell, CircleGauge, LogOut } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { adminNavItems } from '../adminNavigation';
 import type { AdminSectionId } from '../types';
 import { useAuth } from '../../../auth/AuthContext';
+import { getUnreadNotificationCount } from '../../../api/notifications';
+import { useNotificationRealtime } from '../../../hooks/useNotificationRealtime';
 
 export const AdminShell = ({
   activeId,
@@ -15,10 +17,33 @@ export const AdminShell = ({
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout, token, user } = useAuth();
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const initials = user?.name
     ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
     : 'AD';
+
+  const loadUnreadNotificationCount = async () => {
+    if (!token) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    try {
+      const result = await getUnreadNotificationCount(token);
+      setUnreadNotificationCount(result.count);
+    } catch {
+      setUnreadNotificationCount(0);
+    }
+  };
+
+  useEffect(() => {
+    void loadUnreadNotificationCount();
+  }, [token]);
+
+  useNotificationRealtime(token, () => {
+    void loadUnreadNotificationCount();
+  });
 
   const handleLogout = () => {
     logout();
@@ -44,6 +69,24 @@ export const AdminShell = ({
           </span>
         </div>
         <div className="flex items-center gap-2 text-white">
+          <Link
+            aria-current={activeId === 'notifications' ? 'page' : undefined}
+            aria-label={unreadNotificationCount > 0 ? `Thông báo, ${unreadNotificationCount} chưa đọc` : 'Thông báo'}
+            className={`relative grid h-10 w-10 place-items-center rounded-xl border transition ${
+              activeId === 'notifications'
+                ? 'border-[#e2ff57] bg-[#e2ff57] text-[#102414]'
+                : 'border-white/15 bg-white/8 text-white/75 hover:border-[#e2ff57]/45 hover:text-[#e2ff57]'
+            }`}
+            title="Thông báo"
+            to="/admin/notifications"
+          >
+            <Bell aria-hidden="true" className="h-[18px] w-[18px]" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e2ff57] px-1 text-[10px] font-black text-[#102414] ring-2 ring-[#0b2228]">
+                {Math.min(unreadNotificationCount, 99)}
+              </span>
+            )}
+          </Link>
           <div className="hidden text-right md:block">
             <p className="text-[13px] font-extrabold">{user?.name || 'Quản trị viên'}</p>
             {user?.email && <p className="mt-0.5 text-[10px] leading-none text-white/58">{user.email}</p>}

@@ -4,6 +4,7 @@ type RouteLoader = () => Promise<unknown>;
 
 const routeLoaders = new Map<string, RouteLoader>([
   ['/admin', () => import('../pages/admin/AdminDashboard')],
+  ['/admin/notifications', () => import('../pages/admin/AdminNotifications')],
   ['/admin/users', () => import('../pages/admin/AdminUsers')],
   ['/admin/courts', () => import('../pages/admin/AdminCourts')],
   ['/admin/clubs', () => import('../pages/admin/AdminClubs')],

@@ -12,6 +12,7 @@ const AdminBookings = lazyPage(() => import('@/pages/admin/AdminBookings'), 'Adm
 const AdminClubs = lazyPage(() => import('@/pages/admin/AdminClubs'), 'AdminClubs');
 const AdminCourts = lazyPage(() => import('@/pages/admin/AdminCourts'), 'AdminCourts');
 const AdminDashboard = lazyPage(() => import('@/pages/admin/AdminDashboard'), 'AdminDashboard');
+const AdminNotifications = lazyPage(() => import('@/pages/admin/AdminNotifications'), 'AdminNotifications');
 const AdminPosts = lazyPage(() => import('@/pages/admin/AdminPosts'), 'AdminPosts');
 const AdminReports = lazyPage(() => import('@/pages/admin/AdminReports'), 'AdminReports');
 const AdminReviews = lazyPage(() => import('@/pages/admin/AdminReviews'), 'AdminReviews');
@@ -41,6 +42,7 @@ export const AdminApp = () => (
       <Route path="/unauthorized" element={<Unauthorized fallbackPath="/login" />} />
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/notifications" element={<AdminNotifications />} />
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/courts" element={<AdminCourts />} />
         <Route path="/admin/clubs" element={<AdminClubs />} />

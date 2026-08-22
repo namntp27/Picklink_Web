@@ -1,5 +1,6 @@
 export type AdminSectionId =
   | 'overview'
+  | 'notifications'
   | 'users'
   | 'courts'
   | 'clubs'
