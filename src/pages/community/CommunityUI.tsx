@@ -316,17 +316,13 @@ export const CommunityFeedShell = ({
 }: {
   activePath: string;
   children: ReactNode;
-}) => {
-  const usesHeroPanels = activePath === '/posts';
-
-  return (
-    <div className={`community-feed-shell ${usesHeroPanels ? 'community-feed-shell--hero-panels' : ''}`}>
-      <CommunityFeedNav activePath={activePath} />
-      <main className="community-feed-main">{children}</main>
-      <CommunityInsights />
-    </div>
-  );
-};
+}) => (
+  <div className="community-feed-shell">
+    <CommunityFeedNav activePath={activePath} />
+    <main className="community-feed-main">{children}</main>
+    <CommunityInsights />
+  </div>
+);
 
 export const CommunityEmptyState = ({
   action,

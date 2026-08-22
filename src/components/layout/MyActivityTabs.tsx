@@ -17,7 +17,7 @@ const tabs = [
 ];
 
 export const MyActivityTabs = () => (
-  <nav aria-label="Hoạt động của tôi" className="mb-4 flex min-w-0 gap-1.5 overflow-x-auto pb-1">
+  <nav aria-label="Hoạt động của tôi" className="mb-4 flex min-w-0 flex-wrap gap-1.5">
     {tabs.map((tab) => {
       const Icon = tab.icon;
 

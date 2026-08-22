@@ -249,7 +249,7 @@ export const MyBookings = () => {
                 placeholder="Tìm mã booking, sân, địa chỉ..."
                 value={search}
               />
-              <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Filter className="h-5 w-5 shrink-0 text-[#081d24]" />
                 {filterOptions.map((option) => (
                   <button

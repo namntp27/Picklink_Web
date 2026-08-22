@@ -278,7 +278,7 @@ export const MyMatches = () => {
 
         <nav
           aria-label="Lọc phòng theo trạng thái"
-          className="community-panel community-scroll sticky top-[72px] z-20 flex gap-1 overflow-x-auto p-2"
+          className="community-panel sticky top-[72px] z-20 flex flex-wrap gap-1 p-2"
         >
           {filters.map((filter) => (
             <button

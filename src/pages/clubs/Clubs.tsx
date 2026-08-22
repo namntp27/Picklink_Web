@@ -298,7 +298,7 @@ export const Clubs = () => {
             />
           </div>
 
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto border-t border-[#dce7d8] pt-3 scrollbar-none lg:col-span-3" data-clubs-toolbar-filters>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-[#dce7d8] pt-3 lg:col-span-3" data-clubs-toolbar-filters>
             <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d8e4d4] bg-white text-[#477313] sm:flex">
               <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
             </span>
