@@ -550,11 +550,11 @@ export const OwnerRevenue = () => {
                   </div>
 
                   <div className="border-b border-outline-variant px-5 py-3">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
+                    <div className="flex flex-wrap gap-2">
                       {transactionStatusOptions.map((option) => (
                         <button
                           aria-pressed={activeStatus === option.value}
-                        className={`h-9 shrink-0 rounded-lg px-3 text-[13px] font-bold transition-colors ${
+                        className={`h-9 rounded-lg px-3 text-[13px] font-bold transition-colors ${
                             activeStatus === option.value
                               ? 'bg-primary text-white'
                               : 'border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
@@ -570,7 +570,7 @@ export const OwnerRevenue = () => {
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1120px] text-left">
+                    <table className="w-full text-left">
                       <thead className="bg-surface-container-low">
                         <tr>
                           <th className="px-5 py-4 text-[12px] font-bold uppercase text-on-surface-variant">Giao dịch</th>

@@ -399,7 +399,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
         <div className="min-w-0 space-y-3">
           <section className="picklink-glow-surface rounded-xl border border-[#d8e4d4] bg-white p-2.5 shadow-[0_8px_22px_rgba(8,29,36,0.045)]">
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 scrollbar-none xl:pb-0">
+              <div className="flex min-w-0 flex-wrap gap-1.5">
                 {content.filters.map((filter) => (
                   <button
                     className={`picklink-glow-control h-8 shrink-0 rounded-lg px-2.5 text-[12px] font-bold transition-[background-color,color,transform] ${

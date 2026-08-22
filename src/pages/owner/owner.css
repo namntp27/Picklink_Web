@@ -186,7 +186,7 @@
 .owner-content {
   min-width: 0;
   flex: 1;
-  padding: 20px clamp(14px, 2.8vw, 30px) calc(84px + env(safe-area-inset-bottom));
+  padding: 16px clamp(12px, 2.2vw, 24px) calc(84px + env(safe-area-inset-bottom));
 }
 
 .owner-content__inner {
@@ -197,17 +197,13 @@
 
 .owner-content__motion {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .owner-page-header.owner-messages-header {
   gap: 10px;
   border-bottom: 0;
   padding-bottom: 0;
-}
-
-.owner-root .owner-messages-header h1 {
-  font-size: clamp(1.3rem, 2.1vw, 1.75rem) !important;
 }
 
 .owner-root input.owner-messages-search {
@@ -221,16 +217,16 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   border-bottom: 1px solid var(--owner-line);
-  padding: 2px 2px 16px;
+  padding: 2px 2px 12px;
 }
 
 .owner-page-header p:last-child {
   max-width: 68ch;
   color: var(--owner-muted);
-  font-size: 13px;
-  line-height: 1.65;
+  font-size: 12.5px;
+  line-height: 1.55;
 }
 
 .owner-kicker {
@@ -244,15 +240,15 @@
 
 .owner-stat-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .owner-stat-card {
   min-width: 0;
   border: 1px solid var(--owner-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgb(255 255 255 / 0.9);
-  padding: 16px;
+  padding: 12px 14px;
   box-shadow: 0 9px 22px rgb(8 29 36 / 0.04);
   transition:
     border-color 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -287,7 +283,7 @@
 .owner-panel {
   overflow: hidden;
   border: 1px solid var(--owner-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgb(255 255 255 / 0.94);
   box-shadow: 0 10px 24px rgb(8 29 36 / 0.045);
 }
@@ -365,13 +361,19 @@
   content: "";
 }
 
-.owner-root h1 {
-  max-width: 26ch;
+/*
+ * Scoped to .owner-page-header specifically (not a blanket `.owner-root h1`):
+ * the shared Notifications hero (rendered inside .owner-root via OwnerNotifications)
+ * sets its own white h1 on a dark banner, and a blanket rule here used to clobber
+ * that with dark ink via !important, making the title unreadable.
+ */
+.owner-page-header h1 {
+  max-width: 30ch;
   color: var(--owner-ink);
-  font-size: clamp(1.55rem, 3vw, 2.15rem) !important;
-  font-weight: 800 !important;
-  line-height: 1.12 !important;
-  letter-spacing: -0.032em;
+  font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
   text-wrap: balance;
 }
 
@@ -389,8 +391,8 @@
 
 .owner-root input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 .owner-root select {
-  min-height: 40px;
-  max-height: 40px;
+  min-height: 36px;
+  max-height: 36px;
   border-color: var(--owner-line) !important;
   border-radius: 10px !important;
   background-color: var(--owner-surface);
@@ -465,28 +467,6 @@
   transform: translateY(-1px);
 }
 
-.owner-bookings-page > .owner-content__motion {
-  gap: 12px;
-}
-
-.owner-bookings-header {
-  gap: 10px;
-  padding-bottom: 11px;
-}
-
-.owner-root .owner-bookings-header h1 {
-  font-size: clamp(1.35rem, 2.3vw, 1.75rem) !important;
-}
-
-.owner-bookings-header p:last-child {
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.owner-bookings-header-actions a {
-  min-height: 34px !important;
-}
-
 .owner-bookings-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -519,19 +499,6 @@
   color: var(--owner-green);
 }
 
-.owner-bookings-control {
-  min-height: 36px !important;
-  max-height: 36px !important;
-}
-
-.owner-bookings-table__grid th {
-  padding: 8px 10px !important;
-}
-
-.owner-bookings-table__grid td {
-  padding: 9px 10px !important;
-}
-
 @media (max-width: 639px) {
   .owner-bookings-metric__main {
     flex-direction: column;
@@ -560,9 +527,9 @@
 
 .owner-root :is(button, a)[class*="py-3"],
 .owner-root :is(button, a)[class*="py-2.5"] {
-  min-height: 40px;
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
+  min-height: 36px;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
 }
 
 .owner-root .shadow-sm {
@@ -588,14 +555,14 @@
 }
 
 .owner-root table th {
-  padding: 11px 14px !important;
+  padding: 9px 12px !important;
   color: #657269;
   font-size: 10px !important;
   letter-spacing: 0.045em;
 }
 
 .owner-root table td {
-  padding: 12px 14px !important;
+  padding: 9px 12px !important;
 }
 
 .owner-root table tbody tr {

@@ -320,10 +320,10 @@ export const OwnerCheckIn = () => {
         <div className="mt-4 grid gap-4 border-t border-outline-variant pt-4">
           <div className="min-w-0">
             <p className="mb-2 text-[11px] font-extrabold text-on-surface-variant">Lọc theo cụm sân</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex flex-wrap gap-2">
               <button
                 aria-pressed={venueId === 0}
-                className={'shrink-0 rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (venueId === 0
+                className={'rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (venueId === 0
                   ? 'border-[#173b31] bg-[#173b31] text-white'
                   : 'border-outline-variant bg-white text-on-surface-variant hover:border-[#9cad71]')}
                 onClick={() => setVenueId(0)}
@@ -334,7 +334,7 @@ export const OwnerCheckIn = () => {
               {venues.map((venue) => (
                 <button
                   aria-pressed={venueId === venue.venueId}
-                  className={'shrink-0 rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (venueId === venue.venueId
+                  className={'rounded-full border px-3 py-2 text-[11px] font-extrabold transition ' + (venueId === venue.venueId
                     ? 'border-[#173b31] bg-[#173b31] text-white'
                     : 'border-outline-variant bg-white text-on-surface-variant hover:border-[#9cad71]')}
                   key={venue.venueId}

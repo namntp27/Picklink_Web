@@ -2,12 +2,12 @@ import type { OwnerBookingRecord } from '../../api/owner';
 import type { BookingDetail, BookingCheckInStatus, BookingPaymentStatus, BookingStatus } from '../../data/bookings';
 
 const paymentMethodLabel: Record<string, string> = {
-  AtCourt: 'Thanh toán tại sân',
-  BankTransfer: 'Chuyển khoản ngân hàng',
+  AtCourt: 'Tại sân',
+  BankTransfer: 'Chuyển khoản',
   Cash: 'Tiền mặt',
-  GroupOnline: 'Thanh toán theo nhóm',
+  GroupOnline: 'Thanh toán nhóm',
   Unpaid: 'Chưa thanh toán',
-  VietQR: 'Chuyển khoản VietQR',
+  VietQR: 'VietQR',
   Wallet: 'Ví điện tử',
 };
 
