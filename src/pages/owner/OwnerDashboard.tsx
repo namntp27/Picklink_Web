@@ -12,14 +12,13 @@ import {
   Lock,
   MessageCircle,
   RefreshCw,
-  Sparkles,
   Ticket,
   Unlock,
   UserPlus,
   X,
   XCircle,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import {
   createOwnerScheduleEntry,
@@ -30,11 +29,11 @@ import {
   updateOwnerBookingStatus,
   type OwnerPlayerSearchResult,
   type OwnerSchedule,
-  type OwnerScheduleEntryType,
   type OwnerScheduleItem,
   type OwnerScheduleSlot,
   type OwnerWalkInPaymentMethod,
 } from '../../api/owner';
+import { createOwnerTicketSession } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { ModalDialog } from '../../components/ui/ModalDialog';
@@ -43,6 +42,7 @@ import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerTimelineGrid } from './components/OwnerTimelineGrid';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
+import { lastBookableDate } from '../../utils/bookingDateRange';
 
 const toLocalDate = (date = new Date()) => {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -93,12 +93,12 @@ const slotStatusLabel: Record<OwnerScheduleSlot['status'], string> = {
   Inactive: 'Ngừng hoạt động',
 };
 
-const entryLabel: Record<OwnerScheduleEntryType, string> = {
+type OwnerSlotEntryType = 'Blocked' | 'WalkIn' | 'TicketSession';
+
+const entryLabel: Record<OwnerSlotEntryType, string> = {
   Blocked: 'Khóa khung giờ',
-  Maintenance: 'Khóa khung giờ',
-  Event: 'Sự kiện',
   WalkIn: 'Lưu đơn đặt tại sân',
-  WalkInUnpaid: 'Lưu đơn đặt tại sân',
+  TicketSession: 'Tạo bản nháp xé vé',
 };
 
 const slotCountBetween = (start: string, end: string) => {
@@ -126,11 +126,18 @@ const checkInStatusLabel: Record<string, string> = {
 export const OwnerDashboard = () => {
   const { token } = useAuth();
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const [date, setDate] = useState(toLocalDate);
   const [venueFilter, setVenueFilter] = useState('all');
   const [courtId, setCourtId] = useState('');
-  const [entryType, setEntryType] = useState<OwnerScheduleEntryType>('Blocked');
+  const [entryType, setEntryType] = useState<OwnerSlotEntryType>('Blocked');
   const [title, setTitle] = useState('');
+  const [ticketDescription, setTicketDescription] = useState('');
+  const [ticketMinSkillLevel, setTicketMinSkillLevel] = useState('1');
+  const [ticketMaxSkillLevel, setTicketMaxSkillLevel] = useState('5');
+  const [ticketPlayFormat, setTicketPlayFormat] = useState('2vs2');
+  const [ticketMaxPlayers, setTicketMaxPlayers] = useState('4');
+  const [ticketPrice, setTicketPrice] = useState('100000');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('08:30');
   const [isSaving, setIsSaving] = useState(false);
@@ -221,19 +228,27 @@ export const OwnerDashboard = () => {
   const defaultAmount = Math.round((selectedCourt?.hourlyPrice ?? 0) * walkInSlotCount * 0.5);
   const amountValue = amountOverride ?? String(defaultAmount);
   const isWalkInEntry = entryType === 'WalkIn';
+  const isTicketEntry = entryType === 'TicketSession';
   // Chủ sân sửa được giờ trong form, nên cảnh báo phải bám khung giờ sắp gửi đi chứ không
   // phải ô đã bấm trên lưới.
   const isPastEntryRange = hasPassed(`${date}T${endTime}:00`);
   const pastRangeLabel = `${dateLabel(date)} ${startTime}–${endTime}`;
 
   const applySlotToForm = (slot: OwnerScheduleSlot) => {
+    setError('');
     setSelectedSlot(slot);
     setCourtId(slot.courtId.toString());
     setStartTime(timeValue(slot.startTime));
     setEndTime(timeValue(slot.endTime));
     setDate(slot.startTime.slice(0, 10));
-    if (slot.status === 'Event') setEntryType('Event');
-    else setEntryType('Blocked');
+    setEntryType('Blocked');
+    setTitle('');
+    setTicketDescription('');
+    setTicketMinSkillLevel('1');
+    setTicketMaxSkillLevel('5');
+    setTicketPlayFormat('2vs2');
+    setTicketMaxPlayers('4');
+    setTicketPrice('100000');
     setCustomerPlayer(null);
     setCustomerQuery('');
     setCustomerPhone('');
@@ -262,7 +277,36 @@ export const OwnerDashboard = () => {
   const createEntry = async (event?: React.FormEvent) => {
     event?.preventDefault();
     if (!token || !courtId) return;
-    if (isPastEntryRange && !(await confirm({
+    const ticketPlayers = Number(ticketMaxPlayers);
+    const ticketPriceValue = Number(ticketPrice);
+    const ticketMinSkill = Number(ticketMinSkillLevel);
+    const ticketMaxSkill = Number(ticketMaxSkillLevel);
+    const ticketStart = new Date(`${date}T${startTime}:00`);
+    const ticketEnd = new Date(`${date}T${endTime}:00`);
+    const ticketValidation = !isTicketEntry
+      ? ''
+      : !selectedCourt
+        ? 'Không tìm thấy sân đã chọn.'
+        : title.trim().length < 3
+          ? 'Tên buổi chơi cần ít nhất 3 ký tự.'
+          : !(ticketStart < ticketEnd)
+            ? 'Giờ kết thúc phải sau giờ bắt đầu.'
+            : ticketStart <= new Date()
+              ? 'Khung giờ chơi phải ở trong tương lai.'
+              : date > lastBookableDate(toLocalDate())
+                ? 'Chỉ được tạo buổi xé vé trong tháng hiện tại hoặc tháng kế tiếp.'
+                : ticketMinSkill > ticketMaxSkill
+                  ? 'Trình độ tối thiểu không được lớn hơn trình độ tối đa.'
+                  : !Number.isInteger(ticketPlayers) || ticketPlayers < 1 || ticketPlayers > 100
+                    ? 'Số người tối đa phải từ 1 đến 100.'
+                    : !Number.isInteger(ticketPriceValue) || ticketPriceValue < 0
+                      ? 'Giá vé phải là số nguyên VND không âm.'
+                      : '';
+    if (ticketValidation) {
+      setError(ticketValidation);
+      return;
+    }
+    if (!isTicketEntry && isPastEntryRange && !(await confirm({
       title: 'Khung giờ này đã trôi qua',
       message: isWalkInEntry
         ? `${pastRangeLabel} nằm trong quá khứ. Đơn vẫn được lưu và tính vào doanh thu nếu đã thu tiền.`
@@ -273,11 +317,30 @@ export const OwnerDashboard = () => {
     setError('');
     setIsSaving(true);
     try {
+      if (isTicketEntry && selectedCourt) {
+        const session = await createOwnerTicketSession(token, {
+          venueId: selectedCourt.venueId,
+          courtId: Number(courtId),
+          date,
+          startTime: `${startTime}:00`,
+          endTime: `${endTime}:00`,
+          title: title.trim(),
+          description: ticketDescription.trim() || undefined,
+          minSkillLevel: ticketMinSkill,
+          maxSkillLevel: ticketMaxSkill,
+          playFormat: ticketPlayFormat,
+          maxPlayers: ticketPlayers,
+          ticketPrice: ticketPriceValue,
+        });
+        setSelectedSlot(null);
+        navigate(`/owner/ticket-sessions/${session.ticketSessionId}`);
+        return;
+      }
       await createOwnerScheduleEntry(token, {
         courtId: Number(courtId),
         startTime: `${date}T${startTime}:00`,
         endTime: `${date}T${endTime}:00`,
-        entryType,
+        entryType: entryType === 'WalkIn' ? 'WalkIn' : 'Blocked',
         title: isWalkInEntry ? undefined : title.trim() || undefined,
         customerPlayerId: isWalkInEntry ? customerPlayer?.playerId : undefined,
         customerName: isWalkInEntry && !customerPlayer ? customerQuery.trim() : undefined,
@@ -289,7 +352,9 @@ export const OwnerDashboard = () => {
       setSelectedSlot(null);
       await load();
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể tạo lịch vận hành.');
+      setError(requestError instanceof ApiError
+        ? requestError.message
+        : isTicketEntry ? 'Không thể tạo buổi xé vé.' : 'Không thể tạo lịch vận hành.');
     } finally {
       setIsSaving(false);
     }
@@ -581,20 +646,23 @@ export const OwnerDashboard = () => {
 
             {selectedSlot.status === 'Available' && (
               <form className="mt-4 rounded-xl border border-outline-variant p-4" onSubmit={createEntry}>
-                <p className="text-[14px] font-bold">Tạo lịch vận hành cho khung giờ này</p>
+                <p className="text-[14px] font-bold">{isTicketEntry ? 'Tạo buổi xé vé cho khung giờ này' : 'Tạo lịch vận hành cho khung giờ này'}</p>
+                {actionError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] font-bold text-red-700" role="alert">{actionError}</p>
+                )}
                 {isPastEntryRange && (
                   <p className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-900" role="alert">
                     <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>Khung giờ {pastRangeLabel} đã trôi qua. Kiểm tra lại ngày giờ trước khi lưu.</span>
+                    <span>{isTicketEntry ? 'Buổi xé vé chỉ được tạo cho khung giờ trong tương lai.' : `Khung giờ ${pastRangeLabel} đã trôi qua. Kiểm tra lại ngày giờ trước khi lưu.`}</span>
                   </p>
                 )}
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label>
                     <span className="mb-1.5 block text-[13px] font-bold">Loại lịch</span>
-                    <select className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" onChange={(event) => setEntryType(event.target.value as OwnerScheduleEntryType)} value={entryType}>
+                    <select className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" onChange={(event) => setEntryType(event.target.value as OwnerSlotEntryType)} value={entryType}>
                       <option value="Blocked">Khóa khung giờ</option>
                       <option value="WalkIn">Đặt tại sân cho player</option>
-                      <option value="Event">Sự kiện</option>
+                      <option value="TicketSession">Xé vé</option>
                     </select>
                   </label>
                   {isWalkInEntry ? (
@@ -637,10 +705,15 @@ export const OwnerDashboard = () => {
                       )}
                     </label>
                     </>
+                  ) : isTicketEntry ? (
+                    <label>
+                      <span className="mb-1.5 block text-[13px] font-bold">Tên buổi xé vé *</span>
+                      <input className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" maxLength={200} minLength={3} onChange={(event) => setTitle(event.target.value)} placeholder="Ví dụ: Kèo đôi tối Chủ nhật" required value={title} />
+                    </label>
                   ) : (
                     <label>
-                      <span className="mb-1.5 block text-[13px] font-bold">{entryType === 'Event' ? 'Tên sự kiện *' : 'Ghi chú'}</span>
-                      <input className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" maxLength={200} onChange={(event) => setTitle(event.target.value)} required={entryType === 'Event'} value={title} />
+                      <span className="mb-1.5 block text-[13px] font-bold">Ghi chú</span>
+                      <input className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-[14px]" maxLength={200} onChange={(event) => setTitle(event.target.value)} value={title} />
                     </label>
                   )}
                   <label>
@@ -656,6 +729,45 @@ export const OwnerDashboard = () => {
                     </select>
                   </label>
                 </div>
+
+                {isTicketEntry && (
+                  <div className="mt-3 rounded-xl border border-outline-variant bg-surface-container-low p-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="sm:col-span-2">
+                        <span className="mb-1.5 block text-[13px] font-bold">Mô tả</span>
+                        <textarea className="min-h-20 w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-[14px]" maxLength={2000} onChange={(event) => setTicketDescription(event.target.value)} placeholder="Thông tin dành cho player (không bắt buộc)" value={ticketDescription} />
+                      </label>
+                      <label>
+                        <span className="mb-1.5 block text-[13px] font-bold">Trình độ tối thiểu</span>
+                        <select className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5" onChange={(event) => { setTicketMinSkillLevel(event.target.value); if (Number(event.target.value) > Number(ticketMaxSkillLevel)) setTicketMaxSkillLevel(event.target.value); }} value={ticketMinSkillLevel}>
+                          {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="mb-1.5 block text-[13px] font-bold">Trình độ tối đa</span>
+                        <select className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5" onChange={(event) => { setTicketMaxSkillLevel(event.target.value); if (Number(event.target.value) < Number(ticketMinSkillLevel)) setTicketMinSkillLevel(event.target.value); }} value={ticketMaxSkillLevel}>
+                          {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>Level {value}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="mb-1.5 block text-[13px] font-bold">Hình thức</span>
+                        <select className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5" onChange={(event) => setTicketPlayFormat(event.target.value)} value={ticketPlayFormat}>
+                          <option value="1vs1">Đánh đơn · 1vs1</option>
+                          <option value="2vs2">Đánh đôi · 2vs2</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span className="mb-1.5 block text-[13px] font-bold">Số người tối đa</span>
+                        <input className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5" max={100} min={1} onChange={(event) => setTicketMaxPlayers(event.target.value)} required step={1} type="number" value={ticketMaxPlayers} />
+                      </label>
+                      <label className="sm:col-span-2">
+                        <span className="mb-1.5 block text-[13px] font-bold">Giá mỗi vé (VND)</span>
+                        <input className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2.5 font-bold" min={0} onChange={(event) => setTicketPrice(event.target.value)} required step={1} type="number" value={ticketPrice} />
+                      </label>
+                    </div>
+                    <p className="mt-3 text-[12px] text-on-surface-variant">Buổi xé vé sẽ được lưu dưới dạng bản nháp. Sau khi tạo, bạn sẽ được chuyển tới trang quản lý để kiểm tra và mở bán.</p>
+                  </div>
+                )}
 
                 {isWalkInEntry && (
                   <div className="mt-3 rounded-xl border border-outline-variant bg-surface-container-low p-3">
@@ -697,8 +809,8 @@ export const OwnerDashboard = () => {
                   </div>
                 )}
 
-                <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-60" disabled={isSaving || !courtId || (isWalkInEntry && !customerPlayer && !customerQuery.trim())} type="submit">
-                  {isWalkInEntry ? <Banknote className="h-4 w-4" /> : entryType === 'Event' ? <Sparkles className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[14px] font-bold text-white disabled:opacity-60" disabled={isSaving || !courtId || (isWalkInEntry && !customerPlayer && !customerQuery.trim()) || (isTicketEntry && title.trim().length < 3)} type="submit">
+                  {isWalkInEntry ? <Banknote className="h-4 w-4" /> : isTicketEntry ? <Ticket className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                   {isSaving ? 'Đang lưu...' : entryLabel[entryType]}
                 </button>
               </form>

@@ -14,9 +14,10 @@ test('owner schedule delegates the primary timetable to OwnerTimelineGrid', () =
 });
 
 test('owner timeline mirrors the court schedule legend and full-width timetable style', () => {
-  for (const label of ['Trống', 'Đã đặt', 'Khoá', 'Sự kiện']) {
+  for (const label of ['Trống', 'Đã đặt', 'Khoá', 'Xé vé']) {
     assert.match(gridSource, new RegExp(label));
   }
+  assert.doesNotMatch(gridSource, /\{ label: 'Sự kiện'/);
 
   for (const token of ['#081d24', '#0f2e32', '#143f34', '#276b3f', '#e2ff57', '#eef8e6']) {
     assert.match(gridSource, new RegExp(token));
@@ -25,6 +26,14 @@ test('owner timeline mirrors the court schedule legend and full-width timetable 
   assert.match(gridSource, /buildTimelineTicks/);
   assert.match(gridSource, /gridTemplateColumns/);
   assert.match(gridSource, /ownerTimelineGrid/);
+});
+
+test('owner can create a ticket-session draft from an available schedule slot', () => {
+  assert.match(dashboardSource, /createOwnerTicketSession/);
+  assert.match(dashboardSource, /<option value="TicketSession">Xé vé<\/option>/);
+  assert.doesNotMatch(dashboardSource, /<option value="Event">/);
+  assert.match(dashboardSource, /venueId: selectedCourt\.venueId/);
+  assert.match(dashboardSource, /navigate\(\`\/owner\/ticket-sessions\/\$\{session\.ticketSessionId\}\`\)/);
 });
 
 test('owner timeline separates courts by venue instead of merging every court into one grid', () => {

@@ -44,12 +44,15 @@ test('owner and staff ticketing screens expose protected lifecycle actions', () 
   assert.match(staff, /participant\.ticketStatus === 'CheckedIn'/);
 });
 
-test('owner schedule renders ticket sessions without exposing schedule-entry deletion', () => {
+test('owner schedule renders and creates ticket sessions without exposing schedule-entry deletion', () => {
   const dashboard = read('src/pages/owner/OwnerDashboard.tsx');
   const timeline = read('src/pages/owner/components/OwnerTimelineGrid.tsx');
 
   assert.match(dashboard, /selectedSlotItem\.entryType === 'TicketSession'/);
   assert.match(dashboard, /to="\/owner\/ticket-sessions"/);
+  assert.match(dashboard, /createOwnerTicketSession/);
+  assert.match(dashboard, /<option value="TicketSession">Xé vé<\/option>/);
+  assert.doesNotMatch(dashboard, /<option value="Event">/);
   assert.match(timeline, /TicketSession: 'Xé vé'/);
 });
 test('owner shell exposes realtime payment and ticket notifications', () => {

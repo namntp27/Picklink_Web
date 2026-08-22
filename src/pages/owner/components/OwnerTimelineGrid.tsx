@@ -39,7 +39,6 @@ const legendItems = [
   { label: 'Trống', className: 'bg-white' },
   { label: 'Đã đặt', className: 'bg-[#f26767]' },
   { label: 'Khoá', className: 'bg-[#aeb8b0]' },
-  { label: 'Sự kiện', className: 'bg-[#c86fd5]', marker: '!' },
   { label: 'Xé vé', className: 'bg-[#98d951]', marker: 'V' },
 ];
 
