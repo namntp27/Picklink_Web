@@ -16,3 +16,8 @@ test('court schedule continues an owned holding from the bottom action', () => {
   assert.ok(scheduleSource.includes("navigate('/checkout?bookingId=' + resumableHoldingBookingId"));
   assert.match(scheduleSource, /!selectedSlots\.length && !resumableHoldingBookingId/);
 });
+
+test('choosing another venue always opens the court discovery page', () => {
+  assert.match(scheduleSource, /<Link[\s\S]*?to="\/book-court"[\s\S]*?>\s*<ArrowLeft/);
+  assert.doesNotMatch(scheduleSource, /<HistoryBackLink[^>]*fallback="\/book-court"/);
+});

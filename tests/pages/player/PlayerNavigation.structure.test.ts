@@ -7,7 +7,6 @@ const playerBackPages = [
   'bookings/BookingDetail.tsx',
   'tickets/TicketSessionDetail.tsx',
   'tickets/MyTicketDetail.tsx',
-  'courts/CourtScheduleDetail.tsx',
   'matches/MatchCheckout.tsx',
   'matches/QueueDetail.tsx',
   'clubs/ClubDetail.tsx',
