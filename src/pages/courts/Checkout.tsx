@@ -28,6 +28,7 @@ import { MatchCheckout } from '../matches/MatchCheckout';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 import { useToast } from '../../components/ui/ToastRegion';
 import { SePayAutoPollingToggle } from '../../components/payment/SePayAutoPollingToggle';
+import { ReceiptFallbackPanel } from '../../components/payment/ReceiptFallbackPanel';
 import { useSePayPollingEngine } from '../../hooks/useSePayPollingEngine';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -476,7 +477,10 @@ const CourtCheckout = () => {
                     transferContent={transfer.transferContent}
                   />
 
-                  {(
+                  <ReceiptFallbackPanel
+                    defaultOpen={Boolean(transfer.rejectionReason || !hasSePayConfigured)}
+                    hasSePayConfigured={hasSePayConfigured}
+                  >
                     <>
                       <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center transition-[border-color,background-color,transform] duration-200 hover:-translate-y-px hover:border-primary-container hover:bg-[#eef8e6]">
                         <Upload className="mx-auto h-6 w-6 text-[#477313]" />
@@ -507,12 +511,12 @@ const CourtCheckout = () => {
                         </div>
                       )}
 
-                      <Button aria-busy={isSubmitting} className="h-11 w-full rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d]" disabled={isSubmitting} onClick={() => void submit()} type="button">
+                      <Button aria-busy={isSubmitting} className="h-11 w-full rounded-xl bg-[#e2ff57] text-[14px] font-black text-[#102414] hover:bg-[#d6f64d]" disabled={!receipt || isSubmitting} onClick={() => void submit()} type="button">
                         <ShieldCheck className="h-5 w-5" />
-                        {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : 'Tôi đã chuyển khoản'}
+                        {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : 'Gửi biên lai xác nhận'}
                       </Button>
                     </>
-                  )}
+                  </ReceiptFallbackPanel>
                 </div>
               </div>
             ) : (

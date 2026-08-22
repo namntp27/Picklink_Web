@@ -97,9 +97,11 @@ test('match checkout redirects every player when the booking is cancelled in rea
   assert.match(matchCheckoutSource, /navigate\('\/matches', \{ replace: true \}\)/);
 });
 
-test('every bank-transfer checkout keeps SePay enabled and requires a receipt', () => {
+test('every bank-transfer checkout prioritizes SePay and keeps receipts as a fallback', () => {
   for (const source of [checkoutSource, matchCheckoutSource, ticketCheckoutSource]) {
     assert.match(source, /SePayAutoPollingToggle/);
+    assert.match(source, /ReceiptFallbackPanel/);
+    assert.match(source, /hasSePayConfigured=/);
     assert.doesNotMatch(source, /isAutoSepay/);
     assert.doesNotMatch(source, /!isAutoActive && \(/);
   }

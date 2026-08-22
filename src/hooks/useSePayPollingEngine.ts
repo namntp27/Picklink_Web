@@ -16,13 +16,18 @@ export const useSePayPollingEngine = ({
   const [countdown, setCountdown] = useState(intervalSeconds);
   const [isChecking, setIsChecking] = useState(false);
   const callbackRef = useRef(onTrigger);
+  const inFlightRef = useRef(false);
+  const hasTriggeredForActivePeriodRef = useRef(false);
   callbackRef.current = onTrigger;
 
   const triggerNow = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setIsChecking(true);
     try {
       await callbackRef.current();
     } finally {
+      inFlightRef.current = false;
       setIsChecking(false);
       setCountdown(intervalSeconds);
     }
@@ -30,8 +35,17 @@ export const useSePayPollingEngine = ({
 
   useEffect(() => {
     if (!enabled || !isActive) {
+      hasTriggeredForActivePeriodRef.current = false;
       setCountdown(intervalSeconds);
       return;
+    }
+
+    // Reconcile immediately when a payment screen becomes active, then keep checking
+    // on the interval below. The ref also prevents React Strict Mode from firing the
+    // initial request twice during its development-only effect replay.
+    if (!hasTriggeredForActivePeriodRef.current) {
+      hasTriggeredForActivePeriodRef.current = true;
+      void triggerNow();
     }
 
     const timer = window.setInterval(() => {

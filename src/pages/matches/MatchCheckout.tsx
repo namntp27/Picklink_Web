@@ -13,6 +13,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 import { useToast } from '../../components/ui/ToastRegion';
 import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
 import { SePayAutoPollingToggle } from '../../components/payment/SePayAutoPollingToggle';
+import { ReceiptFallbackPanel } from '../../components/payment/ReceiptFallbackPanel';
 import { useSePayPollingEngine } from '../../hooks/useSePayPollingEngine';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -450,7 +451,10 @@ export const MatchCheckout = () => {
                   transferContent={preview.transferContent}
                 />
 
-                {(
+                <ReceiptFallbackPanel
+                  defaultOpen={Boolean(rejectedPayment || !hasSePayConfigured)}
+                  hasSePayConfigured={hasSePayConfigured}
+                >
                   <>
                     <label className="block cursor-pointer rounded-xl border-2 border-dashed border-[#dbe8d3] bg-[#f8fbf4] p-4 text-center hover:border-primary">
                       <Upload className="mx-auto h-6 w-6 text-[#477313]" />
@@ -481,7 +485,7 @@ export const MatchCheckout = () => {
                       {isSubmitting ? (uploadProgress !== null ? `Đang tải ảnh (${uploadProgress}%)...` : 'Đang gửi biên lai...') : `Gửi biên lai cho ${selectedPayerIds.length} người`}
                     </button>
                   </>
-                )}
+                </ReceiptFallbackPanel>
               </div>
             )}
           </section>

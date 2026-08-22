@@ -50,7 +50,7 @@ export const SePayAutoPollingToggle = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-black tracking-tight">
-                Tự động kiểm tra qua SePay
+                Ưu tiên tự động kiểm tra qua SePay
               </span>
               {!isConfigured ? (
                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-200/80 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-900">
@@ -74,7 +74,7 @@ export const SePayAutoPollingToggle = ({
               {!isConfigured
                 ? 'Sân chưa liên kết SePay API Token để tự động nhận tiền'
                 : isAutoActive
-                ? 'Hệ thống tự động quét và đối soát giao dịch ngân hàng theo thời gian thực'
+                ? 'Hệ thống kiểm tra ngay khi mở trang và tiếp tục đối soát giao dịch định kỳ'
                 : 'Chuyển sang chế độ thủ công (tải ảnh biên lai để gửi chủ sân)'}
             </p>
           </div>
@@ -137,7 +137,13 @@ export const SePayAutoPollingToggle = ({
           <p className="flex items-center gap-1.5 text-[11px] text-[#66766d]">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#477313]" />
             <span>
-              Sau khi gửi ảnh biên lai và chuyển đúng nội dung {transferContent ? <code className="font-bold text-[#0b2228]">{transferContent}</code> : 'mã thanh toán'}, SePay sẽ tự động đối soát giao dịch.
+              Chuyển đúng nội dung {transferContent ? <code className='font-bold text-[#0b2228]'>{transferContent}</code> : 'mã thanh toán'} và chờ hệ thống xác nhận tự động. Bạn chưa cần gửi biên lai.
+            </span>
+          </p>
+          <p className='flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900'>
+            <AlertCircle className='mt-0.5 h-3.5 w-3.5 shrink-0' />
+            <span>
+              <strong>Chỉ gửi biên lai khi cần:</strong> Nếu bạn đã thanh toán nhưng sau vài lần kiểm tra vẫn chưa thấy phản hồi, hãy dùng mục gửi biên lai bên dưới.
             </span>
           </p>
         </div>

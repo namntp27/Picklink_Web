@@ -39,6 +39,7 @@ import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { SePayAutoPollingToggle } from '../../components/payment/SePayAutoPollingToggle';
+import { ReceiptFallbackPanel } from '../../components/payment/ReceiptFallbackPanel';
 import { useSePayPollingEngine } from '../../hooks/useSePayPollingEngine';
 
 const currency = new Intl.NumberFormat('vi-VN', {
@@ -427,6 +428,10 @@ export const MyTicketDetail = () => {
                   />
 
                   {ticket.rejectionReason && <p className="rounded-xl border border-error/20 bg-error-container p-3 text-[13px] font-bold text-error">Biên lai trước bị từ chối: {ticket.rejectionReason}</p>}
+                  <ReceiptFallbackPanel
+                    defaultOpen={Boolean(ticket.rejectionReason || !hasSePayConfigured)}
+                    hasSePayConfigured={hasSePayConfigured}
+                  >
                   {uploadProgress !== null && busyAction === 'receipt' && (
                     <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3">
                       <div className="flex items-center justify-between text-[12px] font-bold text-primary">
@@ -457,6 +462,7 @@ export const MyTicketDetail = () => {
                       </Button>
                     </div>
                   )}
+                  </ReceiptFallbackPanel>
                 </div>
               </section>
             )}
