@@ -73,6 +73,16 @@ const queueDateRange = (queue: QueueStatusResponse) => {
   return dateLabel(dates[0]) + ' - ' + dateLabel(dates[dates.length - 1]);
 };
 
+const matchDateRange = (match: MatchSummary) =>
+  `${dateLabel(match.availableDateFrom)} - ${dateLabel(match.availableDateTo)}`;
+
+const replayTypeLabel = (replayType: MatchSummary['replayType']) => ({
+  None: 'Một lần',
+  Daily: 'Hàng ngày',
+  Weekly: 'Hàng tuần',
+  Monthly: 'Hàng tháng',
+}[replayType] ?? replayType);
+
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const queueMatchesDate = (queue: QueueStatusResponse, selectedDate: string) => {
@@ -124,6 +134,17 @@ export const PendingInvites = () => {
     ['public-replacement-slots', token],
     () => getOpenMatches(token ?? undefined, { source: 'replacement', page: 1, pageSize: 50 }),
     { errorMessage: 'Không thể tải danh sách cần người thay thế.' },
+  );
+
+  const {
+    data: openMatchPage,
+    error: openMatchesError,
+    loading: openMatchesLoading,
+    refresh: loadOpenMatches,
+  } = useApiQuery(
+    ['open-recruiting-matches', token],
+    () => getOpenMatches(token ?? undefined, { page: 1, pageSize: 50 }),
+    { errorMessage: 'Không thể tải danh sách phòng đang tuyển.' },
   );
   useEffect(() => {
     let disposed = false;
@@ -188,11 +209,13 @@ export const PendingInvites = () => {
   };
 
   const replacementMatches = replacementPage?.items ?? emptyMatches;
-  const error = actionError || queuesError || replacementsError;
+  const openMatches = openMatchPage?.items ?? emptyMatches;
+  const error = actionError || queuesError || replacementsError || openMatchesError;
 
   useMatchRealtime(() => {
     void loadQueues();
     void loadReplacements();
+    void loadOpenMatches();
   });
   
   const filteredQueues = useMemo(() => {
@@ -228,6 +251,18 @@ export const PendingInvites = () => {
     if (filters.ward && match.ward !== filters.ward) return false;
     return !filters.date || (match.availableDateFrom <= filters.date && match.availableDateTo >= filters.date);
   }), [replacementMatches, filters.date, filters.format, filters.province, filters.skill, filters.ward]);
+
+  const filteredRecruitmentMatches = useMemo(() => openMatches.filter((match) => {
+    if (match.replacementSlotCount > 0 || match.availableSlotCount < 1) return false;
+    if (filters.format !== 'all' && match.matchType !== filters.format) return false;
+    if (filters.skill !== 'all') {
+      const skill = Number(filters.skill);
+      if (skill < match.minSkillLevel || skill > match.maxSkillLevel) return false;
+    }
+    if (filters.province && match.province !== filters.province) return false;
+    if (filters.ward && match.ward !== filters.ward) return false;
+    return !filters.date || (match.availableDateFrom <= filters.date && match.availableDateTo >= filters.date);
+  }), [openMatches, filters.date, filters.format, filters.province, filters.skill, filters.ward]);
   const pagination = useMemo(() => ({
     page,
     pageSize: PAGE_SIZE,
@@ -249,8 +284,10 @@ export const PendingInvites = () => {
       const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
       return sum + Math.max(0, maxCap - q.queuePlayers.filter((p) => p.status !== 'Pending' && p.status !== 'Rejected').length);
     }, 0);
-    return queueSlots + filteredReplacementMatches.reduce((sum, match) => sum + match.replacementSlotCount, 0);
-  }, [filteredQueues, filteredReplacementMatches]);
+    const replacementSlots = filteredReplacementMatches.reduce((sum, match) => sum + match.replacementSlotCount, 0);
+    const recruitmentSlots = filteredRecruitmentMatches.reduce((sum, match) => sum + match.availableSlotCount, 0);
+    return queueSlots + replacementSlots + recruitmentSlots;
+  }, [filteredQueues, filteredRecruitmentMatches, filteredReplacementMatches]);
 
   const update = (key: keyof Filters, value: string) => {
     setFilters((current) => ({ ...current, [key]: value }) as Filters);
@@ -279,7 +316,7 @@ export const PendingInvites = () => {
           <div className="grid grid-cols-2 gap-5">
             <div>
               <p className="font-mono text-[23px] font-extrabold text-[#e2ff57]">
-                {filteredQueues.length + filteredReplacementMatches.length}
+                {filteredQueues.length + filteredRecruitmentMatches.length + filteredReplacementMatches.length}
               </p>
               <p className="mt-1 text-[11px] font-semibold text-white/65">
                 lời mời đang mở
@@ -353,14 +390,106 @@ export const PendingInvites = () => {
           </div>
         )}
 
-        <section aria-busy={queuesLoading || replacementsLoading} className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(queuesLoading || replacementsLoading) && queues.length === 0 && replacementMatches.length === 0 && Array.from({ length: 6 }, (_, index) => (
+        <section aria-busy={queuesLoading || replacementsLoading || openMatchesLoading} className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(queuesLoading || replacementsLoading || openMatchesLoading) && queues.length === 0 && replacementMatches.length === 0 && openMatches.length === 0 && Array.from({ length: 6 }, (_, index) => (
             <article aria-hidden="true" className="community-card animate-pulse p-3 motion-reduce:animate-none" key={index}>
               <div className="h-5 w-28 rounded bg-[#e8efe5]" />
               <div className="mt-3 h-4 w-3/4 rounded bg-[#edf2ea]" />
               <div className="mt-3 h-28 rounded-lg bg-[#f2f5f0]" />
             </article>
           ))}
+          {filteredRecruitmentMatches.map((match) => {
+            const isDirectInvitation = match.myParticipantStatus === 'Invited';
+            return (
+              <article className="community-card flex h-full flex-col justify-between border-[#d6ee61] p-3 ring-1 ring-[#dfff5a]/70" key={`recruitment-${match.matchId}`}>
+                <div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px]">{match.matchType}</span>
+                    <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">Trình độ tối thiểu: {skillLevelName(match.minSkillLevel)}</span>
+                    <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[10px] text-[#526158]">Trình độ tối đa: {skillLevelName(match.maxSkillLevel)}</span>
+                    <span className="community-badge !min-h-5 !border !border-[#b8d92c] !bg-[#f8ffe1] !px-1.5 !py-1 !text-[10px] !text-[#477313]">
+                      {match.origin === 'Manual' ? 'Ghép thủ công (Công khai)' : 'Phòng đang tuyển'}
+                    </span>
+                    {isDirectInvitation && (
+                      <span className="community-badge !min-h-5 !bg-[#fff4d8] !px-1.5 !py-1 !text-[10px] !text-[#8a5b00]">Lời mời dành cho bạn</span>
+                    )}
+                  </div>
+
+                  <h2 className="mt-2 text-[16px] font-extrabold leading-5 text-[#0b2228]">{match.title}</h2>
+
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <PlayerHoverCard playerId={match.hostPlayerId} playerName={match.hostName}>
+                      <span className="grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#c63f0d] text-[11px] font-extrabold text-white">
+                        {match.hostAvatarUrl ? (
+                          <img alt="" className="h-full w-full object-cover" decoding="async" loading="lazy" src={match.hostAvatarUrl} />
+                        ) : (
+                          <span>{match.hostName.charAt(0).toUpperCase()}</span>
+                        )}
+                      </span>
+                    </PlayerHoverCard>
+                    <span className="min-w-0">
+                      <span className="block text-[9px] font-bold leading-3 text-[#718077]">Chủ phòng</span>
+                      <span className="block truncate text-[10px] font-extrabold leading-4 text-[#526158]">{match.hostName}</span>
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-[11px] leading-4 text-[#526158]">
+                    Tần suất tìm lại: <strong className="font-bold text-[#0b2228]">{replayTypeLabel(match.replayType)}</strong>
+                  </p>
+
+                  <div className="mt-3 divide-y divide-[#e2eae0] overflow-hidden rounded-lg border border-[#d8e4d4] bg-[#fbfcfa]">
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><MapPin className="h-3 w-3 text-[#477313]" />Khu vực</p>
+                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{match.ward || 'Tự do'}, {match.province || 'Toàn quốc'}</p>
+                      <p className="mt-0.5 text-[10px] text-[#718077]">Bán kính {match.searchRadiusKm} km</p>
+                    </div>
+
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><CalendarRange className="h-3 w-3 text-[#477313]" />Khoảng ngày</p>
+                      <p className="mt-0.5 text-[11px] font-semibold leading-4 text-[#0b2228]">{matchDateRange(match)}</p>
+                    </div>
+
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Clock className="h-3 w-3 text-[#477313]" />Các slot đã chọn</p>
+                      <div className="community-scroll mt-1 flex max-h-20 flex-wrap gap-1 overflow-y-auto pr-1">
+                        {match.availabilitySlots.map((slot) => (
+                          <span className="inline-flex min-h-5 items-center rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0b2228]" key={slot.matchAvailabilitySlotId}>
+                            {slot.timeStart.slice(0, 5)} - {slot.timeEnd.slice(0, 5)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Route className="h-3 w-3 text-[#477313]" />Các sân đã chọn</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {match.preferredVenues.map((venue) => (
+                          <span className="rounded-md border border-[#d8e4d4] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#0b2228]" key={venue.venueId}>{venue.venueName}</span>
+                        ))}
+                        {match.preferredVenues.length === 0 && <span className="text-[10px] text-[#718077]">Chưa chọn sân cụ thể</span>}
+                      </div>
+                    </div>
+
+                    <div className="px-2.5 py-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-[#718077]"><Users className="h-3 w-3 text-[#477313]" />Thành viên nhóm ({match.acceptedPlayerCount}/{match.requiredPlayerCount})</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        <span className="rounded-md border border-[#d8e4d4] bg-[#edf5e9] px-1.5 py-0.5 text-[10px] font-medium text-[#477313]">{match.hostName}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <Link className="community-button-secondary !min-h-8 flex-1 !text-[11px] flex items-center justify-center gap-1" to={`/matches/${match.matchId}`}>
+                    <Eye className="h-3.5 w-3.5" /> Chi tiết
+                  </Link>
+                  <Link className="community-button !min-h-8 flex-1 !text-[11px] flex items-center justify-center gap-1" to={`/matches/${match.matchId}`}>
+                    <UserPlus className="h-3.5 w-3.5" /> {isDirectInvitation ? 'Xem lời mời' : 'Vào phòng'}
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
           {filteredReplacementMatches.map((match) => (
             <article className="community-card h-full p-3 flex flex-col justify-between" key={`replacement-${match.matchId}`}>
               <div className="flex flex-col gap-2.5">
@@ -552,13 +681,13 @@ export const PendingInvites = () => {
                 );
           })}
 
-          {!queuesLoading && !replacementsLoading && filteredQueues.length === 0 && filteredReplacementMatches.length === 0 && (
+          {!queuesLoading && !replacementsLoading && !openMatchesLoading && filteredQueues.length === 0 && filteredRecruitmentMatches.length === 0 && filteredReplacementMatches.length === 0 && (
             <div className="sm:col-span-2 lg:col-span-3">
               <CommunityEmptyState
                 action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}
-                description="Hiện tại chưa có lời mời thủ công công khai nào phù hợp với bộ lọc."
+                description="Hiện tại chưa có phòng đang tuyển hoặc lời mời công khai nào phù hợp với bộ lọc."
                 icon={Users}
-                title="Chưa có lời mời thủ công phù hợp"
+                title="Chưa có lời mời phù hợp"
               />
             </div>
           )}

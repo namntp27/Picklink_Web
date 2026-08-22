@@ -45,6 +45,9 @@ export type MatchSummary = {
   matchSkillLevel: number;
   minSkillLevel: number;
   maxSkillLevel: number;
+  origin: string;
+  replayType: 'None' | 'Daily' | 'Weekly' | 'Monthly' | string;
+  replayWeekdays?: string | null;
   status: MatchStatus;
   operationalStatus: MatchOperationalStatus;
   title: string;

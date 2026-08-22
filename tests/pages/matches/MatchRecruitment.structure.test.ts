@@ -10,6 +10,9 @@ const dtoSource = readFileSync(new URL('../../../../PicklinkBackend/PicklinkBack
 
 test('match recruitment UI and client follow the public moderation contract', () => {
   assert.ok(detailSource.includes('inviteMatchPlayers(token, matchId, { automatic: true })'));
+  assert.ok(detailSource.includes('const recruitMorePlayers = async () =>'));
+  assert.ok(detailSource.includes('Phòng hiện đã xuất hiện trên trang Ghép trận.'));
+  assert.ok(detailSource.includes("notify(message, 'error')"));
   assert.ok(detailSource.includes('updateMatchInvitation(token, matchId, invitationDraft)'));
   assert.ok(detailSource.includes('isApprovedMember && pending.length > 0'));
   assert.ok(detailSource.includes('showInvitationEditor'));

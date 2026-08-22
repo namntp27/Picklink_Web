@@ -82,6 +82,15 @@ test('accepted sponsorship is mandatory until the sponsor cancels it', () => {
   assert.match(matchCheckoutSource, /Hủy trả hộ/);
 });
 
+test('checkout displays payment statuses entirely in Vietnamese', () => {
+  assert.match(checkoutSource, /paid: 'Đã thanh toán'/);
+  assert.match(checkoutSource, /refundpending: 'Đang chờ hoàn tiền'/);
+  assert.match(checkoutSource, /paymentStatusText\(status\)/);
+  assert.doesNotMatch(checkoutSource, /statusText\[status\] \?\? status/);
+  assert.match(matchCheckoutSource, /paid: 'Đã thanh toán'/);
+  assert.match(matchCheckoutSource, /getPaymentStatusText\(participant\.paymentStatus\)/);
+});
+
 test('match checkout redirects every player when the booking is cancelled in realtime', () => {
   assert.match(matchCheckoutSource, /useMatchRealtime/);
   assert.match(matchCheckoutSource, /event\.matchId !== matchId \|\| event\.action !== 'BookingCancelled'/);

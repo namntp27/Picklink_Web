@@ -19,6 +19,19 @@ const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: '
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const approved = (status: string) => status === 'Approved' || status === 'Accepted';
+const paymentStatusText: Record<string, string> = {
+  pending: 'Chờ thanh toán',
+  waitingforconfirmation: 'Đang chờ chủ sân xác nhận',
+  paid: 'Đã thanh toán',
+  expired: 'Đã hết hạn',
+  cancelled: 'Đã hủy',
+  refundpending: 'Đang chờ hoàn tiền',
+  refunded: 'Đã hoàn tiền',
+  failed: 'Thanh toán thất bại',
+  rejected: 'Đã bị từ chối',
+};
+const getPaymentStatusText = (status?: string | null) =>
+  paymentStatusText[status?.trim().toLowerCase() ?? ''] ?? 'Chưa xác định';
 const timeText = (value: string) => value.slice(11, 16);
 const slotDateText = (value: string) => value.slice(0, 10).split('-').reverse().join('/');
 const utcTimestamp = (value?: string | null) => {
@@ -48,7 +61,6 @@ export const MatchCheckout = () => {
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [paymentDeadlineAt, setPaymentDeadlineAt] = useState(0);
-  const [isPaymentReviewPaused, setIsPaymentReviewPaused] = useState(false);
   const [error, setError] = useState('');
   const phoneRedirecting = useRef(false);
 
@@ -72,7 +84,6 @@ export const MatchCheckout = () => {
       const receivedAt = Date.now();
       setMatch(detail);
       setNow(receivedAt);
-      setIsPaymentReviewPaused(!detail.paymentDeadline && detail.paymentHoldRemainingSeconds != null);
       setPaymentDeadlineAt(detail.paymentHoldRemainingSeconds != null
         ? receivedAt + Math.max(0, detail.paymentHoldRemainingSeconds) * 1_000
         : utcTimestamp(detail.paymentDeadline));
@@ -127,7 +138,7 @@ export const MatchCheckout = () => {
   const remainingSeconds = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
   const paymentExpired = hasTerminalPaymentStatus
-    || Boolean(!isPaymentReviewPaused && deadline && remainingSeconds <= 0 && hasPendingPayments);
+    || Boolean(deadline && remainingSeconds <= 0 && hasPendingPayments);
   const bookingGroups = match?.bookingCheckIns.find((booking) => booking.bookingId === bookingId)?.checkInGroups ?? [];
 
   useEffect(() => {
@@ -140,10 +151,10 @@ export const MatchCheckout = () => {
   }, [match, requiredPayerIds, selectablePayerIds]);
 
   useEffect(() => {
-    if (!deadline || paymentExpired || !hasPendingPayments || isPaymentReviewPaused) return;
+    if (!deadline || paymentExpired || (!hasPendingPayments && !hasReceiptAwaitingReview)) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(timer);
-  }, [deadline, hasPendingPayments, isPaymentReviewPaused, paymentExpired]);
+  }, [deadline, hasPendingPayments, hasReceiptAwaitingReview, paymentExpired]);
 
   useEffect(() => {
     if (!token || !match || !selectedKey || hasInvalidSelection || paymentExpired) {
@@ -321,7 +332,7 @@ export const MatchCheckout = () => {
             <h1 className="mt-3 text-[clamp(1.55rem,2.7vw,2.25rem)] font-extrabold tracking-[-0.035em]">Thanh toán booking ghép trận</h1>
             <p className="mt-1 text-[13px] font-semibold text-[#66766d]">Booking #{bookingId} · {match.title}</p>
           </div>
-          <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right"><p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p><p className="font-mono text-[26px] font-black leading-none text-[#e2ff57]">{deadline ? countdown : '--:--'}</p><p className="mt-1 text-[12px] font-bold text-white/80">{hasRefundPending ? 'Đang chờ hoàn tiền' : paymentExpired ? 'Đã hết hạn' : isPaymentReviewPaused ? 'Tạm dừng khi owner duyệt' : hasPendingPayments ? 'Chờ các phần còn lại thanh toán' : isAwaitingReceiptReview ? 'Đang chờ duyệt biên lai' : 'Chờ thanh toán'}</p></div>
+          <div className="rounded-2xl bg-[#0b2228] px-5 py-3 text-white md:text-right"><p className="text-[12px] font-bold text-white/70">Thời gian giữ chỗ</p><p className="font-mono text-[26px] font-black leading-none text-[#e2ff57]">{deadline ? countdown : '--:--'}</p><p className="mt-1 text-[12px] font-bold text-white/80">{hasRefundPending ? 'Đang chờ hoàn tiền' : paymentExpired ? 'Đã hết hạn' : hasPendingPayments ? 'Chờ các phần còn lại thanh toán' : isAwaitingReceiptReview ? 'Đang chờ duyệt biên lai' : 'Chờ thanh toán'}</p></div>
         </header>
 
         {error && <div className="mt-4 flex items-start gap-2 rounded-xl border border-error/25 bg-error-container px-4 py-3 text-[13px] font-bold text-error" role="alert"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />{error}</div>}
@@ -374,7 +385,7 @@ export const MatchCheckout = () => {
                         && !requestPending
                         && !claimedBy;
                       const paymentState = participant.paymentStatus !== 'Pending'
-                        ? participant.paymentStatus
+                        ? getPaymentStatusText(participant.paymentStatus)
                         : acceptedSponsorId === match.myPlayerId
                           ? 'Đã đồng ý để bạn trả hộ'
                           : acceptedSponsorId

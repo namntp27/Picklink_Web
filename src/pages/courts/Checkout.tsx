@@ -34,12 +34,18 @@ const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: '
 const dateText = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date(value));
 const timeText = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 const statusText: Record<string, string> = {
-  Pending: 'Chờ bạn chuyển khoản',
-  WaitingForConfirmation: 'Đang chờ chủ sân xác nhận',
-  Paid: 'Đã thanh toán',
-  Expired: 'Đã hết hạn',
-  Cancelled: 'Đã hủy',
+  pending: 'Chờ bạn chuyển khoản',
+  waitingforconfirmation: 'Đang chờ chủ sân xác nhận',
+  paid: 'Đã thanh toán',
+  expired: 'Đã hết hạn',
+  cancelled: 'Đã hủy',
+  refundpending: 'Đang chờ hoàn tiền',
+  refunded: 'Đã hoàn tiền',
+  failed: 'Thanh toán thất bại',
+  rejected: 'Đã bị từ chối',
 };
+const paymentStatusText = (status?: string | null) =>
+  statusText[status?.trim().toLowerCase() ?? ''] ?? 'Chưa xác định';
 const PAYMENT_EXPIRED_MESSAGE = 'Thời gian thanh toán đã hết hạn. Đang chuyển về lịch sân...';
 const MAX_RECEIPT_SOURCE_BYTES = 12 * 1024 * 1024;
 const CHECKOUT_SLOT_DETAIL_THRESHOLD = 3;
@@ -228,7 +234,7 @@ const CourtCheckout = () => {
   const countdown = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
   const scheduleDate = params.get('date') ?? booking?.startTime.slice(0, 10) ?? '';
   const schedulePath = booking ? `/court/${booking.venueId}/schedule?date=${encodeURIComponent(scheduleDate)}` : '/book-court';
-  const isPaymentAwaitingReview = booking?.paymentStatus === 'WaitingForConfirmation';
+  const isPaymentAwaitingReview = booking?.paymentStatus?.trim().toLowerCase() === 'waitingforconfirmation';
   const isPaymentExpired = !isSubmitting && !isPaymentAwaitingReview && (
     booking?.status === 'Expired' || booking?.paymentStatus === 'Expired' ||
     Boolean(booking && isHoldCountdownActive && remainingSeconds <= 0)
@@ -254,8 +260,8 @@ const CourtCheckout = () => {
   const submit = async () => {
     if (!booking) return;
     if (!token) { setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'); return; }
-    if (booking.status !== 'Holding') { setError(`Booking đang ở trạng thái ${booking.status}, không thể gửi thanh toán.`); return; }
-    if (booking.paymentStatus !== 'Pending') { setError(`Thanh toán đang ở trạng thái ${booking.paymentStatus}.`); return; }
+    if (booking.status !== 'Holding') { setError('Booking hiện không ở trạng thái giữ chỗ nên không thể gửi thanh toán.'); return; }
+    if (booking.paymentStatus !== 'Pending') { setError(`Thanh toán đang ở trạng thái: ${paymentStatusText(booking.paymentStatus)}.`); return; }
     if (remainingSeconds <= 0) { setError('Thời gian giữ chỗ đã hết. Vui lòng chọn lại khung giờ.'); return; }
     if (!transfer?.qrImageUrl) { setError('Sân chưa cấu hình tài khoản nhận chuyển khoản.'); return; }
     if (!receipt) { setError('Vui lòng chọn ảnh biên lai trước khi xác nhận đã chuyển khoản.'); return; }
@@ -317,7 +323,7 @@ const CourtCheckout = () => {
   }
 
   const status = booking.paymentStatus;
-  const isPaid = status === 'Paid';
+  const isPaid = status.trim().toLowerCase() === 'paid';
   const isWaiting = isPaymentAwaitingReview;
   const revealInitial = shouldReduceMotion ? false : { opacity: 0, y: 10 };
   const slotSummaries = buildSlotSummaries(booking);
@@ -380,7 +386,7 @@ const CourtCheckout = () => {
               <p className="font-mono text-[26px] font-black leading-none text-[#e2ff57]">
                 {isHoldCountdownActive ? countdown : isWaiting ? 'Đã dừng' : '--:--'}
               </p>
-              <p className="mt-1 text-[13px] font-bold text-white/82">{statusText[status] ?? status}</p>
+              <p className="mt-1 text-[13px] font-bold text-white/82">{paymentStatusText(status)}</p>
             </div>
           </div>
         </motion.section>
@@ -415,7 +421,7 @@ const CourtCheckout = () => {
               <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
                 <CheckCircle2 className="h-12 w-12 text-[#477313]" />
                 <h2 className="mt-4 text-[22px] font-extrabold">Thanh toán đã được xác nhận</h2>
-                <p className="mt-2 text-[#66766d]">Booking đã chuyển sang Confirmed và sân được giữ cho bạn.</p>
+                <p className="mt-2 text-[#66766d]">Booking đã được xác nhận và sân được giữ cho bạn.</p>
                 <Button className="mt-6 h-11 rounded-xl bg-[#e2ff57] text-[#102414] hover:bg-[#d6f64d]" onClick={() => navigate(`/bookings/${booking.bookingId}`)} type="button">
                   Xem chi tiết booking
                 </Button>

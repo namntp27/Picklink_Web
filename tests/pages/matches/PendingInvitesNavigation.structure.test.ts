@@ -18,6 +18,14 @@ test('manual invitations keep their queue detail interface after a room is linke
   assert.match(source, /\(\) => getPublicQueues\(token\)/);
   assert.match(source, /paginatedQueues\.map\(\(q\) =>/);
   assert.match(source, /getOpenMatches\(token \?\? undefined, \{ source: 'replacement'/);
+  assert.match(source, /getOpenMatches\(token \?\? undefined, \{ page: 1, pageSize: 50 \}\)/);
+  assert.match(source, /filteredRecruitmentMatches/);
+  assert.match(source, /Lời mời dành cho bạn/);
+  assert.match(source, /replayTypeLabel\(match\.replayType\)/);
+  assert.match(source, /matchDateRange\(match\)/);
+  assert.match(source, /match\.availabilitySlots\.map/);
+  assert.match(source, /match\.preferredVenues\.map/);
+  assert.match(source, /Thành viên nhóm \(\{match\.acceptedPlayerCount\}\/\{match\.requiredPlayerCount\}\)/);
   assert.match(source, /filteredReplacementMatches/);
   assert.doesNotMatch(source, /activeTab|setActiveTab/);
   assert.doesNotMatch(source, /open-matches-v5/);

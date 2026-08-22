@@ -44,12 +44,11 @@ test('proxy payment uses a request and explicit accept or reject flow', () => {
   assert.ok(source.includes('Đã gửi yêu cầu'));
 });
 
-test('owner receipt review freezes the displayed remaining time until a decision', () => {
-  assert.ok(source.includes('const [isPaymentReviewPaused, setIsPaymentReviewPaused] = useState(false);'));
-  assert.ok(source.includes('setIsPaymentReviewPaused(!detail.paymentDeadline && detail.paymentHoldRemainingSeconds != null)'));
-  assert.ok(source.includes('!isPaymentReviewPaused && deadline && remainingSeconds <= 0'));
-  assert.ok(source.includes('|| isPaymentReviewPaused) return;'));
-  assert.ok(source.includes("isPaymentReviewPaused ? '"));
+test('owner receipt review keeps the original countdown running', () => {
+  assert.ok(!source.includes('isPaymentReviewPaused'));
+  assert.ok(source.includes('deadline && remainingSeconds <= 0 && hasPendingPayments'));
+  assert.ok(source.includes('(!hasPendingPayments && !hasReceiptAwaitingReview)'));
+  assert.ok(source.includes('[deadline, hasPendingPayments, hasReceiptAwaitingReview, paymentExpired]'));
   assert.ok(source.includes('hasPendingPayments || hasReceiptAwaitingReview'));
 });
 

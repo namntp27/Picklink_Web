@@ -745,6 +745,42 @@ export const MatchDetail = () => {
     }
   };
 
+  const recruitMorePlayers = async () => {
+    if (!token || !match) return;
+    const previouslyInvitedPlayerIds = new Set(
+      match.participants
+        .filter((participant) => participant.status === 'Invited')
+        .map((participant) => participant.playerId),
+    );
+
+    setIsBusy(true);
+    setError('');
+    try {
+      const updatedMatch = await inviteMatchPlayers(token, matchId, { automatic: true });
+      const newlyInvitedCount = updatedMatch.participants.filter(
+        (participant) =>
+          participant.status === 'Invited'
+          && !previouslyInvitedPlayerIds.has(participant.playerId),
+      ).length;
+      await loadMatch();
+      setAdditionalBookingRounds([]);
+      setNextBookingRoundsPage(2);
+      setLoadedBookingRoundsTotalPages(1);
+      notify(
+        newlyInvitedCount > 0
+          ? `Đã mở tuyển và gửi lời mời cho ${newlyInvitedCount} người chơi phù hợp.`
+          : 'Đã mở tuyển thành viên. Phòng hiện đã xuất hiện trên trang Ghép trận.',
+        'success',
+      );
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Không thể tuyển thêm thành viên.';
+      setError(message);
+      notify(message, 'error');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const createBooking = async (allowScheduleConflicts = false) => {
     if (!token || !selectedSlots.length) {
       setBookingSubmitError('Vui lòng chọn ít nhất một slot.');
@@ -1337,7 +1373,7 @@ export const MatchDetail = () => {
               {match.isHost && ['Recruiting', 'ReadyToBook'].includes(match.status) && (
                 <div className="mt-4 space-y-2">
                   {match.status === 'Recruiting' && !isFull && (
-                    <button className="community-button w-full" disabled={isBusy} onClick={() => token && void run(() => inviteMatchPlayers(token, matchId, { automatic: true }))} type="button"><UserCheck className="h-4 w-4" /> Tuyển thêm thành viên</button>
+                    <button className="community-button w-full" disabled={isBusy} onClick={() => void recruitMorePlayers()} type="button"><UserCheck className="h-4 w-4" /> {isBusy ? 'Đang mở tuyển...' : 'Tuyển thêm thành viên'}</button>
                   )}
                 </div>
               )}
