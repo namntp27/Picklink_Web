@@ -1,4 +1,5 @@
 import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
+import { getPostDisplayText } from '../utils/postContent';
 
 export type AdminPost = {
   postId: number;
@@ -30,6 +31,11 @@ export type AdminPostModerationRequest = {
   moderationNote?: string;
 };
 
+const withDisplayContent = (post: AdminPost): AdminPost => ({
+  ...post,
+  content: getPostDisplayText(post.content),
+});
+
 const buildQuery = (params: AdminPostListParams = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -49,7 +55,10 @@ export const listAdminPosts = (
     `/api/admin/posts${query ? `?${query}` : ''}`,
     {},
     accessToken,
-  );
+  ).then((response) => ({
+    ...response,
+    items: response.items.map(withDisplayContent),
+  }));
 };
 
 export const moderateAdminPost = (
@@ -61,7 +70,7 @@ export const moderateAdminPost = (
     `/api/admin/posts/${postId}/moderate`,
     { method: 'POST', body: JSON.stringify(request) },
     accessToken,
-  );
+  ).then(withDisplayContent);
 
 export const deleteAdminPost = (accessToken: string, postId: number) =>
   apiRequest<void>(`/api/admin/posts/${postId}`, { method: 'DELETE' }, accessToken);
