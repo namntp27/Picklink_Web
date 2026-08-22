@@ -58,7 +58,7 @@ const toneMap: Record<string, Tone> = {
   neutral: 'neutral',
 };
 
-const cardClass = 'rounded-2xl border border-outline-variant bg-white p-5 shadow-sm';
+const cardClass = 'rounded-xl border border-outline-variant bg-white p-4 shadow-sm';
 const actionButton = 'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0b2228] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#143f34] disabled:opacity-60';
 
 const formatDate = (value?: string | null) => {
@@ -121,7 +121,7 @@ export const AdminDashboard = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Bảng điều khiển</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Tổng quan vận hành Picklink</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Tổng quan vận hành Picklink</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Dữ liệu thật từ người dùng, sân, booking và phí lên sàn. Ưu tiên các việc admin cần xử lý ngay.
           </p>
@@ -160,7 +160,7 @@ export const AdminDashboard = () => {
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
               </div>
               <p className="text-sm font-bold text-on-surface-variant">{stat.label}</p>
-              <h2 className={`mt-1 text-[28px] font-black ${stat.tone}`}>{stat.value}</h2>
+              <h2 className={`mt-1 text-[22px] font-black ${stat.tone}`}>{stat.value}</h2>
               <p className="mt-1 text-xs font-semibold text-on-surface-variant">{stat.helper}</p>
             </article>
           );

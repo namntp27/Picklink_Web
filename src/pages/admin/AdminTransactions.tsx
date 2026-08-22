@@ -52,8 +52,8 @@ const statusTone: Record<string, Tone> = {
   Rejected: 'danger',
 };
 
-const inputClass = 'w-full rounded-xl border border-outline-variant bg-white px-3 py-2.5 text-sm font-semibold text-on-surface outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10';
-const primaryButton = 'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0b2228] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#143f34] disabled:cursor-not-allowed disabled:opacity-60';
+const inputClass = 'h-9 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm font-semibold text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15';
+const primaryButton = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
 const outlineButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-bold text-[#0b2228] transition hover:border-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60';
 
 const formatDate = (value?: string | null) => value ? dateTime.format(new Date(value)) : '—';
@@ -192,7 +192,7 @@ export const AdminTransactions = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Phí lên sàn</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Thu phí chủ sân</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Thu phí chủ sân</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Quản lý đơn giá theo sân con/tháng và xác nhận biên lai owner gửi để sân được hiển thị trên sàn.
           </p>
@@ -236,7 +236,7 @@ export const AdminTransactions = () => {
               value={search}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex flex-wrap gap-2">
             {statusOptions.map((option) => (
               <button
                 className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${status === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}

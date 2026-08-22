@@ -18,8 +18,8 @@ import type { Tone } from './types';
 import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
-const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
-const primaryButton = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
+const inputClass = 'h-9 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+const primaryButton = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
 const outlineButton = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-white px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
 
 const emptyPage: PaginatedResponse<AdminReport> = {
@@ -140,7 +140,7 @@ export const AdminReports = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Khiếu nại & báo cáo</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Xử lý báo cáo toàn sàn</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Xử lý báo cáo toàn sàn</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Theo dõi báo cáo thật từ người dùng về sân, booking, người chơi, bài viết hoặc nội dung khác.
           </p>
@@ -169,7 +169,7 @@ export const AdminReports = () => {
               value={search}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex flex-wrap gap-2">
             {statusOptions.map((option) => (
               <button
                 aria-pressed={status === option.value}
@@ -224,8 +224,8 @@ export const AdminReports = () => {
                     <p className="mt-1 text-xs text-on-surface-variant">{report.targetType}{report.targetId ? ` #${report.targetId}` : ''}</p>
                   </td>
                   <td className="max-w-md px-4 py-3">
-                    <p className="text-sm font-bold">{report.reason}</p>
-                    {report.description && <p className="mt-1 text-xs leading-5 text-on-surface-variant">{report.description}</p>}
+                    <p className="break-words text-sm font-bold">{report.reason}</p>
+                    {report.description && <p className="mt-1 break-words text-xs leading-5 text-on-surface-variant">{report.description}</p>}
                     {report.resolutionNote && <p className="mt-2 rounded-lg bg-surface-container-low p-2 text-xs font-semibold text-on-surface-variant">Admin: {report.resolutionNote}</p>}
                   </td>
                   <td className="px-4 py-3">

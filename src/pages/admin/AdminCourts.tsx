@@ -35,8 +35,8 @@ import { MobileAdminNav } from './components/MobileAdminNav';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 10;
-const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
-const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
+const inputClass = 'h-9 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+const primaryButton = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
 const outlineButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-white px-4 py-2 text-sm font-bold text-on-surface hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
 
 const statusOptions: Array<{ label: string; value: AdminVenueApprovalStatus | 'all' }> = [
@@ -418,7 +418,7 @@ export const AdminCourts = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Kiểm duyệt sân</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Duyệt hồ sơ sân</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Duyệt hồ sơ sân</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Kiểm tra thông tin vận hành, vị trí, sân con và hình ảnh trước khi cho phép sân xuất hiện với người chơi.
           </p>
@@ -446,7 +446,7 @@ export const AdminCourts = () => {
               value={search}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 xl:pb-0">
+          <div className="flex flex-wrap gap-2">
             {statusOptions.map((option) => (
               <button
                 className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${status === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}

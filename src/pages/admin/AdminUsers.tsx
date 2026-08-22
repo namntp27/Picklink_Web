@@ -64,8 +64,8 @@ const roleTone: Record<string, Tone> = {
   User: 'neutral',
 };
 
-const inputClass = 'w-full rounded-xl border border-outline-variant bg-white px-3 py-2.5 text-sm font-semibold text-on-surface outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10';
-const primaryButton = 'inline-flex items-center justify-center gap-2 rounded-xl bg-[#0b2228] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#143f34] disabled:cursor-not-allowed disabled:opacity-60';
+const inputClass = 'h-9 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm font-semibold text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15';
+const primaryButton = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
 const outlineButton = 'inline-flex items-center justify-center gap-2 rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-bold text-[#0b2228] transition hover:border-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60';
 
 const avatarLabel = (name: string) =>
@@ -209,7 +209,7 @@ export const AdminUsers = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Quản lý người dùng</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Tài khoản hệ thống</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Tài khoản hệ thống</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Xem dữ liệu người dùng thật, lọc theo vai trò và khóa hoặc mở khóa tài khoản khi cần xử lý vận hành.
           </p>
@@ -242,7 +242,7 @@ export const AdminUsers = () => {
               value={search}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 xl:pb-0">
+          <div className="flex flex-wrap gap-2">
             {roleOptions.map((option) => (
               <button
                 className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${role === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}

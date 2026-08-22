@@ -20,7 +20,7 @@ import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 
 const PAGE_SIZE = 12;
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
-const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+const inputClass = 'h-9 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
 const outlineButton = 'inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-white px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50';
 const cancellableStatuses = ['Holding', 'Confirmed'];
 
@@ -217,7 +217,7 @@ export const AdminBookings = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Booking toàn sàn</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Giám sát booking</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Giám sát booking</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Admin xem booking thật để hỗ trợ lỗi thanh toán, tranh chấp và tình trạng giữ chỗ. Doanh thu vận hành vẫn thuộc owner.
           </p>
@@ -253,7 +253,7 @@ export const AdminBookings = () => {
               value={search}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex flex-wrap gap-2">
             {bookingStatuses.map((option) => (
               <button
                 className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${status === option.value ? 'bg-[#0b2228] text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-primary/10 hover:text-primary'}`}

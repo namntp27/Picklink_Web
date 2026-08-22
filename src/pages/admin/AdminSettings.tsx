@@ -12,8 +12,8 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { AdminShell } from './components/AdminShell';
 import { MobileAdminNav } from './components/MobileAdminNav';
 
-const inputClass = 'h-10 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
-const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
+const inputClass = 'h-9 w-full rounded-lg border border-outline-variant bg-white px-3 text-sm font-bold outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+const primaryButton = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-bold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50';
 
 const labels: Record<string, string> = {
   bookingHoldMinutes: 'Thời gian giữ chỗ booking',
@@ -90,7 +90,7 @@ export const AdminSettings = () => {
       <section className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">Cấu hình</p>
-          <h1 className="text-[30px] font-bold leading-tight md:text-[36px]">Thiết lập hệ thống</h1>
+          <h1 className="text-[20px] font-bold leading-tight md:text-[24px]">Thiết lập hệ thống</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-on-surface-variant">
             Các cấu hình này được lưu trong database thật để admin điều chỉnh vận hành sàn.
           </p>
@@ -117,7 +117,7 @@ export const AdminSettings = () => {
       {!loading && (
         <div className="space-y-5">
           {grouped.map(([group, items]) => (
-            <section className="rounded-2xl border border-outline-variant bg-white p-5 shadow-sm" key={group}>
+            <section className="rounded-xl border border-outline-variant bg-white p-4 shadow-sm" key={group}>
               <div className="mb-4">
                 <p className="text-xs font-bold uppercase text-primary">{group}</p>
                 <h2 className="text-xl font-bold">Cấu hình {group.toLowerCase()}</h2>
