@@ -99,7 +99,7 @@ export const OwnerShell = ({
           <span className="min-w-0 leading-none">
             <span className="block text-[16px] font-extrabold tracking-[-0.03em]">Picklink</span>
             <span className="mt-1 hidden text-[9px] font-bold uppercase tracking-[0.13em] text-[#e2ff57] sm:block">
-              owner workspace
+              khu vực chủ sân
             </span>
           </span>
         </Link>
@@ -181,7 +181,7 @@ export const OwnerShell = ({
           <div className="owner-sidebar__summary">
             <p className="text-[11px] font-extrabold text-[#e2ff57]">Trung tâm vận hành</p>
             <p className="mt-1 text-[11px] font-semibold leading-5 text-white/64">
-              Lịch sân, booking và doanh thu trong một workspace.
+              Lịch sân, booking và doanh thu trong một hệ thống.
             </p>
           </div>
 

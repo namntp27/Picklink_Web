@@ -110,7 +110,7 @@ export const AdminShell = ({
         <div className="mb-4 rounded-2xl bg-[#0b2228] p-4 text-white shadow-[0_12px_26px_rgba(8,29,36,0.13)]">
           <p className="text-[12px] font-extrabold text-[#e2ff57]">Trung tâm quản trị</p>
           <p className="mt-1 text-[11px] font-semibold leading-5 text-white/62">
-            Theo dõi vận hành và xử lý các hàng chờ trong một workspace.
+            Theo dõi vận hành và xử lý các hàng chờ trong một hệ thống.
           </p>
         </div>
         <nav className="flex flex-col gap-1" aria-label="Điều hướng quản trị">

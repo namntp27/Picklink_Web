@@ -37,7 +37,8 @@ const time = (value: string) => new Intl.DateTimeFormat('vi-VN', { hour: '2-digi
 const statusLabel: Record<string, string> = {
   Holding: 'Đang giữ chỗ', Confirmed: 'Đã xác nhận', Cancelled: 'Đã hủy', Expired: 'Đã hết hạn',
   Pending: 'Chờ thanh toán', WaitingForConfirmation: 'Chờ duyệt thanh toán', Paid: 'Đã thanh toán',
-  Ready: 'Sẵn sàng check-in', NotOpen: 'Chưa mở check-in', CheckedIn: 'Đã check-in', NoShow: 'No-show',
+  Ready: 'Sẵn sàng check-in', NotOpen: 'Chưa mở check-in', CheckedIn: 'Đã check-in', NoShow: 'Vắng mặt',
+  PartiallyCheckedIn: 'Đã check-in một phần',
 };
 const statusClass = (status: string) => {
   if (status === 'Confirmed' || status === 'Paid' || status === 'CheckedIn') return 'bg-green-100 text-green-700';
@@ -243,7 +244,7 @@ export const OwnerBookingDetail = () => {
                 {booking.checkInGroups.map((group) => (
                   <div className="flex items-center justify-between gap-3 text-[12px]" key={group.bookingCheckInGroupId}>
                     <span>Sân {group.courtNumber}: {time(group.startTime)} - {time(group.endTime)}</span>
-                    <span className="font-bold text-primary">{group.checkInStatus}</span>
+                    <span className="font-bold text-primary">{statusLabel[group.checkInStatus] ?? group.checkInStatus}</span>
                   </div>
                 ))}
               </div>

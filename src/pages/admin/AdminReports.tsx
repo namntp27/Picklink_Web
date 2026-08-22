@@ -56,6 +56,10 @@ const statusTone = (status: string): Tone => {
   return 'neutral';
 };
 
+const statusLabel: Record<string, string> = {
+  Open: 'Mới', InReview: 'Đang xử lý', Resolved: 'Đã xử lý', Dismissed: 'Bỏ qua',
+};
+
 const formatDateTime = (value: string) =>
   new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 
@@ -229,7 +233,7 @@ export const AdminReports = () => {
                     {report.resolutionNote && <p className="mt-2 rounded-lg bg-surface-container-low p-2 text-xs font-semibold text-on-surface-variant">Admin: {report.resolutionNote}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge tone={statusTone(report.status)}>{report.status}</StatusBadge>
+                    <StatusBadge tone={statusTone(report.status)}>{statusLabel[report.status] ?? report.status}</StatusBadge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

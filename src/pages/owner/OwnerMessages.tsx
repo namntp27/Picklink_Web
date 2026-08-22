@@ -32,6 +32,10 @@ const money = new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0,
 });
 
+const bookingStatusLabel: Record<string, string> = {
+  Holding: 'Giữ chỗ', Pending: 'Chờ xác nhận', Confirmed: 'Đã đặt', Blocked: 'Đã khóa', Cancelled: 'Đã hủy',
+};
+
 const bookingTime = (value: string) => new Intl.DateTimeFormat('vi-VN', {
   weekday: 'short',
   day: '2-digit',
@@ -331,7 +335,7 @@ export const OwnerMessages = () => {
                       <p className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] font-semibold text-on-surface-variant">
                         <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {bookingTime(booking.startTime)}</span>
                         <span>{money.format(booking.totalAmount)}</span>
-                        <span>{booking.bookingStatus}</span>
+                        <span>{bookingStatusLabel[booking.bookingStatus] ?? booking.bookingStatus}</span>
                       </p>
                     </div>
                     <Link className="inline-flex h-8 items-center gap-1 rounded-lg border border-outline-variant bg-white px-2.5 text-[11px] font-bold text-primary" to={`/owner/bookings/${booking.bookingId}`}>Xem đơn <ChevronRight className="h-3.5 w-3.5" /></Link>
