@@ -1,5 +1,6 @@
 import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
 import type { ListingFeePayment, ListingFeeStatus } from './listingFees';
+import { optimizeReceiptImage } from '../utils/receiptImage';
 
 export type OwnerCourt = {
   courtId: number;
@@ -223,6 +224,14 @@ export type OwnerBookingRecord = {
   paymentVerifiedAt?: string | null;
   transferCode?: string | null;
   receiptImageUrl?: string | null;
+  refundProofImageUrl?: string | null;
+  refundReference?: string | null;
+  refundProofSubmittedAt?: string | null;
+  refundDisputeStatus?: 'Open' | 'Resolved' | 'Closed' | null;
+  refundDisputeReason?: string | null;
+  refundDisputedAt?: string | null;
+  refundDisputeResolution?: string | null;
+  refundDisputeResolvedAt?: string | null;
   rejectionReason?: string | null;
   bookingHistory: Array<{ fromStatus?: string | null; toStatus: string; reason?: string | null; actorName?: string | null; changedAt: string }>;
   paymentHistory: Array<{ fromStatus?: string | null; toStatus: string; action: string; reason?: string | null; actorName?: string | null; createdAt: string }>;
@@ -363,11 +372,21 @@ export const updateOwnerBookingStatus = (token: string, bookingId: number, statu
   body: JSON.stringify({ status, reason }),
 }, token);
 
-export const markOwnerBookingRefunded = (token: string, bookingId: number, reference?: string) =>
-  apiRequest<void>(`/api/owner/bookings/${bookingId}/refund`, {
+export const submitOwnerBookingRefundProof = async (
+  token: string,
+  bookingId: number,
+  proof: File,
+  reference?: string,
+) => {
+  const optimized = await optimizeReceiptImage(proof);
+  const formData = new FormData();
+  formData.append('proof', optimized);
+  if (reference?.trim()) formData.append('reference', reference.trim());
+  return apiRequest<void>(`/api/owner/bookings/${bookingId}/refund`, {
     method: 'POST',
-    body: JSON.stringify({ reference }),
+    body: formData,
   }, token);
+};
 
 export const getOwnerStaff = (token: string) => apiRequest<OwnerStaffAssignment[]>('/api/owner/staff', {}, token);
 

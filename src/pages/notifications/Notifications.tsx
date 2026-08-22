@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  ImageIcon,
   MapPin,
   ShieldCheck,
   Ticket,
@@ -34,8 +35,14 @@ import {
 } from '../../api/notifications';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
-import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
-import { confirmMatchRefundReceived } from '../../api/payment';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
+import {
+  confirmRefundReceived as confirmRefundReceivedRequest,
+  disputeRefund,
+  getRefundCase,
+  getRefundProofObjectUrl,
+} from '../../api/payment';
+import type { BankTransfer } from '../../api/booking';
 
 const pageSize = 10;
 
@@ -127,7 +134,7 @@ const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
 const refundPaymentIdFromNotification = (notification: NotificationItem) => {
-  const match = /^\/notifications\?confirmRefundPaymentId=(\d+)$/.exec(notification.linkTo ?? '');
+  const match = /^\/notifications\?(?:confirmRefundPaymentId|refundPaymentId)=(\d+)$/.exec(notification.linkTo ?? '');
   return match ? Number(match[1]) : null;
 };
 
@@ -135,11 +142,15 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
   const shouldReduceMotion = useReducedMotion();
   const { token } = useAuth();
   const confirm = useConfirm();
+  const prompt = usePrompt();
   const notify = useToast();
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>('all');
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState('');
   const [busyRefundPaymentId, setBusyRefundPaymentId] = useState<number | null>(null);
+  const [expandedRefundPaymentId, setExpandedRefundPaymentId] = useState<number | null>(null);
+  const [refundCases, setRefundCases] = useState<Record<number, BankTransfer>>({});
+  const [refundProofUrls, setRefundProofUrls] = useState<Record<number, string>>({});
 
   const { data, error: loadError, loading: isLoading, refresh: loadNotifications } = useApiQuery(
     ['notifications', token, page, activeFilter],
@@ -248,12 +259,69 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
 
     setBusyRefundPaymentId(paymentId);
     try {
-      await confirmMatchRefundReceived(token, paymentId);
+      await confirmRefundReceivedRequest(token, paymentId);
       await deleteNotification(token, notificationId).catch(() => undefined);
       notify('Đã xác nhận nhận tiền hoàn.', 'success');
       await loadNotifications();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể xác nhận nhận tiền hoàn.'), 'error');
+    } finally {
+      setBusyRefundPaymentId(null);
+    }
+  };
+
+  const toggleRefundCase = async (paymentId: number) => {
+    if (!token) return;
+    if (expandedRefundPaymentId === paymentId) {
+      setExpandedRefundPaymentId(null);
+      return;
+    }
+
+    setBusyRefundPaymentId(paymentId);
+    try {
+      const [refundCase, proofUrl] = await Promise.all([
+        getRefundCase(token, paymentId),
+        getRefundProofObjectUrl(token, paymentId),
+      ]);
+      setRefundCases((current) => ({ ...current, [paymentId]: refundCase }));
+      setRefundProofUrls((current) => {
+        if (current[paymentId]) URL.revokeObjectURL(current[paymentId]);
+        return { ...current, [paymentId]: proofUrl };
+      });
+      setExpandedRefundPaymentId(paymentId);
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể tải hồ sơ hoàn tiền.'), 'error');
+    } finally {
+      setBusyRefundPaymentId(null);
+    }
+  };
+
+  const submitRefundDispute = async (paymentId: number) => {
+    if (!token) return;
+    const reason = (await prompt({
+      title: 'Khiếu nại khoản hoàn tiền',
+      message: 'Mô tả rõ số tiền chưa nhận được hoặc điểm không khớp trong minh chứng để Admin kiểm tra.',
+      label: 'Lý do khiếu nại',
+      placeholder: 'Ví dụ: Chưa nhận được tiền sau khi kiểm tra tài khoản...',
+      required: true,
+      confirmLabel: 'Gửi khiếu nại',
+      tone: 'danger',
+    }))?.trim();
+    if (!reason) return;
+    if (reason.length < 5) {
+      notify('Lý do khiếu nại phải có ít nhất 5 ký tự.', 'error');
+      return;
+    }
+
+    setBusyRefundPaymentId(paymentId);
+    try {
+      await disputeRefund(token, paymentId, reason);
+      const updated = await getRefundCase(token, paymentId);
+      setRefundCases((current) => ({ ...current, [paymentId]: updated }));
+      notify('Đã gửi khiếu nại đến Admin.', 'success');
+      await loadNotifications();
+    } catch (requestError) {
+      notify(getErrorMessage(requestError, 'Không thể gửi khiếu nại.'), 'error');
     } finally {
       setBusyRefundPaymentId(null);
     }
@@ -401,10 +469,10 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
                                 <button
                                   className="picklink-glow-control inline-flex h-8 items-center justify-center rounded-lg bg-[#0b2228] px-2.5 text-[11px] font-bold text-white hover:bg-[#143f34] disabled:opacity-50"
                                   disabled={busyRefundPaymentId === refundPaymentId}
-                                  onClick={() => void confirmRefundReceived(refundPaymentId, notification.notificationId)}
+                                  onClick={() => void toggleRefundCase(refundPaymentId)}
                                   type="button"
                                 >
-                                  {busyRefundPaymentId === refundPaymentId ? 'Đang xác nhận...' : 'Đã nhận được tiền'}
+                                  {busyRefundPaymentId === refundPaymentId ? 'Đang tải...' : expandedRefundPaymentId === refundPaymentId ? 'Đóng hồ sơ' : 'Xem minh chứng'}
                                 </button>
                               ) : notification.linkTo && notification.linkLabel && (
                                 <Link
@@ -437,6 +505,35 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: 'player' |
                               </button>
                             </div>
                           </div>
+                          {refundPaymentId && expandedRefundPaymentId === refundPaymentId && refundCases[refundPaymentId] && (
+                            <section className="mt-3 grid gap-3 rounded-xl border border-[#b9dca8] bg-[#f7fbf3] p-3 sm:grid-cols-[180px_minmax(0,1fr)]">
+                              <div className="overflow-hidden rounded-lg border border-[#d8e4d4] bg-white">
+                                {refundProofUrls[refundPaymentId] ? (
+                                  <img alt="Minh chứng hoàn tiền từ chủ sân" className="h-44 w-full object-contain" src={refundProofUrls[refundPaymentId]} />
+                                ) : (
+                                  <div className="grid h-44 place-items-center text-[#718077]"><ImageIcon className="h-7 w-7" /></div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#477313]">Hồ sơ hoàn tiền</p>
+                                <p className="mt-1 text-[14px] font-bold">{refundCases[refundPaymentId].bookingCode} · {refundCases[refundPaymentId].venueName}</p>
+                                <p className="mt-1 text-[12px] text-[#64736a]">Số tiền: <strong>{new Intl.NumberFormat('vi-VN').format(refundCases[refundPaymentId].groupTotalAmount || refundCases[refundPaymentId].amount)} đ</strong></p>
+                                {refundCases[refundPaymentId].refundReference && <p className="mt-1 text-[12px] text-[#64736a]">Mã tham chiếu: <strong>{refundCases[refundPaymentId].refundReference}</strong></p>}
+                                {refundCases[refundPaymentId].refundDisputeStatus === 'Open' && (
+                                  <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-900">Khiếu nại đang chờ Admin xử lý.</p>
+                                )}
+                                {refundCases[refundPaymentId].refundDisputeResolution && (
+                                  <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-800"><strong>Kết luận của Admin:</strong> {refundCases[refundPaymentId].refundDisputeResolution}</p>
+                                )}
+                                {refundCases[refundPaymentId].refundDisputeStatus !== 'Open' && refundCases[refundPaymentId].paymentStatus === 'RefundPending' && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <button className="rounded-lg bg-[#0b2228] px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50" disabled={busyRefundPaymentId === refundPaymentId} onClick={() => void confirmRefundReceived(refundPaymentId, notification.notificationId)} type="button">Đã nhận được tiền</button>
+                                    <button className="rounded-lg border border-red-300 bg-white px-3 py-2 text-[11px] font-bold text-red-700 disabled:opacity-50" disabled={busyRefundPaymentId === refundPaymentId} onClick={() => void submitRefundDispute(refundPaymentId)} type="button">Khiếu nại</button>
+                                  </div>
+                                )}
+                              </div>
+                            </section>
+                          )}
                         </div>
                       </div>
                     </motion.article>

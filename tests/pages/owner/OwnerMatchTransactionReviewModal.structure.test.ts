@@ -20,14 +20,19 @@ test('owner match receipt review shows every player phone number', () => {
   assert.ok(source.includes("href={'tel:' + item.playerPhoneNumber.replaceAll(' ', '')}"));
   assert.ok(source.includes('Chưa cập nhật SĐT'));
 });
-test('match refunds stay pending until the actual sender confirms from notifications', () => {
-  assert.ok(source.includes('markOperatorMatchRefundSent'));
-  assert.ok(source.includes("entry.action === 'OwnerMarkedRefundSent'"));
+test('match refunds expose proof and dispute actions before the actual sender confirms', () => {
+  assert.ok(source.includes('submitOperatorRefundProof'));
+  assert.ok(source.includes('refundProofImageUrl'));
+  assert.ok(source.includes('Chọn ảnh minh chứng'));
   assert.ok(bookingsSource.includes('Xử lý hoàn tiền'));
   assert.ok(bookingsSource.includes('Đã hủy · Đã hoàn tiền'));
-  assert.ok(notificationsSource.includes('confirmMatchRefundReceived'));
+  assert.ok(notificationsSource.includes('confirmRefundReceivedRequest'));
+  assert.ok(notificationsSource.includes('submitRefundDispute'));
+  assert.ok(notificationsSource.includes('Xem minh chứng'));
+  assert.ok(notificationsSource.includes('Khiếu nại'));
   assert.ok(notificationsSource.includes('Đã nhận được tiền'));
   assert.ok(paymentApiSource.includes('/refund-sent'));
+  assert.ok(paymentApiSource.includes('/refund/dispute'));
   assert.ok(paymentApiSource.includes('/refund/confirm'));
 });
 test('adjacent slots merge only within the same court and day', () => {

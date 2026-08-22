@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Ban, CalendarCheck, CreditCard, Loader2, Search } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Ban, CalendarCheck, CreditCard, ExternalLink, Loader2, Search } from 'lucide-react';
 import {
   cancelAdminBooking,
   listAdminBookings,
+  resolveAdminRefundDispute,
   type AdminBookingSummary,
 } from '../../api/adminBookings';
+import { getRefundProofObjectUrl } from '../../api/payment';
 import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -41,11 +43,40 @@ const bookingStatuses = [
 
 const paymentStatuses = [
   { label: 'Mọi thanh toán', value: 'all' },
+  { label: 'Chờ thanh toán', value: 'Pending' },
   { label: 'Chờ owner xác nhận', value: 'WaitingForConfirmation' },
+  { label: 'Đã thanh toán', value: 'Paid' },
   { label: 'Đã xác nhận', value: 'Verified' },
   { label: 'Bị từ chối', value: 'Rejected' },
+  { label: 'Đang khiếu nại hoàn tiền', value: 'RefundDisputed' },
+  { label: 'Chờ hoàn tiền', value: 'RefundPending' },
+  { label: 'Đã hoàn tiền', value: 'Refunded' },
+  { label: 'Đã hết hạn', value: 'Expired' },
+  { label: 'Đã hủy', value: 'Cancelled' },
   { label: 'Chưa có thanh toán', value: 'NoPayment' },
 ];
+
+const bookingLabels: Record<string, string> = {
+  Holding: 'Đang giữ chỗ',
+  Confirmed: 'Đã xác nhận',
+  Completed: 'Hoàn tất',
+  Cancelled: 'Đã hủy',
+  Expired: 'Đã hết hạn',
+};
+
+const paymentLabels: Record<string, string> = {
+  Pending: 'Chờ thanh toán',
+  WaitingForConfirmation: 'Chờ owner xác nhận',
+  Paid: 'Đã thanh toán',
+  Verified: 'Đã xác nhận',
+  Rejected: 'Bị từ chối',
+  RefundDisputed: 'Đang khiếu nại',
+  RefundPending: 'Chờ hoàn tiền',
+  Refunded: 'Đã hoàn tiền',
+  Expired: 'Đã hết hạn',
+  Cancelled: 'Đã hủy',
+  NoPayment: 'Chưa có thanh toán',
+};
 
 const bookingTone = (status: string): Tone => {
   if (status === 'Confirmed' || status === 'Completed') return 'success';
@@ -55,8 +86,9 @@ const bookingTone = (status: string): Tone => {
 };
 
 const paymentTone = (status: string): Tone => {
-  if (status === 'Verified' || status === 'Paid') return 'success';
-  if (status === 'WaitingForConfirmation' || status === 'Pending') return 'warning';
+  if (status === 'Verified' || status === 'Paid' || status === 'Refunded') return 'success';
+  if (status === 'WaitingForConfirmation' || status === 'Pending' || status === 'RefundPending') return 'warning';
+  if (status === 'RefundDisputed') return 'danger';
   if (status === 'Rejected' || status === 'Expired') return 'danger';
   return 'neutral';
 };
@@ -72,7 +104,7 @@ export const AdminBookings = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState('all');
-  const [paymentStatus, setPaymentStatus] = useState('all');
+  const [paymentStatus, setPaymentStatus] = useState(() => new URLSearchParams(window.location.search).get('paymentStatus') ?? 'all');
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState<number | null>(null);
   useEffect(() => {
@@ -97,6 +129,10 @@ export const AdminBookings = () => {
 
   const waitingPayments = useMemo(
     () => data.items.filter((booking) => booking.paymentStatus === 'WaitingForConfirmation').length,
+    [data.items],
+  );
+  const pendingRefunds = useMemo(
+    () => data.items.filter((booking) => booking.paymentStatus === 'RefundDisputed').length,
     [data.items],
   );
 
@@ -131,6 +167,49 @@ export const AdminBookings = () => {
     }
   };
 
+  const resolveRefundDispute = async (booking: AdminBookingSummary) => {
+    if (!token) return;
+    const resolution = (await prompt({
+      title: `Kết luận khiếu nại ${booking.bookingCode || `#${booking.bookingId}`}`,
+      message: 'Ghi nhận kết quả kiểm tra minh chứng. Admin không chuyển tiền và không tự đánh dấu khoản hoàn là đã nhận.',
+      label: 'Kết luận của Admin',
+      placeholder: 'Ví dụ: Owner cần chuyển lại đúng số tài khoản; player kiểm tra lại mã giao dịch...',
+      required: true,
+      confirmLabel: 'Ghi nhận kết luận',
+    }))?.trim();
+    if (!resolution) return;
+    if (resolution.length < 5) {
+      notify('Kết luận phải có ít nhất 5 ký tự.', 'error');
+      return;
+    }
+    if (!(await confirm({
+      title: 'Gửi kết luận cho hai bên?',
+      message: 'Player và owner sẽ nhận kết luận. Khoản tiền vẫn ở trạng thái chờ hoàn cho đến khi player tự xác nhận đã nhận.',
+      confirmLabel: 'Gửi kết luận',
+    }))) return;
+
+    setBusyId(booking.bookingId);
+    try {
+      await resolveAdminRefundDispute(token, booking.bookingId, resolution);
+      await loadBookings();
+      notify('Đã gửi kết luận khiếu nại cho player và owner.', 'success');
+    } catch (requestError) {
+      notify(requestError instanceof ApiError ? requestError.message : 'Không thể xử lý khiếu nại.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const viewRefundProof = async (booking: AdminBookingSummary) => {
+    if (!token || !booking.refundProofPaymentId) return;
+    try {
+      const objectUrl = await getRefundProofObjectUrl(token, booking.refundProofPaymentId);
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+    } catch (requestError) {
+      notify(requestError instanceof ApiError ? requestError.message : 'Không thể tải ảnh minh chứng.', 'error');
+    }
+  };
+
   return (
     <AdminShell activeId="bookings">
       <MobileAdminNav activeId="bookings" />
@@ -143,7 +222,7 @@ export const AdminBookings = () => {
             Admin xem booking thật để hỗ trợ lỗi thanh toán, tranh chấp và tình trạng giữ chỗ. Doanh thu vận hành vẫn thuộc owner.
           </p>
         </div>
-        <div className="grid min-w-64 grid-cols-2 overflow-hidden rounded-xl border border-outline-variant bg-white">
+        <div className="grid w-full grid-cols-3 overflow-hidden rounded-xl border border-outline-variant bg-white md:w-auto md:min-w-[420px]">
           <div className="p-3">
             <p className="text-2xl font-bold text-primary">{data.totalCount}</p>
             <p className="text-xs text-on-surface-variant">booking phù hợp</p>
@@ -152,6 +231,14 @@ export const AdminBookings = () => {
             <p className="text-2xl font-bold text-[#9b6b00]">{waitingPayments}</p>
             <p className="text-xs text-on-surface-variant">chờ xác nhận trên trang</p>
           </div>
+          <button
+            className="border-l border-outline-variant p-3 text-left transition-colors hover:bg-amber-50"
+            onClick={() => { setPaymentStatus('RefundDisputed'); setPage(1); }}
+            type="button"
+          >
+            <p className="text-2xl font-bold text-amber-700">{pendingRefunds}</p>
+            <p className="text-xs text-on-surface-variant">khiếu nại trên trang</p>
+          </button>
         </div>
       </section>
 
@@ -231,24 +318,50 @@ export const AdminBookings = () => {
                     <p className="mt-1 text-xs text-on-surface-variant">Sân: {currency.format(booking.courtAmount)}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge tone={paymentTone(booking.paymentStatus)}>{booking.paymentStatus}</StatusBadge>
+                    <StatusBadge tone={paymentTone(booking.paymentStatus)}>{paymentLabels[booking.paymentStatus] ?? 'Chưa xác định'}</StatusBadge>
+                    {(booking.paymentStatus === 'RefundPending' || booking.paymentStatus === 'RefundDisputed') && (
+                      <div className={`mt-2 space-y-1 text-xs ${booking.paymentStatus === 'RefundDisputed' ? 'text-red-700' : 'text-amber-800'}`}>
+                        <p className="font-bold">Cần hoàn {currency.format(booking.refundAmount)}</p>
+                        {booking.refundPendingSince && <p>Chờ từ {formatDateTime(booking.refundPendingSince)}</p>}
+                        {booking.refundDisputedAt && <p>Khiếu nại lúc {formatDateTime(booking.refundDisputedAt)}</p>}
+                        {booking.refundDisputeReason && <p className="max-w-xs font-bold">“{booking.refundDisputeReason}”</p>}
+                        {booking.refundReference && <p>Mã hoàn: {booking.refundReference}</p>}
+                      </div>
+                    )}
                     <p className="mt-1 flex items-center gap-1 text-xs text-on-surface-variant">
                       <CreditCard className="h-3.5 w-3.5" />{booking.paymentMethod || 'Chưa có phương thức'}
                     </p>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge tone={bookingTone(booking.status)}>{booking.status}</StatusBadge>
+                    <StatusBadge tone={bookingTone(booking.status)}>{bookingLabels[booking.status] ?? 'Chưa xác định'}</StatusBadge>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      className={`${outlineButton} text-error`}
-                      disabled={busyId === booking.bookingId || !cancellableStatuses.includes(booking.status)}
-                      onClick={() => void cancelBooking(booking)}
-                      type="button"
-                    >
-                      {busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-                      Hủy
-                    </button>
+                    {booking.paymentStatus === 'RefundDisputed' ? (
+                      <div className="flex flex-wrap gap-2">
+                        {booking.refundProofPaymentId && <button className={`${outlineButton} border-blue-300 text-blue-800 hover:bg-blue-50`} onClick={() => void viewRefundProof(booking)} type="button"><ExternalLink className="h-4 w-4" />Xem minh chứng</button>}
+                        <button
+                          className={`${outlineButton} border-emerald-300 text-emerald-800 hover:bg-emerald-50`}
+                          disabled={busyId === booking.bookingId}
+                          onClick={() => void resolveRefundDispute(booking)}
+                          type="button"
+                        >
+                          {busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+                          Ghi kết luận
+                        </button>
+                      </div>
+                    ) : booking.paymentStatus === 'RefundPending' ? (
+                      <span className="text-xs font-bold text-on-surface-variant">Chỉ theo dõi · Chờ player phản hồi</span>
+                    ) : (
+                      <button
+                        className={`${outlineButton} text-error`}
+                        disabled={busyId === booking.bookingId || !cancellableStatuses.includes(booking.status)}
+                        onClick={() => void cancelBooking(booking)}
+                        type="button"
+                      >
+                        {busyId === booking.bookingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                        Hủy
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

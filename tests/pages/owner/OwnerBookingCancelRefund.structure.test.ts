@@ -36,14 +36,15 @@ test('money already collected becomes a refund debt rather than vanishing', () =
   assert.match(updateStatusSource, /Khoản đã thanh toán sẽ được hoàn lại\./);
 });
 
-test('the owner closes the refund out and the player is told', () => {
-  assert.match(serviceSource, /payment\.Status = "Refunded"/);
-  assert.match(serviceSource, /Action = "OwnerMarkedRefunded"/);
+test('the owner submits proof while the player remains responsible for final confirmation', () => {
+  assert.doesNotMatch(serviceSource, /payment\.Status = "Refunded"/);
+  assert.match(serviceSource, /Action = isUpdate \? "OwnerUpdatedRefundProof" : "OwnerMarkedRefundSent"/);
+  assert.match(serviceSource, /payment\.RefundProofImageUrl = proofFileName/);
   assert.match(serviceSource, /Booking này không có khoản nào đang chờ hoàn tiền\./);
-  assert.match(serviceSource, /Title: "Đã hoàn tiền booking"/);
 
-  assert.ok(apiSource.includes('export const markOwnerBookingRefunded'));
-  assert.ok(dashboardSource.includes('Đã hoàn tiền'));
+  assert.ok(apiSource.includes('export const submitOwnerBookingRefundProof'));
+  assert.ok(apiSource.includes("formData.append('proof', optimized)"));
+  assert.ok(dashboardSource.includes('Gửi minh chứng'));
   assert.ok(detailSource.includes('void markRefunded()'));
 });
 

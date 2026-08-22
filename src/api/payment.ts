@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { API_BASE_URL, ApiError, apiRequest } from './client';
 import type { BankTransfer } from './booking';
 import { optimizeReceiptImage } from '../utils/receiptImage';
 import { uploadToCloudinary } from './cloudinary';
@@ -176,10 +176,40 @@ export const getOperatorBookingPayments = (token: string, bookingId: number) =>
 export const approveOperatorPayment = (token: string, paymentId: number) =>
   apiRequest<BankTransfer>(`/api/payments/operator/${paymentId}/approve`, { method: 'POST' }, token);
 
-export const markOperatorMatchRefundSent = (token: string, paymentId: number) =>
-  apiRequest<BankTransfer[]>('/api/payments/operator/' + paymentId + '/refund-sent', { method: 'POST' }, token);
+export const submitOperatorRefundProof = async (
+  token: string,
+  paymentId: number,
+  proof: File,
+  reference?: string,
+) => {
+  const optimized = await optimizeReceiptImage(proof);
+  const formData = new FormData();
+  formData.append('proof', optimized);
+  if (reference?.trim()) formData.append('reference', reference.trim());
+  return apiRequest<BankTransfer[]>('/api/payments/operator/' + paymentId + '/refund-sent', {
+    method: 'POST',
+    body: formData,
+  }, token);
+};
 
-export const confirmMatchRefundReceived = (token: string, paymentId: number) =>
+export const getRefundCase = (token: string, paymentId: number) =>
+  apiRequest<BankTransfer>('/api/payments/' + paymentId + '/refund', {}, token);
+
+export const getRefundProofObjectUrl = async (token: string, paymentId: number) => {
+  const response = await fetch(`${API_BASE_URL}/api/payments/${paymentId}/refund/proof-file`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Không thể tải ảnh minh chứng hoàn tiền.');
+  return URL.createObjectURL(await response.blob());
+};
+
+export const disputeRefund = (token: string, paymentId: number, reason: string) =>
+  apiRequest<BankTransfer[]>('/api/payments/' + paymentId + '/refund/dispute', {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  }, token);
+
+export const confirmRefundReceived = (token: string, paymentId: number) =>
   apiRequest<BankTransfer[]>('/api/payments/' + paymentId + '/refund/confirm', { method: 'POST' }, token);
 
 export const rejectOperatorPayment = (token: string, paymentId: number, reason: string) =>

@@ -43,3 +43,11 @@ test('admin bookings API lists real bookings with filters', async () => {
   assert.equal(calls[0].url, '/api/admin/bookings?search=BK-01&status=Confirmed&paymentStatus=Verified&page=2&pageSize=10');
 });
 
+test('admin bookings API only records a conclusion for an open refund dispute', async () => {
+  await adminBookings.resolveAdminRefundDispute('token', 42, 'Owner cần chuyển lại đúng tài khoản');
+
+  assert.equal(calls[0].url, '/api/admin/bookings/42/refund/dispute/resolve');
+  assert.equal(calls[0].init?.method, 'POST');
+  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { resolution: 'Owner cần chuyển lại đúng tài khoản' });
+});
+

@@ -21,6 +21,17 @@ export type AdminBookingSummary = {
   paymentMethod?: string | null;
   paymentSubmittedAt?: string | null;
   paymentVerifiedAt?: string | null;
+  refundAmount: number;
+  refundPendingSince?: string | null;
+  refundProofPaymentId?: number | null;
+  refundProofImageUrl?: string | null;
+  refundReference?: string | null;
+  refundProofSubmittedAt?: string | null;
+  refundDisputeStatus?: 'Open' | 'Resolved' | null;
+  refundDisputeReason?: string | null;
+  refundDisputedAt?: string | null;
+  refundDisputeResolution?: string | null;
+  refundDisputeResolvedAt?: string | null;
 };
 
 export type AdminBookingListParams = PaginationParams & {
@@ -59,5 +70,16 @@ export const cancelAdminBooking = (
   apiRequest<AdminBookingSummary>(
     `/api/admin/bookings/${bookingId}/cancel`,
     { method: 'POST', body: JSON.stringify({ reason }) },
+    accessToken,
+  );
+
+export const resolveAdminRefundDispute = (
+  accessToken: string,
+  bookingId: number,
+  resolution: string,
+) =>
+  apiRequest<AdminBookingSummary>(
+    `/api/admin/bookings/${bookingId}/refund/dispute/resolve`,
+    { method: 'POST', body: JSON.stringify({ resolution }) },
     accessToken,
   );

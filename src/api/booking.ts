@@ -93,6 +93,14 @@ export type BankTransfer = {
   bankAccountName?: string | null;
   qrImageUrl?: string | null;
   receiptImageUrl?: string | null;
+  refundProofImageUrl?: string | null;
+  refundReference?: string | null;
+  refundProofSubmittedAt?: string | null;
+  refundDisputeStatus?: 'Open' | 'Resolved' | 'Closed' | null;
+  refundDisputeReason?: string | null;
+  refundDisputedAt?: string | null;
+  refundDisputeResolution?: string | null;
+  refundDisputeResolvedAt?: string | null;
   submittedAt?: string | null;
   verifiedAt?: string | null;
   rejectionReason?: string | null;

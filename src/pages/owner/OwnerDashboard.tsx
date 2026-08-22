@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock,
   Eye,
+  ImageUp,
   Lock,
   MessageCircle,
   RefreshCw,
@@ -25,7 +26,7 @@ import {
   deleteOwnerScheduleEntry,
   getOwnerSchedule,
   searchOwnerPlayers,
-  markOwnerBookingRefunded,
+  submitOwnerBookingRefundProof,
   updateOwnerBookingStatus,
   type OwnerPlayerSearchResult,
   type OwnerSchedule,
@@ -141,6 +142,7 @@ export const OwnerDashboard = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelPanelOpen, setIsCancelPanelOpen] = useState(false);
   const [refundReference, setRefundReference] = useState('');
+  const [refundProof, setRefundProof] = useState<File | null>(null);
   const [playerResults, setPlayerResults] = useState<OwnerPlayerSearchResult[]>([]);
   const [amountOverride, setAmountOverride] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<OwnerWalkInPaymentMethod>('Cash');
@@ -322,19 +324,24 @@ export const OwnerDashboard = () => {
 
   const markRefunded = async (item: OwnerScheduleItem) => {
     if (!token) return;
+    if (!refundProof) {
+      setError('Vui lòng chọn ảnh minh chứng chuyển khoản hoàn tiền.');
+      return;
+    }
     if (!(await confirm({
-      title: `Đánh dấu đã hoàn tiền booking #${item.bookingId}?`,
-      message: 'Chỉ đánh dấu sau khi đã thực sự chuyển tiền lại cho người chơi. Người chơi sẽ nhận được thông báo.',
-      confirmLabel: 'Đã hoàn tiền',
+      title: `Gửi minh chứng hoàn tiền booking #${item.bookingId}?`,
+      message: 'Player sẽ xem ảnh để xác nhận đã nhận tiền hoặc gửi khiếu nại.',
+      confirmLabel: 'Gửi minh chứng',
       tone: 'success',
     }))) return;
     try {
-      await markOwnerBookingRefunded(token, item.bookingId, refundReference.trim() || undefined);
+      await submitOwnerBookingRefundProof(token, item.bookingId, refundProof, refundReference.trim() || undefined);
       setSelectedSlot(null);
       setRefundReference('');
+      setRefundProof(null);
       await load();
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : 'Không thể đánh dấu hoàn tiền.');
+      setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi minh chứng hoàn tiền.');
     }
   };
 
@@ -530,9 +537,13 @@ export const OwnerDashboard = () => {
                             <AlertTriangle aria-hidden="true" className="h-4 w-4" /> Booking đã hủy, còn nợ khách khoản đã thanh toán.
                           </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-amber-400 bg-white px-3 py-2 text-[13px] font-bold text-amber-900">
+                              <ImageUp className="h-4 w-4" /> {refundProof?.name ?? 'Chọn ảnh minh chứng'}
+                              <input accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => setRefundProof(event.target.files?.[0] ?? null)} type="file" />
+                            </label>
                             <input aria-label="Tham chiếu chuyển khoản hoàn tiền" className="min-w-[180px] flex-1 rounded-lg border border-outline-variant px-3 py-2 text-[13px]" maxLength={200} onChange={(event) => setRefundReference(event.target.value)} placeholder="Mã giao dịch hoàn tiền (không bắt buộc)" value={refundReference} />
-                            <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white" onClick={() => void markRefunded(selectedSlotItem)} type="button">
-                              <Banknote className="h-4 w-4" /> Đã hoàn tiền
+                            <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={!refundProof} onClick={() => void markRefunded(selectedSlotItem)} type="button">
+                              <Banknote className="h-4 w-4" /> Gửi minh chứng
                             </button>
                           </div>
                         </div>

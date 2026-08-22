@@ -10,6 +10,7 @@ import {
   CreditCard,
   ExternalLink,
   History,
+  ImageUp,
   Mail,
   MapPin,
   ReceiptText,
@@ -17,7 +18,8 @@ import {
   UserRound,
   XCircle,
 } from 'lucide-react';
-import { getOwnerBooking, markOwnerBookingRefunded, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
+import { getOwnerBooking, submitOwnerBookingRefundProof, updateOwnerBookingStatus, type OwnerBookingRecord } from '../../api/owner';
+import { getRefundProofObjectUrl } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -54,6 +56,7 @@ export const OwnerBookingDetail = () => {
   const [isBusy, setIsBusy] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [refundReference, setRefundReference] = useState('');
+  const [refundProof, setRefundProof] = useState<File | null>(null);
   const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -121,21 +124,36 @@ export const OwnerBookingDetail = () => {
 
   const markRefunded = async () => {
     if (!token || !booking) return;
+    if (!refundProof) {
+      setError('Vui lòng chọn ảnh minh chứng chuyển khoản hoàn tiền.');
+      return;
+    }
     if (!(await confirm({
-      title: `Đánh dấu đã hoàn tiền booking ${booking.bookingCode}?`,
-      message: 'Chỉ đánh dấu sau khi đã thực sự chuyển tiền lại cho người chơi.',
-      confirmLabel: 'Đã hoàn tiền',
+      title: `Gửi minh chứng hoàn tiền booking ${booking.bookingCode}?`,
+      message: 'Player sẽ xem ảnh này để xác nhận đã nhận tiền hoặc gửi khiếu nại.',
+      confirmLabel: 'Gửi minh chứng',
       tone: 'success',
     }))) return;
     setIsBusy(true); setError(''); setSuccess('');
     try {
-      await markOwnerBookingRefunded(token, booking.bookingId, refundReference.trim() || undefined);
-      setSuccess('Đã ghi nhận hoàn tiền.');
+      await submitOwnerBookingRefundProof(token, booking.bookingId, refundProof, refundReference.trim() || undefined);
+      setSuccess('Đã gửi minh chứng cho player kiểm tra.');
       setRefundReference('');
+      setRefundProof(null);
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể đánh dấu hoàn tiền.');
     } finally { setIsBusy(false); }
+  };
+
+  const viewRefundProof = async () => {
+    if (!token || !booking?.paymentId) return;
+    try {
+      const objectUrl = await getRefundProofObjectUrl(token, booking.paymentId);
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể tải ảnh minh chứng.');
+    }
   };
 
   if (isLoading) return <OwnerShell activeId="bookings"><div className="owner-panel p-10 text-center font-bold text-on-surface-variant">Đang tải chi tiết booking...</div></OwnerShell>;
@@ -163,10 +181,25 @@ export const OwnerBookingDetail = () => {
         )}
         {isRefundPending && (
           <div className="w-full rounded-lg border border-amber-300 bg-amber-50 p-3 lg:max-w-md">
-            <p className="text-[13px] font-bold text-amber-900">Booking đã hủy, còn nợ khách khoản đã thanh toán.</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-[13px] font-bold text-amber-900">
+              {booking.refundProofSubmittedAt ? 'Đã gửi minh chứng · Chờ player phản hồi' : 'Booking đã hủy, còn nợ khách khoản đã thanh toán.'}
+            </p>
+            {booking.refundDisputeStatus === 'Open' && (
+              <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[12px] font-bold text-red-700">
+                Player khiếu nại: {booking.refundDisputeReason}
+              </p>
+            )}
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-amber-400 bg-white px-3 py-2 text-[12px] font-bold text-amber-900">
+                <ImageUp className="h-4 w-4" />
+                <span className="truncate">{refundProof?.name ?? 'Chọn ảnh minh chứng'}</span>
+                <input accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => setRefundProof(event.target.files?.[0] ?? null)} type="file" />
+              </label>
               <input aria-label="Tham chiếu chuyển khoản hoàn tiền" className="min-w-[160px] flex-1 rounded-lg border border-outline-variant px-3 py-2 text-[13px]" maxLength={200} onChange={(event) => setRefundReference(event.target.value)} placeholder="Mã giao dịch hoàn tiền (không bắt buộc)" value={refundReference} />
-              <button className="rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy} onClick={() => void markRefunded()} type="button">Đã hoàn tiền</button>
+              <button className="rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={isBusy || !refundProof} onClick={() => void markRefunded()} type="button">{booking.refundProofSubmittedAt ? 'Cập nhật minh chứng' : 'Gửi minh chứng'}</button>
+              {booking.refundProofImageUrl && booking.paymentId && (
+                <button className="rounded-lg border border-amber-400 bg-white px-4 py-2 text-[13px] font-bold text-amber-900" onClick={() => void viewRefundProof()} type="button">Xem ảnh đã gửi</button>
+              )}
             </div>
           </div>
         )}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock, Loader2, MapPin, MessageCircle, Phone, ReceiptText, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, ImageUp, Loader2, MapPin, MessageCircle, Phone, ReceiptText, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { BankTransfer } from '../../../api/booking';
 import { ApiError } from '../../../api/client';
@@ -7,7 +7,7 @@ import type { BookingDetail } from '../../../data/bookings';
 import {
   approveOperatorPayment,
   getOperatorBookingPayments,
-  markOperatorMatchRefundSent,
+  submitOperatorRefundProof,
   rejectOperatorPayment,
 } from '../../../api/payment';
 import { useAuth } from '../../../auth/AuthContext';
@@ -67,6 +67,8 @@ export const OwnerMatchTransactionReviewModal = ({
   const confirm = useConfirm();
   const [payments, setPayments] = useState<BankTransfer[]>(initialPayments ?? []);
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
+  const [refundProofs, setRefundProofs] = useState<Record<number, File | null>>({});
+  const [refundReferences, setRefundReferences] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(!initialPayments);
   const [error, setError] = useState('');
@@ -174,6 +176,12 @@ export const OwnerMatchTransactionReviewModal = ({
     if (!token) return;
     const refundPayments = groupPayments.filter((item) => item.paymentStatus === 'RefundPending');
     if (refundPayments.length === 0) return;
+    const representative = refundPayments[0];
+    const proof = refundProofs[representative.paymentId];
+    if (!proof) {
+      setError('Vui lòng chọn ảnh minh chứng chuyển khoản hoàn tiền.');
+      return;
+    }
     const refundTotal = refundPayments.reduce((total, item) => total + item.amount, 0);
     if (!(await confirm({
       title: 'Xác nhận đã chuyển tiền hoàn?',
@@ -183,13 +191,18 @@ export const OwnerMatchTransactionReviewModal = ({
       tone: 'success',
     }))) return;
 
-    const representative = refundPayments[0];
     setBusyId(representative.paymentId);
     setError('');
     try {
-      const updatedPayments = await markOperatorMatchRefundSent(token, representative.paymentId);
+      const updatedPayments = await submitOperatorRefundProof(
+        token,
+        representative.paymentId,
+        proof,
+        refundReferences[representative.paymentId],
+      );
       const updates = new Map(updatedPayments.map((item) => [item.paymentId, item]));
       setPayments((current) => current.map((item) => updates.get(item.paymentId) ?? item));
+      setRefundProofs((current) => ({ ...current, [representative.paymentId]: null }));
       void onUpdated();
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi yêu cầu xác nhận hoàn tiền.');
@@ -249,8 +262,7 @@ export const OwnerMatchTransactionReviewModal = ({
               const rejectReason = rejectReasons[payment.paymentId] ?? '';
               const playerNames = group.payments.map((item) => item.playerName).join(', ');
               const refundPayments = group.payments.filter((item) => item.paymentStatus === 'RefundPending');
-              const refundSent = refundPayments.length > 0 && refundPayments.every((item) =>
-                item.history.some((entry) => entry.action === 'OwnerMarkedRefundSent'));
+              const refundSent = refundPayments.length > 0 && refundPayments.every((item) => Boolean(item.refundProofImageUrl));
               const refundBusy = refundPayments.some((item) => item.paymentId === busyId);
               return (
                 <article className="overflow-hidden rounded-xl border border-outline-variant" key={payment.paymentGroupId ?? payment.paymentId}>
@@ -306,28 +318,19 @@ export const OwnerMatchTransactionReviewModal = ({
                           <span>Nhắn tin</span>
                         </button>
                       )}
-                      {refundPayments.length > 0 && (refundSent ? (
-                        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700">
-                          Đã báo hoàn tiền
+                      {refundPayments.length > 0 && (
+                        <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${refundSent ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+                          {refundSent ? 'Đã gửi minh chứng' : 'Cần gửi minh chứng'}
                         </span>
-                      ) : (
-                        <button
-                          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-white disabled:opacity-50"
-                          disabled={refundBusy}
-                          onClick={() => void markRefundSent(group.payments)}
-                          type="button"
-                        >
-                          {refundBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ReceiptText className="h-3.5 w-3.5" />}
-                          Hoàn tiền
-                        </button>
-                      ))}
+                      )}
                     </div>
                   </div>
 
                   <div className="p-4">
                     {payment.paymentStatus === 'RefundPending' && (
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5">
-                        <div className="flex items-center gap-2.5">
+                      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
                           <MessageCircle className="h-5 w-5 shrink-0 text-amber-700" />
                           <div>
                             <p className="text-[13px] font-bold text-amber-950">Khoản tiền đang chờ hoàn trả</p>
@@ -335,8 +338,8 @@ export const OwnerMatchTransactionReviewModal = ({
                               Người chơi đã chuyển <strong>{currency.format(payment.amount)}</strong>. Hãy liên hệ với người chơi để xác nhận thông tin và chuyển lại tiền.
                             </p>
                           </div>
-                        </div>
-                        <button
+                          </div>
+                          <button
                           className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[12px] font-bold text-white shadow transition hover:bg-amber-700 active:scale-95"
                           onClick={() => {
                             const draftText = `Chat hoàn tiền - Match #${bookingCode} (Khoản #${payment.transferCode || payment.paymentId})`;
@@ -351,7 +354,41 @@ export const OwnerMatchTransactionReviewModal = ({
                         >
                           <MessageCircle className="h-4 w-4" />
                           <span>Chat với {payment.playerName}</span>
-                        </button>
+                          </button>
+                        </div>
+                        <div className="mt-3 grid gap-2 border-t border-amber-200 pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(160px,0.7fr)_auto]">
+                          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-amber-400 bg-white px-3 py-2 text-[12px] font-bold text-amber-900">
+                            <ImageUp className="h-4 w-4" />
+                            <span className="truncate">{refundProofs[payment.paymentId]?.name ?? (refundSent ? 'Chọn ảnh mới để cập nhật' : 'Chọn ảnh minh chứng')}</span>
+                            <input
+                              accept="image/jpeg,image/png,image/webp"
+                              className="sr-only"
+                              onChange={(event) => setRefundProofs((current) => ({ ...current, [payment.paymentId]: event.target.files?.[0] ?? null }))}
+                              type="file"
+                            />
+                          </label>
+                          <input
+                            className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-[12px] outline-none focus:border-primary"
+                            maxLength={200}
+                            onChange={(event) => setRefundReferences((current) => ({ ...current, [payment.paymentId]: event.target.value }))}
+                            placeholder="Mã giao dịch (không bắt buộc)"
+                            value={refundReferences[payment.paymentId] ?? payment.refundReference ?? ''}
+                          />
+                          <button
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50"
+                            disabled={refundBusy || !refundProofs[payment.paymentId]}
+                            onClick={() => void markRefundSent(group.payments)}
+                            type="button"
+                          >
+                            {refundBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageUp className="h-4 w-4" />}
+                            {refundSent ? 'Cập nhật' : 'Gửi minh chứng'}
+                          </button>
+                        </div>
+                        {payment.refundDisputeStatus === 'Open' && (
+                          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-bold text-red-700">
+                            Player đang khiếu nại: {payment.refundDisputeReason}
+                          </p>
+                        )}
                       </div>
                     )}
 
