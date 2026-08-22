@@ -317,7 +317,7 @@ export const CommunityFeedShell = ({
   activePath: string;
   children: ReactNode;
 }) => (
-  <div className="community-feed-shell">
+  <div className={'community-feed-shell' + (activePath === '/posts' ? ' community-feed-shell--hero-panels' : '')}>
     <CommunityFeedNav activePath={activePath} />
     <main className="community-feed-main">{children}</main>
     <CommunityInsights />

@@ -14,7 +14,7 @@ test('owner can edit staff identity, venue, role, permissions and status', () =>
   assert.match(page, /email: staffEdit\.email\.trim\(\)/);
   assert.match(page, /venueIds: staffEdit\.venueIds/);
   assert.match(page, /toggleStaffEditVenue/);
-  assert.match(page, /bg-\[#e2ff57\]/);
+  assert.match(page, /className="rounded-lg bg-primary[^"]*"[^>]*onClick=\{\(\) => void saveStaffEdit\(assignment\)\}/);
 });
 
 test('staff update API accepts editable account fields', () => {

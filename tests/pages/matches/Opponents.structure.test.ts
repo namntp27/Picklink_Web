@@ -10,6 +10,10 @@ const myMatchesSource = readFileSync(
   new URL('../../../src/pages/matches/MyMatches.tsx', import.meta.url),
   'utf8',
 );
+const resilientTileLayerSource = readFileSync(
+  new URL('../../../src/components/location/ResilientTileLayer.tsx', import.meta.url),
+  'utf8',
+);
 
 test('opponents page keeps province and ward updates atomic and race-safe', () => {
   assert.match(source, /AdministrativeAreaSelects/);
@@ -45,7 +49,8 @@ test('manual queues stay discoverable while all new queues remain matchable', ()
   assert.match(source, /isPublic: creationMode === 'manual'/);
   assert.match(source, /isActive: true/);
   assert.match(source, /replayType: 'None'/);
-  assert.match(source, /https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png/);
+  assert.match(source, /ResilientTileLayer/);
+  assert.match(resilientTileLayerSource, /https:\/\/tile\.openstreetmap\.org\/\{z\}\/\{x\}\/\{y\}\.png/);
   assert.doesNotMatch(source, /nominatim\.openstreetmap\.org/i);
 });
 
