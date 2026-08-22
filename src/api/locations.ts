@@ -46,26 +46,44 @@ export const listWards = async (provinceCode: string, signal?: AbortSignal) => {
   return wards;
 };
 
+const findByNameInText = <T extends { name: string; fullName: string }>(
+  options: T[],
+  text: string,
+) => {
+  const normalizedText = normalizeAdministrativeName(text);
+  if (!normalizedText) return undefined;
+  return options
+    .filter((item) => normalizedText.includes(normalizeAdministrativeName(item.name)))
+    .sort((left, right) => right.name.length - left.name.length)[0];
+};
+
 export const resolveAdministrativeArea = async (
   province: string,
   ward = '',
   signal?: AbortSignal,
+  fallbackText = '',
 ) => {
-  if (!province.trim()) return { province: '', ward: '' };
+  if (!province.trim() && !fallbackText.trim()) return { province: '', ward: '' };
 
   const provinces = await listProvinces(signal);
-  const provinceOption = provinces.find((item) =>
-    administrativeNamesEqual(item.name, province)
-    || administrativeNamesEqual(item.fullName, province));
-  if (!provinceOption) return { province: '', ward: '' };
-  if (!ward.trim()) return { province: provinceOption.name, ward: '' };
+  const provinceOption = province.trim()
+    ? provinces.find((item) =>
+      administrativeNamesEqual(item.name, province)
+      || administrativeNamesEqual(item.fullName, province))
+    : undefined;
+  const resolvedProvince = provinceOption ?? findByNameInText(provinces, fallbackText);
+  if (!resolvedProvince) return { province: '', ward: '' };
+  if (!ward.trim() && !fallbackText.trim()) return { province: resolvedProvince.name, ward: '' };
 
-  const wards = await listWards(provinceOption.code, signal);
-  const wardOption = wards.find((item) =>
-    administrativeNamesEqual(item.name, ward)
-    || administrativeNamesEqual(item.fullName, ward));
+  const wards = await listWards(resolvedProvince.code, signal);
+  const wardOption = ward.trim()
+    ? wards.find((item) =>
+      administrativeNamesEqual(item.name, ward)
+      || administrativeNamesEqual(item.fullName, ward))
+    : undefined;
+  const resolvedWard = wardOption ?? findByNameInText(wards, fallbackText);
   return {
-    province: provinceOption.name,
-    ward: wardOption?.name ?? '',
+    province: resolvedProvince.name,
+    ward: resolvedWard?.name ?? '',
   };
 };

@@ -199,7 +199,12 @@ export const Opponents = () => {
       playerLocation.longitude,
       controller.signal,
     );
-    const area = await resolveAdministrativeArea(result.province, result.ward, controller.signal);
+    const area = await resolveAdministrativeArea(
+      result.province,
+      result.ward,
+      controller.signal,
+      result.displayName,
+    );
     return requestId === geocodeRequestId.current ? area : null;
   };
 
