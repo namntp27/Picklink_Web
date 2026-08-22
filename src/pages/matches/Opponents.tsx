@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
-import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { AlertTriangle, Crosshair, ListChecks, MapPin, Moon, PlusCircle, Route, Sparkles, Trophy, X, Repeat, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
+import { LeafletMapResizeHandler } from '../../components/location/LeafletMapResizeHandler';
+import { ResilientTileLayer } from '../../components/location/ResilientTileLayer';
 import {
   searchMatchVenues,
   type MatchFormat,
@@ -896,7 +898,8 @@ export const Opponents = () => {
           </div>
           <div className="h-[420px] bg-[#e7eee4] sm:h-[520px] xl:h-[calc(100dvh-190px)] xl:min-h-[540px] xl:max-h-[720px] relative z-10">
             <MapContainer center={location ? [location.latitude, location.longitude] : hanoiCenter} className="match-venue-map-google h-full w-full" scrollWheelZoom zoom={12}>
-              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <ResilientTileLayer />
+              <LeafletMapResizeHandler />
               <MapViewport location={location} radiusKm={radiusKm} venues={visibleVenues} />
               <MapClickEvents onMapClick={handleMapClick} />
               {location && (

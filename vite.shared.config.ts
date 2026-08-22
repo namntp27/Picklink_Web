@@ -8,6 +8,10 @@ import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 export type WebAppTarget = 'player' | 'owner' | 'admin';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const reactTransformExclude = [
+  /[\\/]node_modules[\\/]/,
+  /[\\/]picklink-vite-cache[\\/][^\\/]+[\\/]deps[\\/]/,
+];
 const appSettings: Record<WebAppTarget, { devPort: number; previewPort: number }> = {
   player: { devPort: 3000, previewPort: 4173 },
   owner: { devPort: 3001, previewPort: 4174 },
@@ -60,7 +64,7 @@ export const createAppViteConfig = (target: WebAppTarget) => defineConfig(({ mod
     root: path.join(projectRoot, 'apps', target),
     envDir: projectRoot,
     cacheDir: path.join(os.tmpdir(), 'picklink-vite-cache', target),
-    plugins: [react(), tailwindcss()],
+    plugins: [react({ exclude: reactTransformExclude }), tailwindcss()],
     resolve: {
       preserveSymlinks: true,
       alias: {

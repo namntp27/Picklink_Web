@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair, MapPin } from 'lucide-react';
 import { divIcon, type LatLngExpression, type LeafletMouseEvent } from 'leaflet';
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { ResilientTileLayer } from './ResilientTileLayer';
 import { LocationSearchControls } from './LocationSearchControls';
 import { createLocationSelectionController } from './locationSelection';
 import {
@@ -191,7 +192,7 @@ export const OpenStreetMapLocationPicker = ({
 
       <div className="h-72 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low">
         <MapContainer center={position ?? hanoiCenter} className="h-full w-full" scrollWheelZoom zoom={position ? 17 : 12}>
-          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <ResilientTileLayer />
           <MapClickHandler onSelect={(lat, lng) => { void selectPosition(lat, lng); }} />
           <RecenterMap position={position} />
           {position && (

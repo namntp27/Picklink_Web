@@ -44,9 +44,10 @@ import { useMatchRealtime } from '../../hooks/useMatchRealtime';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 import { CommunityPage } from '../community/CommunityUI';
 import { getCourtAvailability, type CourtAvailability } from '../../api/booking';
-import { MapContainer, TileLayer, Marker, Popup as LeafletPopup } from 'react-leaflet';
+import { MapContainer, Marker, Popup as LeafletPopup } from 'react-leaflet';
 import { divIcon, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { ResilientTileLayer } from '../../components/location/ResilientTileLayer';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
@@ -1023,10 +1024,7 @@ export const QueueDetail = () => {
                     className="h-full w-full"
                     scrollWheelZoom
                   >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
+                    <ResilientTileLayer />
                     <Marker
                       position={[selectedPopupVenue.latitude, selectedPopupVenue.longitude] as LatLngTuple}
                       icon={divIcon({

@@ -14,7 +14,7 @@ import {
   Star,
 } from 'lucide-react';
 import { divIcon, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet';
 import { Link, useOutletContext } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import { addFavoriteVenue, getBookingVenues, removeFavoriteVenue, type BookingVenue } from '../../api/booking';
@@ -23,6 +23,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useVenueRealtime } from '../../hooks/useVenueRealtime';
 import { AdministrativeAreaSelects } from '../../components/location/AdministrativeAreaSelects';
+import { LeafletMapResizeHandler } from '../../components/location/LeafletMapResizeHandler';
+import { ResilientTileLayer } from '../../components/location/ResilientTileLayer';
 import { PaginationControls } from '../../components/PaginationControls';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -490,7 +492,8 @@ export const BookCourt = () => {
             </div>
 
             <MapContainer center={hanoiCenter} className="match-venue-map-google relative z-0 h-full min-h-[460px] w-full lg:min-h-full" scrollWheelZoom zoom={12}>
-              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <ResilientTileLayer />
+              <LeafletMapResizeHandler />
               <MapViewport playerLocation={playerLocation} selectedVenue={selectedVenue} venues={mappedVenues} />
               {playerLocation && (
                 <Marker icon={playerIcon} position={[playerLocation.latitude, playerLocation.longitude]}>

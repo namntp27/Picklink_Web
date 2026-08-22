@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divIcon, latLng, type LatLngBoundsExpression, type LatLngTuple } from 'leaflet';
 import { motion, useReducedMotion } from 'motion/react';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet';
 import {
   ArrowLeft,
   Check,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { MatchPreferredVenue } from '../../../api/matches';
+import { ResilientTileLayer } from '../../../components/location/ResilientTileLayer';
 import { ModalDialog } from '../../../components/ui/ModalDialog';
 import { cachePlayerLocation, readCachedPlayerLocation, type PlayerLocation } from '../../../utils/playerLocation';
 import '../../community/community.css';
@@ -415,10 +416,7 @@ export const MatchVenueMapDialog = ({
                 scrollWheelZoom
                 zoom={12}
               >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+                <ResilientTileLayer />
                 <MapViewport
                   playerLocation={playerLocation}
                   venues={locatedVenues}
