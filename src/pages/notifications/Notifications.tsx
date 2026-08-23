@@ -40,7 +40,6 @@ import {
   confirmRefundReceived as confirmRefundReceivedRequest,
   disputeRefund,
   getRefundCase,
-  getRefundProofObjectUrl,
 } from '../../api/payment';
 import type { BankTransfer } from '../../api/booking';
 
@@ -187,7 +186,6 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
   const [busyRefundPaymentId, setBusyRefundPaymentId] = useState<number | null>(null);
   const [expandedRefundPaymentId, setExpandedRefundPaymentId] = useState<number | null>(null);
   const [refundCases, setRefundCases] = useState<Record<number, BankTransfer>>({});
-  const [refundProofUrls, setRefundProofUrls] = useState<Record<number, string>>({});
 
   const { data, error: loadError, loading: isLoading, refresh: loadNotifications } = useApiQuery(
     ['notifications', token, page, activeFilter],
@@ -316,15 +314,8 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
 
     setBusyRefundPaymentId(paymentId);
     try {
-      const [refundCase, proofUrl] = await Promise.all([
-        getRefundCase(token, paymentId),
-        getRefundProofObjectUrl(token, paymentId),
-      ]);
+      const refundCase = await getRefundCase(token, paymentId);
       setRefundCases((current) => ({ ...current, [paymentId]: refundCase }));
-      setRefundProofUrls((current) => {
-        if (current[paymentId]) URL.revokeObjectURL(current[paymentId]);
-        return { ...current, [paymentId]: proofUrl };
-      });
       setExpandedRefundPaymentId(paymentId);
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể tải hồ sơ hoàn tiền.'), 'error');
@@ -543,8 +534,8 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
                           {refundPaymentId && expandedRefundPaymentId === refundPaymentId && refundCases[refundPaymentId] && (
                             <section className="mt-3 grid gap-3 rounded-xl border border-[#b9dca8] bg-[#f7fbf3] p-3 sm:grid-cols-[180px_minmax(0,1fr)]">
                               <div className="overflow-hidden rounded-lg border border-[#d8e4d4] bg-white">
-                                {refundProofUrls[refundPaymentId] ? (
-                                  <img alt="Minh chứng hoàn tiền từ chủ sân" className="h-44 w-full object-contain" src={refundProofUrls[refundPaymentId]} />
+                                {refundCases[refundPaymentId].refundProofImageUrl ? (
+                                  <img alt="Minh chứng hoàn tiền từ chủ sân" className="h-44 w-full object-contain" src={refundCases[refundPaymentId].refundProofImageUrl!} />
                                 ) : (
                                   <div className="grid h-44 place-items-center text-[#718077]"><ImageIcon className="h-7 w-7" /></div>
                                 )}

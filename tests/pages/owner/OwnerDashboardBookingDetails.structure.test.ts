@@ -15,10 +15,19 @@ test('owner schedule booking drawer shows slot check-in status', () => {
   assert.match(apiSource, /checkInStatus\?: string \| null/);
 });
 
-test('owner schedule disables cancellation after any slot starts', () => {
-  assert.ok(pageSource.includes('disabled={!selectedSlotItem.canCancel}'));
-  assert.match(pageSource, /Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy/);
-  assert.ok(apiSource.includes('canCancel: item.canCancel ?? true'));
+test('owner schedule disables cancellation per occurrence, not for the whole multi-slot booking', () => {
+  // A whole-month package keeps its still-upcoming days cancellable even after an earlier day
+  // started or was checked in — only the specific clicked occurrence gates the button.
+  assert.ok(pageSource.includes('disabled={!selectedSlot!.canCancel}'));
+  assert.match(pageSource, /Buổi này đã bắt đầu hoặc người chơi đã check-in nên không thể hủy/);
+  assert.match(apiSource, /canCancel: boolean;/);
+});
+
+test('owner cancels just the clicked occurrence of a multi-slot booking, not the whole booking', () => {
+  assert.ok(pageSource.includes('cancelOwnerBookingCheckInGroup(token, item.bookingId, groupId, cancelReason.trim())'));
+  assert.match(pageSource, /const groupId = status === 'Cancelled' \? selectedSlot\?\.bookingCheckInGroupId : null;/);
+  assert.ok(apiSource.includes('export const cancelOwnerBookingCheckInGroup'));
+  assert.match(apiSource, /bookingCheckInGroupId\?: number \| null;/);
 });
 
 test('owner messages are separate from the player community inbox', () => {

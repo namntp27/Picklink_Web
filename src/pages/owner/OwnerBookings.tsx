@@ -664,6 +664,15 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                                 Xử lý hoàn tiền
                               </button>
                             )}
+                            {!isMatchBooking && booking.hasRefundPending && (
+                              <Link
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 text-[11px] font-bold text-amber-900 hover:bg-amber-100"
+                                to={`/owner/bookings/${booking.id}`}
+                              >
+                                <Banknote className="h-3.5 w-3.5" />
+                                Xử lý hoàn tiền
+                              </Link>
+                            )}
                             <button
                               aria-label={`Xem ${booking.code}`}
                               className="grid h-8 w-8 place-items-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"

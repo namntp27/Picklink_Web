@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useParams } from 'react-router-dom';
 import {
+  AlertCircle,
   ArrowLeft,
+  Banknote,
   CalendarDays,
   CheckCircle2,
   Clipboard,
@@ -14,12 +16,16 @@ import {
   TicketCheck,
   XCircle,
 } from 'lucide-react';
-import { getBookingHolding, type BookingHolding } from '../../api/booking';
+import { getBookingHolding, type BankTransfer, type BookingHolding } from '../../api/booking';
+import { confirmRefundReceived, disputeRefund, getRefundCase } from '../../api/payment';
+import { ApiError } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
 import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
+import { useToast } from '../../components/ui/ToastRegion';
 
 const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 const playDate = (value: string) => new Intl.DateTimeFormat('vi-VN', {
@@ -46,6 +52,8 @@ const paymentStatusLabels: Record<string, string> = {
   Paid: 'Đã thanh toán',
   Cancelled: 'Đã hủy',
   Expired: 'Đã hết hạn',
+  RefundPending: 'Chờ hoàn tiền',
+  Refunded: 'Đã hoàn tiền',
 };
 const checkInStatusLabels: Record<string, string> = {
   NotOpen: 'Chưa mở check-in',
@@ -72,7 +80,13 @@ const primaryLinkButton = `${linkButtonBase} border border-[#e2ff57] bg-[#e2ff57
 export const BookingDetail = () => {
   const bookingId = Number(useParams().id);
   const { token } = useAuth();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
+  const notify = useToast();
   const [copied, setCopied] = useState(false);
+  const [refundCase, setRefundCase] = useState<BankTransfer | null>(null);
+  const [isRefundBusy, setIsRefundBusy] = useState(false);
+  const [refundError, setRefundError] = useState('');
   const shouldReduceMotion = useReducedMotion();
 
   const isValidRequest = Boolean(token) && Number.isInteger(bookingId);
@@ -83,6 +97,71 @@ export const BookingDetail = () => {
   );
 
   const error = isValidRequest ? loadError : 'Mã booking không hợp lệ.';
+
+  const refundPaymentId = booking?.paymentStatus === 'RefundPending' ? booking.bankTransfer?.paymentId : undefined;
+  useEffect(() => {
+    if (!token || !refundPaymentId) { setRefundCase(null); return; }
+    let cancelled = false;
+    setIsRefundBusy(true);
+    setRefundError('');
+    getRefundCase(token, refundPaymentId).then((loadedCase) => {
+      if (!cancelled) setRefundCase(loadedCase);
+    }).catch((requestError) => {
+      if (!cancelled) setRefundError(requestError instanceof ApiError ? requestError.message : 'Không thể tải hồ sơ hoàn tiền.');
+    }).finally(() => {
+      if (!cancelled) setIsRefundBusy(false);
+    });
+    return () => { cancelled = true; };
+  }, [token, refundPaymentId]);
+
+  const confirmReceivedRefund = async () => {
+    if (!token || !refundPaymentId) return;
+    if (!(await confirm({
+      title: 'Bạn đã nhận được tiền hoàn?',
+      message: 'Chỉ xác nhận khi khoản tiền hoàn đã thực sự vào tài khoản của bạn.',
+      confirmLabel: 'Đã nhận được tiền',
+      tone: 'success',
+    }))) return;
+    setIsRefundBusy(true);
+    setRefundError('');
+    try {
+      await confirmRefundReceived(token, refundPaymentId);
+      notify('Đã xác nhận nhận tiền hoàn.', 'success');
+      await load();
+    } catch (requestError) {
+      setRefundError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận nhận tiền hoàn.');
+    } finally {
+      setIsRefundBusy(false);
+    }
+  };
+
+  const submitRefundDispute = async () => {
+    if (!token || !refundPaymentId) return;
+    const reason = (await prompt({
+      title: 'Khiếu nại khoản hoàn tiền',
+      message: 'Mô tả rõ số tiền chưa nhận được hoặc điểm không khớp trong minh chứng để Admin kiểm tra.',
+      label: 'Lý do khiếu nại',
+      placeholder: 'Ví dụ: Chưa nhận được tiền sau khi kiểm tra tài khoản...',
+      required: true,
+      confirmLabel: 'Gửi khiếu nại',
+      tone: 'danger',
+    }))?.trim();
+    if (!reason) return;
+    if (reason.length < 5) { notify('Lý do khiếu nại phải có ít nhất 5 ký tự.', 'error'); return; }
+
+    setIsRefundBusy(true);
+    setRefundError('');
+    try {
+      await disputeRefund(token, refundPaymentId, reason);
+      const updated = await getRefundCase(token, refundPaymentId);
+      setRefundCase(updated);
+      notify('Đã gửi khiếu nại đến Admin.', 'success');
+    } catch (requestError) {
+      setRefundError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi khiếu nại.');
+    } finally {
+      setIsRefundBusy(false);
+    }
+  };
 
   usePaymentRealtime((event) => {
     if (event.bookingId !== bookingId) return;
@@ -236,6 +315,64 @@ export const BookingDetail = () => {
           </div>
         </motion.section>
 
+        {booking.paymentStatus === 'RefundPending' && (
+          <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)]">
+            <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-amber-900">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <Banknote className="h-4 w-4" />
+              </span>
+              Đang chờ hoàn tiền
+            </h2>
+            <p className="mt-2 text-[13px] leading-5 text-amber-900">
+              Booking này đã hủy. Chủ sân cần hoàn lại {refundCase ? currency.format(refundCase.groupTotalAmount || refundCase.amount) : 'khoản đã thanh toán'} cho bạn.
+            </p>
+
+            {refundError && (
+              <p className="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-error">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {refundError}
+              </p>
+            )}
+
+            {isRefundBusy && !refundCase && (
+              <div className="mt-3 flex items-center gap-2 text-[13px] text-amber-900">
+                <Loader2 className="h-4 w-4 animate-spin" /> Đang tải hồ sơ hoàn tiền...
+              </div>
+            )}
+
+            {refundCase && (
+              <div className="mt-3 space-y-3">
+                {refundCase.refundProofImageUrl ? (
+                  <img alt="Minh chứng hoàn tiền từ chủ sân" className="max-h-64 w-full rounded-xl border border-amber-200 bg-white object-contain" src={refundCase.refundProofImageUrl} />
+                ) : (
+                  <p className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-[12px] text-amber-900">Chủ sân chưa gửi minh chứng hoàn tiền.</p>
+                )}
+                {refundCase.refundReference && (
+                  <p className="text-[12px] text-amber-900">Mã tham chiếu: <strong>{refundCase.refundReference}</strong></p>
+                )}
+                {refundCase.refundDisputeStatus === 'Open' && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-bold text-red-700">
+                    Bạn đã khiếu nại: {refundCase.refundDisputeReason}. Admin đang xem xét.
+                  </p>
+                )}
+                {refundCase.refundDisputeResolution && (
+                  <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-800">
+                    <strong>Kết luận của Admin:</strong> {refundCase.refundDisputeResolution}
+                  </p>
+                )}
+                {refundCase.refundDisputeStatus !== 'Open' && refundCase.paymentStatus === 'RefundPending' && (
+                  <div className="flex flex-wrap gap-2">
+                    <button className="inline-flex items-center gap-2 rounded-lg bg-[#081d24] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={isRefundBusy} onClick={() => void confirmReceivedRefund()} type="button">
+                      <CheckCircle2 className="h-4 w-4" /> Đã nhận được tiền
+                    </button>
+                    <button className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-[13px] font-bold text-red-700 disabled:opacity-50" disabled={isRefundBusy} onClick={() => void submitRefundDispute()} type="button">
+                      <AlertCircle className="h-4 w-4" /> Khiếu nại
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section className="rounded-2xl bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] ring-1 ring-outline-variant/80">
@@ -286,7 +423,7 @@ export const BookingDetail = () => {
           <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             <section className="rounded-2xl bg-white p-3 shadow-[0_14px_34px_rgba(18,45,34,0.07)] ring-1 ring-outline-variant/80">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">{'Mã check-in'}</p>
-              <div className="mt-2 space-y-1">
+              <div className="custom-scrollbar mt-2 max-h-[340px] space-y-1 overflow-y-auto pr-1">
                 {booking.checkInGroups.map((group) => (
                   <div className="rounded-lg bg-surface-container-low px-3 py-2 text-[12px]" key={group.bookingCheckInGroupId}>
                     <p className="font-extrabold text-on-surface">{playDate(group.startTime)}</p>

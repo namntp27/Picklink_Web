@@ -21,6 +21,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import {
+  cancelOwnerBookingCheckInGroup,
   createOwnerScheduleEntry,
   deleteOwnerScheduleEntry,
   getOwnerSchedule,
@@ -217,7 +218,7 @@ export const OwnerDashboard = () => {
     : undefined;
   // Đơn đã thanh toán giờ hủy được, khoản đã thu chuyển sang chờ hoàn tiền; chỉ buổi đã bắt
   // đầu là không lùi lại được nữa.
-  const cancellationBlockedMessage = 'Booking đã bắt đầu hoặc có slot thuộc quá khứ nên không thể hủy.';
+  const cancellationBlockedMessage = 'Buổi này đã bắt đầu hoặc người chơi đã check-in nên không thể hủy.';
 
   const selectedCourt = useMemo(
     () => schedule?.venues.flatMap((venue) => venue.courts).find((court) => court.courtId.toString() === courtId),
@@ -362,12 +363,19 @@ export const OwnerDashboard = () => {
 
   const updateStatus = async (item: OwnerScheduleItem, status: 'Confirmed' | 'Cancelled') => {
     if (!token) return;
+    // Cancelling from a multi-slot booking (e.g. a whole-month package) only cancels the clicked
+    // occurrence, not the whole booking — mirrors selectedSlotItem.canCancel below.
+    const groupId = status === 'Cancelled' ? selectedSlot?.bookingCheckInGroupId : null;
     if (status === 'Cancelled' && !(await confirm({
-      title: `Hủy booking #${item.bookingId}?`,
-      message: item.requiresRefund
-        ? 'Khoản đã thanh toán sẽ chuyển sang chờ hoàn tiền và người chơi nhận được thông báo kèm lý do.'
-        : 'Slot sẽ được trả về trạng thái trống và người chơi nhận được thông báo kèm lý do.',
-      confirmLabel: 'Hủy booking',
+      title: groupId
+        ? `Hủy buổi ${dateLabel(selectedSlot!.startTime.slice(0, 10))} ${timeValue(selectedSlot!.startTime)}?`
+        : `Hủy booking #${item.bookingId}?`,
+      message: groupId
+        ? 'Chỉ buổi này bị hủy, các buổi khác trong gói vẫn giữ nguyên. Nếu buổi này đã thanh toán, khoản tương ứng sẽ chuyển sang chờ hoàn tiền.'
+        : item.requiresRefund
+          ? 'Khoản đã thanh toán sẽ chuyển sang chờ hoàn tiền và người chơi nhận được thông báo kèm lý do.'
+          : 'Slot sẽ được trả về trạng thái trống và người chơi nhận được thông báo kèm lý do.',
+      confirmLabel: groupId ? 'Hủy buổi này' : 'Hủy booking',
       tone: 'danger',
     }))) return;
     if (status === 'Confirmed' && !(await confirm({
@@ -377,7 +385,11 @@ export const OwnerDashboard = () => {
       tone: 'success',
     }))) return;
     try {
-      await updateOwnerBookingStatus(token, item.bookingId, status, cancelReason.trim() || undefined);
+      if (groupId) {
+        await cancelOwnerBookingCheckInGroup(token, item.bookingId, groupId, cancelReason.trim());
+      } else {
+        await updateOwnerBookingStatus(token, item.bookingId, status, cancelReason.trim() || undefined);
+      }
       setSelectedSlot(null);
       setIsCancelPanelOpen(false);
       setCancelReason('');
@@ -618,6 +630,9 @@ export const OwnerDashboard = () => {
                             Lý do hủy *
                             <textarea className="mt-1.5 h-16 w-full resize-none rounded-lg border border-outline-variant px-3 py-2 text-[13px] font-normal text-on-surface" maxLength={500} onChange={(event) => setCancelReason(event.target.value)} placeholder="Ví dụ: sân ngập nước, mất điện..." value={cancelReason} />
                           </label>
+                          {selectedSlot!.bookingCheckInGroupId && (
+                            <p className="mt-1 text-[12px] font-bold text-on-surface-variant">Chỉ buổi này bị hủy, các buổi khác trong gói vẫn giữ nguyên.</p>
+                          )}
                           {selectedSlotItem.requiresRefund && (
                             <p className="mt-1 text-[12px] font-bold text-amber-900">Đơn đã thanh toán: hủy xong sẽ phải hoàn tiền cho khách.</p>
                           )}
@@ -632,10 +647,10 @@ export const OwnerDashboard = () => {
                         </div>
                       ) : (
                         <>
-                          <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600 disabled:cursor-not-allowed disabled:bg-red-50 disabled:opacity-50" disabled={!selectedSlotItem.canCancel} onClick={() => setIsCancelPanelOpen(true)} title={!selectedSlotItem.canCancel ? cancellationBlockedMessage : undefined} type="button">
-                            <XCircle className="h-4 w-4" /> Hủy booking
+                          <button className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-[13px] font-bold text-red-600 disabled:cursor-not-allowed disabled:bg-red-50 disabled:opacity-50" disabled={!selectedSlot!.canCancel} onClick={() => setIsCancelPanelOpen(true)} title={!selectedSlot!.canCancel ? cancellationBlockedMessage : undefined} type="button">
+                            <XCircle className="h-4 w-4" /> {selectedSlot!.bookingCheckInGroupId ? 'Hủy buổi này' : 'Hủy booking'}
                           </button>
-                          {!selectedSlotItem.canCancel && <p className="basis-full text-[12px] font-bold text-red-600">{cancellationBlockedMessage}</p>}
+                          {!selectedSlot!.canCancel && <p className="basis-full text-[12px] font-bold text-red-600">{cancellationBlockedMessage}</p>}
                         </>
                       )}
                     </>

@@ -6,7 +6,6 @@ import {
   resolveAdminRefundDispute,
   type AdminBookingSummary,
 } from '../../api/adminBookings';
-import { getRefundProofObjectUrl } from '../../api/payment';
 import { ApiError, type PaginatedResponse } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -200,14 +199,9 @@ export const AdminBookings = () => {
     }
   };
 
-  const viewRefundProof = async (booking: AdminBookingSummary) => {
-    if (!token || !booking.refundProofPaymentId) return;
-    try {
-      const objectUrl = await getRefundProofObjectUrl(token, booking.refundProofPaymentId);
-      window.open(objectUrl, '_blank', 'noopener,noreferrer');
-    } catch (requestError) {
-      notify(requestError instanceof ApiError ? requestError.message : 'Không thể tải ảnh minh chứng.', 'error');
-    }
+  const viewRefundProof = (booking: AdminBookingSummary) => {
+    if (!booking.refundProofImageUrl) return;
+    window.open(booking.refundProofImageUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -338,7 +332,7 @@ export const AdminBookings = () => {
                   <td className="px-4 py-3">
                     {booking.paymentStatus === 'RefundDisputed' ? (
                       <div className="flex flex-wrap gap-2">
-                        {booking.refundProofPaymentId && <button className={`${outlineButton} border-blue-300 text-blue-800 hover:bg-blue-50`} onClick={() => void viewRefundProof(booking)} type="button"><ExternalLink className="h-4 w-4" />Xem minh chứng</button>}
+                        {booking.refundProofImageUrl && <button className={`${outlineButton} border-blue-300 text-blue-800 hover:bg-blue-50`} onClick={() => viewRefundProof(booking)} type="button"><ExternalLink className="h-4 w-4" />Xem minh chứng</button>}
                         <button
                           className={`${outlineButton} border-emerald-300 text-emerald-800 hover:bg-emerald-50`}
                           disabled={busyId === booking.bookingId}

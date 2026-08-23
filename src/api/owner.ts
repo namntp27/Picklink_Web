@@ -125,6 +125,10 @@ export type OwnerScheduleSlot = {
   checkInStatus?: string | null;
   entryType?: OwnerScheduleDisplayEntryType | null;
   title?: string | null;
+  /** The occurrence covering this cell when the booking spans multiple slots (e.g. a whole-month package). Null for single-slot bookings and owner-created entries. */
+  bookingCheckInGroupId?: number | null;
+  /** Whether THIS occurrence specifically can still be cancelled — unlike the booking-level flag, an earlier or already checked-in occurrence in the same multi-slot booking does not lock out a later one. */
+  canCancel: boolean;
 };
 
 export type OwnerSchedule = {
@@ -370,6 +374,12 @@ export const deleteOwnerScheduleBlock = (token: string, bookingId: number) => ap
 export const updateOwnerBookingStatus = (token: string, bookingId: number, status: 'Confirmed' | 'Cancelled', reason?: string) => apiRequest<{ bookingId: number; status: string }>(`/api/owner/bookings/${bookingId}/status`, {
   method: 'PATCH',
   body: JSON.stringify({ status, reason }),
+}, token);
+
+/** Cancels a single occurrence (e.g. one day of a whole-month package) instead of the whole booking. */
+export const cancelOwnerBookingCheckInGroup = (token: string, bookingId: number, bookingCheckInGroupId: number, reason: string) => apiRequest<void>(`/api/owner/bookings/${bookingId}/check-in-groups/${bookingCheckInGroupId}/cancel`, {
+  method: 'PATCH',
+  body: JSON.stringify({ reason }),
 }, token);
 
 export const submitOwnerBookingRefundProof = async (

@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, ShieldAlert, Zap } from 'lucide-react';
+import { CheckCircle2, Loader2, RefreshCw, ShieldAlert, Zap } from 'lucide-react';
 
 export interface SePayAutoPollingToggleProps {
   hasSePayConfigured?: boolean;
@@ -138,12 +138,6 @@ export const SePayAutoPollingToggle = ({
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#477313]" />
             <span>
               Chuyển đúng nội dung {transferContent ? <code className='font-bold text-[#0b2228]'>{transferContent}</code> : 'mã thanh toán'} và chờ hệ thống xác nhận tự động. Bạn chưa cần gửi biên lai.
-            </span>
-          </p>
-          <p className='flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900'>
-            <AlertCircle className='mt-0.5 h-3.5 w-3.5 shrink-0' />
-            <span>
-              <strong>Chỉ gửi biên lai khi cần:</strong> Nếu bạn đã thanh toán nhưng sau vài lần kiểm tra vẫn chưa thấy phản hồi, hãy dùng mục gửi biên lai bên dưới.
             </span>
           </p>
         </div>

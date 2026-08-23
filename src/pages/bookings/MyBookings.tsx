@@ -281,6 +281,15 @@ export const MyBookings = () => {
                 const displayRange = getBookingRange(booking);
                 const scheduleDate = displayRange.startTime.slice(0, 10);
                 const isBusy = busyId === booking.bookingId;
+                const occurrences = (booking.checkInGroups.length > 0
+                  ? booking.checkInGroups
+                  : booking.slots.length > 0
+                    ? booking.slots
+                    : [booking])
+                  .slice()
+                  .sort((first, second) => first.startTime.localeCompare(second.startTime));
+                const isRecurring = occurrences.length > 1;
+                const playDateLabel = date(displayRange.startTime);
 
                 return (
                   <motion.article
@@ -309,7 +318,7 @@ export const MyBookings = () => {
                         <p className="mt-0.5 break-all text-[12px] font-bold text-[#081d24]">{booking.bookingCode}</p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-3">
                           {[
-                            { icon: CalendarDays, label: 'Ngày chơi', value: date(displayRange.startTime) },
+                            { icon: CalendarDays, label: isRecurring ? 'Buổi tiếp theo' : 'Ngày chơi', value: playDateLabel },
                             { icon: Clock, label: 'Khung giờ', value: `${time(displayRange.startTime)} - ${time(displayRange.endTime)}` },
                             { icon: MapPin, label: 'Địa chỉ', value: booking.address },
                           ].map((item) => (
@@ -322,6 +331,14 @@ export const MyBookings = () => {
                             </div>
                           ))}
                         </div>
+                        {isRecurring && (
+                          <Link
+                            className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                            to={`/bookings/${booking.bookingId}`}
+                          >
+                            Xem tất cả {occurrences.length} buổi trong gói này
+                          </Link>
+                        )}
                       </div>
 
                       <div className="h-fit shrink-0 rounded-lg border border-[#e2ff57]/40 bg-[#081d24] p-3 text-white xl:w-[180px]">

@@ -121,11 +121,17 @@ const CourtCheckout = () => {
   const loadBooking = async (silent = false) => {
     if (!token || !Number.isInteger(bookingId)) { setError('Booking không hợp lệ.'); return; }
     try {
-      const [loadedBooking] = await Promise.all([
+      const [loadedBooking, payment] = await Promise.all([
         getBookingHolding(token, bookingId),
         getPlayerBookingPayment(token, bookingId),
       ]);
-      setBooking(loadedBooking);
+      setBooking({
+        ...loadedBooking,
+        paymentStatus: payment.paymentStatus,
+        status: payment.bookingStatus as BookingHolding['status'],
+        holdExpiresAt: payment.holdExpiresAt,
+        bankTransfer: payment,
+      });
       if (!silent) setError('');
     } catch (requestError) {
       if (redirectToPhoneProfile(requestError)) return;
@@ -478,7 +484,7 @@ const CourtCheckout = () => {
                   />
 
                   <ReceiptFallbackPanel
-                    defaultOpen={Boolean(transfer.rejectionReason || !hasSePayConfigured)}
+                    defaultOpen={false}
                     hasSePayConfigured={hasSePayConfigured}
                   >
                     <>

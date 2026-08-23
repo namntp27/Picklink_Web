@@ -39,7 +39,9 @@ test('money already collected becomes a refund debt rather than vanishing', () =
 test('the owner submits proof while the player remains responsible for final confirmation', () => {
   assert.doesNotMatch(serviceSource, /payment\.Status = "Refunded"/);
   assert.match(serviceSource, /Action = isUpdate \? "OwnerUpdatedRefundProof" : "OwnerMarkedRefundSent"/);
-  assert.match(serviceSource, /payment\.RefundProofImageUrl = proofFileName/);
+  // Refund proof now uploads to Cloudinary (same as the player's receipt) instead of local disk.
+  assert.match(serviceSource, /payment\.RefundProofImageUrl = proofUrl/);
+  assert.match(serviceSource, /_cloudinaryUpload\.UploadImageAsync\(\s*\n\s*stream,\s*\n\s*fileName,\s*\n\s*"picklink_refund_proofs"/);
   assert.match(serviceSource, /Booking này không có khoản nào đang chờ hoàn tiền\./);
 
   assert.ok(apiSource.includes('export const submitOwnerBookingRefundProof'));

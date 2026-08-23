@@ -10,7 +10,7 @@ test('admin bookings exposes a player-dispute queue and proof metadata', () => {
   assert.match(pageSource, /RefundDisputed: 'Đang khiếu nại'/);
   assert.match(pageSource, /booking\.refundPendingSince/);
   assert.match(pageSource, /booking\.refundDisputeReason/);
-  assert.match(pageSource, /booking\.refundProofPaymentId/);
+  assert.match(pageSource, /booking\.refundProofImageUrl/);
   assert.match(pageSource, /setPaymentStatus\('RefundDisputed'\)/);
 });
 
