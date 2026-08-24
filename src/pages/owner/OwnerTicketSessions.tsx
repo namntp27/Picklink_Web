@@ -12,6 +12,7 @@ import {
 } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
 import { PaginationControls } from '../../components/PaginationControls';
+import { HalfHourTimeSelect } from '../../components/ui/HalfHourTimeSelect';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
@@ -21,9 +22,10 @@ import { lastBookableDate } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
-const dateTime = new Intl.DateTimeFormat('vi-VN', {
-  weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+const dateOnly = new Intl.DateTimeFormat('vi-VN', {
+  weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
 });
+const timeOnly = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 const statusLabels: Record<TicketSessionStatus, string> = {
   Draft: 'Bản nháp', Published: 'Đang bán vé', Completed: 'Đã kết thúc', Cancelled: 'Đã hủy',
 };
@@ -47,6 +49,7 @@ const today = () => {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
 };
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
+const isHalfHourStep = (value: string) => value.slice(3, 5) === '00' || value.slice(3, 5) === '30';
 const maxTicketSessionDate = () => lastBookableDate(today());
 
 const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
@@ -105,6 +108,8 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
       ? 'Hãy chọn cụm sân và sân đang hoạt động.'
       : title.trim().length < 3
         ? 'Tên buổi chơi cần ít nhất 3 ký tự.'
+        : !isHalfHourStep(startTime) || !isHalfHourStep(endTime)
+          ? 'Giờ chỉ được chọn theo mốc 00 hoặc 30 phút.'
         : !(start < end)
           ? 'Giờ kết thúc phải sau giờ bắt đầu.'
             : start <= new Date()
@@ -154,9 +159,9 @@ const CreateSessionModal = ({ token, venues, onClose, onCreated }: {
           <label><span className="mb-1.5 block text-[13px] font-bold">Cụm sân *</span><select className="w-full" onChange={(event) => changeVenue(event.target.value)} required value={venueId}><option value="">Chọn cụm sân</option>{selectableVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
           <label><span className="mb-1.5 block text-[13px] font-bold">Sân *</span><select className="w-full" onChange={(event) => setCourtId(event.target.value)} required value={courtId}><option value="">Chọn sân</option>{courts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType}</option>)}</select></label>
           <label><span className="mb-1.5 block text-[13px] font-bold">Ngày chơi *</span><input className="w-full px-3" max={maxTicketSessionDate()} min={today()} onChange={(event) => setDate(event.target.value)} required type="date" value={date} /></label>
-          <div className="grid grid-cols-2 gap-3">
-            <label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu *</span><input className="w-full px-3" onChange={(event) => setStartTime(event.target.value)} required step={1800} type="time" value={startTime} /></label>
-            <label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc *</span><input className="w-full px-3" onChange={(event) => setEndTime(event.target.value)} required step={1800} type="time" value={endTime} /></label>
+          <div className="flex gap-3">
+            <label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu *</span><HalfHourTimeSelect onChange={setStartTime} value={startTime} /></label>
+            <label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc *</span><HalfHourTimeSelect onChange={setEndTime} value={endTime} /></label>
           </div>
         </div>
         <label><span className="mb-1.5 block text-[13px] font-bold">Tên buổi chơi *</span><input className="w-full px-3" maxLength={200} minLength={3} onChange={(event) => setTitle(event.target.value)} placeholder="Ví dụ: Kèo vui tối thứ Sáu" required value={title} /></label>
@@ -245,7 +250,7 @@ export const OwnerTicketSessions = () => {
               <tbody>{result.items.map((session) => (
                 <tr className="border-t border-outline-variant" key={session.ticketSessionId}>
                   <td><p className="font-bold">{session.title}</p><p className="mt-1 text-[12px] text-on-surface-variant">Level {session.minSkillLevel}–{session.maxSkillLevel} · {session.playFormat}</p></td>
-                  <td><p className="font-bold">{session.venueName} · Sân {session.courtNumber}</p><p className="mt-1 text-[12px] text-on-surface-variant"><CalendarDays className="mr-1 inline h-3.5 w-3.5" />{dateTime.format(new Date(session.startTime))} – {session.endTime.slice(11, 16)}</p></td>
+                  <td><p className="font-bold">{session.venueName} · Sân {session.courtNumber}</p><p className="mt-1 text-[12px] text-on-surface-variant"><CalendarDays className="mr-1 inline h-3.5 w-3.5" />{dateOnly.format(new Date(session.startTime))} · {timeOnly.format(new Date(session.startTime))} – {timeOnly.format(new Date(session.endTime))}</p></td>
                   <td><p className="font-bold"><UsersRound className="mr-1 inline h-4 w-4" />{session.soldTickets}/{session.maxPlayers}</p><p className="mt-1 text-[12px] text-on-surface-variant">{session.reservedTickets} đang giữ · {session.remainingTickets} còn lại</p></td>
                   <td className="font-bold">{session.ticketPrice === 0 ? 'Miễn phí' : money.format(session.ticketPrice)}</td>
                   <td><span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClasses[session.status]}`}>{statusLabels[session.status]}</span></td>

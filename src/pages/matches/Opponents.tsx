@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import { LeafletMapResizeHandler } from '../../components/location/LeafletMapResizeHandler';
 import { ResilientTileLayer } from '../../components/location/ResilientTileLayer';
+import { HalfHourTimeSelect } from '../../components/ui/HalfHourTimeSelect';
 import {
   searchMatchVenues,
   type MatchFormat,
@@ -842,23 +843,16 @@ export const Opponents = () => {
             <div className="grid grid-cols-2 gap-2 border-t border-[#cfe0c8] pt-3">
               <label>
                 <span className="mb-1 block text-[11px] font-bold text-[#718077]">Giờ bắt đầu</span>
-                <input
-                  type="time"
-                  className={inputClass}
-                  lang="en-GB"
-                  min={dateFrom === today() ? currentTime() : undefined}
+                <HalfHourTimeSelect
+                  onChange={(value) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeFrom', value)}
                   value={availabilitySlots[0].timeFrom}
-                  onChange={(e) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeFrom', e.target.value)}
                 />
               </label>
               <label>
                 <span className="mb-1 block text-[11px] font-bold text-[#718077]">Giờ kết thúc</span>
-                <input
-                  type="time"
-                  className={inputClass}
-                  lang="en-GB"
+                <HalfHourTimeSelect
+                  onChange={(value) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeTo', value)}
                   value={availabilitySlots[0].timeTo}
-                  onChange={(e) => updateAvailabilitySlot(availabilitySlots[0].id, 'timeTo', e.target.value)}
                 />
               </label>
             </div>

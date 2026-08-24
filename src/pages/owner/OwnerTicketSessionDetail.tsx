@@ -31,6 +31,7 @@ import {
 } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { HalfHourTimeSelect } from '../../components/ui/HalfHourTimeSelect';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -42,10 +43,11 @@ import { OwnerTransactionReviewModal } from './components/OwnerTransactionReview
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
-const dateTime = new Intl.DateTimeFormat('vi-VN', {
-  weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+const dateOnly = new Intl.DateTimeFormat('vi-VN', {
+  weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
 });
 const shortDateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+const timeOnly = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' });
 const statusLabels: Record<TicketSessionStatus, string> = {
   Draft: 'Bản nháp', Published: 'Đang bán vé', Completed: 'Đã kết thúc', Cancelled: 'Đã hủy',
 };
@@ -65,6 +67,7 @@ const badgeClass = (status: string) => status === 'Published' || status === 'Pai
       ? 'bg-red-50 text-red-700'
       : 'bg-[#eef2e8] text-[#596151]';
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
+const isHalfHourStep = (value: string) => value.slice(3, 5) === '00' || value.slice(3, 5) === '30';
 const localDateKey = () => {
   const value = new Date();
   return [value.getFullYear(), String(value.getMonth() + 1).padStart(2, '0'), String(value.getDate()).padStart(2, '0')].join('-');
@@ -199,6 +202,8 @@ export const OwnerTicketSessionDetail = () => {
       ? 'Hãy chọn cụm sân và sân.'
       : edit.title.trim().length < 3
         ? 'Tên buổi chơi cần ít nhất 3 ký tự.'
+        : !isHalfHourStep(edit.startTime) || !isHalfHourStep(edit.endTime)
+          ? 'Giờ chỉ được chọn theo mốc 00 hoặc 30 phút.'
         : !(start < end)
           ? 'Giờ kết thúc phải sau giờ bắt đầu.'
             : start <= new Date()
@@ -309,7 +314,7 @@ export const OwnerTicketSessionDetail = () => {
               </div>
               <div className="grid gap-3 text-[13px]">
                 <div className="flex gap-3 rounded-lg bg-surface-container-low p-3"><MapPin className="h-5 w-5 shrink-0 text-primary" /><div><p className="font-bold">{session.venueName} · Sân {session.courtNumber}</p><p className="mt-1 text-on-surface-variant">{session.venueAddress}</p></div></div>
-                <div className="flex gap-3 rounded-lg bg-surface-container-low p-3"><CalendarDays className="h-5 w-5 shrink-0 text-primary" /><div><p className="font-bold">{dateTime.format(new Date(session.startTime))}</p><p className="mt-1 text-on-surface-variant">Kết thúc lúc {session.endTime.slice(11, 16)}</p></div></div>
+                <div className="flex gap-3 rounded-lg bg-surface-container-low p-3"><CalendarDays className="h-5 w-5 shrink-0 text-primary" /><div><p className="font-bold">{dateOnly.format(new Date(session.startTime))}</p><p className="mt-1 text-on-surface-variant">{timeOnly.format(new Date(session.startTime))} – {timeOnly.format(new Date(session.endTime))}</p></div></div>
               </div>
             </div>
           </section>
@@ -413,9 +418,9 @@ export const OwnerTicketSessionDetail = () => {
               <label><span className="mb-1.5 block text-[13px] font-bold">Cụm sân *</span><select className="w-full disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => changeEditVenue(event.target.value)} required value={edit.venueId}>{editableVenues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}</select></label>
               <label><span className="mb-1.5 block text-[13px] font-bold">Sân *</span><select className="w-full disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('courtId', event.target.value)} required value={edit.courtId}>{editableCourts.map((court) => <option key={court.courtId} value={court.courtId}>Sân {court.courtNumber} · {court.courtType}</option>)}</select></label>
               <label><span className="mb-1.5 block text-[13px] font-bold">Ngày chơi *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} max={maxTicketSessionDate()} min={localDateKey()} onChange={(event) => setEditValue('date', event.target.value)} required type="date" value={edit.date} /></label>
-              <div className="grid grid-cols-2 gap-3">
-                <label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('startTime', event.target.value)} required step={1800} type="time" value={edit.startTime} /></label>
-                <label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc *</span><input className="w-full px-3 disabled:bg-surface-container-low" disabled={hasTickets} onChange={(event) => setEditValue('endTime', event.target.value)} required step={1800} type="time" value={edit.endTime} /></label>
+              <div className="flex gap-3">
+                <label><span className="mb-1.5 block text-[13px] font-bold">Bắt đầu *</span><HalfHourTimeSelect disabled={hasTickets} onChange={(value) => setEditValue('startTime', value)} value={edit.startTime} /></label>
+                <label><span className="mb-1.5 block text-[13px] font-bold">Kết thúc *</span><HalfHourTimeSelect disabled={hasTickets} onChange={(value) => setEditValue('endTime', value)} value={edit.endTime} /></label>
               </div>
             </div>
             <label><span className="mb-1.5 block text-[13px] font-bold">Tên buổi chơi *</span><input className="w-full px-3" maxLength={200} minLength={3} onChange={(event) => setEditValue('title', event.target.value)} required value={edit.title} /></label>
