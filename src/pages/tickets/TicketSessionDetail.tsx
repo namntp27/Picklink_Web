@@ -54,8 +54,8 @@ export const TicketSessionDetail = () => {
 
   const hasValidId = Number.isInteger(ticketSessionId) && ticketSessionId > 0;
   const { data: session = null, error: loadError, loading, refresh: load } = useApiQuery(
-    ['ticket-session', ticketSessionId],
-    () => getTicketSession(ticketSessionId),
+    ['ticket-session', ticketSessionId, token],
+    () => getTicketSession(ticketSessionId, token ?? undefined),
     { enabled: hasValidId, errorMessage: 'Không thể tải thông tin buổi xé vé.' },
   );
 
@@ -81,6 +81,10 @@ export const TicketSessionDetail = () => {
       return;
     }
     if (!session) return;
+    if (session.myActiveTicketId) {
+      navigate(`/my-tickets/${session.myActiveTicketId}`);
+      return;
+    }
     setBuying(true);
     setError('');
     try {
@@ -174,9 +178,11 @@ export const TicketSessionDetail = () => {
                 <div className="flex items-start gap-3"><Ticket aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span><strong className="block text-on-surface">Sân thi đấu</strong><span className="text-on-surface-variant">Sân {session.courtNumber}{session.courtType ? ` · ${session.courtType}` : ''}</span></span></div>
                 <div className="flex items-start gap-3"><Users aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span><strong className="block text-on-surface">Người tham gia</strong><span className="text-on-surface-variant">{session.soldTickets} đã trả · {session.reservedTickets} đang giữ</span></span></div>
               </div>
-              <Button aria-busy={buying} className="mt-5 w-full" disabled={!canPurchase || buying} onClick={() => void purchase()} size="lg" type="button">
+              <Button aria-busy={buying} className="mt-5 w-full" disabled={(!canPurchase && !session.myActiveTicketId) || buying} onClick={() => void purchase()} size="lg" type="button">
                 {buying && <Loader2 aria-hidden="true" className="h-4 w-4" />}
-                {!canPurchase ? (session.remainingTickets <= 0 ? 'Đã hết vé' : 'Đã ngừng bán') : user ? 'Giữ vé & thanh toán' : 'Đăng nhập để mua vé'}
+                {session.myActiveTicketId
+                  ? 'Xem vé của bạn'
+                  : !canPurchase ? (session.remainingTickets <= 0 ? 'Đã hết vé' : 'Đã ngừng bán') : user ? 'Giữ vé & thanh toán' : 'Đăng nhập để mua vé'}
               </Button>
               <p className="mt-3 text-center text-[12px] leading-5 text-on-surface-variant">
                 Vé được giữ trong thời gian giới hạn. Thanh toán đúng nội dung QR để xác nhận tự động.

@@ -241,6 +241,29 @@ export type OwnerBookingRecord = {
   paymentHistory: Array<{ fromStatus?: string | null; toStatus: string; action: string; reason?: string | null; actorName?: string | null; createdAt: string }>;
 };
 
+export type OwnerTicketRevenueRecord = {
+  sessionTicketId: number;
+  ticketSessionId: number;
+  ticketCode: string;
+  status: string;
+  paymentStatus: string;
+  paymentMethod?: string | null;
+  amount: number;
+  refundAmount: number;
+  sessionTitle: string;
+  playerName: string;
+  playerEmail?: string | null;
+  venueId: number;
+  venueName: string;
+  venueAddress: string;
+  courtId: number;
+  courtNumber: number;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+  paymentPaidAt?: string | null;
+};
+
 export type OwnerRevenueReport = {
   from: string;
   to: string;
@@ -252,6 +275,7 @@ export type OwnerRevenueReport = {
   averageBookingValue: number;
   daily: Array<{ date: string; revenue: number; bookingCount: number }>;
   bookings: OwnerBookingRecord[];
+  tickets: OwnerTicketRevenueRecord[];
 };
 
 const withSeconds = (value: string) => value.length === 5 ? `${value}:00` : value;
@@ -440,4 +464,9 @@ export const getOwnerBookings = (token: string, filters: {
 
 export const getOwnerBooking = (token: string, bookingId: number) => apiRequest<OwnerBookingRecord>(`/api/owner/bookings/${bookingId}`, {}, token);
 
-export const getOwnerRevenueReport = (token: string, from: string, to: string) => apiRequest<OwnerRevenueReport>(`/api/owner/reports/revenue?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {}, token);
+export type OwnerRevenueSource = 'Court' | 'Match' | 'Ticket';
+
+export const getOwnerRevenueReport = (token: string, from: string, to: string, source?: OwnerRevenueSource) => {
+  const params = `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` + (source ? `&source=${source}` : '');
+  return apiRequest<OwnerRevenueReport>(`/api/owner/reports/revenue?${params}`, {}, token);
+};

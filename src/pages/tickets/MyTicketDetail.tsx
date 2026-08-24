@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
-import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
+import { HistoryBackLink, useHistoryBack } from '../../components/navigation/HistoryBackLink';
 import {
   buySessionTicket,
   cancelPlayerTicket,
@@ -29,9 +29,10 @@ import {
   type SessionTicket,
   type SessionTicketStatus,
 } from '../../api/ticketing';
-import { submitTicketReceipt } from '../../api/payment';
+import { confirmRefundReceived, disputeRefund, submitTicketReceipt } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
+import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { useToast } from '../../components/ui/ToastRegion';
 import { useApiQuery } from '../../hooks/useApiQuery';
@@ -164,6 +165,10 @@ export const MyTicketDetail = () => {
   const location = useLocation();
   const { token } = useAuth();
   const notify = useToast();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundError, setRefundError] = useState('');
   const navigationTicket = (location.state as { ticket?: SessionTicket } | null)?.ticket;
   const initialTicket = navigationTicket?.sessionTicketId === ticketId ? navigationTicket : null;
   const [busyAction, setBusyAction] = useState<'cancel' | 'retry' | 'receipt' | null>(null);
@@ -172,6 +177,7 @@ export const MyTicketDetail = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [actionError, setActionError] = useState('');
   const [now, setNow] = useState(Date.now());
+  const { goBack } = useHistoryBack('/my-tickets');
 
   const hasValidRequest = Boolean(token) && Number.isInteger(ticketId) && ticketId > 0;
   const {
@@ -285,6 +291,18 @@ export const MyTicketDetail = () => {
     }
   };
 
+  const exitToHistory = async () => {
+    if (isPending && token && ticket) {
+      try {
+        await cancelPlayerTicket(token, ticket.sessionTicketId, '');
+        notify('Đã hủy vé giữ chỗ chưa thanh toán.', 'success');
+      } catch {
+        // Ignore: still leave the page even if the silent cancel fails.
+      }
+    }
+    goBack();
+  };
+
   const submitReceipt = async () => {
     if (!token || !ticket || !receipt) {
       setError('Vui lòng chọn ảnh biên lai trước khi gửi.');
@@ -307,6 +325,54 @@ export const MyTicketDetail = () => {
     } finally {
       setBusyAction(null);
       setUploadProgress(null);
+    }
+  };
+
+  const confirmReceivedRefund = async () => {
+    if (!token || !ticket) return;
+    if (!(await confirm({
+      title: 'Bạn đã nhận được tiền hoàn?',
+      message: 'Chỉ xác nhận khi khoản tiền hoàn đã thực sự vào tài khoản của bạn.',
+      confirmLabel: 'Đã nhận được tiền',
+      tone: 'success',
+    }))) return;
+    setRefundBusy(true);
+    setRefundError('');
+    try {
+      await confirmRefundReceived(token, ticket.paymentId);
+      notify('Đã xác nhận nhận tiền hoàn.', 'success');
+      setTicket(await getPlayerTicket(token, ticket.sessionTicketId));
+    } catch (requestError) {
+      setRefundError(requestError instanceof ApiError ? requestError.message : 'Không thể xác nhận nhận tiền hoàn.');
+    } finally {
+      setRefundBusy(false);
+    }
+  };
+
+  const submitRefundDispute = async () => {
+    if (!token || !ticket) return;
+    const reason = (await prompt({
+      title: 'Khiếu nại khoản hoàn tiền',
+      message: 'Mô tả rõ số tiền chưa nhận được hoặc điểm không khớp trong minh chứng để Admin kiểm tra.',
+      label: 'Lý do khiếu nại',
+      placeholder: 'Ví dụ: Chưa nhận được tiền sau khi kiểm tra tài khoản...',
+      required: true,
+      confirmLabel: 'Gửi khiếu nại',
+      tone: 'danger',
+    }))?.trim();
+    if (!reason) return;
+    if (reason.length < 5) { notify('Lý do khiếu nại phải có ít nhất 5 ký tự.', 'error'); return; }
+
+    setRefundBusy(true);
+    setRefundError('');
+    try {
+      await disputeRefund(token, ticket.paymentId, reason);
+      setTicket(await getPlayerTicket(token, ticket.sessionTicketId));
+      notify('Đã gửi khiếu nại đến Admin.', 'success');
+    } catch (requestError) {
+      setRefundError(requestError instanceof ApiError ? requestError.message : 'Không thể gửi khiếu nại.');
+    } finally {
+      setRefundBusy(false);
     }
   };
 
@@ -337,10 +403,11 @@ export const MyTicketDetail = () => {
     ? 'Expired'
     : ticket.status;
   const cancellationDeadline = new Date(session.startTime).getTime() - session.cancellationDeadlineHours * 60 * 60 * 1000;
+  const hasPaymentCommitment = ticket.paymentStatus !== 'Pending';
   const canCancel = !locallyExpired
     && (ticket.status === 'PendingPayment' || ticket.status === 'Paid')
     && session.status === 'Published'
-    && Date.now() <= cancellationDeadline;
+    && (!hasPaymentCommitment || Date.now() <= cancellationDeadline);
   const showPaymentPanel = ticket.status === 'PendingPayment' && ticket.paymentStatus === 'Pending' && !locallyExpired;
   const canRetry = locallyExpired
     && session.status === 'Published'
@@ -350,9 +417,9 @@ export const MyTicketDetail = () => {
   return (
     <div className="min-h-dvh bg-white pb-14 pt-[84px] text-on-background" data-my-ticket-detail>
       <main className="mx-auto w-full max-w-[1180px] px-4 sm:px-6 lg:px-8">
-        <HistoryBackLink className="inline-flex min-h-11 items-center gap-2 rounded-lg text-[13px] font-bold text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" fallback="/my-tickets">
+        <button className="inline-flex min-h-11 items-center gap-2 rounded-lg text-[13px] font-bold text-primary hover:underline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" onClick={() => void exitToHistory()} type="button">
           <ArrowLeft aria-hidden="true" className="h-4 w-4" /> Lịch sử vé
-        </HistoryBackLink>
+        </button>
 
         {error && (
           <div className="mt-3 flex items-start gap-3 rounded-xl border border-error/25 bg-error-container p-4 text-[14px] font-semibold text-error" role="alert">
@@ -511,6 +578,57 @@ export const MyTicketDetail = () => {
               <section className="rounded-2xl border border-error/20 bg-error-container p-6"><XCircle aria-hidden="true" className="h-8 w-8 text-error" /><h2 className="mt-3 text-[18px] font-bold">Vé đã hủy</h2>{ticket.paymentStatus === 'Paid' && <p className="mt-2 text-[14px] font-semibold leading-6 text-on-surface-variant">Khoản đã thanh toán không được hoàn lại.</p>}{ticket.cancellationReason && <p className="mt-2 text-[14px] leading-6 text-on-surface-variant">Lý do: {ticket.cancellationReason}</p>}</section>
             )}
 
+            {(ticket.paymentStatus === 'RefundPending' || ticket.paymentStatus === 'Refunded') && (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+                <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-amber-900">
+                  <Banknote aria-hidden="true" className="h-5 w-5" />
+                  {ticket.paymentStatus === 'Refunded' ? 'Đã hoàn tiền' : 'Đang chờ hoàn tiền'}
+                </h2>
+                <p className="mt-2 text-[13px] leading-5 text-amber-900">
+                  {ticket.paymentStatus === 'Refunded'
+                    ? `Chủ sân đã hoàn ${currency.format(ticket.amount)} cho vé này.`
+                    : `Vé này đã hủy. Chủ sân cần hoàn lại ${currency.format(ticket.amount)} cho bạn.`}
+                </p>
+
+                {refundError && (
+                  <p className="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-error">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {refundError}
+                  </p>
+                )}
+
+                <div className="mt-3 space-y-3">
+                  {ticket.refundProofImageUrl ? (
+                    <img alt="Minh chứng hoàn tiền từ chủ sân" className="max-h-64 w-full rounded-xl border border-amber-200 bg-white object-contain" src={ticket.refundProofImageUrl} />
+                  ) : (
+                    <p className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-[12px] text-amber-900">Chủ sân chưa gửi minh chứng hoàn tiền.</p>
+                  )}
+                  {ticket.refundReference && (
+                    <p className="text-[12px] text-amber-900">Mã tham chiếu: <strong>{ticket.refundReference}</strong></p>
+                  )}
+                  {ticket.refundDisputeStatus === 'Open' && (
+                    <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-bold text-red-700">
+                      Bạn đã khiếu nại: {ticket.refundDisputeReason}. Admin đang xem xét.
+                    </p>
+                  )}
+                  {ticket.refundDisputeResolution && (
+                    <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-800">
+                      <strong>Kết luận của Admin:</strong> {ticket.refundDisputeResolution}
+                    </p>
+                  )}
+                  {ticket.paymentStatus === 'RefundPending' && ticket.refundDisputeStatus !== 'Open' && (
+                    <div className="flex flex-wrap gap-2">
+                      <button className="inline-flex items-center gap-2 rounded-lg bg-[#081d24] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50" disabled={refundBusy} onClick={() => void confirmReceivedRefund()} type="button">
+                        <CheckCircle2 className="h-4 w-4" /> Đã nhận được tiền
+                      </button>
+                      <button className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-[13px] font-bold text-red-700 disabled:opacity-50" disabled={refundBusy} onClick={() => void submitRefundDispute()} type="button">
+                        <AlertCircle className="h-4 w-4" /> Khiếu nại
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {ticket.sePayTransactions.length > 0 && (
               <section className="rounded-2xl border border-outline-variant bg-white p-5 sm:p-6" aria-labelledby="transaction-history-title">
                 <div className="flex items-center gap-2"><History aria-hidden="true" className="h-5 w-5 text-primary" /><h2 className="text-[18px] font-bold" id="transaction-history-title">Lịch sử giao dịch</h2></div>
@@ -535,12 +653,14 @@ export const MyTicketDetail = () => {
                 {ticket.paidAt && <div className="flex justify-between gap-3 py-3"><dt className="text-on-surface-variant">Ghi nhận lúc</dt><dd className="text-right font-bold">{dateTime.format(new Date(ticket.paidAt))}</dd></div>}
               </dl>
             </section>
-            <section className="rounded-xl border border-outline-variant bg-surface-container-low p-5">
-              <ShieldCheck aria-hidden="true" className="h-6 w-6 text-primary" />
-              <h2 className="mt-3 text-[15px] font-bold">Chính sách hủy</h2>
-              <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">Chỉ hủy trước giờ chơi ít nhất {session.cancellationDeadlineHours} giờ. Vé đã thanh toán không được hoàn tiền.</p>
-              {canCancel && <Button className="mt-4 w-full" onClick={() => setShowCancelDialog(true)} type="button" variant="danger">Hủy vé</Button>}
-            </section>
+            {hasPaymentCommitment && (
+              <section className="rounded-xl border border-outline-variant bg-surface-container-low p-5">
+                <ShieldCheck aria-hidden="true" className="h-6 w-6 text-primary" />
+                <h2 className="mt-3 text-[15px] font-bold">Chính sách hủy</h2>
+                <p className="mt-2 text-[13px] leading-6 text-on-surface-variant">Chỉ hủy trước giờ chơi ít nhất {session.cancellationDeadlineHours} giờ. Vé đã thanh toán không được hoàn tiền.</p>
+                {canCancel && <Button className="mt-4 w-full" onClick={() => setShowCancelDialog(true)} type="button" variant="danger">Hủy vé</Button>}
+              </section>
+            )}
             <Link className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-outline-variant bg-white px-4 text-[13px] font-bold text-primary hover:border-primary-container hover:bg-surface-container-low focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70" to={`/ticket-sessions/${session.ticketSessionId}`}>Xem lại buổi chơi</Link>
           </aside>
         </div>

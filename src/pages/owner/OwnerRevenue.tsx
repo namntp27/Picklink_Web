@@ -22,12 +22,12 @@ import { OwnerShell } from './components/OwnerShell';
 import { PaginationControls } from '../../components/PaginationControls';
 import type { BookingDetail } from '../../data/bookings';
 import { formatBookingCurrency, formatBookingDateTime } from '../../data/bookings';
-import { getOwnerRevenueReport, type OwnerRevenueReport } from '../../api/owner';
+import { getOwnerRevenueReport, type OwnerRevenueReport, type OwnerRevenueSource } from '../../api/owner';
 import { useAuth } from '../../auth/AuthContext';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
 import { useScheduleRealtime } from '../../hooks/useScheduleRealtime';
-import { ownerBookingToDetail } from './ownerBookingAdapter';
+import { ownerBookingToDetail, ownerTicketToDetail } from './ownerBookingAdapter';
 
 type RevenuePeriod = 'today' | 'week' | 'month' | 'custom';
 type PresetRevenuePeriod = Exclude<RevenuePeriod, 'custom'>;
@@ -39,10 +39,19 @@ const maxRevenueRangeDays = 367;
 type PaymentTransaction = {
   id: string;
   booking: BookingDetail;
+  viewHref: string;
   status: Exclude<TransactionStatus, 'all'>;
   paidAt: string;
+  revenueDate: string;
   refundAmount: number;
+  // Whether money actually changed hands (raw server payment status), independent of `status`
+  // above — a booking/ticket that expired or got cancelled before ever being paid still derives
+  // `status: 'refunded'` from its cancelled booking status, which would wrongly keep it visible.
+  hadPayment: boolean;
 };
+
+const isPaidPaymentStatus = (paymentStatus: string) =>
+  paymentStatus === 'Paid' || paymentStatus === 'RefundPending' || paymentStatus === 'Refunded';
 
 const reportDate = new Date();
 const reportWeekStart = new Date(reportDate);
@@ -57,12 +66,20 @@ const periodOptions: Array<{ label: string; value: RevenuePeriod; helper: string
   { label: 'Tháng này', value: 'month', helper: `Tháng ${String(reportDate.getMonth() + 1).padStart(2, '0')}/${reportDate.getFullYear()}` },
 ];
 
+// Pending/failed transactions never had money change hands (the player just held a slot without
+// paying), so the itemized list below only ever contains paid or paid-then-refunded rows — those
+// two tabs would always be empty and are left out on purpose.
 const transactionStatusOptions: Array<{ label: string; value: TransactionStatus }> = [
   { label: 'Tất cả', value: 'all' },
   { label: 'Đã thanh toán', value: 'paid' },
-  { label: 'Chờ thanh toán', value: 'pending' },
-  { label: 'Thanh toán lỗi', value: 'failed' },
   { label: 'Đã hoàn / hủy', value: 'refunded' },
+];
+
+const revenueSourceOptions: Array<{ label: string; value: 'all' | OwnerRevenueSource }> = [
+  { label: 'Tất cả', value: 'all' },
+  { label: 'Đặt sân', value: 'Court' },
+  { label: 'Ghép trận', value: 'Match' },
+  { label: 'Xé vé', value: 'Ticket' },
 ];
 
 const getTransactionStatus = (booking: BookingDetail): Exclude<TransactionStatus, 'all'> => {
@@ -190,9 +207,10 @@ export const OwnerRevenue = () => {
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [customRangeError, setCustomRangeError] = useState('');
   const [activeStatus, setActiveStatus] = useState<TransactionStatus>('all');
+  const [revenueSource, setRevenueSource] = useState<'all' | OwnerRevenueSource>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
-  const showTransactions = (status: Exclude<TransactionStatus, 'all'>) => {
+  const showTransactions = (status: TransactionStatus) => {
     setActiveStatus(status);
     setSearchTerm('');
     setHistoryPage(1);
@@ -231,8 +249,8 @@ export const OwnerRevenue = () => {
   const to = periodDates[periodDates.length - 1];
 
   const { data: revenueReport, refresh: loadRevenue } = useApiQuery<OwnerRevenueReport>(
-    ['owner-revenue', from, to],
-    () => getOwnerRevenueReport(token!, from!, to!),
+    ['owner-revenue', from, to, revenueSource],
+    () => getOwnerRevenueReport(token!, from!, to!, revenueSource === 'all' ? undefined : revenueSource),
     { enabled: Boolean(token && from && to) },
   );
   const reloadRevenue = () => { void loadRevenue(); };
@@ -240,34 +258,65 @@ export const OwnerRevenue = () => {
   usePaymentRealtime(reloadRevenue);
 
   const transactions = useMemo<PaymentTransaction[]>(
-    () =>
-      (revenueReport?.bookings ?? []).map((record) => {
+    () => {
+      const bookingTransactions = (revenueReport?.bookings ?? []).map((record) => {
         const booking = ownerBookingToDetail(record);
         const refundAmount = record.refundAmount ?? (
           record.paymentStatus === 'RefundPending' || record.paymentStatus === 'Refunded'
             ? record.totalAmount
             : 0
         );
+        // Money in, not court usage: mirrors the server's revenue-date rule (paidAt, falling back
+        // to createdAt while still unpaid) so this list lines up with the totals above it.
+        const revenueAt = record.paymentPaidAt ?? record.createdAt;
         return {
-          id: 'pay-' + booking.id,
+          id: 'booking-' + booking.id,
           booking,
+          viewHref: `/owner/bookings/${booking.id}`,
           status: getTransactionStatus(booking),
-          paidAt: booking.paymentStatus === 'paid' ? booking.createdAt : booking.holdExpiresAt,
+          paidAt: revenueAt,
+          revenueDate: revenueAt.slice(0, 10),
           refundAmount,
+          hadPayment: isPaidPaymentStatus(record.paymentStatus),
         };
-      }),
+      });
+      const ticketTransactions = (revenueReport?.tickets ?? []).map((ticket) => {
+        const booking = ownerTicketToDetail(ticket);
+        const revenueAt = ticket.paymentPaidAt ?? ticket.createdAt;
+        return {
+          id: 'ticket-' + ticket.sessionTicketId,
+          booking,
+          viewHref: `/owner/ticket-sessions/${ticket.ticketSessionId}`,
+          status: getTransactionStatus(booking),
+          paidAt: revenueAt,
+          revenueDate: revenueAt.slice(0, 10),
+          refundAmount: ticket.refundAmount,
+          hadPayment: isPaidPaymentStatus(ticket.paymentStatus),
+        };
+      });
+      return [...bookingTransactions, ...ticketTransactions];
+    },
     [revenueReport],
   );
 
   const periodTransactions = useMemo(
-    () => transactions.filter((transaction) => periodDates.includes(transaction.booking.date)),
+    () => transactions.filter((transaction) => periodDates.includes(transaction.revenueDate)),
     [periodDates, transactions],
+  );
+
+  // The itemized list only shows rows money actually touched — a hold the player never paid for
+  // is not a transaction. Everything else on the page (stat cards, court/method breakdowns) keeps
+  // reading periodTransactions (the full set) since those numbers are specifically meant to include
+  // pending/failed activity.
+  const visibleTransactions = useMemo(
+    () => periodTransactions.filter((transaction) => transaction.hadPayment),
+    [periodTransactions],
   );
 
   const filteredTransactions = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
-    return periodTransactions
+    return visibleTransactions
       .filter((transaction) => {
         const { booking } = transaction;
         const matchesStatus = activeStatus === 'all' || (activeStatus === 'refunded'
@@ -283,7 +332,7 @@ export const OwnerRevenue = () => {
         return matchesStatus && matchesKeyword;
       })
       .sort((first, second) => Date.parse(second.paidAt) - Date.parse(first.paidAt));
-  }, [activeStatus, periodTransactions, searchTerm]);
+  }, [activeStatus, visibleTransactions, searchTerm]);
 
   // Clamped rather than reset in an effect so a realtime reload that shrinks the list lands on
   // the last page instead of flashing an empty table.
@@ -304,28 +353,28 @@ export const OwnerRevenue = () => {
   const pendingTransactions = periodTransactions.filter((transaction) => transaction.status === 'pending');
   const refundedTransactions = periodTransactions.filter((transaction) => transaction.refundAmount > 0);
   const failedTransactions = periodTransactions.filter((transaction) => transaction.status === 'failed');
-  const grossRevenue = paidTransactions.reduce((total, transaction) => total + transaction.booking.totalAmount, 0);
-  const pendingAmount = pendingTransactions.reduce((total, transaction) => total + transaction.booking.totalAmount, 0);
+  // Court/match bookings only cover part of the picture: a ticket-session sells many tickets under
+  // one booking, each with its own payment, so the server aggregates those separately and this reads
+  // that combined total instead of re-deriving it from the booking-shaped transaction list below.
+  const grossRevenue = revenueReport?.grossRevenue ?? 0;
+  const pendingAmount = revenueReport?.pendingAmount ?? 0;
   const refundedAmount = revenueReport?.refundedAmount ?? 0;
   const serviceFees = paidTransactions.reduce((total, transaction) => total + transaction.booking.serviceFee, 0);
   const netRevenue = grossRevenue - serviceFees;
   const successRate = periodTransactions.length > 0 ? (paidTransactions.length / periodTransactions.length) * 100 : 0;
-  const averageOrderValue = paidTransactions.length > 0 ? grossRevenue / paidTransactions.length : 0;
+  const averageOrderValue = revenueReport?.averageBookingValue ?? 0;
 
+  const dailyRevenueByDate = new Map((revenueReport?.daily ?? []).map((entry) => [entry.date, entry]));
   const chartDates = activePeriod === 'month'
-    ? periodDates.filter((date) => periodTransactions.some((transaction) => transaction.booking.date === date))
+    ? periodDates.filter((date) => dailyRevenueByDate.has(date) || periodTransactions.some((transaction) => transaction.revenueDate === date))
     : periodDates;
   const dailyRevenue = chartDates.map((date) => {
-    const dayTransactions = periodTransactions.filter((transaction) => transaction.booking.date === date);
-    const revenue = dayTransactions
-      .filter((transaction) => transaction.status === 'paid')
-      .reduce((total, transaction) => total + transaction.booking.totalAmount, 0);
-
+    const serverEntry = dailyRevenueByDate.get(date);
     return {
       date,
       label: formatShortDate(date),
-      revenue,
-      bookings: dayTransactions.length,
+      revenue: serverEntry?.revenue ?? 0,
+      bookings: serverEntry?.bookingCount ?? 0,
     };
   });
   const maxDailyRevenue = Math.max(...dailyRevenue.map((item) => item.revenue), 1);
@@ -428,6 +477,27 @@ export const OwnerRevenue = () => {
               {customRangeError && <p className="text-[12px] font-medium text-error" role="alert">{customRangeError}</p>}
             </form>
 
+            <section className="mt-3 flex flex-col gap-2 rounded-lg border border-outline-variant bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-center gap-2 text-[14px] font-bold"><ReceiptText className="h-4 w-4 text-primary" /> Lọc theo loại doanh thu</p>
+              <div className="flex flex-wrap gap-2">
+                {revenueSourceOptions.map((option) => (
+                  <button
+                    aria-pressed={revenueSource === option.value}
+                    className={`h-9 rounded-lg px-3 text-[13px] font-bold transition-colors ${
+                      revenueSource === option.value
+                        ? 'bg-primary text-white'
+                        : 'border border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
+                    }`}
+                    key={option.value}
+                    onClick={() => { setRevenueSource(option.value); setHistoryPage(1); }}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
             <section className="owner-stat-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
@@ -435,13 +505,15 @@ export const OwnerRevenue = () => {
                   value: formatBookingCurrency(grossRevenue),
                   icon: Banknote,
                   onClick: () => showTransactions('paid'),
-                  helper: `${paidTransactions.length} giao dịch thành công`,
+                  helper: `${revenueReport?.paidBookings ?? paidTransactions.length} giao dịch thành công (gồm cả xé vé)`,
                 },
                 {
                   label: 'Chờ thanh toán',
                   value: formatBookingCurrency(pendingAmount),
                   icon: Clock,
-                  onClick: () => showTransactions('pending'),
+                  // Not-yet-paid holds don't appear in the itemized list below (nothing to show
+                  // there yet), so this jumps to the list rather than filtering to an empty view.
+                  onClick: () => showTransactions('all'),
                   helper: `${pendingTransactions.length} đơn cần thu`,
                 },
                 {
@@ -622,7 +694,7 @@ export const OwnerRevenue = () => {
                                   <Link
                                     aria-label={`Xem ${transaction.booking.code}`}
                                     className="rounded-lg border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-low"
-                                    to={`/owner/bookings/${transaction.booking.id}`}
+                                    to={transaction.viewHref}
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Link>

@@ -1,4 +1,4 @@
-import type { OwnerBookingRecord } from '../../api/owner';
+import type { OwnerBookingRecord, OwnerTicketRevenueRecord } from '../../api/owner';
 import type { BookingDetail, BookingCheckInStatus, BookingPaymentStatus, BookingStatus } from '../../data/bookings';
 
 const paymentMethodLabel: Record<string, string> = {
@@ -53,6 +53,45 @@ export const ownerBookingToDetail = (record: OwnerBookingRecord): BookingDetail 
     holdExpiresAt: record.holdExpiresAt ?? record.createdAt,
     ownerPhone: record.venuePhone || 'Chưa cập nhật',
     note: record.checkedInAt ? `Đã check-in lúc ${record.checkedInAt}` : record.noShowAt ? `No-show lúc ${record.noShowAt}` : 'Theo dõi trạng thái vận hành tại sân.',
+    timeline: [],
+  };
+};
+
+export const ownerTicketToDetail = (ticket: OwnerTicketRevenueRecord): BookingDetail => {
+  const bookingStatus: BookingStatus = ticket.status === 'Paid' || ticket.status === 'CheckedIn'
+    ? 'confirmed'
+    : ticket.status === 'PendingPayment' ? 'holding' : 'cancelled';
+  const paymentStatus: BookingPaymentStatus = ticket.paymentStatus === 'Paid'
+    ? 'paid'
+    : ticket.paymentStatus === 'Cancelled' || ticket.paymentStatus === 'Expired' ? 'failed' : 'pending';
+  const start = new Date(ticket.startTime);
+  const end = new Date(ticket.endTime);
+  const durationHours = Math.max(0, (end.getTime() - start.getTime()) / 3_600_000);
+  return {
+    id: String(ticket.sessionTicketId),
+    code: ticket.ticketCode,
+    courtId: String(ticket.courtId),
+    courtName: ticket.venueName,
+    subCourt: `Sân ${ticket.courtNumber}`,
+    address: ticket.venueAddress,
+    area: ticket.venueAddress,
+    date: ticket.startTime.slice(0, 10),
+    startTime: ticket.startTime.slice(11, 16),
+    endTime: ticket.endTime.slice(11, 16),
+    durationHours,
+    pricePerHour: durationHours > 0 ? ticket.amount / durationHours : ticket.amount,
+    serviceFee: 0,
+    totalAmount: ticket.amount,
+    customerName: ticket.playerName,
+    customerPhone: 'Chưa cập nhật',
+    paymentMethod: formatPaymentMethod(ticket.paymentMethod),
+    paymentStatus,
+    bookingStatus,
+    checkInStatus: ticket.status === 'CheckedIn' ? 'checked_in' : 'not_open',
+    createdAt: ticket.createdAt,
+    holdExpiresAt: ticket.createdAt,
+    ownerPhone: 'Chưa cập nhật',
+    note: `Vé xé sân — ${ticket.sessionTitle}`,
     timeline: [],
   };
 };

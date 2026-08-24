@@ -186,12 +186,35 @@ export const OwnerTicketSessions = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState('');
+  const [venueId, setVenueId] = useState(0);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [playFormat, setPlayFormat] = useState('');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
   const { data: result = emptyPage, error, loading, refresh: load } = useApiQuery(
-    ['owner-ticket-sessions', token, status, page],
-    () => getOwnerTicketSessions(token!, { status: status || undefined, page, pageSize: 10 }),
+    ['owner-ticket-sessions', token, status, venueId, dateFrom, dateTo, playFormat, debouncedSearch, page],
+    () => getOwnerTicketSessions(token!, {
+      status: status || undefined,
+      venueId: venueId || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      playFormat: playFormat || undefined,
+      search: debouncedSearch || undefined,
+      page,
+      pageSize: 10,
+    }),
     { enabled: Boolean(token), errorMessage: 'Không thể tải danh sách buổi xé vé.' },
   );
 
@@ -224,18 +247,46 @@ export const OwnerTicketSessions = () => {
       </section>
 
       <section className="owner-panel">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-outline-variant p-4">
-          <div>
-            <h2 className="text-[18px]">Danh sách buổi chơi</h2>
-            <p className="mt-1 text-[12px] text-on-surface-variant">Xé vé do Owner tạo, tách biệt hoàn toàn với Ghép trận.</p>
+        <div className="border-b border-outline-variant p-4">
+          <h2 className="text-[18px]">Danh sách buổi chơi</h2>
+          <p className="mt-1 text-[12px] text-on-surface-variant">Xé vé do Owner tạo, tách biệt hoàn toàn với Ghép trận.</p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <label className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+              <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Tìm theo tên buổi</span>
+              <input className="w-full px-3" onChange={(event) => setSearch(event.target.value)} placeholder="Nhập tên buổi..." value={search} />
+            </label>
+            <label>
+              <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Cụm sân</span>
+              <select className="w-full" onChange={(event) => { setVenueId(Number(event.target.value)); setPage(1); }} value={venueId}>
+                <option value={0}>Tất cả</option>
+                {venues.map((venue) => <option key={venue.venueId} value={venue.venueId}>{venue.venueName}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Hình thức</span>
+              <select className="w-full" onChange={(event) => { setPlayFormat(event.target.value); setPage(1); }} value={playFormat}>
+                <option value="">Tất cả</option>
+                <option value="1vs1">Đánh đơn · 1vs1</option>
+                <option value="2vs2">Đánh đôi · 2vs2</option>
+              </select>
+            </label>
+            <label>
+              <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Trạng thái</span>
+              <select className="w-full" onChange={(event) => { setStatus(event.target.value); setPage(1); }} value={status}>
+                <option value="">Tất cả</option>
+                {(Object.keys(statusLabels) as TicketSessionStatus[]).map((value) => <option key={value} value={value}>{statusLabels[value]}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Từ ngày chơi</span>
+              <input className="w-full px-3" max={dateTo || undefined} onChange={(event) => { setDateFrom(event.target.value); setPage(1); }} type="date" value={dateFrom} />
+            </label>
+            <label>
+              <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Đến ngày chơi</span>
+              <input className="w-full px-3" min={dateFrom || undefined} onChange={(event) => { setDateTo(event.target.value); setPage(1); }} type="date" value={dateTo} />
+            </label>
           </div>
-          <label className="min-w-44">
-            <span className="mb-1 block text-[11px] font-bold text-on-surface-variant">Trạng thái</span>
-            <select className="w-full" onChange={(event) => { setStatus(event.target.value); setPage(1); }} value={status}>
-              <option value="">Tất cả</option>
-              {(Object.keys(statusLabels) as TicketSessionStatus[]).map((value) => <option key={value} value={value}>{statusLabels[value]}</option>)}
-            </select>
-          </label>
         </div>
 
         {error && <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] font-bold text-red-700" role="alert">{error}</div>}

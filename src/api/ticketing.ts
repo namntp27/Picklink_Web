@@ -34,6 +34,7 @@ export type TicketSession = {
   publishedAt?: string | null;
   cancelledAt?: string | null;
   cancellationReason?: string | null;
+  myActiveTicketId?: number | null;
 };
 
 export type SePayTransaction = {
@@ -73,6 +74,12 @@ export type SessionTicket = {
   receiptImageUrl?: string | null;
   rejectionReason?: string | null;
   paidAt?: string | null;
+  refundProofImageUrl?: string | null;
+  refundReference?: string | null;
+  refundProofSubmittedAt?: string | null;
+  refundDisputeStatus?: string | null;
+  refundDisputeReason?: string | null;
+  refundDisputeResolution?: string | null;
   hasSePayApiToken?: boolean;
   sePayTransactions: SePayTransaction[];
   session?: TicketSession | null;
@@ -138,8 +145,8 @@ const queryString = (values: Record<string, string | number | boolean | undefine
 export const getTicketSessions = (filters: TicketSessionSearch = {}) =>
   apiRequest<PaginatedResponse<TicketSession>>('/api/ticket-sessions' + queryString(filters));
 
-export const getTicketSession = (ticketSessionId: number) =>
-  apiRequest<TicketSession>('/api/ticket-sessions/' + ticketSessionId);
+export const getTicketSession = (ticketSessionId: number, token?: string) =>
+  apiRequest<TicketSession>('/api/ticket-sessions/' + ticketSessionId, {}, token);
 
 export const buySessionTicket = (token: string, ticketSessionId: number) =>
   apiRequest<SessionTicket>('/api/ticket-sessions/' + ticketSessionId + '/tickets', { method: 'POST' }, token);
@@ -156,7 +163,16 @@ export const cancelPlayerTicket = (token: string, ticketId: number, reason?: str
     body: JSON.stringify({ reason: reason?.trim() || undefined }),
   }, token);
 
-export const getOwnerTicketSessions = (token: string, filters: PaginationParams & { status?: string } = {}) =>
+export type OwnerTicketSessionSearch = PaginationParams & {
+  status?: string;
+  venueId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  playFormat?: string;
+};
+
+export const getOwnerTicketSessions = (token: string, filters: OwnerTicketSessionSearch = {}) =>
   apiRequest<PaginatedResponse<TicketSession>>('/api/owner/ticket-sessions' + queryString(filters), {}, token);
 
 const ticketSessionPayload = (input: TicketSessionInput) => ({
@@ -189,6 +205,28 @@ export const checkInOwnerSessionTicket = (token: string, ticketSessionId: number
     method: 'POST',
     body: JSON.stringify({ ticketCode: ticketCode.trim() }),
   }, token);
+
+export const refundOwnerSessionTicket = (token: string, ticketSessionId: number, sessionTicketId: number, reason?: string) =>
+  apiRequest<SessionTicket>('/api/owner/ticket-sessions/' + ticketSessionId + '/tickets/' + sessionTicketId + '/refund', {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
+  }, token);
+
+export const checkInOwnerTicketByCode = (token: string, ticketCode: string) =>
+  apiRequest<SessionTicket>('/api/owner/tickets/check-in', {
+    method: 'POST',
+    body: JSON.stringify({ ticketCode: ticketCode.trim() }),
+  }, token);
+
+export const getOwnerCheckInTickets = (
+  token: string,
+  date: string,
+  venueId?: number,
+  pagination: PaginationParams = {},
+) =>
+  apiRequest<PaginatedResponse<SessionTicket>>('/api/owner/ticket-sessions/check-in/today' + queryString({
+    date, venueId, page: pagination.page, pageSize: pagination.pageSize,
+  }), {}, token);
 
 export const getStaffTicketSessions = (
   token: string,

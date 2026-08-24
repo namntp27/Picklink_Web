@@ -23,7 +23,9 @@ import {
   checkInOwnerSessionTicket,
   getOwnerTicketSessionParticipants,
   publishOwnerTicketSession,
+  refundOwnerSessionTicket,
   updateOwnerTicketSession,
+  type SessionTicket,
   type TicketSession,
   type TicketSessionInput,
   type TicketSessionParticipants,
@@ -40,6 +42,7 @@ import { lastBookableDate } from '../../utils/bookingDateRange';
 import { OwnerShell } from './components/OwnerShell';
 import { OwnerBackLink } from './components/OwnerBackLink';
 import { OwnerTransactionReviewModal } from './components/OwnerTransactionReviewModal';
+import { OwnerRefundProofModal } from './components/OwnerRefundProofModal';
 import { useConfirm } from '../../components/ui/ConfirmDialogRegion';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -118,6 +121,7 @@ export const OwnerTicketSessionDetail = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [checkInCode, setCheckInCode] = useState('');
   const [reviewPaymentId, setReviewPaymentId] = useState<number | null>(null);
+  const [refundProofPaymentId, setRefundProofPaymentId] = useState<number | null>(null);
 
   const hasValidId = Boolean(token) && Number.isInteger(ticketSessionId) && ticketSessionId >= 1;
   const { data: details = null, error: loadError, loading, refresh: load } = useApiQuery(
@@ -145,6 +149,13 @@ export const OwnerTicketSessionDetail = () => {
 
   const session = details?.session;
   const hasTickets = (details?.tickets.length ?? 0) > 0;
+  const visibleTickets = details?.tickets.filter(
+    // Keep any ticket whose payment carries money the owner still needs to act on or account
+    // for — held (Paid), awaiting receipt review, or mid-refund — regardless of the ticket's
+    // own status (which may already be Cancelled/Expired by then).
+    (ticket) => ticket.status === 'Paid' || ticket.status === 'CheckedIn'
+      || ['Paid', 'WaitingForConfirmation', 'RefundPending', 'Refunded'].includes(ticket.paymentStatus),
+  ) ?? [];
   const activeMinimum = (session?.soldTickets ?? 0) + (session?.reservedTickets ?? 0);
   const priceLocked = hasTickets;
   const collectedRevenue = details?.tickets
@@ -257,6 +268,20 @@ export const OwnerTicketSessionDetail = () => {
     event.preventDefault();
     void checkInTicket(checkInCode);
   };
+  const refundTicket = async (ticket: SessionTicket) => {
+    if (!token) return;
+    if (!(await confirm({
+      title: `Hoàn tiền vé ${ticket.ticketCode}?`,
+      message: `Xác nhận bạn đã chuyển lại tiền cho ${ticket.playerName}. Vé sẽ được đánh dấu đã hoàn tiền và không thể hoàn tác.`,
+      confirmLabel: 'Đã hoàn tiền',
+      tone: 'danger',
+    }))) return;
+    await perform(
+      'refund-' + ticket.sessionTicketId,
+      () => refundOwnerSessionTicket(token, ticketSessionId, ticket.sessionTicketId),
+      `Đã đánh dấu hoàn tiền vé ${ticket.ticketCode}.`,
+    );
+  };
 
   return (
     <OwnerShell activeId="ticketSessions">
@@ -350,22 +375,23 @@ export const OwnerTicketSessionDetail = () => {
                     </button>
                   </form>
                 )}
-                <span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{details.tickets.length} lượt đăng ký</span>
+                <span className="rounded-full bg-surface-container-low px-3 py-1.5 text-[12px] font-bold">{visibleTickets.length} đã thanh toán</span>
               </div>
             </div>
-            {details.tickets.length === 0 ? (
-              <div className="grid min-h-44 place-items-center p-6 text-center"><div><Ticket className="mx-auto h-8 w-8 text-on-surface-variant" /><p className="mt-2 text-[13px] font-bold">Chưa có Player đăng ký.</p></div></div>
+            {visibleTickets.length === 0 ? (
+              <div className="grid min-h-44 place-items-center p-6 text-center"><div><Ticket className="mx-auto h-8 w-8 text-on-surface-variant" /><p className="mt-2 text-[13px] font-bold">Chưa có Player đã thanh toán.</p></div></div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[920px] text-left">
-                  <thead><tr><th>Player & mã vé</th><th>Trạng thái vé</th><th>Thanh toán</th><th>Check-in</th><th>Số tiền</th></tr></thead>
-                  <tbody>{details.tickets.map((ticket) => {
+                  <thead><tr><th>Player & mã vé</th><th>Trạng thái vé</th><th>Thanh toán</th><th>Check-in</th><th>Số tiền</th><th>Hoàn tiền</th></tr></thead>
+                  <tbody>{visibleTickets.map((ticket) => {
                     const additional = ticket.sePayTransactions.filter((transaction) => transaction.status === 'AdditionalRefundPending');
                     const checkedIn = ticket.status === 'CheckedIn' || Boolean(ticket.checkedInAt);
                     const canCheckIn = session.status === 'Published'
                       && ticket.status === 'Paid'
                       && ticket.paymentStatus === 'Paid'
                       && !checkedIn;
+                    const canRefund = ticket.paymentStatus === 'Paid' && !checkedIn;
                     return (
                       <tr className="border-t border-outline-variant align-top" key={ticket.sessionTicketId}>
                         <td><p className="font-bold">{ticket.playerName}</p><p className="mt-1 text-[12px] text-on-surface-variant">{ticket.playerEmail || 'Không có email'}</p><p className="mt-1 font-mono text-[12px] font-bold text-primary">{ticket.ticketCode}</p></td>
@@ -396,6 +422,33 @@ export const OwnerTicketSessionDetail = () => {
                           )}
                         </td>
                         <td className="font-bold"><Banknote className="mr-1 inline h-4 w-4 text-primary" />{money.format(ticket.amount)}{additional.map((transaction) => <p className="mt-2 text-[11px] font-bold text-amber-800" key={transaction.sePayTransactionId}>Chuyển thêm: {money.format(transaction.amount)}</p>)}</td>
+                        <td>
+                          {canRefund ? (
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-[11px] font-bold text-red-700 disabled:opacity-50"
+                              disabled={Boolean(busy)}
+                              onClick={() => void refundTicket(ticket)}
+                              type="button"
+                            >
+                              <Banknote className="h-4 w-4" /> Hoàn tiền
+                            </button>
+                          ) : ticket.paymentStatus === 'RefundPending' ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <button
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800"
+                                onClick={() => setRefundProofPaymentId(ticket.paymentId)}
+                                type="button"
+                              >
+                                <Banknote className="h-4 w-4" /> {ticket.refundProofSubmittedAt ? 'Cập nhật minh chứng' : 'Gửi minh chứng hoàn tiền'}
+                              </button>
+                              {ticket.refundDisputeStatus === 'Open' && <span className="text-[11px] font-bold text-red-700">Player khiếu nại</span>}
+                            </div>
+                          ) : (
+                            <span className="text-[12px] text-on-surface-variant">
+                              {ticket.paymentStatus === 'Refunded' ? 'Đã hoàn tiền' : '—'}
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}</tbody>
@@ -443,6 +496,14 @@ export const OwnerTicketSessionDetail = () => {
           onClose={() => setReviewPaymentId(null)}
           onUpdated={() => load()}
           paymentId={reviewPaymentId}
+        />
+      )}
+
+      {refundProofPaymentId && (
+        <OwnerRefundProofModal
+          onClose={() => setRefundProofPaymentId(null)}
+          onUpdated={() => load()}
+          paymentId={refundProofPaymentId}
         />
       )}
 

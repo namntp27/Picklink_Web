@@ -72,7 +72,6 @@ const statusOptions: Array<{ value: '' | SessionTicketStatus; label: string }> =
   { value: 'RefundPending', label: 'Đối soát cũ' },
   { value: 'Refunded', label: 'Đã đối soát' },
   { value: 'Cancelled', label: 'Đã hủy' },
-  { value: 'Expired', label: 'Đã hết hạn' },
 ];
 
 const statusClass = (status: SessionTicketStatus) => {
