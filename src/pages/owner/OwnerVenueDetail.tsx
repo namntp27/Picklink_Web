@@ -48,8 +48,14 @@ export const OwnerVenueDetail = () => {
     finally { setIsBusy(false); }
   };
 
+  const maxImageBytes = 5 * 1024 * 1024;
+
   const upload = async () => {
     if (!token || !imageFile) return;
+    if (imageFile.size > maxImageBytes) {
+      setActionError('Ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn rồi thử lại.');
+      return;
+    }
     await run(() => uploadOwnerVenueImage(token, venueId, imageFile, caption));
     setImageFile(null);
     setCaption('');

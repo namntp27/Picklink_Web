@@ -50,6 +50,23 @@ export const createAppViteConfig = (target: WebAppTarget) => defineConfig(({ mod
         proxyResponse.once('close', releaseListeners);
         proxyResponse.once('end', releaseListeners);
       });
+
+      server.on('error', (_error, _request, response) => {
+        // When the backend rejects a request (auth, size limit, ...) while the browser is
+        // still streaming a large body (e.g. an image upload), Kestrel can close the
+        // connection before node-http-proxy finishes writing it upstream. Left alone,
+        // http-proxy just kills the browser's connection with no response, which surfaces
+        // to fetch() as an opaque "can't connect to server" error even though the backend
+        // is up and answered. Send a real response instead so the app's normal HTTP-error
+        // handling (and message) takes over.
+        const httpResponse = response as { headersSent?: boolean; writeHead?: Function; end?: Function; destroy?: Function };
+        if (typeof httpResponse.writeHead === 'function' && !httpResponse.headersSent) {
+          httpResponse.writeHead(502, { 'Content-Type': 'application/json' });
+          httpResponse.end?.(JSON.stringify({ message: 'Kết nối tới backend bị gián đoạn. Vui lòng thử lại.' }));
+          return;
+        }
+        httpResponse.destroy?.();
+      });
     },
   };
   const proxy = {
