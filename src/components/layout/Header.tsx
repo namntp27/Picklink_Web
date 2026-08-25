@@ -16,8 +16,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { getDefaultPathForRole, useAuth } from '../../auth/AuthContext';
-import { getUnreadNotificationCount } from '../../api/notifications';
-import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
+import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCount';
 import { useUnreadMessageSenderCount } from '../../hooks/useUnreadMessageSenderCount';
 import { Button } from '../ui/Button';
 
@@ -39,8 +38,8 @@ const utilityItems = [
 
 export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const { logout, token, user } = useAuth();
+  const { count: unreadNotificationCount } = useUnreadNotificationCount(token);
   const unreadMessageSenderCount = useUnreadMessageSenderCount(token);
   const location = useLocation();
   const mobileMenuId = useId();
@@ -60,28 +59,6 @@ export const Header = () => {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
-
-  const loadUnreadNotificationCount = async () => {
-    if (!token) {
-      setUnreadNotificationCount(0);
-      return;
-    }
-
-    try {
-      const result = await getUnreadNotificationCount(token);
-      setUnreadNotificationCount(result.count);
-    } catch {
-      setUnreadNotificationCount(0);
-    }
-  };
-
-  useEffect(() => {
-    void loadUnreadNotificationCount();
-  }, [token]);
-
-  useNotificationRealtime(token, () => {
-    void loadUnreadNotificationCount();
-  });
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;

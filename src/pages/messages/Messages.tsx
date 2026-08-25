@@ -260,7 +260,10 @@ export const Messages = () => {
     } catch {
       // Ignore background refresh errors
     }
-  }, 5_000, Boolean(token));
+    // Realtime push (onMessagePushed below) already updates each conversation's preview the
+    // instant a message arrives; this poll is only the safety net for a missed/dropped event, so
+    // it doesn't need sub-20s granularity.
+  }, 20_000, Boolean(token));
 
   useVisiblePolling(async () => {
     if (!token || !activeConversation?.conversationId || activeConversation.kind !== 'direct') return;
@@ -276,7 +279,9 @@ export const Messages = () => {
     } catch {
       // Ignore background refresh errors
     }
-  }, 4_000, Boolean(token && activeConversation?.conversationId && activeConversation.kind === 'direct'));
+    // Same reasoning as the conversations-list poll above: onMessagePushed already appends new
+    // messages live and is dedup-safe, so this is a safety net, not the primary delivery path.
+  }, 15_000, Boolean(token && activeConversation?.conversationId && activeConversation.kind === 'direct'));
 
   useEffect(() => {
     if (!activeConversationId) return;

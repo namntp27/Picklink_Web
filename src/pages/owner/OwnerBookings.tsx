@@ -175,7 +175,16 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
   const [selectedDate, setSelectedDate] = useState(today);
   const [bookingStateFilter, setBookingStateFilter] = useState<BookingStateFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
   const [actionError, setActionError] = useState('');
   const [transactionTarget, setTransactionTarget] = useState<{
     paymentId: number;
@@ -264,13 +273,13 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
     refresh: load,
     setData,
   } = useApiQuery<OwnerBookingsPage>(
-    ['owner-bookings', token, kind, selectedDate, searchTerm.trim(), page],
+    ['owner-bookings', token, kind, selectedDate, debouncedSearchTerm, page],
     async () => {
       const result = await getOwnerBookings(token!, {
         bookingType: kind,
         from: selectedDate,
         to: selectedDate,
-        search: searchTerm.trim() || undefined,
+        search: debouncedSearchTerm || undefined,
         page,
         pageSize: 10,
       });
@@ -558,10 +567,7 @@ export const OwnerBookings = ({ kind = 'regular' }: { kind?: OwnerBookingKind })
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-on-surface-variant" />
                     <input
                       className="owner-bookings-control h-9 w-full rounded-lg border border-outline-variant bg-surface-container-low pl-8 pr-2.5 text-[12px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      onChange={(event) => {
-                        setSearchTerm(event.target.value);
-                        setPage(1);
-                      }}
+                      onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Tìm mã đơn, khách, sân..."
                       type="text"
                       value={searchTerm}

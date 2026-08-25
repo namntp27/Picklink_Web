@@ -20,8 +20,9 @@ test('admin notification workspace is routed, prefetched, and uses the shared no
 test('admin shell exposes a realtime unread notification badge', () => {
   const shell = read('src/pages/admin/components/AdminShell.tsx');
 
-  assert.match(shell, /getUnreadNotificationCount/);
-  assert.match(shell, /useNotificationRealtime/);
+  // Shared with Header/OwnerShell/Notifications via useUnreadNotificationCount instead of
+  // AdminShell keeping its own fetch + realtime subscription.
+  assert.match(shell, /useUnreadNotificationCount/);
   assert.match(shell, /to="\/admin\/notifications"/);
   assert.match(shell, /Math\.min\(unreadNotificationCount, 99\)/);
 });

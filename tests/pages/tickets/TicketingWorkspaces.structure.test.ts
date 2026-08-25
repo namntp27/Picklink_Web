@@ -63,8 +63,9 @@ test('owner shell exposes realtime payment and ticket notifications', () => {
   const notificationsApi = read('src/api/notifications.ts');
   const notificationsPage = read('src/pages/notifications/Notifications.tsx');
 
-  assert.match(ownerShell, /getUnreadNotificationCount/);
-  assert.match(ownerShell, /useNotificationRealtime/);
+  // Shared with Header/AdminShell/Notifications via useUnreadNotificationCount instead of
+  // OwnerShell keeping its own fetch + realtime subscription.
+  assert.match(ownerShell, /useUnreadNotificationCount/);
   assert.match(playerApp, /allowedRoles=\{\['player'\]\}[\s\S]*?<Route path="notifications"/);
   assert.equal((playerApp.match(/path="notifications"/g) ?? []).length, 1);
   assert.match(ownerApp, /path="\/owner\/notifications"/);

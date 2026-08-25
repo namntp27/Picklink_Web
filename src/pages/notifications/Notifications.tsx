@@ -24,7 +24,6 @@ import { useToast } from '../../components/ui/ToastRegion';
 import {
   deleteNotification,
   deleteReadNotifications,
-  getUnreadNotificationCount,
   listNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
@@ -35,6 +34,7 @@ import {
 } from '../../api/notifications';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
+import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCount';
 import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 import {
   confirmRefundReceived as confirmRefundReceivedRequest,
@@ -189,24 +189,20 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
 
   const { data, error: loadError, loading: isLoading, refresh: loadNotifications } = useApiQuery(
     ['notifications', token, page, activeFilter],
-    async () => {
-      const [result, unreadResult] = await Promise.all([
-        listNotifications(token!, {
-          page,
-          pageSize,
-          unreadOnly: activeFilter === 'unread',
-          type: activeFilter !== 'all' && activeFilter !== 'unread' ? activeFilter : undefined,
-        }),
-        getUnreadNotificationCount(token!),
-      ]);
-      return { result, unreadCount: unreadResult.count };
-    },
+    () => listNotifications(token!, {
+      page,
+      pageSize,
+      unreadOnly: activeFilter === 'unread',
+      type: activeFilter !== 'all' && activeFilter !== 'unread' ? activeFilter : undefined,
+    }),
     { enabled: Boolean(token), errorMessage: 'Không thể tải thông báo.' },
   );
+  // Shared with Header/AdminShell/OwnerShell's badge (same cache key) instead of this page
+  // fetching the same global unread-count endpoint a second time on top of theirs.
+  const { count: unreadCount, refresh: refreshUnreadCount } = useUnreadNotificationCount(token);
 
-  const notifications = data?.result.items ?? emptyNotifications;
-  const pagination = data?.result ?? emptyPagination;
-  const unreadCount = data?.unreadCount ?? 0;
+  const notifications = data?.items ?? emptyNotifications;
+  const pagination = data ?? emptyPagination;
   const error = actionError
     || loadError
     || (token ? '' : 'Vui lòng đăng nhập để xem thông báo.');
@@ -219,6 +215,8 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
   useNotificationRealtime(token, () => {
     void loadNotifications();
   });
+
+  const refreshAfterMutation = () => Promise.all([loadNotifications(), refreshUnreadCount()]);
 
   const urgentNotifications = useMemo(
     () => notifications.filter((notification) => !notification.isRead && notification.tone === 'urgent'),
@@ -236,7 +234,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
     if (!token) return;
     try {
       await markNotificationAsRead(token, notificationId);
-      await loadNotifications();
+      await refreshAfterMutation();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể đánh dấu đã đọc.'), 'error');
     }
@@ -246,7 +244,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
     if (!token || unreadCount === 0) return;
     try {
       await markAllNotificationsAsRead(token);
-      await loadNotifications();
+      await refreshAfterMutation();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể đánh dấu tất cả đã đọc.'), 'error');
     }
@@ -261,7 +259,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
     }))) return;
     try {
       await deleteNotification(token, notificationId);
-      await loadNotifications();
+      await refreshAfterMutation();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể xóa thông báo.'), 'error');
     }
@@ -277,7 +275,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
     }))) return;
     try {
       await deleteReadNotifications(token);
-      await loadNotifications();
+      await refreshAfterMutation();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể xóa thông báo đã đọc.'), 'error');
     }
@@ -297,7 +295,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
       await confirmRefundReceivedRequest(token, paymentId);
       await deleteNotification(token, notificationId).catch(() => undefined);
       notify('Đã xác nhận nhận tiền hoàn.', 'success');
-      await loadNotifications();
+      await refreshAfterMutation();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể xác nhận nhận tiền hoàn.'), 'error');
     } finally {
@@ -347,7 +345,7 @@ export const Notifications = ({ workspace = 'player' }: { workspace?: Notificati
       const updated = await getRefundCase(token, paymentId);
       setRefundCases((current) => ({ ...current, [paymentId]: updated }));
       notify('Đã gửi khiếu nại đến Admin.', 'success');
-      await loadNotifications();
+      await refreshAfterMutation();
     } catch (requestError) {
       notify(getErrorMessage(requestError, 'Không thể gửi khiếu nại.'), 'error');
     } finally {

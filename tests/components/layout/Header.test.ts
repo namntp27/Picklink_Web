@@ -5,8 +5,9 @@ import { test } from 'node:test';
 const source = readFileSync(new URL('../../../src/components/layout/Header.tsx', import.meta.url), 'utf8');
 
 test('header notification badge is loaded from the real notification API', () => {
-  assert.match(source, /getUnreadNotificationCount/);
-  assert.match(source, /useNotificationRealtime/);
+  // Header shares the badge fetch + realtime subscription with AdminShell/OwnerShell/Notifications
+  // through this hook instead of each keeping its own copy — see src/hooks/useUnreadNotificationCount.ts.
+  assert.match(source, /useUnreadNotificationCount/);
   assert.match(source, /unreadNotificationCount/);
   assert.doesNotMatch(source, /badge: '3'/);
 });

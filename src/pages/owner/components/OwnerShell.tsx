@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../auth/AuthContext';
-import { getUnreadNotificationCount } from '../../../api/notifications';
-import { useNotificationRealtime } from '../../../hooks/useNotificationRealtime';
+import { useUnreadNotificationCount } from '../../../hooks/useUnreadNotificationCount';
 import { useUnreadMessageSenderCount } from '../../../hooks/useUnreadMessageSenderCount';
 import '../owner.css';
 
@@ -57,32 +56,11 @@ export const OwnerShell = ({
   const shouldReduceMotion = useReducedMotion();
   const navigate = useNavigate();
   const { logout, token, user } = useAuth();
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const { count: unreadNotificationCount } = useUnreadNotificationCount(token);
   const unreadMessageSenderCount = useUnreadMessageSenderCount(token);
   const initials = user?.name
     ? user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
     : '';
-
-  const loadUnreadNotificationCount = async () => {
-    if (!token) {
-      setUnreadNotificationCount(0);
-      return;
-    }
-    try {
-      const result = await getUnreadNotificationCount(token);
-      setUnreadNotificationCount(result.count);
-    } catch {
-      setUnreadNotificationCount(0);
-    }
-  };
-
-  useEffect(() => {
-    void loadUnreadNotificationCount();
-  }, [token]);
-
-  useNotificationRealtime(token, () => {
-    void loadUnreadNotificationCount();
-  });
 
   const handleLogout = () => {
     logout();
