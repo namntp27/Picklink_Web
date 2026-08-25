@@ -474,7 +474,6 @@ export const MatchDetail = () => {
       .map((slot) => String(slot.courtId) + ':' + timePart(slot.startTime)),
     [bookingDate, monthUnavailableSlots],
   );
-  const maximumMonthDuration = maximumMonthDurationFrom(bookingDate);
   const bookingRangeEnd = addCalendarMonths(bookingDate, bookingMonths);
   const slotMinutes = availability?.slotMinutes ?? 30;
   const selectedSlots = useMemo(
@@ -544,6 +543,19 @@ export const MatchDetail = () => {
       return next;
     });
     setMonthUnavailableSlots((current) => current.filter((slot) => slot.date !== date));
+  };
+  const clearAllSelectedSlots = async () => {
+    if (!selectedSlots.length) return;
+    const confirmed = await confirm({
+      title: 'Hủy tất cả slot đã chọn?',
+      message: `Bạn đang chọn ${selectedSlots.length} slot trên ${selectedDates.length} ngày. Thao tác này sẽ xóa toàn bộ lựa chọn để bạn chọn lại từ đầu.`,
+      confirmLabel: 'Hủy tất cả',
+      cancelLabel: 'Giữ lại',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+    setSelectedSlotsByDate({});
+    setMonthUnavailableSlots([]);
   };
   const changeBookingDate = (nextDate: string) => {
     setBookingDate(nextDate);
@@ -1208,24 +1220,16 @@ export const MatchDetail = () => {
                 </div>
                 <div className="md:col-span-2 rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
-                    <label className="w-full min-w-0 flex-1 sm:min-w-[160px]">
-                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Số tháng áp dụng</span>
-                      <input
-                        className={inputClass}
-                        max={maximumMonthDuration}
-                        min={1}
-                        onChange={(event) => setBookingMonths(Math.max(1, Math.min(maximumMonthDuration, Math.trunc(Number(event.target.value)) || 1)))}
-                        step={1}
-                        type="number"
-                        value={bookingMonths}
-                      />
-                    </label>
                     <button className="min-h-11 w-full rounded-xl bg-[#0b2228] px-3 py-2 text-[12px] sm:w-auto font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={isBusy} onClick={() => void applyCurrentSlotsForMonths()} type="button">Áp dụng {bookingMonths} tháng</button>
                   </div>
                   <p className="mt-2 text-[12px] font-medium text-[#718077]">Sao chép các slot đang chọn từ {formatDateKey(bookingDate)} đến {formatDateKey(bookingRangeEnd)}, bao gồm ngày kết thúc.</p>
                   {monthUnavailableSlots.length > 0 && <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950"><p className="flex items-center gap-2 text-[12px] font-extrabold"><AlertCircle className="h-4 w-4" /> Slot không còn trống ({monthUnavailableSlots.length})</p><div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-y-auto">{monthUnavailableSlots.map((slot) => <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold" key={slotIdentity(slot.courtId, slot.startTime, slot.endTime)}>Sân {slot.courtNumber} · {dateLabel(slot.date)} · {timePart(slot.startTime)}-{timePart(slot.endTime)}</span>)}</div></div>}
                   {selectedDates.length > 0 && (
                     <div className="mt-3 max-h-64 overflow-y-auto pr-1">
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-[#526158]">Đã chọn {selectedSlots.length} slot · {selectedDates.length} ngày</span>
+                        <button className="shrink-0 rounded-md border border-error/30 px-2 py-1 text-[11px] font-bold text-error transition-colors hover:bg-error-container" onClick={() => void clearAllSelectedSlots()} type="button">Hủy tất cả</button>
+                      </div>
                       <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
                         {selectedDates.map((date) => (
                           <div className={'flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5 text-[11px] font-bold ' + (date === bookingDate ? 'border-[#477313] bg-[#eef8e6] text-[#477313]' : 'border-[#d8e4d4] bg-white text-[#526158]')} key={date}>

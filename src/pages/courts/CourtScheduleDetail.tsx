@@ -121,7 +121,6 @@ export const CourtScheduleDetail = () => {
     () => selectedSlotsByDate[date] ?? [],
     [date, selectedSlotsByDate],
   );
-  const maximumMonthDuration = maximumMonthDurationFrom(date);
   const bookingRangeEnd = addCalendarMonths(date, bookingMonths);
   const selectedSlotKeys = selectedSlotsForDate.map((slot) => slotKey(slot.courtId, time(slot.startTime)));
   const selectedSlots = useMemo(
@@ -152,6 +151,19 @@ export const CourtScheduleDetail = () => {
       return next;
     });
     setMonthUnavailableSlots((current) => current.filter((slot) => slot.date !== selectedDate));
+  };
+  const clearAllSelectedSlots = async () => {
+    if (!selectedSlots.length) return;
+    const confirmed = await confirm({
+      title: 'Hủy tất cả slot đã chọn?',
+      message: `Bạn đang chọn ${selectedSlots.length} slot trên ${selectedDates.length} ngày. Thao tác này sẽ xóa toàn bộ lựa chọn để bạn chọn lại từ đầu.`,
+      confirmLabel: 'Hủy tất cả',
+      cancelLabel: 'Giữ lại',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+    setSelectedSlotsByDate({});
+    setMonthUnavailableSlots([]);
   };
 
   useEffect(() => {
@@ -458,18 +470,6 @@ export const CourtScheduleDetail = () => {
               <div className="border-b border-[#dbe8d3] bg-[#f8fbf4] px-3 py-3">
                 <div className="mx-auto max-w-5xl rounded-xl border border-[#d8e4d4] bg-[#f7faf5] p-3">
                   <div className="flex flex-wrap items-end gap-2">
-                    <label className="w-full min-w-0 flex-1 sm:min-w-[160px]">
-                      <span className="mb-1 block text-[12px] font-bold text-[#526158]">Số tháng áp dụng</span>
-                      <input
-                        className="h-10 w-full rounded-lg border border-[#d8e4d4] bg-white px-3 text-[13px] font-bold text-[#0b2228] outline-none focus:border-[#276b3f]"
-                        max={maximumMonthDuration}
-                        min={1}
-                        onChange={(event) => setBookingMonths(Math.max(1, Math.min(maximumMonthDuration, Math.trunc(Number(event.target.value)) || 1)))}
-                        step={1}
-                        type="number"
-                        value={bookingMonths}
-                      />
-                    </label>
                     <Button
                       aria-busy={isApplyingMonth}
                       className="h-11 w-full rounded-xl bg-[#0b2228] px-3 text-[12px] sm:w-auto font-bold text-white hover:bg-[#173a41]"
@@ -500,19 +500,28 @@ export const CourtScheduleDetail = () => {
                   )}
                   {selectedDates.length > 0 && (
                     <div className="mt-3 rounded-lg border border-[#d8e4d4] bg-white">
-                      <button
-                        aria-expanded={showSelectedDates}
-                        className="flex min-h-10 w-full items-center gap-2 px-3 text-left text-[12px] font-extrabold text-[#276b3f]"
-                        onClick={() => setShowSelectedDates((current) => !current)}
-                        type="button"
-                      >
-                        <CalendarDays className="h-4 w-4 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate">
-                          Lịch đã chọn · {selectedDates.length} ngày
-                        </span>
-                        <span className="shrink-0 text-[11px] text-[#526158]">{selectedSlots.length} slot</span>
-                        <ChevronDown className={'h-4 w-4 shrink-0 transition-transform ' + (showSelectedDates ? 'rotate-180' : '')} />
-                      </button>
+                      <div className="flex min-h-10 w-full items-center gap-2 px-3">
+                        <button
+                          aria-expanded={showSelectedDates}
+                          className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-[12px] font-extrabold text-[#276b3f]"
+                          onClick={() => setShowSelectedDates((current) => !current)}
+                          type="button"
+                        >
+                          <CalendarDays className="h-4 w-4 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">
+                            Lịch đã chọn · {selectedDates.length} ngày
+                          </span>
+                          <span className="shrink-0 text-[11px] text-[#526158]">{selectedSlots.length} slot</span>
+                          <ChevronDown className={'h-4 w-4 shrink-0 transition-transform ' + (showSelectedDates ? 'rotate-180' : '')} />
+                        </button>
+                        <button
+                          className="shrink-0 rounded-md border border-error/30 px-2 py-1.5 text-[11px] font-bold text-error transition-colors hover:bg-error-container"
+                          onClick={() => void clearAllSelectedSlots()}
+                          type="button"
+                        >
+                          Hủy tất cả
+                        </button>
+                      </div>
                       {showSelectedDates && (
                         <div className="grid gap-1 border-t border-[#d8e4d4] p-2 sm:grid-cols-4 lg:grid-cols-7">
                           {selectedDates.map((selectedDate) => (
