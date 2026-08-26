@@ -384,7 +384,7 @@ export const MatchCheckout = () => {
                         && participant.paymentStatus === 'Pending'
                         && !acceptedSponsorId
                         && !requestPending
-                        && !claimedBy;
+                        && (!claimedBy || claimedBy === participant.playerId);
                       const paymentState = participant.paymentStatus !== 'Pending'
                         ? getPaymentStatusText(participant.paymentStatus)
                         : acceptedSponsorId === match.myPlayerId

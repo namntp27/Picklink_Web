@@ -36,7 +36,8 @@ const emptyProfile: PlayerProfile = {
 };
 
 const toOptionalNumber = (value: string) => value === '' ? null : Number(value);
-const toHalfPoint = (value: number | null | undefined) => Math.round((value ?? 0) * 2) / 2;
+const toSkillLevelStep = (value: number | null | undefined) => Math.min(5, Math.max(1, Math.round(value ?? 1)));
+const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
 
 export const Profile = () => {
   const { token, refreshUser } = useAuth();
@@ -66,7 +67,7 @@ export const Profile = () => {
   useEffect(() => {
     if (!loadedProfile || seededProfileRef.current === loadedProfile) return;
     seededProfileRef.current = loadedProfile;
-    setProfile({ ...loadedProfile, skillLevel: toHalfPoint(loadedProfile.skillLevel) });
+    setProfile({ ...loadedProfile, skillLevel: toSkillLevelStep(loadedProfile.skillLevel) });
   }, [loadedProfile]);
 
   const setField = <Key extends keyof PlayerProfile>(key: Key, value: PlayerProfile[Key]) => {
@@ -226,7 +227,7 @@ export const Profile = () => {
               <div className="mt-4">
                 <span className="profile-level">
                   <Trophy aria-hidden="true" className="h-4 w-4" />
-                  Trình độ {(profile.skillLevel ?? 0).toFixed(1)}
+                  Trình độ {skillLevelName(toSkillLevelStep(profile.skillLevel))}
                 </span>
               </div>
 
@@ -362,16 +363,16 @@ export const Profile = () => {
 
                 <div className="profile-fields">
                   <label className="profile-field">
-                    <span className="profile-field-label">Trình độ (0-5)</span>
-                    <input
+                    <span className="profile-field-label">Trình độ</span>
+                    <select
                       className="profile-control"
-                      max="5"
-                      min="0"
                       onChange={(event) => setField('skillLevel', Number(event.target.value))}
-                      step="0.5"
-                      type="number"
-                      value={profile.skillLevel ?? 0}
-                    />
+                      value={toSkillLevelStep(profile.skillLevel)}
+                    >
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <option key={level} value={level}>{skillLevelName(level)}</option>
+                      ))}
+                    </select>
                   </label>
                   <label className="profile-field">
                     <span className="profile-field-label">Hình thức chơi</span>

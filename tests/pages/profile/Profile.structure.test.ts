@@ -46,8 +46,9 @@ test('profile lets the player view and update their phone number', () => {
   assert.equal(profileSource.match(/phoneNumber: profile\.phoneNumber/g)?.length, 2);
 });
 
-test('profile uses half-point skill increments and normalizes legacy values', () => {
-  assert.match(profileSource, /step="0\.5"/);
-  assert.match(profileSource, /Math\.round\(\(value \?\? 0\) \* 2\) \/ 2/);
-  assert.match(profileSource, /skillLevel: toHalfPoint\(loadedProfile\.skillLevel\)/);
+test('profile shows skill level as text, like other pages', () => {
+  assert.match(profileSource, /skillLevelName = \(level\?: number\) => \(\{ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' \}/);
+  assert.match(profileSource, /skillLevelName\(toSkillLevelStep\(profile\.skillLevel\)\)/);
+  assert.match(profileSource, /skillLevel: toSkillLevelStep\(loadedProfile\.skillLevel\)/);
+  assert.doesNotMatch(profileSource, /skillLevel\?\.toFixed\(1\)/);
 });
