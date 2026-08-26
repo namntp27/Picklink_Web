@@ -208,10 +208,6 @@ export const OwnerDashboard = () => {
   const bookedCount = visibleSlots.filter((slot) => slot.status === 'Booked').length;
   const holdingCount = visibleSlots.filter((slot) => slot.status === 'Holding').length;
   const availableCount = visibleSlots.filter((slot) => slot.status === 'Available').length;
-  const operationCount = visibleItems.filter((item) => item.isOwnerEntry && item.entryType !== 'TicketSession').length;
-  const revenue = visibleItems
-    .filter((item) => item.status === 'Confirmed')
-    .reduce((sum, item) => sum + item.amount, 0);
 
   const selectedSlotItem = selectedSlot?.bookingId
     ? visibleItems.find((item) => item.bookingId === selectedSlot.bookingId)
@@ -476,13 +472,11 @@ export const OwnerDashboard = () => {
         </div>
       </section>
 
-      <section className="owner-stat-grid sm:grid-cols-2 xl:grid-cols-5">
+      <section className="owner-stat-grid sm:grid-cols-2 xl:grid-cols-3">
         {[
           { label: 'Slot còn trống', value: availableCount, icon: Clock },
           { label: 'Slot đang giữ', value: holdingCount, icon: Clock },
           { label: 'Slot đã đặt', value: bookedCount, icon: CheckCircle2 },
-          { label: 'Lịch vận hành', value: operationCount, icon: Lock },
-          { label: 'Doanh thu trong ngày', value: money.format(revenue), icon: Banknote },
         ].map((item) => (
           <div className="owner-stat-card" key={item.label}>
             <div className="flex items-center justify-between">
