@@ -299,10 +299,12 @@ export const OwnerRevenue = () => {
     [revenueReport],
   );
 
-  const periodTransactions = useMemo(
-    () => transactions.filter((transaction) => periodDates.includes(transaction.revenueDate)),
-    [periodDates, transactions],
-  );
+  // `transactions` already comes from an API call scoped to exactly [from, to] (the same range
+  // `periodDates` spans), and the server attributes a refund-pending/refunded record to the period
+  // the refund itself landed in rather than the original payment date. Re-filtering here by
+  // `revenueDate` (derived client-side from paymentPaidAt, which isn't refund-aware) would silently
+  // drop those refund rows again even though the server correctly included them.
+  const periodTransactions = transactions;
 
   // The itemized list only shows rows money actually touched — a hold the player never paid for
   // is not a transaction. Everything else on the page (stat cards, court/method breakdowns) keeps
