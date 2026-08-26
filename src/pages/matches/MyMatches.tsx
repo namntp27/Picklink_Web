@@ -46,7 +46,7 @@ const statusConfig: Record<MatchStatus, {
 
 const filters: Array<{ label: string; value: FilterStatus }> = [
   { label: 'Lời mời thủ công', value: 'all' },
-  { label: 'Lời mời tự động', value: 'ActiveQueues' },
+  { label: 'Ghép trận nhanh', value: 'ActiveQueues' },
   { label: 'Đang tìm người', value: 'Recruiting' },
   { label: 'Sẵn sàng đặt sân', value: 'ReadyToBook' },
 ];

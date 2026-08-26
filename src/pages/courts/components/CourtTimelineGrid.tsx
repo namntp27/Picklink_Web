@@ -39,7 +39,7 @@ const statusLabel: Record<AvailabilitySlot['status'], string> = {
   Booked: 'Đã đặt',
   Blocked: 'Khoá',
   Maintenance: 'Khoá',
-  Event: 'Sự kiện',
+  TicketSession: 'Xé vé',
   Closed: 'Khoá',
 };
 
@@ -49,7 +49,7 @@ const stateClasses = {
   owned: 'bg-[#fbbf24] hover:bg-[#f59e0b] focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#92400e]',
   booked: 'cursor-not-allowed bg-[#f26767]',
   locked: 'cursor-not-allowed bg-[#aeb8b0]',
-  event: 'cursor-not-allowed bg-[#c86fd5] text-white',
+  ticketSession: 'cursor-not-allowed bg-[#c86fd5] text-white',
 };
 
 const legendItems = [
@@ -57,7 +57,7 @@ const legendItems = [
   { label: 'Bạn đang giữ', className: 'bg-[#fbbf24]' },
   { label: 'Đã đặt', className: 'bg-[#f26767]' },
   { label: 'Khoá', className: 'bg-[#aeb8b0]' },
-  { label: 'Sự kiện', className: 'bg-[#c86fd5]', marker: '!' },
+  { label: 'Xé vé', className: 'bg-[#c86fd5]', marker: '!' },
 ];
 
 const currency = new Intl.NumberFormat('vi-VN', {
@@ -168,8 +168,8 @@ export const CourtTimelineGrid = ({
                       ? stateClasses.locked
                       : slot.status === 'Booked' || slot.status === 'Holding'
                         ? stateClasses.booked
-                        : slot.status === 'Event'
-                          ? stateClasses.event
+                        : slot.status === 'TicketSession'
+                          ? stateClasses.ticketSession
                           : stateClasses.empty;
 
                 return (
@@ -182,7 +182,7 @@ export const CourtTimelineGrid = ({
                     title={slot ? `${tick} - ${slotTime(slot.endTime)} · ${displayStatus}` : `${tick} · Khoá`}
                     type="button"
                   >
-                    {slot?.status === 'Event' ? 'Sự kiện' : statusLabel[slot?.status ?? 'Blocked']}
+                    {slot ? displayStatus : 'Khoá'}
                   </button>
                 );
               })}

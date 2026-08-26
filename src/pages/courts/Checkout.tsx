@@ -303,7 +303,7 @@ const CourtCheckout = () => {
 
   if (!booking) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4 pt-16">
         <div className="w-full max-w-md rounded-2xl border border-[#dbe8d3] bg-white p-6 text-center shadow-[0_16px_40px_rgba(18,45,34,0.08)] sm:p-8">
           {error ? (
             <>
@@ -363,7 +363,7 @@ const CourtCheckout = () => {
   };
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] text-[#0b2228]">
+    <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] pt-16 text-[#0b2228]">
       <main className="mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8">
         <motion.section
           animate={{ opacity: 1, y: 0 }}

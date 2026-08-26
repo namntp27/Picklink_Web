@@ -39,7 +39,7 @@ export type AvailabilitySlot = {
   courtId: number;
   startTime: string;
   endTime: string;
-  status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'Event' | 'Closed';
+  status: 'Available' | 'Holding' | 'Booked' | 'Blocked' | 'Maintenance' | 'TicketSession' | 'Closed';
   bookingId?: number | null;
   matchId?: number | null;
   isOwnedByCurrentUser?: boolean;

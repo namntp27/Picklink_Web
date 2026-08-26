@@ -396,8 +396,8 @@ export const CourtScheduleDetail = () => {
   const bottomBookingBar = true;
 
   return (
-    <div className="min-h-dvh overflow-hidden bg-[#f8fbf4] text-[#0b2228]">
-      <main className="flex min-h-dvh flex-col">
+    <div className="min-h-dvh overflow-hidden bg-[#f8fbf4] pt-16 text-[#0b2228]">
+      <main className="flex min-h-[calc(100dvh-4rem)] flex-col">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-[linear-gradient(135deg,#081d24_0%,#0f2e32_50%,#143f34_100%)] px-3 py-2 text-white shadow-[0_8px_20px_rgba(8,29,36,0.12)]">
           <Link className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 text-[13px] font-bold text-white transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-white/16 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e2ff57] active:translate-y-px" to="/book-court">
             <ArrowLeft className="h-4 w-4" />

@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { ArrowLeft, SearchX } from 'lucide-react';
+import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AppFrame } from '@/apps/AppFrame';
 import { lazyPage } from '@/apps/lazyPage';
 import { ProtectedRoute, PublicOnlyRoute } from '@/auth/ProtectedRoute';
@@ -9,7 +10,6 @@ import { prefetchPlayerRoute } from '@/navigation/playerRoutePrefetch';
 
 const ForgotPassword = lazyPage(() => import('@/pages/auth/ForgotPassword'), 'ForgotPassword');
 const Login = lazyPage(() => import('@/pages/auth/Login'), 'Login');
-const NotFound = lazyPage(() => import('@/pages/auth/NotFound'), 'NotFound');
 const Register = lazyPage(() => import('@/pages/auth/Register'), 'Register');
 const Unauthorized = lazyPage(() => import('@/pages/auth/Unauthorized'), 'Unauthorized');
 const BookingDetail = lazyPage(() => import('@/pages/bookings/BookingDetail'), 'BookingDetail');
@@ -48,6 +48,28 @@ const LegacyCourtDetailRedirect = () => {
   const { id } = useParams();
   return <Navigate replace to={id ? '/court/' + id + '/schedule' : '/book-court'} />;
 };
+
+const PlayerNotFound = () => (
+  <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-[#f8fbf4] px-4 py-12 text-[#0b2228]">
+    <div className="w-full max-w-md rounded-2xl border border-[#dbe8d3] bg-white p-8 text-center shadow-[0_16px_40px_rgba(18,45,34,0.08)]">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef8e6] text-[#477313]">
+        <SearchX aria-hidden="true" className="h-7 w-7" />
+      </div>
+      <p className="mt-5 font-mono text-[13px] font-black text-[#477313]">404</p>
+      <h1 className="mt-2 text-[22px] font-extrabold">Không tìm thấy trang</h1>
+      <p className="mt-2 text-[14px] leading-6 text-[#66766d]">
+        Đường dẫn này không tồn tại hoặc đã được chuyển sang vị trí khác.
+      </p>
+      <Link
+        className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#e2ff57] px-5 text-[14px] font-black text-[#102414] shadow-[0_14px_30px_rgba(152,217,81,0.24)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-[#d6f64d] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/70 active:translate-y-px active:scale-[0.99]"
+        to="/"
+      >
+        <ArrowLeft aria-hidden="true" className="h-5 w-5" />
+        Về trang chủ
+      </Link>
+    </div>
+  </div>
+);
 
 const getPlayerMotionScope = (pathname: string) => {
   if (pathname === '/') return 'home' as const;
@@ -88,6 +110,7 @@ export const PlayerApp = () => (
         <Route path="posts/clubs" element={<ClubPosts />} />
         <Route path="posts/:id" element={<PostDetail />} />
         <Route path="clubs/:id" element={<ClubDetail />} />
+        <Route path="court/:id/schedule" element={<CourtScheduleDetail />} />
         <Route element={<ProtectedRoute allowedRoles={['player']} />}>
           <Route path="opponents" element={<PendingInvites />} />
           <Route path="opponents/pending" element={<PendingInvites />} />
@@ -106,7 +129,12 @@ export const PlayerApp = () => (
           <Route path="clubs/create" element={<CreateClub />} />
           <Route path="clubs/:id/dashboard" element={<ClubDashboard />} />
           <Route path="messages" element={<Messages />} />
+          <Route path="checkout" element={<Checkout />} />
+          <Route path="checkout/success" element={<BookingSuccess />} />
+          <Route path="checkout/fail" element={<BookingFail />} />
+          <Route path="bookings/:id" element={<BookingDetail />} />
         </Route>
+        <Route path="*" element={<PlayerNotFound />} />
       </Route>
       <Route element={<PublicOnlyRoute allowedRoles={['player']} />}>
         <Route path="/login" element={<Login allowedRoles={['player']} portalLabel="Player Web" />} />
@@ -114,15 +142,7 @@ export const PlayerApp = () => (
       </Route>
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/unauthorized" element={<Unauthorized fallbackPath="/login" />} />
-      <Route element={<ProtectedRoute allowedRoles={['player']} />}>
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/checkout/success" element={<BookingSuccess />} />
-        <Route path="/checkout/fail" element={<BookingFail />} />
-        <Route path="/bookings/:id" element={<BookingDetail />} />
-      </Route>
-      <Route path="/court/:id/schedule" element={<CourtScheduleDetail />} />
       <Route path="/court/:id" element={<LegacyCourtDetailRedirect />} />
-      <Route path="*" element={<NotFound homePath="/" />} />
     </Routes>
   </AppFrame>
 );

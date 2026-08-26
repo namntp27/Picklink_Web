@@ -187,7 +187,7 @@ export const BookingDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4 pt-16">
         <div className="rounded-2xl bg-white p-6 text-center shadow-[0_14px_34px_rgba(18,45,34,0.07)] ring-1 ring-outline-variant/80">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary motion-reduce:animate-none" />
           <p className="mt-3 font-bold text-on-surface">Đang tải chi tiết booking...</p>
@@ -198,7 +198,7 @@ export const BookingDetail = () => {
 
   if (!booking) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fbf4] px-4 pt-16">
         <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-[0_14px_34px_rgba(18,45,34,0.07)] ring-1 ring-error/25">
           <XCircle className="mx-auto h-12 w-12 text-error" />
           <h1 className="mt-3 text-[22px] font-extrabold">Không thể mở booking</h1>
@@ -214,7 +214,7 @@ export const BookingDetail = () => {
   }
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] text-on-background">
+    <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] pt-16 text-on-background">
       <main className="bg-[#f8fbf4] pb-8">
         <section className="relative overflow-hidden bg-[#081d24] px-4 pb-8 pt-4 text-white sm:px-6 lg:px-8">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">

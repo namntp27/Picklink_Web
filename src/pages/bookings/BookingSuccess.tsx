@@ -45,7 +45,7 @@ export const BookingSuccess = () => {
 
   if (!booking) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-background px-4 text-on-surface">
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4 pt-16 text-on-surface">
         <div className="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 text-center shadow-[0_16px_40px_rgba(25,29,20,0.08)]">
           {error ? (
             <>
@@ -71,7 +71,7 @@ export const BookingSuccess = () => {
   }
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-background text-on-surface">
+    <div className="min-h-dvh overflow-x-clip bg-background pt-16 text-on-surface">
       <section className="hero-gradient relative overflow-hidden px-4 py-10 text-on-primary sm:px-6 md:py-14">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 opacity-20">

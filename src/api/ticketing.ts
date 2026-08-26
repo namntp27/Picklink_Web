@@ -1,4 +1,7 @@
 import { apiRequest, type PaginatedResponse, type PaginationParams } from './client';
+import type { BookingScheduleConflict } from './booking';
+
+export type { BookingScheduleConflict as TicketScheduleConflict };
 
 export type TicketSessionStatus = 'Draft' | 'Published' | 'Completed' | 'Cancelled';
 export type SessionTicketStatus = 'PendingPayment' | 'Paid' | 'CheckedIn' | 'Cancelled' | 'Expired' | 'RefundPending' | 'Refunded';
@@ -148,8 +151,11 @@ export const getTicketSessions = (filters: TicketSessionSearch = {}) =>
 export const getTicketSession = (ticketSessionId: number, token?: string) =>
   apiRequest<TicketSession>('/api/ticket-sessions/' + ticketSessionId, {}, token);
 
-export const buySessionTicket = (token: string, ticketSessionId: number) =>
-  apiRequest<SessionTicket>('/api/ticket-sessions/' + ticketSessionId + '/tickets', { method: 'POST' }, token);
+export const buySessionTicket = (token: string, ticketSessionId: number, allowScheduleConflicts = false) =>
+  apiRequest<SessionTicket>('/api/ticket-sessions/' + ticketSessionId + '/tickets', {
+    method: 'POST',
+    body: JSON.stringify({ allowScheduleConflicts }),
+  }, token);
 
 export const getPlayerTickets = (token: string, filters: PaginationParams & { status?: string } = {}) =>
   apiRequest<PaginatedResponse<SessionTicket>>('/api/player/tickets' + queryString(filters), {}, token);

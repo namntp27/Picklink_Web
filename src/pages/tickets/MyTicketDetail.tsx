@@ -28,9 +28,11 @@ import {
   getPlayerTicket,
   type SessionTicket,
   type SessionTicketStatus,
+  type TicketScheduleConflict,
 } from '../../api/ticketing';
 import { confirmRefundReceived, disputeRefund, submitTicketReceipt } from '../../api/payment';
 import { useAuth } from '../../auth/AuthContext';
+import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
 import { Button } from '../../components/ui/Button';
 import { useConfirm, usePrompt } from '../../components/ui/ConfirmDialogRegion';
 import { ModalDialog } from '../../components/ui/ModalDialog';
@@ -176,6 +178,7 @@ export const MyTicketDetail = () => {
   const [receipt, setReceipt] = useState<File | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [scheduleConflicts, setScheduleConflicts] = useState<TicketScheduleConflict[]>([]);
   const [now, setNow] = useState(Date.now());
   const { goBack } = useHistoryBack('/my-tickets');
 
@@ -259,16 +262,25 @@ export const MyTicketDetail = () => {
     }
   };
 
-  const retry = async () => {
+  const retry = async (allowScheduleConflicts = false) => {
     if (!token || !ticket?.session) return;
     setBusyAction('retry');
     setError('');
     try {
-      const updated = await buySessionTicket(token, ticket.session.ticketSessionId);
+      const updated = await buySessionTicket(token, ticket.session.ticketSessionId, allowScheduleConflicts);
       setTicket(updated);
       setNow(Date.now());
       notify(updated.status === 'Paid' ? 'Vé miễn phí đã được xác nhận.' : 'Đã tạo lại mã QR và thời gian giữ vé.', 'success');
     } catch (requestError) {
+      const body = requestError instanceof ApiError ? requestError.body as {
+        requiresScheduleConflictConfirmation?: boolean;
+        conflicts?: TicketScheduleConflict[];
+      } | undefined : undefined;
+      if (!allowScheduleConflicts && body?.requiresScheduleConflictConfirmation && body.conflicts?.length) {
+        // Hand the decision to the dialog; it calls back into retry(true) if the player agrees.
+        setScheduleConflicts(body.conflicts);
+        return;
+      }
       setError(requestError instanceof ApiError ? requestError.message : 'Không thể tạo lại yêu cầu thanh toán.');
     } finally {
       setBusyAction(null);
@@ -672,6 +684,18 @@ export const MyTicketDetail = () => {
           code={ticket.ticketCode}
           onClose={() => setShowCancelDialog(false)}
           onConfirm={cancel}
+        />
+      )}
+
+      {scheduleConflicts.length > 0 && (
+        <ScheduleConflictDialog
+          conflicts={scheduleConflicts}
+          isBusy={busyAction === 'retry'}
+          onCancel={() => setScheduleConflicts([])}
+          onConfirm={async () => {
+            setScheduleConflicts([]);
+            await retry(true);
+          }}
         />
       )}
     </div>

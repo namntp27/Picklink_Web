@@ -38,6 +38,7 @@ export const MatchFoundAlert = () => {
   return (
     <ModalDialog
       aria-labelledby="match-found-title"
+      canClose={false}
       className="w-[min(430px,calc(100vw-2rem))] overflow-hidden rounded-[28px] bg-[#f6f9f1] shadow-[0_28px_90px_rgba(3,25,31,0.38)]"
       onRequestClose={() => setNotification(null)}
     >

@@ -16,9 +16,10 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
-import { buySessionTicket, getTicketSession, type TicketSession } from '../../api/ticketing';
+import { buySessionTicket, getTicketSession, type TicketScheduleConflict, type TicketSession } from '../../api/ticketing';
 import { useAuth } from '../../auth/AuthContext';
 import { HistoryBackLink } from '../../components/navigation/HistoryBackLink';
+import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
 import { Button } from '../../components/ui/Button';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { usePaymentRealtime } from '../../hooks/usePaymentRealtime';
@@ -51,6 +52,7 @@ export const TicketSessionDetail = () => {
   const navigate = useNavigate();
   const [buying, setBuying] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [scheduleConflicts, setScheduleConflicts] = useState<TicketScheduleConflict[]>([]);
 
   const hasValidId = Number.isInteger(ticketSessionId) && ticketSessionId > 0;
   const { data: session = null, error: loadError, loading, refresh: load } = useApiQuery(
@@ -71,7 +73,7 @@ export const TicketSessionDetail = () => {
     if (session && event.bookingId === session.bookingId) void load();
   });
 
-  const purchase = async () => {
+  const purchase = async (allowScheduleConflicts = false) => {
     if (!user || !token) {
       navigate('/login', { state: { from: location } });
       return;
@@ -88,9 +90,18 @@ export const TicketSessionDetail = () => {
     setBuying(true);
     setError('');
     try {
-      const ticket = await buySessionTicket(token, session.ticketSessionId);
+      const ticket = await buySessionTicket(token, session.ticketSessionId, allowScheduleConflicts);
       navigate(`/my-tickets/${ticket.sessionTicketId}`, { state: { ticket } });
     } catch (requestError) {
+      const body = requestError instanceof ApiError ? requestError.body as {
+        requiresScheduleConflictConfirmation?: boolean;
+        conflicts?: TicketScheduleConflict[];
+      } | undefined : undefined;
+      if (!allowScheduleConflicts && body?.requiresScheduleConflictConfirmation && body.conflicts?.length) {
+        // Hand the decision to the dialog; it calls back into purchase(true) if the player agrees.
+        setScheduleConflicts(body.conflicts);
+        return;
+      }
       setError(requestError instanceof ApiError
         ? requestError.message
         : 'Không thể giữ vé. Vui lòng thử lại.');
@@ -212,6 +223,18 @@ export const TicketSessionDetail = () => {
           </div>
         </section>
       </main>
+
+      {scheduleConflicts.length > 0 && (
+        <ScheduleConflictDialog
+          conflicts={scheduleConflicts}
+          isBusy={buying}
+          onCancel={() => setScheduleConflicts([])}
+          onConfirm={async () => {
+            setScheduleConflicts([]);
+            await purchase(true);
+          }}
+        />
+      )}
     </div>
   );
 };

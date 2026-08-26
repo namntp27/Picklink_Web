@@ -321,11 +321,11 @@ export const MatchCheckout = () => {
   };
 
   if (!match) {
-    return <div className="grid min-h-dvh place-items-center bg-[#f8fbf4] p-4"><div className="rounded-2xl border border-[#dbe8d3] bg-white p-6 text-center">{error ? <p className="font-bold text-error">{error}</p> : <><Loader2 className="mx-auto h-7 w-7 animate-spin text-[#477313]" /><p className="mt-3 font-bold">Đang tải thanh toán ghép trận...</p></>}</div></div>;
+    return <div className="grid min-h-dvh place-items-center bg-[#f8fbf4] p-4 pt-16"><div className="rounded-2xl border border-[#dbe8d3] bg-white p-6 text-center">{error ? <p className="font-bold text-error">{error}</p> : <><Loader2 className="mx-auto h-7 w-7 animate-spin text-[#477313]" /><p className="mt-3 font-bold">Đang tải thanh toán ghép trận...</p></>}</div></div>;
   }
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] p-4 text-[#0b2228] sm:p-6 lg:p-8">
+    <div className="min-h-dvh overflow-x-clip bg-[#f8fbf4] p-4 pt-16 text-[#0b2228] sm:p-6 lg:p-8">
       <main className="mx-auto w-full max-w-[1180px]">
         <header className="grid gap-4 rounded-2xl border border-[#dbe8d3] bg-white p-4 shadow-[0_14px_34px_rgba(18,45,34,0.07)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>

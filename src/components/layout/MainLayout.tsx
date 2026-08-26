@@ -27,6 +27,9 @@ export const MainLayout = () => {
     || pathname === '/profile'
     || pathname === '/messages'
     || pathname === '/notifications'
+    || pathname.startsWith('/checkout')
+    || pathname.startsWith('/bookings/')
+    || pathname.endsWith('/schedule')
     || (pathname.startsWith('/clubs/') && pathname.endsWith('/dashboard'))
   );
   const motionScope = pathname === '/' ? 'home' : isProductWorkspace ? 'product' : 'rich';

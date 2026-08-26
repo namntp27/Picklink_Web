@@ -214,6 +214,7 @@ export type MatchMessage = {
   senderAvatarUrl?: string | null;
   content: string;
   messageType: string;
+  mediaUrl?: string | null;
   sentAt: string;
   senderRole?: 'Member' | 'Replacement' | string;
   isMine: boolean;

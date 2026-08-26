@@ -80,6 +80,7 @@ export const toMatchChatMessage = (message: MatchMessage): ChatMessage => ({
   mine: message.isMine,
   read: false,
   avatarUrl: message.senderAvatarUrl,
+  mediaUrl: message.mediaUrl,
   senderId: message.senderId,
   senderRole: message.senderRole,
 });

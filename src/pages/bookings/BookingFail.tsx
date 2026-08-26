@@ -8,7 +8,7 @@ export const BookingFail = () => {
   const retryPath = canRetry ? '/checkout?bookingId=' + bookingId : '/my-bookings';
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-background px-4 py-12 text-on-surface">
+    <main className="grid min-h-dvh place-items-center bg-background px-4 py-12 pt-16 text-on-surface">
       <section className="w-full max-w-2xl rounded-2xl border border-error/25 bg-white p-6 shadow-[0_18px_50px_rgba(25,29,20,0.08)] sm:p-10" role="alert">
         <span className="grid h-14 w-14 place-items-center rounded-full bg-error-container text-error">
           <AlertTriangle aria-hidden="true" className="h-7 w-7" />

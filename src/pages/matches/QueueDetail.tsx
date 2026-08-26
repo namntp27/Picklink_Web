@@ -189,7 +189,7 @@ export const QueueDetail = () => {
   });
 
   useNotificationRealtime(token, (event) => {
-    if (event.action === 'Created' && queue && !queue.isPublic) void loadQueue();
+    if (event.action === 'Created' && queue) void loadQueue();
   });
 
   useEffect(() => {

@@ -76,6 +76,7 @@ const statusLabels: Record<MatchDetailResponse['status'], string> = {
   Recruiting: 'Đang tìm người',
   ReadyToBook: 'Sẵn sàng đặt sân',
 };
+const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
 const paymentStatusLabels: Record<string, string> = {
   Pending: 'Chờ thanh toán',
   WaitingForConfirmation: 'Chờ xác nhận',
@@ -932,7 +933,7 @@ export const MatchDetail = () => {
                 <strong>{playableSlotLabels.join(' · ')}</strong>
                 <span>{playableSlotLabels.length} khung/ngày</span>
               </div>
-              <div className="match-info-tile"><Users className="h-4 w-4" /><p>Trình độ / hình thức</p><strong>Level {match.minSkillLevel}-{match.maxSkillLevel}</strong><span>{match.matchType}</span></div>
+              <div className="match-info-tile"><Users className="h-4 w-4" /><p>Trình độ / hình thức</p><strong>{match.minSkillLevel === match.maxSkillLevel ? skillLevelName(match.minSkillLevel) : `${skillLevelName(match.minSkillLevel)} - ${skillLevelName(match.maxSkillLevel)}`}</strong><span>{match.matchType}</span></div>
             </div>
             <div className="mt-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -981,10 +982,18 @@ export const MatchDetail = () => {
               }
               setInvitationValidationError('');
               if (!token) return;
-              void run(async () => {
-                await updateMatchInvitation(token, matchId, invitationDraft);
-                setShowInvitationEditor(false);
-              });
+              void (async () => {
+                setIsBusy(true);
+                try {
+                  await updateMatchInvitation(token, matchId, invitationDraft);
+                  setShowInvitationEditor(false);
+                  await loadMatch();
+                } catch (reason) {
+                  setInvitationValidationError(reason instanceof Error ? reason.message : 'Không thể lưu phạm vi lời mời.');
+                } finally {
+                  setIsBusy(false);
+                }
+              })();
             }}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-[11px] font-bold text-[#526158] sm:col-span-2">Tiêu đề lời mời
@@ -1009,10 +1018,10 @@ export const MatchDetail = () => {
                   <input className="community-input mt-1 w-full" disabled={isBusy} min={invitationDraft.availableDateFrom || todayDateKey()} onChange={(event) => setInvitationDraft((current) => ({ ...current, availableDateTo: event.target.value }))} required type="date" value={invitationDraft.availableDateTo} />
                 </label>
                 <label className="block text-[11px] font-bold text-[#526158]">Trình độ thấp nhất
-                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, minSkillLevel: Number(event.target.value) }))} value={invitationDraft.minSkillLevel}>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>Level {level}</option>)}</select>
+                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, minSkillLevel: Number(event.target.value) }))} value={invitationDraft.minSkillLevel}>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>{skillLevelName(level)}</option>)}</select>
                 </label>
                 <label className="block text-[11px] font-bold text-[#526158]">Trình độ cao nhất
-                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, maxSkillLevel: Number(event.target.value) }))} value={invitationDraft.maxSkillLevel}>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>Level {level}</option>)}</select>
+                  <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, maxSkillLevel: Number(event.target.value) }))} value={invitationDraft.maxSkillLevel}>{[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>{skillLevelName(level)}</option>)}</select>
                 </label>
                 <label className="block text-[11px] font-bold text-[#526158]">Hình thức
                   <select className="community-input mt-1 w-full" disabled={isBusy} onChange={(event) => setInvitationDraft((current) => ({ ...current, matchType: event.target.value as MatchFormat }))} value={invitationDraft.matchType}><option value="1vs1">1 vs 1</option><option value="2vs2">2 vs 2</option></select>
@@ -1070,7 +1079,7 @@ export const MatchDetail = () => {
                 <p className="text-[11px] font-bold text-amber-900">Chờ duyệt ({pending.length})</p>
                 {pending.map((participant) => (
                   <div className="flex items-center justify-between gap-2 rounded-md bg-white p-2" key={participant.participantId}>
-                    <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-[#64736a]">Level {participant.skillLevel.toFixed(1)}</p></div>
+                    <div className="min-w-0"><p className="truncate text-[11px] font-bold">{participant.playerName}</p><p className="text-[10px] text-[#64736a]">{skillLevelName(Math.round(participant.skillLevel))}</p></div>
                     <div className="flex shrink-0 gap-1">
                       <button className="grid h-11 w-11 place-items-center rounded-md border border-red-300 text-red-700" disabled={isBusy} onClick={async () => token && (await confirm({ title: `Từ chối yêu cầu tham gia của ${participant.playerName}?`, confirmLabel: 'Từ chối', tone: 'danger' })) && void run(() => rejectParticipant(token, matchId, participant.participantId))} title="Từ chối" type="button"><X className="h-3.5 w-3.5" /></button>
                       <button aria-label={`Chấp nhận ${participant.playerName}`} className="community-button h-11 w-11 !min-h-11 !p-0" disabled={isBusy} onClick={async () => token && (await confirm({ title: `Chấp nhận ${participant.playerName} vào phòng?`, confirmLabel: 'Chấp nhận', tone: 'success' })) && void run(() => acceptParticipant(token, matchId, participant.participantId))} title="Chấp nhận" type="button"><Check className="h-3.5 w-3.5" /></button>
@@ -1086,7 +1095,7 @@ export const MatchDetail = () => {
                 <div className="mt-2 flex flex-wrap gap-1">
                   {invited.map((participant) => (
                     <span className="community-badge !min-h-5 !px-1.5 !py-1 !text-[9px] text-[#526158]" key={participant.participantId}>
-                      {participant.playerName} · Level {participant.skillLevel.toFixed(1)}
+                      {participant.playerName} · {skillLevelName(Math.round(participant.skillLevel))}
                     </span>
                   ))}
                 </div>
@@ -1137,7 +1146,7 @@ export const MatchDetail = () => {
                       >
                         {participant.playerName}
                       </button>
-                      <p className="text-[10px] text-[#64736a]">Level {participant.skillLevel.toFixed(1)}</p>
+                      <p className="text-[10px] text-[#64736a]">{skillLevelName(Math.round(participant.skillLevel))}</p>
                     </div>
                     {match.bookingId && isApprovedMember && participant.paymentStatus && (
                       <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold ${paymentStatusClass(participant.paymentStatus)}`}>

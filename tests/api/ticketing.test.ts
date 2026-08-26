@@ -109,7 +109,7 @@ test('player, owner and staff commands follow the ticketing backend contract', a
   await ticketing.checkInSessionTicket('token', 'PLT-ABC123');
 
   assert.deepEqual(calls.map(({ path, method, body }) => ({ path, method, body })), [
-    { path: '/api/ticket-sessions/11/tickets', method: 'POST', body: undefined },
+    { path: '/api/ticket-sessions/11/tickets', method: 'POST', body: { allowScheduleConflicts: false } },
     { path: '/api/player/tickets/22/cancel', method: 'POST', body: { reason: 'Bận đột xuất' } },
     { path: '/api/owner/ticket-sessions', method: 'POST', body: compatibleInput },
     { path: '/api/owner/ticket-sessions/11', method: 'PUT', body: compatibleInput },

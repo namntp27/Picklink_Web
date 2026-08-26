@@ -687,10 +687,14 @@ export const Messages = () => {
         avatarUrl: newMsg.senderAvatarUrl,
         mediaUrl: newMsg.mediaUrl,
       };
-      setMessagesByConversation((prev) => ({
-        ...prev,
-        [activeConversation.id]: [...(prev[activeConversation.id] ?? []), chatMsg],
-      }));
+      setMessagesByConversation((prev) => {
+        const current = prev[activeConversation.id] ?? [];
+        if (current.some((m) => m.id === chatMsg.id)) return prev;
+        return {
+          ...prev,
+          [activeConversation.id]: [...current, chatMsg],
+        };
+      });
     } catch (err: any) {
       notify(err.message || 'Không thể tải lên tệp tin.', 'error');
     } finally {
