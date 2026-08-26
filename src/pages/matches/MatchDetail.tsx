@@ -46,7 +46,6 @@ import {
   type MatchBookingSlot,
   type MatchFormat,
   type MatchPreferredVenue,
-  type MatchParticipant,
   type MatchSlotOption,
 } from '../../api/matches';
 import { ApiError, ApiErrorCodes } from '../../api/client';
@@ -58,7 +57,6 @@ import { CommunityHero, CommunityPage } from '../community/CommunityUI';
 import { MatchSlotReplacementPanel } from './MatchSlotReplacementPanel';
 import { MatchPostMatchReviewPanel } from './MatchPostMatchReviewPanel';
 import { CourtTimelineGrid } from '../courts/components/CourtTimelineGrid';
-import { PlayerProfileDialog } from './components/PlayerProfileDialog';
 import { PlayerHoverCard } from './components/PlayerHoverCard';
 import { ModalDialog } from '../../components/ui/ModalDialog';
 import { ScheduleConflictDialog } from '../../components/ScheduleConflictDialog';
@@ -310,7 +308,6 @@ export const MatchDetail = () => {
   const [isSearchingInvitationVenues, setIsSearchingInvitationVenues] = useState(false);
   const [openInvitationTimePicker, setOpenInvitationTimePicker] = useState<{ slotIndex: number; field: 'start' | 'end' } | null>(null);
   const [invitationValidationError, setInvitationValidationError] = useState('');
-  const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<MatchParticipant | null>(null);
   const [bookingClock, setBookingClock] = useState(() => Date.now());
   const [isBusy, setIsBusy] = useState(false);
   const isCreatingBookingRef = useRef(false);
@@ -1110,13 +1107,21 @@ export const MatchDetail = () => {
                   <button
                     aria-label={`Xem thông tin ${participant.playerName}`}
                     className="match-member-avatar overflow-hidden transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
-                    onClick={() => setSelectedProfilePlayer(participant)}
                     title="Xem thông tin người chơi"
                     type="button"
                   >
                     {participant.avatarUrl
                       ? <img alt="" className="h-full w-full object-cover" decoding="async" loading="lazy" src={participant.avatarUrl} />
                       : participant.playerName.split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase()}
+                  </button>
+                );
+                const nameButton = (
+                  <button
+                    className="block max-w-full truncate text-left text-[12px] font-bold hover:text-[#477313] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
+                    title={`Xem thông tin ${participant.playerName}`}
+                    type="button"
+                  >
+                    {participant.playerName}
                   </button>
                 );
                 return (
@@ -1138,14 +1143,11 @@ export const MatchDetail = () => {
                         </span>
                         {isCurrentPlayer && <span className="match-self-badge">Bạn</span>}
                       </div>
-                      <button
-                        className="block max-w-full truncate text-left text-[12px] font-bold hover:text-[#477313] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#477313]"
-                        onClick={() => setSelectedProfilePlayer(participant)}
-                        title={`Xem thông tin ${participant.playerName}`}
-                        type="button"
-                      >
-                        {participant.playerName}
-                      </button>
+                      {isCurrentPlayer ? nameButton : (
+                        <PlayerHoverCard className="block w-full min-w-0" focusable={false} playerId={participant.playerId} playerName={participant.playerName}>
+                          {nameButton}
+                        </PlayerHoverCard>
+                      )}
                       <p className="text-[10px] text-[#64736a]">{skillLevelName(Math.round(participant.skillLevel))}</p>
                     </div>
                     {match.bookingId && isApprovedMember && participant.paymentStatus && (
@@ -1190,7 +1192,7 @@ export const MatchDetail = () => {
                 <div>
                   <p className="match-eyebrow">giữ sân</p>
                   <h2>Chọn lịch và tạo booking</h2>
-                  <p>Chọn tự do các slot trống, kể cả slot rời nhau hoặc nhiều sân cùng một khung giờ. Chủ phòng hoặc thành viên đã được duyệt đều có thể tạo booking.</p>
+                  <p>Chọn tự do các slot trống, kể cả slot rời nhau hoặc nhiều sân cùng một khung giờ. Chỉ chủ phòng mới có thể tạo booking, các thành viên khác có thể xem lịch để cùng thống nhất.</p>
                   <p>Dùng chat để thảo luận, vote các slot rảnh chung rồi tạo booking khi cả nhóm chốt.</p>
                 </div>
                 <span className="match-soft-badge">{selectedSlots.length ? `${selectedSlots.length} slot` : 'Chưa chọn'}</span>
@@ -1261,17 +1263,23 @@ export const MatchDetail = () => {
                   <div><p className="text-[11px] font-bold text-[#718077]">Dự kiến mỗi người</p><p className="mt-1 font-extrabold text-[#477313]">{currency.format(estimatedAmountPerPlayer)}</p></div>
                 </div>
               )}
-              <button className="community-button mt-4 w-full" disabled={isBusy || (!selectedSlots.length && !currentMatchHolding)} onClick={() => {
-                if (currentMatchHolding) {
-                  const checkoutPath = holdingCheckoutPath(currentMatchHolding.slot, currentMatchHolding.date);
-                  if (checkoutPath) navigate(checkoutPath);
-                  return;
-                }
-                void createBooking();
-              }} type="button">
-                <CreditCard className="h-4 w-4" /> {isBusy ? 'Đang tạo booking...' : currentMatchHolding ? 'Tiếp tục thanh toán booking đang giữ' : 'Tạo booking và chuyển sang thanh toán'}
-              </button>
-              {bookingSubmitError && <div aria-live="assertive" className="match-alert picklink-inline-alert mt-3" role="alert">{bookingSubmitError}</div>}
+              {match.isHost ? (
+                <>
+                  <button className="community-button mt-4 w-full" disabled={isBusy || (!selectedSlots.length && !currentMatchHolding)} onClick={() => {
+                    if (currentMatchHolding) {
+                      const checkoutPath = holdingCheckoutPath(currentMatchHolding.slot, currentMatchHolding.date);
+                      if (checkoutPath) navigate(checkoutPath);
+                      return;
+                    }
+                    void createBooking();
+                  }} type="button">
+                    <CreditCard className="h-4 w-4" /> {isBusy ? 'Đang tạo booking...' : currentMatchHolding ? 'Tiếp tục thanh toán booking đang giữ' : 'Tạo booking và chuyển sang thanh toán'}
+                  </button>
+                  {bookingSubmitError && <div aria-live="assertive" className="match-alert picklink-inline-alert mt-3" role="alert">{bookingSubmitError}</div>}
+                </>
+              ) : (
+                <p className="mt-4 text-[12px] font-semibold text-[#718077]">Chỉ chủ phòng mới có thể tạo booking từ các slot đã chọn.</p>
+              )}
             </section>
           )}
 
@@ -1529,16 +1537,6 @@ export const MatchDetail = () => {
             venues={match.preferredVenues}
           />
         </Suspense>
-      )}
-
-      {selectedProfilePlayer && (
-        <PlayerProfileDialog
-          fallbackAvatarUrl={selectedProfilePlayer.avatarUrl}
-          fallbackName={selectedProfilePlayer.playerName}
-          onClose={() => setSelectedProfilePlayer(null)}
-          playerId={selectedProfilePlayer.playerId}
-          roleLabel={selectedProfilePlayer.isHost ? 'Chủ phòng' : 'Thành viên'}
-        />
       )}
 
       {scheduleConflicts.length > 0 && (

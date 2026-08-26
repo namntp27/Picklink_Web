@@ -42,6 +42,7 @@ export type UpdatePlayerProfile = {
 
 export type PublicPlayerProfile = {
   playerId: number;
+  userId: number;
   username: string;
   profileImageUrl?: string | null;
   city?: string | null;

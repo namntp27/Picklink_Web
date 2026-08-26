@@ -104,6 +104,8 @@ const formatDuration = (totalSecs: number) => {
   return `${hStr}${mStr}:${sStr}`;
 };
 
+const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
+
 const dateLabel = (value: string) => {
   try {
     return new Intl.DateTimeFormat('vi-VN', {
@@ -674,11 +676,15 @@ export const QueueDetail = () => {
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                 <p className="text-[11px] font-bold text-slate-400 uppercase">Hình thức</p>
                 <p className="mt-1 text-[16px] font-extrabold text-[#0b2228]">{queue.matchType}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Lobby {totalSlots} người chơi</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Phòng {totalSlots} người chơi</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                 <p className="text-[11px] font-bold text-slate-400 uppercase">Trình độ yêu cầu</p>
-                <p className="mt-1 text-[16px] font-extrabold text-[#0b2228]">⭐ Level {queue.minSkillLevel ?? 1}-{queue.maxSkillLevel ?? 5}</p>
+                <p className="mt-1 text-[16px] font-extrabold text-[#0b2228]">
+                  {queue.minSkillLevel === queue.maxSkillLevel
+                    ? skillLevelName(queue.minSkillLevel)
+                    : `${skillLevelName(queue.minSkillLevel)} - ${skillLevelName(queue.maxSkillLevel)}`}
+                </p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Khoảng trình độ đã chọn</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 flex flex-col justify-between">
