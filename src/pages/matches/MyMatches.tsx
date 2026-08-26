@@ -179,7 +179,12 @@ export const MyMatches = () => {
   }, [activeFilter, linkedQueueMatchIds, matches]);
 
   const activeQueues = useMemo(
-    () => myQueues.filter((queue) => !queue.isPublic),
+    () => myQueues.filter((queue) => !queue.isPublic && (queue.isActive || !queue.matchId)),
+    [myQueues],
+  );
+
+  const hasMatchedQueues = useMemo(
+    () => myQueues.some((queue) => !queue.isPublic && queue.matchId && !queue.isActive),
     [myQueues],
   );
 
@@ -576,9 +581,13 @@ export const MyMatches = () => {
             <div className="sm:col-span-2 lg:col-span-3">
               <CommunityEmptyState
                 action={<Link className="community-button" to="/opponents/create">Tạo lời mời</Link>}
-                description="Các phòng phù hợp với trạng thái này sẽ xuất hiện tại đây."
+                description={
+                  activeFilter === 'ActiveQueues' && hasMatchedQueues
+                    ? 'Các vé của bạn đã ghép đủ người — xem phòng tại tab "Sẵn sàng đặt sân".'
+                    : 'Các phòng phù hợp với trạng thái này sẽ xuất hiện tại đây.'
+                }
                 icon={Trophy}
-                title="Chưa có phòng trong nhóm này"
+                title={activeFilter === 'ActiveQueues' && hasMatchedQueues ? 'Không còn vé nào đang tìm kiếm' : 'Chưa có phòng trong nhóm này'}
               />
             </div>
           )}
