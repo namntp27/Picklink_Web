@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppFrame } from '@/apps/AppFrame';
 import { lazyPage } from '@/apps/lazyPage';
 import { ProtectedRoute, PublicOnlyRoute } from '@/auth/ProtectedRoute';
+import { NotificationToastBridge } from '@/components/notifications/NotificationToastBridge';
 import { prefetchAdminRoute } from '@/navigation/adminRoutePrefetch';
 
 const ForgotPassword = lazyPage(() => import('@/pages/auth/ForgotPassword'), 'ForgotPassword');
@@ -22,6 +23,7 @@ const AdminUsers = lazyPage(() => import('@/pages/admin/AdminUsers'), 'AdminUser
 
 export const AdminApp = () => (
   <AppFrame prefetchRoute={prefetchAdminRoute}>
+    <NotificationToastBridge />
     <Routes>
       <Route path="/" element={<Navigate replace to="/admin" />} />
       <Route element={<PublicOnlyRoute allowedRoles={['admin']} />}>

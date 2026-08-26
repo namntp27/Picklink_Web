@@ -6,7 +6,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useNotificationRealtime } from '../../hooks/useNotificationRealtime';
 import { ModalDialog } from '../ui/ModalDialog';
 
-const isAutomaticMatch = (notification: NotificationItem) =>
+export const isAutomaticMatch = (notification: NotificationItem) =>
   notification.title === 'Đã tìm thấy trận đấu!'
   && /^\/opponents\/queue\/\d+$/.test(notification.linkTo ?? '');
 

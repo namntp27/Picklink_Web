@@ -3,6 +3,7 @@ import { AppFrame } from '@/apps/AppFrame';
 import { lazyPage } from '@/apps/lazyPage';
 import { useAuth } from '@/auth/AuthContext';
 import { ProtectedRoute, PublicOnlyRoute } from '@/auth/ProtectedRoute';
+import { NotificationToastBridge } from '@/components/notifications/NotificationToastBridge';
 import { prefetchOwnerRoute } from '@/navigation/ownerRoutePrefetch';
 
 const ForgotPassword = lazyPage(() => import('@/pages/auth/ForgotPassword'), 'ForgotPassword');
@@ -33,6 +34,7 @@ const OwnerRootRedirect = () => {
 
 export const OwnerApp = () => (
   <AppFrame prefetchRoute={prefetchOwnerRoute}>
+    <NotificationToastBridge />
     <Routes>
       <Route path="/" element={<OwnerRootRedirect />} />
       <Route element={<PublicOnlyRoute allowedRoles={['owner', 'staff']} />}>

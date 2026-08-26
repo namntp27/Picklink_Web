@@ -16,7 +16,8 @@ test('manual invitations keep their queue detail interface after a room is linke
   assert.match(source, /navigate\(`\/opponents\/queue\/\$\{queueId\}`\)/);
   assert.match(source, /onClick=\{\(\) => handleOpenQueue\(q\)\}/);
   assert.match(source, /\(\) => getPublicQueues\(token\)/);
-  assert.match(source, /paginatedQueues\.map\(\(q\) =>/);
+  assert.match(source, /paginatedFeed\.map\(\(item\) =>/);
+  assert.match(source, /const q = item\.queue;/);
   assert.match(source, /getOpenMatches\(token \?\? undefined, \{ source: 'replacement'/);
   assert.match(source, /getOpenMatches\(token \?\? undefined, \{ page: 1, pageSize: 50 \}\)/);
   assert.match(source, /filteredRecruitmentMatches/);

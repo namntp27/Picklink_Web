@@ -47,9 +47,11 @@ test('the custom-range chart keeps every selected day in a horizontal scroller',
 });
 
 test('summary cards filter and reveal the payment history', () => {
-  assert.ok(pageSource.includes("const showTransactions = (status: Exclude<TransactionStatus, 'all'>) =>"));
+  assert.ok(pageSource.includes('const showTransactions = (status: TransactionStatus) => {'));
   assert.equal((pageSource.match(/onClick: \(\) => showTransactions\('paid'\)/g) ?? []).length, 3);
-  assert.ok(pageSource.includes("onClick: () => showTransactions('pending')"));
+  // The "Chờ thanh toán" card jumps to 'all' rather than 'pending' — not-yet-paid holds aren't in
+  // the itemized list below, so filtering to 'pending' would land on an empty view.
+  assert.ok(pageSource.includes("onClick: () => showTransactions('all')"));
   assert.ok(pageSource.includes("onClick={() => showTransactions('refunded')}"));
   assert.ok(pageSource.includes('id="owner-revenue-history"'));
   assert.ok(pageSource.includes("scrollIntoView({ behavior: 'smooth', block: 'start' })"));

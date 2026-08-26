@@ -152,6 +152,7 @@ export const Opponents = () => {
     { id: 1, timeFrom: '18:00', timeTo: '20:00' },
   ]);
   const [format, setFormat] = useState<MatchFormat>('2vs2');
+  const minPlayerCount = format === '2vs2' ? 4 : 2;
   const [playerCount, setPlayerCount] = useState(4);
   const [minSkillLevel, setMinSkillLevel] = useState(1);
   const [maxSkillLevel, setMaxSkillLevel] = useState(5);
@@ -433,6 +434,8 @@ export const Opponents = () => {
 
   const changeFormat = (value: MatchFormat) => {
     setFormat(value);
+    // 2vs2 needs two full teams (4 players); mirrors the min/max skill auto-correct below.
+    if (value === '2vs2' && playerCount < 4) setPlayerCount(4);
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -441,6 +444,10 @@ export const Opponents = () => {
 
     if (creationMode === 'manual' && !title.trim()) {
       setError('Vui lòng nhập tiêu đề lời mời.');
+      return;
+    }
+    if (creationMode === 'manual' && format === '2vs2' && playerCount < 4) {
+      setError('Thể thức 2vs2 cần tối thiểu 4 người chơi.');
       return;
     }
     if (!token) {
@@ -679,7 +686,7 @@ export const Opponents = () => {
                 <label>
                   <span className="mb-1.5 block text-[12px] font-extrabold text-[#526158]">Số người chơi</span>
                   <select className={inputClass} onChange={(event) => setPlayerCount(Number(event.target.value))} value={playerCount}>
-                    {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
+                    {Array.from({ length: 9 - minPlayerCount }, (_, index) => index + minPlayerCount).map((count) => (
                       <option key={count} value={count}>{count} người</option>
                     ))}
                   </select>

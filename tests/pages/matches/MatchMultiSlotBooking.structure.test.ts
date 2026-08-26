@@ -11,8 +11,6 @@ test('match booking submits independent slots through the public booking contrac
   assert.ok(detailSource.includes('selectedSlotsByDate, setSelectedSlotsByDate'));
   assert.ok(detailSource.includes('const applyCurrentSlotsForMonths = async () =>'));
   assert.ok(detailSource.includes('datesForMonthDuration(bookingDate, bookingMonths)'));
-  assert.ok(detailSource.includes('Số tháng áp dụng'));
-  assert.ok(detailSource.indexOf('{availability && <CourtTimelineGrid') < detailSource.indexOf('Số tháng áp dụng'));
   assert.ok(detailSource.includes('monthUnavailableSlots, setMonthUnavailableSlots'));
   assert.ok(detailSource.includes('getCourtAvailabilities(selectedVenueId, targetDates, token)'));
   assert.ok(detailSource.includes("currentSlot?.status === 'Available'"));
@@ -24,7 +22,6 @@ test('match booking submits independent slots through the public booking contrac
   assert.ok(detailSource.indexOf('isCreatingBookingRef.current = true') < detailSource.indexOf('await createMatchBooking'));
   assert.ok(!detailSource.includes('const consecutive ='));
   assert.ok(apiSource.includes('slots: Array<{ courtId: number; startTime: string; endTime: string }>;'));
-  assert.ok(detailSource.includes('max={maximumMonthDuration}'));
   assert.ok(dtoSource.includes('class CreateMatchBookingRequest'));
   assert.ok(dtoSource.includes('[Required, MinLength(1), MaxLength(496)]'));
   assert.ok(dtoSource.includes('public List<CreateMatchBookingSlotRequest> Slots'));

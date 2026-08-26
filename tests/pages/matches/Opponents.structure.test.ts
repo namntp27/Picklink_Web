@@ -30,7 +30,9 @@ test('opponents page keeps province and ward updates atomic and race-safe', () =
 });
 
 test('opponents create form enforces playable one-off dates and 30-minute slots', () => {
-  assert.match(source, /type="time"/);
+  // The time fields moved from <input type="time"> to the shared HalfHourTimeSelect, so a past
+  // time for today is no longer blocked via a native min= attribute — it's caught at submit time.
+  assert.match(source, /HalfHourTimeSelect/);
   assert.match(source, /durationMinutes < 30/);
   assert.match(source, /replayType: 'None'/);
   assert.match(source, /dateFrom < today\(\)/);
@@ -39,7 +41,7 @@ test('opponents create form enforces playable one-off dates and 30-minute slots'
   assert.match(source, /max=\{maxAvailableDateTo\(dateFrom\)\}/);
   assert.match(
     source,
-    /min=\{dateFrom === today\(\) \? currentTime\(\) : undefined\}/,
+    /dateFrom === today\(\) && orderedAvailabilitySlots\.some\(\(slot\) => slot\.timeTo <= currentTime\(\)\)/,
   );
   assert.doesNotMatch(source, /TimeDropdownInput/);
   assert.doesNotMatch(source, /const timeOptions/);

@@ -100,6 +100,13 @@ const queueMatchesDate = (queue: QueueStatusResponse, selectedDate: string) => {
 
 const skillLevelName = (level?: number) => ({ 1: 'Mới chơi', 2: 'Cơ bản', 3: 'Trung bình', 4: 'Khá', 5: 'Nâng cao' }[level ?? 1] ?? 'Mới chơi');
 
+const createdAtMs = (value?: string | null) => value ? new Date(value).getTime() : 0;
+
+type FeedItem =
+  | { kind: 'recruitment'; createdAt: string; match: MatchSummary }
+  | { kind: 'replacement'; createdAt: string; match: MatchSummary }
+  | { kind: 'queue'; createdAt: string; queue: QueueStatusResponse };
+
 const PAGE_SIZE = 15;
 const emptyQueues: QueueStatusResponse[] = [];
 const emptyMatches: MatchSummary[] = [];
@@ -263,16 +270,25 @@ export const PendingInvites = () => {
     if (filters.ward && match.ward !== filters.ward) return false;
     return !filters.date || (match.availableDateFrom <= filters.date && match.availableDateTo >= filters.date);
   }), [openMatches, filters.date, filters.format, filters.province, filters.skill, filters.ward]);
+  const feedItems = useMemo(() => {
+    const items: FeedItem[] = [
+      ...filteredRecruitmentMatches.map((match): FeedItem => ({ kind: 'recruitment', createdAt: match.createdAt, match })),
+      ...filteredReplacementMatches.map((match): FeedItem => ({ kind: 'replacement', createdAt: match.createdAt, match })),
+      ...filteredQueues.map((queue): FeedItem => ({ kind: 'queue', createdAt: queue.createdAt ?? '', queue })),
+    ];
+    return items.sort((a, b) => createdAtMs(b.createdAt) - createdAtMs(a.createdAt));
+  }, [filteredRecruitmentMatches, filteredReplacementMatches, filteredQueues]);
+
   const pagination = useMemo(() => ({
     page,
     pageSize: PAGE_SIZE,
-    totalCount: filteredQueues.length,
-    totalPages: Math.max(1, Math.ceil(filteredQueues.length / PAGE_SIZE)),
-  }), [filteredQueues.length, page]);
+    totalCount: feedItems.length,
+    totalPages: Math.max(1, Math.ceil(feedItems.length / PAGE_SIZE)),
+  }), [feedItems.length, page]);
 
-  const paginatedQueues = useMemo(
-    () => filteredQueues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filteredQueues, page],
+  const paginatedFeed = useMemo(
+    () => feedItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [feedItems, page],
   );
 
   useEffect(() => {
@@ -398,9 +414,11 @@ export const PendingInvites = () => {
               <div className="mt-3 h-28 rounded-lg bg-[#f2f5f0]" />
             </article>
           ))}
-          {filteredRecruitmentMatches.map((match) => {
-            const isDirectInvitation = match.myParticipantStatus === 'Invited';
-            return (
+          {paginatedFeed.map((item) => {
+            if (item.kind === 'recruitment') {
+              const match = item.match;
+              const isDirectInvitation = match.myParticipantStatus === 'Invited';
+              return (
               <article className="community-card flex h-full flex-col justify-between border-[#d6ee61] p-3 ring-1 ring-[#dfff5a]/70" key={`recruitment-${match.matchId}`}>
                 <div>
                   <div className="flex flex-wrap gap-1.5">
@@ -488,9 +506,12 @@ export const PendingInvites = () => {
                   </Link>
                 </div>
               </article>
-            );
-          })}
-          {filteredReplacementMatches.map((match) => (
+              );
+            }
+
+            if (item.kind === 'replacement') {
+              const match = item.match;
+              return (
             <article className="community-card h-full p-3 flex flex-col justify-between" key={`replacement-${match.matchId}`}>
               <div className="flex flex-col gap-2.5">
                 <div className="flex flex-wrap gap-1.5">
@@ -509,9 +530,11 @@ export const PendingInvites = () => {
                 <UserPlus aria-hidden="true" className="h-3.5 w-3.5" /> Xem và đăng ký chơi thay
               </Link>
             </article>
-          ))}
-          {paginatedQueues.map((q) => {
-                const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
+              );
+            }
+
+            const q = item.queue;
+            const maxCap = q.playerCount ?? (q.matchType === '1vs1' ? 2 : 4);
                 const approvedPlayers = q.queuePlayers.filter((qp) => qp.status === 'Approved' || qp.status === 'Accepted');
                 const myRequest = q.queuePlayers.find((player) => player.isCurrentPlayer);
                 const isMine = myRequest?.status === 'Approved' || myRequest?.status === 'Accepted';

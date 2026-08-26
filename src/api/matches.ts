@@ -81,6 +81,7 @@ export type MatchSummary = {
   isHost: boolean;
   myParticipantStatus?: ParticipantStatus | null;
   myPaymentStatus?: string | null;
+  createdAt: string;
 };
 
 export type MatchParticipant = {

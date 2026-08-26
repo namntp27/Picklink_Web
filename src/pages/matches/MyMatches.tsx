@@ -57,6 +57,13 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 }).format(new Date(`${value}T00:00:00`));
 
+const createdAtLabel = (value?: string | null) => value && new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(new Date(value));
+
 const timePart = (value: string) => value.slice(11, 16);
 
 const queueVenueIds = (sharedVenues?: string | null) => sharedVenues
@@ -123,9 +130,7 @@ export const MyMatches = () => {
   );
 
   const selectedVenueKey = useMemo(() => Array.from(new Set(
-    myQueues
-      .filter((queue) => queue.isPublic)
-      .flatMap((queue) => queueVenueIds(queue.sharedVenues)),
+    myQueues.flatMap((queue) => queueVenueIds(queue.sharedVenues)),
   )).sort((left, right) => left - right).join(','), [myQueues]);
 
   const { data: queueVenues = emptyQueueVenues } = useApiQuery(
@@ -136,7 +141,7 @@ export const MyMatches = () => {
       const queueVenues: Record<number, MatchPreferredVenue[]> = {};
 
       myQueues.forEach((queue) => {
-        if (!queue.isPublic || queue.matchmakingQueueId == null) return;
+        if (queue.matchmakingQueueId == null) return;
         queueVenues[queue.matchmakingQueueId] = queueVenueIds(queue.sharedVenues)
           .flatMap((venueId) => {
             const venue = venuesById.get(venueId);
@@ -163,15 +168,15 @@ export const MyMatches = () => {
     void load();
   });
 
-  const linkedManualMatchIds = useMemo(
-    () => new Set(myQueues.filter((queue) => queue.isPublic && queue.matchId).map((queue) => queue.matchId)),
+  const linkedQueueMatchIds = useMemo(
+    () => new Set(myQueues.filter((queue) => queue.matchId).map((queue) => queue.matchId)),
     [myQueues],
   );
 
   const visible = useMemo(() => {
-    if (activeFilter === 'all') return matches.filter((match) => !linkedManualMatchIds.has(match.matchId));
+    if (activeFilter === 'all') return matches.filter((match) => !linkedQueueMatchIds.has(match.matchId));
     return matches.filter((match) => match.status === activeFilter);
-  }, [activeFilter, linkedManualMatchIds, matches]);
+  }, [activeFilter, linkedQueueMatchIds, matches]);
 
   const activeQueues = useMemo(
     () => myQueues.filter((queue) => !queue.isPublic),
@@ -375,6 +380,11 @@ export const MyMatches = () => {
                             : queue.isActive ? 'Lời mời tìm trận đấu tự động' : 'Tìm trận đấu đang tạm dừng'}
                         </h2>
                       </Link>
+                      {!queue.isPublic && queue.createdAt && (
+                        <p className="mt-0.5 text-[10px] font-semibold text-[#718077]">
+                          Tạo lúc {createdAtLabel(queue.createdAt)} · #{queue.matchmakingQueueId}
+                        </p>
+                      )}
                       {queue.isPublic ? (
                         <>
                           {host && (
@@ -385,13 +395,18 @@ export const MyMatches = () => {
                               <span className="min-w-0"><span className="block text-[9px] font-bold leading-3 text-[#718077]">Chủ phòng</span><span className="block truncate text-[10px] font-extrabold leading-4 text-[#526158]">{host.playerName}</span></span>
                             </div>
                           )}
-                          <p className="mt-2 text-[11px] leading-4 text-[#526158]">Tần suất tìm lại: <strong className="font-bold text-[#0b2228]">{queue.replayType === 'None' ? 'Một lần' : queue.replayType}</strong></p>
                         </>
                       ) : (
-                        <p className="mt-1 text-[11px] leading-4 text-[#526158] line-clamp-2">
-                          {queue.province ? `Khu vực: ${queue.ward ? `${queue.ward}, ` : ''}${queue.province}` : 'Sử dụng GPS định vị tìm sân gần nhất'}
-                          {queue.sharedVenues && ` · Sân ưu tiên: ${queue.sharedVenues}`}
-                        </p>
+                        <>
+                          <p className="mt-1 text-[11px] leading-4 text-[#526158] line-clamp-2">
+                            {queue.province ? `Khu vực: ${queue.ward ? `${queue.ward}, ` : ''}${queue.province}` : 'Sử dụng GPS định vị tìm sân gần nhất'}
+                          </p>
+                          {selectedVenues.length > 0 && (
+                            <p className="mt-1 text-[11px] leading-4 text-[#526158] line-clamp-2">
+                              Sân ưu tiên: {selectedVenues.map((venue) => venue.venueName).join(', ')}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
 

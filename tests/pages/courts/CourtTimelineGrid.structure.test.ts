@@ -81,13 +81,15 @@ test('court schedule limits player booking dates to the end of next month', () =
   assert.match(scheduleSource, /value <= maxScheduleDate\(\)/);
   assert.match(scheduleSource, /max=\{maxScheduleDate\(\)\}/);
 });
-test('court schedule applies slots for a rolling number of months', () => {
-  assert.match(scheduleSource, /Số tháng áp dụng/);
-  assert.match(scheduleSource, /type="number"/);
+test('court schedule applies the selected slots to a single upcoming month', () => {
+  // bookingMonths is fixed at 1 by product decision — there is no control to raise it, only the
+  // clamp-on-date-change below. Don't reintroduce a month-count input without a new requirement.
+  assert.match(scheduleSource, /const \[bookingMonths, setBookingMonths\] = useState\(1\)/);
   assert.match(scheduleSource, /datesForMonthDuration\(date, bookingMonths\)/);
   assert.match(scheduleSource, /formatDateKey\(bookingRangeEnd\)/);
   assert.match(scheduleSource, /maximumAdvanceBookingMonths/);
   assert.doesNotMatch(scheduleSource, /type="month"/);
+  assert.doesNotMatch(scheduleSource, /type="number"/);
 });
 
 
